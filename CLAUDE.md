@@ -1,4 +1,4 @@
-﻿# FreedSolutions - CLAUDE Reference
+# FreedSolutions - CLAUDE Reference
 
 ## Project Overview
 
@@ -36,6 +36,22 @@ Current status:
 ## Build System
 
 Execute `node build.js` to regenerate `linkedin-carousel.jsx`. The build order is defined in `build.js` to ensure proper dependency flow in the concatenated artifact.
+
+## GitHub Workflow
+
+- Primary remote: `origin` -> `https://github.com/freedsolutions/FreedSolutions.git`.
+- Main branch: `main`.
+- Make source edits in `src/` (especially `src/App.jsx` and `src/canvas/*`), then run `node build.js` to regenerate `linkedin-carousel.jsx`.
+- Commit source + generated artifact together when behavior changes, so repo stays reproducible from a single commit.
+- Before push: `git status`, `git diff`, and confirm `linkedin-carousel.jsx` matches the latest build output.
+- Push with `git push origin main`.
+- Verify remote state with `git ls-remote --heads origin` or GitHub commit list.
+
+## Documentation Workflow
+
+- `CLAUDE.md`: architecture, build/export behavior, and repo workflows (including GitHub process).
+- `Checklist.md`: detailed tweak/change log for product behavior and UI decisions.
+- Git-only operations (create repo, set remote, push) do not require `Checklist.md` updates unless they also change app behavior or handoff expectations.
 
 ## Generator Architecture (`src/App.jsx` + `src/canvas/*`)
 
@@ -89,7 +105,7 @@ Exports use an inline PDF builder - no external libraries or CDN dependencies.
 ### UX pattern
 - No auto-open (`window.open` removed - sandbox-hostile).
 - User clicks "Save {filename}" link to download.
-- Link auto-dismisses 1.5s after click (blob URL revoked via `clearPdfDownload`). Manual `×` dismiss also available.
+- Link auto-dismisses 1.5s after click (blob URL revoked via `clearPdfDownload`). Manual `�` dismiss also available.
 - Trust copy: "Generated locally in browser; no upload."
 
 ### Naming
