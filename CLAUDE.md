@@ -111,7 +111,7 @@ Exports use an inline PDF builder - no external libraries or CDN dependencies.
 ### UX pattern
 - No auto-open (`window.open` removed - sandbox-hostile).
 - User clicks "Save {filename}" link to download.
-- Link auto-dismisses 1.5s after click (blob URL revoked via `clearPdfDownload`). Manual `�` dismiss also available.
+- Link auto-dismisses 1.5s after click (blob URL revoked via `clearPdfDownload`). Manual `x` dismiss also available.
 - Trust copy: "Generated locally in browser; no upload."
 
 ### Naming
@@ -151,7 +151,7 @@ JSON-based export/import of complete carousel projects. No localStorage — user
 ### Handlers
 - `downloadPreset(name, includeImages)`: Serializes + creates JSON blob + sets `presetDownload` state with blob URL.
 - `clearPresetDownload()`: Revokes blob URL + clears `presetDownload` state.
-- `handlePresetUpload(e)`: FileReader reads .json, validates, counts missing images, shows confirm dialog, calls `loadPresetData`.
+- `handlePresetUpload(e)`: FileReader reads .json, validates `version === 1` + `slides` array, counts missing image refs (including missing map entries), shows confirm dialog, calls `loadPresetData`.
 
 ### UX Pattern
 - Save: Click "Save" in PRESETS section -> modal dialog for name + "Include images" toggle -> "Save" downloads JSON via blob URL link (same sandbox-safe pattern as PDF export).
@@ -163,6 +163,6 @@ JSON-based export/import of complete carousel projects. No localStorage — user
 - Last updated: February 26, 2026
 - Primary Artifact: `linkedin-carousel.jsx`
 - Source: `src/App.jsx`
-- Approx lines (artifact): ~2,100
+- Approx lines (artifact): ~2,200
 - Status: Functional
 

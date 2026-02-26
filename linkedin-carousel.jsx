@@ -1087,23 +1087,27 @@ export default function App() {
     reader.onload = function(ev) {
       try {
         var data = JSON.parse(ev.target.result);
-        if (!data.version || !data.slides || !Array.isArray(data.slides)) {
-          setPdfError("Invalid preset file format.");
+        if (data.version !== 1 || !Array.isArray(data.slides)) {
+          setPdfError("Invalid preset file format (expected v1).");
           return;
         }
 
         // Count missing images
+        var imageMap = (data.images && typeof data.images === "object") ? data.images : {};
         var missingCount = 0;
-        if (data.profilePicRef && data.images && data.images[data.profilePicRef]) {
-          if (!data.images[data.profilePicRef].dataUrl) missingCount++;
+        if (data.profilePicRef) {
+          var profileEntry = imageMap[data.profilePicRef];
+          if (!profileEntry || !profileEntry.dataUrl) missingCount++;
         }
         for (var i = 0; i < data.slides.length; i++) {
           var sd = data.slides[i];
-          if (sd.customBgRef && data.images && data.images[sd.customBgRef]) {
-            if (!data.images[sd.customBgRef].dataUrl) missingCount++;
+          if (sd.customBgRef) {
+            var bgEntry = imageMap[sd.customBgRef];
+            if (!bgEntry || !bgEntry.dataUrl) missingCount++;
           }
-          if (sd.screenshotRef && data.images && data.images[sd.screenshotRef]) {
-            if (!data.images[sd.screenshotRef].dataUrl) missingCount++;
+          if (sd.screenshotRef) {
+            var ssEntry = imageMap[sd.screenshotRef];
+            if (!ssEntry || !ssEntry.dataUrl) missingCount++;
           }
         }
 
