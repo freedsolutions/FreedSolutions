@@ -1143,13 +1143,13 @@ export default function App() {
               )}
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#28283e", borderRadius: 4, border: "1px solid #444", height: 20, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#28283e", borderRadius: 4, border: "1px solid #444", height: 28, overflow: "hidden" }}>
             <button onClick={function() { if (sizes[sizeKey] > (min || 10)) setSize(sizeKey, sizes[sizeKey] - 1); }}
-              style={{ width: 18, height: 20, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: "20px" }}>{"\u2212"}</button>
+              style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>{"\u2212"}</button>
             <input value={sizes[sizeKey]} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize(sizeKey, Math.max(min || 10, Math.min(max || 60, v))); }}
-              style={{ width: 26, height: 20, border: "none", borderLeft: "1px solid #444", borderRight: "1px solid #444", background: "transparent", color: "#666", fontSize: 10, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+              style={{ width: 30, height: 28, border: "none", borderLeft: "1px solid #444", borderRight: "1px solid #444", background: "transparent", color: "#666", fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
             <button onClick={function() { if (sizes[sizeKey] < (max || 60)) setSize(sizeKey, sizes[sizeKey] + 1); }}
-              style={{ width: 18, height: 20, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: "20px" }}>+</button>
+              style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>+</button>
           </div>
         </div>
       </div>
@@ -1754,18 +1754,18 @@ export default function App() {
                 </div>
                 <div style={{ flex: 1 }} />
                 {/* Font size stepper - always visible, context-aware */}
-                <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#28283e", borderRadius: 4, border: "1px solid #444", height: 20, overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#28283e", borderRadius: 4, border: "1px solid #444", height: 28, overflow: "hidden" }}>
                   {(function() {
                     var sk = currentSlide.showCards ? "cardText" : "body";
                     var mn = 12; var mx = 100;
                     return (
                       <>
                         <button onClick={function() { if (sizes[sk] > mn) setSize(sk, sizes[sk] - 1); }}
-                          style={{ width: 18, height: 20, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: "20px" }}>{"\u2212"}</button>
+                          style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>{"\u2212"}</button>
                         <input value={sizes[sk]} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize(sk, Math.max(mn, Math.min(mx, v))); }}
-                          style={{ width: 26, height: 20, border: "none", borderLeft: "1px solid #444", borderRight: "1px solid #444", background: "transparent", color: "#666", fontSize: 10, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+                          style={{ width: 30, height: 28, border: "none", borderLeft: "1px solid #444", borderRight: "1px solid #444", background: "transparent", color: "#666", fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
                         <button onClick={function() { if (sizes[sk] < mx) setSize(sk, sizes[sk] + 1); }}
-                          style={{ width: 18, height: 20, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: "20px" }}>+</button>
+                          style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>+</button>
                       </>
                     );
                   })()}
@@ -1825,6 +1825,7 @@ export default function App() {
             {pdfDownload && (
               <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
                 <a href={pdfDownload.url} download={pdfDownload.name}
+                  onClick={function() { setTimeout(clearPdfDownload, 1500); }}
                   style={{ fontSize: 11, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
                   {"Save " + pdfDownload.name}
                 </a>

@@ -89,7 +89,7 @@ Exports use an inline PDF builder - no external libraries or CDN dependencies.
 ### UX pattern
 - No auto-open (`window.open` removed - sandbox-hostile).
 - User clicks "Save {filename}" link to download.
-- Link remains until manually dismissed via the `x` button.
+- Link auto-dismisses 1.5s after click (blob URL revoked via `clearPdfDownload`). Manual `×` dismiss also available.
 - Trust copy: "Generated locally in browser; no upload."
 
 ### Naming
@@ -103,6 +103,6 @@ Exports use an inline PDF builder - no external libraries or CDN dependencies.
 - Last updated: February 26, 2026
 - Primary Artifact: `linkedin-carousel.jsx`
 - Source: `src/App.jsx`
-- Approx lines (artifact): ~1,876
+- Approx lines (artifact): ~1,877
 - Status: Functional
 
