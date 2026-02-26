@@ -262,3 +262,19 @@
 ### Export Rework, Item 5: Col 3 UI
 - **What**: Two PDF buttons ("Download Current Slide (PDF)" + "Download All N Slides (PDF)"), one save link when `pdfDownload` exists, dismiss button (`x`), inline error text for `pdfError`, trust copy label. Filename prefix input preserved.
 - **Status**: Done - pending user artifact testing
+
+---
+
+## Preset Save/Load Feature (Session: 2026-02-26)
+
+### Preset Feature: JSON Export/Import
+- **What**: Added full carousel preset save/load via JSON files. Saves all slides (content + visual config), font sizes, export prefix, and optionally all images as base64 data URLs.
+- **Schema**: v1 JSON with `version`, `generator`, `name`, `createdAt`, `exportPrefix`, `sizes`, `slides[]`, `profilePicRef`, and `images{}` map. Non-serializable DOM Image objects replaced with string refs (`customBgRef`, `screenshotRef`, `profilePicRef`) pointing into the `images` map.
+- **Save flow**: PRESETS section (top of Col 1) -> "Save" button -> modal dialog with name input + "Include images" ON/OFF toggle -> generates JSON blob -> shows "Save {filename}.json" link (sandbox-safe, same pattern as PDF export).
+- **Load flow**: "Load" button -> hidden file input (`.json`) -> FileReader parses -> validates `version` + `slides` array -> counts missing images -> confirmation dialog ("replaces all current slides") -> `loadPresetData()` restores all state.
+- **Image handling**: When "Include images" is ON, all images (profile pic, custom backgrounds, screenshots) embedded as base64 data URLs from `Image.src`. When OFF, `dataUrl` is `null` but filenames preserved. On load, images restored asynchronously via `new Image()` with functional state updaters (same pattern as existing upload handlers).
+- **Load behavior**: Destructive replace-all with confirmation dialog. Empty slides array falls back to 1 default slide. Missing/unknown fields handled gracefully via `makeDefaultSlide()` defaults.
+- **New state**: `presetDownload`, `presetDialog`, `presetName`, `presetIncludeImages`, `presetUrlRef`, `presetInputRef`
+- **New functions**: `serializePreset()`, `loadPresetData()`, `downloadPreset()`, `clearPresetDownload()`, `handlePresetUpload()`, `PRESET_SLIDE_KEYS` constant
+- **Files modified**: `src/App.jsx` only (no new files, no build.js changes)
+- **Status**: Done - pending user artifact testing

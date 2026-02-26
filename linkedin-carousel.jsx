@@ -550,6 +550,14 @@ export default function App() {
   var [pdfDownload, setPdfDownload] = useState(null);
   var [pdfError, setPdfError] = useState("");
 
+  // Preset save/load state
+  var presetInputRef = useRef(null);
+  var presetUrlRef = useRef(null);
+  var [presetDownload, setPresetDownload] = useState(null);
+  var [presetDialog, setPresetDialog] = useState(null);
+  var [presetName, setPresetName] = useState("");
+  var [presetIncludeImages, setPresetIncludeImages] = useState(true);
+
 
 
   // Colors (only non-background colors remain here)
@@ -710,6 +718,185 @@ export default function App() {
   };
 
   // Screenshot metadata is unified in slideAssets.
+
+  // --- Preset serialize/deserialize ---
+
+  var PRESET_SLIDE_KEYS = [
+    "title", "showHeading", "showAccentBar", "body",
+    "titleColor", "bodyColor", "showCards", "cards",
+    "cardTextColor", "cardBgColor", "showScreenshot",
+    "showBrandName", "brandNameText", "brandNameColor",
+    "showTopCorner", "topCornerText", "topCornerColor", "topCornerOpacity",
+    "showBottomCorner", "bottomCornerText", "bottomCornerColor", "bottomCornerOpacity",
+    "solidColor", "bgType", "geoEnabled", "geoLines",
+    "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg"
+  ];
+
+  var serializePreset = function(name, includeImages) {
+    var images = {};
+
+    // Profile pic
+    if (profileImg && profileImg.src) {
+      images["profile"] = {
+        name: profilePicName || "profile.jpg",
+        dataUrl: includeImages ? profileImg.src : null
+      };
+    }
+
+    // Per-slide images
+    var serializedSlides = seriesSlides.map(function(s, i) {
+      var slide = {};
+      for (var k = 0; k < PRESET_SLIDE_KEYS.length; k++) {
+        var key = PRESET_SLIDE_KEYS[k];
+        if (key === "cards") {
+          slide[key] = s[key] ? s[key].slice() : ["Card 1"];
+        } else {
+          slide[key] = s[key];
+        }
+      }
+
+      // Custom bg -> ref
+      slide.customBgRef = null;
+      if (s.customBgImage && s.customBgImage.src) {
+        var bgRef = "bg-" + i;
+        slide.customBgRef = bgRef;
+        images[bgRef] = {
+          name: s.customBgName || ("bg-" + i + ".jpg"),
+          dataUrl: includeImages ? s.customBgImage.src : null
+        };
+      }
+
+      // Screenshot -> ref
+      slide.screenshotRef = null;
+      var asset = slideAssets[i];
+      if (asset && asset.image && asset.image.src) {
+        var ssRef = "ss-" + i;
+        slide.screenshotRef = ssRef;
+        images[ssRef] = {
+          name: asset.name || ("screenshot-" + i + ".jpg"),
+          dataUrl: includeImages ? asset.image.src : null,
+          scale: asset.scale || 1
+        };
+      }
+
+      return slide;
+    });
+
+    return {
+      version: 1,
+      generator: "linkedin-carousel",
+      name: name || "Untitled Preset",
+      createdAt: new Date().toISOString(),
+      exportPrefix: exportPrefix,
+      sizes: Object.assign({}, sizes),
+      slides: serializedSlides,
+      profilePicRef: (profileImg && profileImg.src) ? "profile" : null,
+      images: images
+    };
+  };
+
+  var loadPresetData = function(data) {
+    // Restore sizes
+    if (data.sizes) {
+      setSizes(Object.assign({
+        heading: 48, body: 38, cardText: 22,
+        topCorner: 13, bottomCorner: 16, brandName: 20
+      }, data.sizes));
+    }
+
+    // Restore export prefix
+    if (data.exportPrefix != null) {
+      setExportPrefix(data.exportPrefix);
+    }
+
+    // Restore profile pic
+    var profileRef = data.profilePicRef;
+    var profileEntry = profileRef && data.images && data.images[profileRef];
+    if (profileEntry && profileEntry.dataUrl) {
+      var pImg = new Image();
+      pImg.onload = function() {
+        setProfileImg(pImg);
+        setIsCustomProfilePic(true);
+      };
+      pImg.src = profileEntry.dataUrl;
+      setProfilePicName(profileEntry.name || null);
+    } else {
+      setProfileImg(null);
+      setIsCustomProfilePic(false);
+      setProfilePicName(profileEntry ? profileEntry.name : null);
+    }
+
+    // Restore slides
+    var newAssets = {};
+
+    var newSlides = (data.slides || []).map(function(sd, i) {
+      var slide = makeDefaultSlide(sd.title, sd.body);
+      // Overwrite all serializable fields
+      for (var k = 0; k < PRESET_SLIDE_KEYS.length; k++) {
+        var key = PRESET_SLIDE_KEYS[k];
+        if (sd[key] !== undefined) {
+          slide[key] = key === "cards" ? (sd.cards || []).slice() : sd[key];
+        }
+      }
+
+      // Custom bg image
+      slide.customBgImage = null;
+      slide.customBgName = null;
+      var bgRef = sd.customBgRef;
+      var bgEntry = bgRef && data.images && data.images[bgRef];
+      if (bgEntry) {
+        slide.customBgName = bgEntry.name || null;
+        if (bgEntry.dataUrl) {
+          var bgImg = new Image();
+          (function(idx) {
+            bgImg.onload = function() {
+              setSeriesSlides(function(prev) {
+                return prev.map(function(s, si) {
+                  if (si !== idx) return s;
+                  return Object.assign({}, s, { customBgImage: bgImg });
+                });
+              });
+            };
+          })(i);
+          bgImg.src = bgEntry.dataUrl;
+        }
+      }
+
+      // Screenshot
+      var ssRef = sd.screenshotRef;
+      var ssEntry = ssRef && data.images && data.images[ssRef];
+      if (ssEntry) {
+        newAssets[i] = { image: null, name: ssEntry.name || null, scale: ssEntry.scale || 1 };
+        if (ssEntry.dataUrl) {
+          (function(idx) {
+            var ssImg = new Image();
+            ssImg.onload = function() {
+              setSlideAssets(function(prev) {
+                var next = Object.assign({}, prev);
+                next[idx] = Object.assign({}, next[idx] || {}, { image: ssImg });
+                return next;
+              });
+            };
+            ssImg.src = ssEntry.dataUrl;
+          })(i);
+        }
+      }
+
+      return slide;
+    });
+
+    if (newSlides.length === 0) {
+      newSlides = [makeDefaultSlide()];
+    }
+
+    setSeriesSlides(newSlides);
+    setSlideAssets(newAssets);
+    setActiveSlide(0);
+
+    // Clear PDF state
+    clearPdfDownload();
+    setPdfError("");
+  };
 
   // --- Render to canvas ---
 
@@ -872,6 +1059,73 @@ export default function App() {
     setPdfDownload(null);
   };
 
+  // --- Preset export/import ---
+
+  var clearPresetDownload = function() {
+    if (presetUrlRef.current) {
+      URL.revokeObjectURL(presetUrlRef.current);
+      presetUrlRef.current = null;
+    }
+    setPresetDownload(null);
+  };
+
+  var downloadPreset = function(name, includeImages) {
+    var preset = serializePreset(name, includeImages);
+    var json = JSON.stringify(preset, null, 2);
+    var blob = new Blob([json], { type: "application/json" });
+    clearPresetDownload();
+    var url = URL.createObjectURL(blob);
+    presetUrlRef.current = url;
+    var fileName = sanitizePrefix(name || exportPrefix || "preset") + ".json";
+    setPresetDownload({ name: fileName, url: url });
+  };
+
+  var handlePresetUpload = function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var data = JSON.parse(ev.target.result);
+        if (!data.version || !data.slides || !Array.isArray(data.slides)) {
+          setPdfError("Invalid preset file format.");
+          return;
+        }
+
+        // Count missing images
+        var missingCount = 0;
+        if (data.profilePicRef && data.images && data.images[data.profilePicRef]) {
+          if (!data.images[data.profilePicRef].dataUrl) missingCount++;
+        }
+        for (var i = 0; i < data.slides.length; i++) {
+          var sd = data.slides[i];
+          if (sd.customBgRef && data.images && data.images[sd.customBgRef]) {
+            if (!data.images[sd.customBgRef].dataUrl) missingCount++;
+          }
+          if (sd.screenshotRef && data.images && data.images[sd.screenshotRef]) {
+            if (!data.images[sd.screenshotRef].dataUrl) missingCount++;
+          }
+        }
+
+        var msg = "Load preset \u201c" + (data.name || "Untitled") + "\u201d? This replaces all current slides and settings.";
+        if (missingCount > 0) {
+          msg += " (" + missingCount + " image" + (missingCount > 1 ? "s" : "") + " not included \u2014 re-upload after loading.)";
+        }
+
+        setConfirmDialog({
+          message: msg,
+          onConfirm: function() {
+            loadPresetData(data);
+          }
+        });
+      } catch (err) {
+        setPdfError("Failed to parse preset file.");
+      }
+    };
+    reader.readAsText(file);
+    if (presetInputRef.current) presetInputRef.current.value = "";
+  };
+
   var downloadCurrentPDF = function() {
     var canvas = canvasRef.current;
     if (!canvas) return;
@@ -922,6 +1176,10 @@ export default function App() {
       if (pdfUrlRef.current) {
         URL.revokeObjectURL(pdfUrlRef.current);
         pdfUrlRef.current = null;
+      }
+      if (presetUrlRef.current) {
+        URL.revokeObjectURL(presetUrlRef.current);
+        presetUrlRef.current = null;
       }
     };
   }, []);
@@ -1169,6 +1427,36 @@ export default function App() {
 
         {/* -- COL 1: Settings + Slides -- */}
         <div style={{ flex: "0 0 240px", minWidth: 220 }}>
+
+          {/* --- PRESETS --- */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
+              <button onClick={function() { setPresetName(exportPrefix || ""); setPresetDialog({ type: "save" }); }}
+                style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
+                Save
+              </button>
+              <button onClick={function() { if (presetInputRef.current) presetInputRef.current.click(); }}
+                style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
+                Load
+              </button>
+              <input ref={presetInputRef} type="file" accept=".json" onChange={handlePresetUpload} style={{ display: "none" }} />
+            </div>
+            {presetDownload && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <a href={presetDownload.url} download={presetDownload.name}
+                  onClick={function() { setTimeout(clearPresetDownload, 1500); }}
+                  style={{ fontSize: 11, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                  {"Save " + presetDownload.name}
+                </a>
+                <button onClick={clearPresetDownload}
+                  style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>
+                  {"\u00d7"}
+                </button>
+              </div>
+            )}
+          </div>
+          <div style={{ borderTop: "1px solid #444", marginBottom: 10 }} />
 
           {/* --- BACKGROUND --- */}
           <div style={{ marginBottom: 14 }}>
@@ -1866,6 +2154,40 @@ export default function App() {
               <button onClick={function() { confirmDialog.onConfirm(); setConfirmDialog(null); }}
                 style={{ padding: "6px 18px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Preset dialog overlay */}
+      {presetDialog && presetDialog.type === "save" && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+          onClick={function() { setPresetDialog(null); }}>
+          <div style={{ background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: "20px 24px", maxWidth: 360, textAlign: "left", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
+            onClick={function(e) { e.stopPropagation(); }}>
+            <p style={{ color: "#ccc", fontSize: 14, fontWeight: 600, margin: "0 0 12px 0" }}>Save Preset</p>
+            <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Preset name</label>
+            <input value={presetName} onChange={function(e) { setPresetName(e.target.value); }}
+              placeholder="My Carousel"
+              style={inputStyle} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, marginBottom: 16 }}>
+              <button onClick={function() { setPresetIncludeImages(!presetIncludeImages); }}
+                style={{ padding: "3px 12px", borderRadius: 20, border: "none",
+                  background: presetIncludeImages ? GREEN : "#555",
+                  color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                {presetIncludeImages ? "ON" : "OFF"}
+              </button>
+              <span style={{ fontSize: 12, color: "#999" }}>Include images (larger file)</span>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={function() { setPresetDialog(null); }}
+                style={{ padding: "6px 18px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#999", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                Cancel
+              </button>
+              <button onClick={function() { downloadPreset(presetName, presetIncludeImages); setPresetDialog(null); }}
+                style={{ padding: "6px 18px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                Save
               </button>
             </div>
           </div>
