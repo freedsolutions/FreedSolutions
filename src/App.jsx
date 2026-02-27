@@ -65,14 +65,7 @@ export default function App() {
   }, [openPicker]);
 
   // Slides state
-  var [seriesSlides, setSeriesSlides] = useState([
-    Object.assign(makeDefaultSlide("February 2026 Product Updates", "My top picks and what they mean for operators."), { bodyColor: "#b0b0b0" }),
-    makeDefaultSlide("VIP & Secret Menus", "Check out my post on Exclusive Collections \u2014 this is a game-changer for curated retail."),
-    makeDefaultSlide("Refer-a-Friend", "Much more streamlined when using Dutchie as an omnichannel solution vs. polling overnight with AIQ."),
-    makeDefaultSlide("Global Assets", "Collections and other ecom features can now be managed globally across all locations."),
-    makeDefaultSlide("Discount Gamification", "Guides customers to add more items to hit bundled pricing \u2014 MA retailers, take note."),
-    makeDefaultSlide("Scheduled Banners", "No more asking closing staff to handle banner swaps. Finally."),
-  ]);
+  var [seriesSlides, setSeriesSlides] = useState([makeDefaultSlide("Heading", "Body text")]);
   var [activeSlide, setActiveSlide] = useState(0);
   var [slideAssets, setSlideAssets] = useState({});
   // shape: { [slideIndex]: { image: Image|null, name: string|null, scale: number } }

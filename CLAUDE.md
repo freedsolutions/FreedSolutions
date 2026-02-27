@@ -1,168 +1,72 @@
-# FreedSolutions - CLAUDE Reference
+# FreedSolutions Workflow Guide
 
-## Project Overview
+## Purpose
+This repository contains the LinkedIn carousel generator with editable modular source in `src/` and a generated single-file artifact in `linkedin-carousel.jsx`; this document is the canonical workflow contract for Claude/Codex agents and human contributors.
 
-Purpose: single-repo workspace for generator artifacts. Current active generator is `linkedin-carousel.jsx`, built from modular sources in `src/`.
+## Repo Truth
+- `src/` is the editable source of behavior.
+- `linkedin-carousel.jsx` is the generated artifact.
+- `build.js` is the deterministic build script that regenerates `linkedin-carousel.jsx`.
 
-Current status:
-- Modular React + Canvas architecture.
-- Source files located in `src/`.
-- Build artifact: `linkedin-carousel.jsx` (generated via `node build.js`).
-- Runtime images are user uploads.
+## Feature Session Protocol
+Use this two-step trigger to keep planning and execution clean:
+1. `FEATURE: <completed feature card>`
+2. `IMPLEMENT`
 
-## Repository Layout
+When a session starts with `FEATURE:`:
+1. Read `CLAUDE.md` and `FEATURE_CARD.md` first.
+2. Inspect repo context before proposing implementation.
+3. Ask clarifying questions for any ambiguity that changes scope or implementation.
+4. Produce a decision-complete plan with files, steps, validation, and risks.
+5. Stop and wait for `IMPLEMENT`.
 
-```
-/FreedSolutions/
-|- CLAUDE.md
-|- Checklist.md
-|- CLAUDE-CODE-HANDOFF.md
-|- build.js                            (Deterministic concat script)
-|- linkedin-carousel.jsx               (Build artifact - DO NOT EDIT DIRECTLY)
-|- src/                                (Source directory)
-|  |- App.jsx                          (Main component)
-|  |- constants.js                     (Shared constants & React imports)
-|  |- slideFactory.js                  (Default slide data)
-|  |- canvas/                          (Canvas rendering modules)
-|     |- backgrounds.js
-|     |- hexToRgba.js
-|     |- overlays.js
-|     |- renderSlide.js
-|     |- renderSlideContent.js
-|     |- screenshot.js
-|     |- text.js
-```
+When the user sends `IMPLEMENT`:
+1. Execute the approved plan with minimal targeted edits.
+2. Run relevant checks and validations.
+3. Summarize changed files, behavior differences, and validation results.
 
-## Build System
+## Kickoff Shortcuts
+- Planning kickoff: `FEATURE: Use FEATURE_CARD.md. Inspect repo, ask clarifying questions for ambiguity, produce a decision-complete plan, then wait for IMPLEMENT.`
+- Execution kickoff: `IMPLEMENT`
+- Review kickoff: `REVIEW: Findings first, ordered by severity, with file/line references.`
 
-Execute `node build.js` to regenerate `linkedin-carousel.jsx`. The build order is defined in `build.js` to ensure proper dependency flow in the concatenated artifact.
+## Required End-to-End Flow
+1. Restate request and constraints.
+2. Plan impacted files.
+3. Edit only `src/*` (never direct artifact edits).
+4. Run `node build.js`.
+5. Run focused validation for touched behavior.
+6. Update docs when behavior or process changed.
+7. Commit one atomic changeset.
+8. Push with `git push origin main`.
 
-## GitHub Workflow
+## Required Commands
+Run these in order for normal implementation tasks:
+1. `git status --short`
+2. `node build.js`
+3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md`
+4. `git add <changed files>`
+5. `git commit -m "<clear summary>"`
+6. `git push origin main`
 
-- Primary remote: `origin` -> `https://github.com/freedsolutions/FreedSolutions.git`.
-- Main branch: `main`.
-- Make source edits in `src/` (especially `src/App.jsx` and `src/canvas/*`), then run `node build.js` to regenerate `linkedin-carousel.jsx`.
-- Commit source + generated artifact together when behavior changes, so repo stays reproducible from a single commit.
-- Before push: `git status`, `git diff`, and confirm `linkedin-carousel.jsx` matches the latest build output.
-- Push with `git push origin main`.
-- Verify remote state with `git ls-remote --heads origin` or GitHub commit list.
+## Definition of Done
+All of the following must be true:
+- Artifact regenerated if any `src/*` changed.
+- Focused smoke check completed for touched area.
+- Docs updated if behavior or process changed.
+- Working tree clean after commit.
+- Remote updated on `origin/main`.
 
-## Documentation Workflow
+## Documentation Update Rules
+- `CLAUDE.md`: update only when workflow/contracts/guardrails change.
+- `CHANGES.md`: add entry when behavior or process changes.
+- Pure internal refactors with no behavior/process effect do not require a doc entry.
 
-- `CLAUDE.md`: architecture, build/export behavior, and repo workflows (including GitHub process).
-- `Checklist.md`: detailed tweak/change log for product behavior and UI decisions.
-- Git-only operations (create repo, set remote, push) do not require `Checklist.md` updates unless they also change app behavior or handoff expectations.
+## Git Policy
+- Direct push to `main`.
+- Single atomic commit per task when applicable (source + generated artifact + docs in same commit).
 
-## Generator Architecture (`src/App.jsx` + `src/canvas/*`)
-
-High-level pattern:
-1. React component (`App`) using `useState`, `useRef`, `useEffect`, `useCallback`.
-2. Imperative Canvas 2D rendering at 800x1000.
-3. Three-column editor UI:
-- Col 1: background/profile/slides/screenshot controls.
-- Col 2: per-slide content editor.
-- Col 3: preview and export.
-
-Canvas constants:
-- `W = 800`, `H = 1000`, `MARGIN = 44`
-
-## State Inventory (in `App.jsx`)
-
-- `seriesSlides`: Array of slide content objects.
-- `slideAssets`: Map of per-slide image assets (screenshots).
-- `profileImg`: Global profile picture.
-- `confirmDialog`: State for custom confirmation modals.
-- `pdfDownload`: PDF export state (`{ name, url }` or `null`). URL is a blob URL.
-- `pdfError`: String error message for failed PDF generation.
-- `pdfUrlRef`: Ref tracking current blob URL for revocation on regenerate/unmount.
-- `presetDownload`: Preset export state (`{ name, url }` or `null`). URL is a blob URL.
-- `presetDialog`: Save preset dialog state (`{ type: "save" }` or `null`).
-- `presetName`: String for preset name input in save dialog.
-- `presetIncludeImages`: Boolean toggle for embedding images as base64 in preset JSON.
-- `presetUrlRef`: Ref tracking preset blob URL for cleanup.
-- `presetInputRef`: Ref for hidden file input (JSON load).
-
-## Rendering Pipeline
-
-`renderSlide(ctx, slideIndex)` orchestrates:
-1. `renderBg` (Solid/Geo/Custom)
-2. Frame bounds computation
-3. `drawTopCorner`
-4. `renderSlideContent` (Heading, Body/Cards, Screenshot)
-5. `drawBorderFrame`
-6. `drawCenteredFooter` (Brand + Profile Pic)
-7. `drawBottomCorner`
-
-## Export Behavior (PDF)
-
-Exports use an inline PDF builder - no external libraries or CDN dependencies.
-
-### Helpers (in `src/App.jsx`)
-- `decodeBase64ToBinary(b64)` - `atob` wrapper.
-- `extractJpegBinaryFromDataUrl(dataUrl)` - splits data URL at `base64,`, returns binary JPEG string.
-- `buildPdfFromJpegs(jpegPages, pageW, pageH)` - constructs raw PDF bytes. Returns a `Blob` of type `application/pdf`. Uses `%PDF-1.4`, one Image XObject per page (`/Filter /DCTDecode`), proper xref/trailer.
-- `captureSlideJpegBinary(ctx, idx)` - renders slide to canvas, captures JPEG at quality 0.92, returns binary string.
-
-### Handlers
-- `downloadCurrentPDF()` - captures active slide, builds 1-page PDF, creates blob URL, sets `pdfDownload` state.
-- `downloadAllPDF()` - captures all slides in order, builds multi-page PDF, restores preview to `activeSlide`.
-- `clearPdfDownload()` - revokes blob URL, clears `pdfDownload` state.
-
-### UX pattern
-- No auto-open (`window.open` removed - sandbox-hostile).
-- User clicks "Save {filename}" link to download.
-- Link auto-dismisses 1.5s after click (blob URL revoked via `clearPdfDownload`). Manual `x` dismiss also available.
-- Trust copy: "Generated locally in browser; no upload."
-
-### Naming
-- `sanitizePrefix(raw)` trims input and replaces non `[a-zA-Z0-9_-]` chars with `_`.
-- Empty prefix falls back to `linkedin-slide`.
-- Current slide: `{prefix}-{NN}.pdf` (1-based, zero-padded).
-- All slides: `{prefix}-all.pdf`.
-
-## Preset Save/Load
-
-JSON-based export/import of complete carousel projects. No localStorage — user downloads `.json` files and loads them via file picker.
-
-### JSON Schema (v1)
-```json
-{
-  "version": 1,
-  "generator": "linkedin-carousel",
-  "name": "Preset Name",
-  "createdAt": "ISO-8601",
-  "exportPrefix": "linkedin-slide",
-  "sizes": { "heading": 48, "body": 38, "cardText": 22, "topCorner": 13, "bottomCorner": 16, "brandName": 20 },
-  "slides": [{ /* all serializable slide fields + customBgRef + screenshotRef */ }],
-  "profilePicRef": "profile",
-  "images": {
-    "profile": { "name": "file.jpg", "dataUrl": "data:..." | null },
-    "bg-N": { "name": "file.jpg", "dataUrl": "data:..." | null },
-    "ss-N": { "name": "file.jpg", "dataUrl": "data:..." | null, "scale": 1.0 }
-  }
-}
-```
-
-### Helpers (in `src/App.jsx`)
-- `PRESET_SLIDE_KEYS`: Array of 31 serializable slide field names (excludes `customBgImage`, `customBgName`).
-- `serializePreset(name, includeImages)`: Builds preset JSON object. Images referenced via `customBgRef`/`screenshotRef`/`profilePicRef` into `images` map. When `includeImages` is false, `dataUrl` is `null`.
-- `loadPresetData(data)`: Restores all state from parsed JSON. Uses `makeDefaultSlide()` as fallback base. Loads images asynchronously via `new Image()` with functional state updaters.
-
-### Handlers
-- `downloadPreset(name, includeImages)`: Serializes + creates JSON blob + sets `presetDownload` state with blob URL.
-- `clearPresetDownload()`: Revokes blob URL + clears `presetDownload` state.
-- `handlePresetUpload(e)`: FileReader reads .json, validates `version === 1` + `slides` array, counts missing image refs (including missing map entries), shows confirm dialog, calls `loadPresetData`.
-
-### UX Pattern
-- Save: Click "Save" in PRESETS section -> modal dialog for name + "Include images" toggle -> "Save" downloads JSON via blob URL link (same sandbox-safe pattern as PDF export).
-- Load: Click "Load" -> file picker for .json -> confirmation dialog ("replaces all current slides") -> state restored.
-- Load is destructive (replaces all) with confirmation.
-
-## Metadata
-
-- Last updated: February 26, 2026
-- Primary Artifact: `linkedin-carousel.jsx`
-- Source: `src/App.jsx`
-- Approx lines (artifact): ~2,200
-- Status: Functional
-
+## Hard Guardrails
+- Do not edit generated artifact manually.
+- Do not skip build after source change.
+- Do not push without smoke-check + diff review.
