@@ -2,6 +2,17 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-27 - Pass 1: Bug fixes and style hoist
+- What changed: Fixed 3 bugs and hoisted inline styles to module scope.
+  - Bug 1: Removed frozen `colors` state; render colors now derived from per-slide properties with hard fallbacks for backward-compat.
+  - Bug 2: Slide duplicate/remove/reorder now use functional state updates to prevent stale-closure bugs. Duplicate inserts adjacent to source instead of appending.
+  - Bug 3: Preset errors now use dedicated `presetError` state (not `pdfError`), displayed near the Presets UI, with proper lifecycle (clears on new file, successful parse, and successful load).
+  - Hoisted `inputStyle`, `labelStyle`, `INLINE_SWATCHES`, `smallBtnStyle`, and `pickerDropdownStyle` to module scope to reduce per-render allocations.
+- Why: Code review identified stale state, misplaced error messages, and unnecessary re-allocations.
+- Files: `src/App.jsx` (updated), `src/canvas/renderSlide.js` (updated), `linkedin-carousel.jsx` (regenerated), `CHANGES.md` (updated).
+- Validation: `node build.js` succeeds. Artifact regenerated. Manual smoke test pending.
+- Notes/Risks: Preset backward-compat maintained via hard fallback colors. Duplicate now inserts at activeSlide+1 (UX change).
+
 ## 2026-02-27 - Added optional agent specs scaffold
 - What changed: Added `agents/` docs (`README`, `planner`, `implementer`, `reviewer`) and linked them from `CLAUDE.md`.
 - Why: Provide reusable role-based prompts while keeping `CLAUDE.md` as the core workflow source of truth.

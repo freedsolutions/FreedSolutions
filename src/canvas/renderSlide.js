@@ -2,7 +2,7 @@
 // Top-level render orchestrator (pure function)
 // ---------------------------------------
 
-function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, colors, sizes, profileImg) {
+function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, profileImg) {
   ctx.clearRect(0, 0, W, H);
   var slide = seriesSlides[slideIndex] || seriesSlides[0];
 
@@ -11,14 +11,15 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, colors,
 
   renderBg(ctx, slide.bgType, slide.solidColor, customImg, slide.geoLines, slide.geoEnabled);
 
+  // Build render colors from per-slide properties with hard fallbacks for backward-compat
   var renderColors = {
-    heading: colors.heading,
-    body: colors.body,
-    text: colors.heading,
-    accent: slide.accentColor,
-    border: hexToRgba(slide.borderColor, slide.borderOpacity),
-    cardBg: colors.cardBg,
-    cardText: colors.cardText,
+    heading: slide.titleColor || "#ffffff",
+    body: slide.bodyColor || "#ffffff",
+    text: slide.titleColor || "#ffffff",
+    accent: slide.accentColor || "#22c55e",
+    border: hexToRgba(slide.borderColor || "#ffffff", slide.borderOpacity != null ? slide.borderOpacity : 25),
+    cardBg: slide.cardBgColor || "#ffffff",
+    cardText: slide.cardTextColor || "#333333",
   };
 
   var topCornerOffset = (slide.showTopCorner && slide.topCornerText) ? sizes.topCorner * 2.2 : 0;

@@ -2,6 +2,13 @@
 // Main Component
 // ---------------------------------------
 
+// Hoisted styles (module-scope to avoid per-render allocations)
+var inputStyle = { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 14, boxSizing: "border-box" };
+var labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, fontSize: 13, color: "#bbb", letterSpacing: 0.5 };
+var INLINE_SWATCHES = ["#ffffff", "#1a1a2e", "#333333", "#22c55e", "#a5b4fc", "#f59e0b", "#fb7185", "#22d3ee", "#a78bfa", "#38bdf8", "#d97706", "#fef3c7", "#e0f2fe", "#e0e7ff", "#f0fdf4", "#9ca3af"];
+var smallBtnStyle = { padding: "2px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 };
+var pickerDropdownStyle = { position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" };
+
 export default function App() {
   var canvasRef = useRef(null);
   var profilePicInputRef = useRef(null);
@@ -21,16 +28,9 @@ export default function App() {
   var [presetDialog, setPresetDialog] = useState(null);
   var [presetName, setPresetName] = useState("");
   var [presetIncludeImages, setPresetIncludeImages] = useState(true);
+  var [presetError, setPresetError] = useState("");
 
 
-
-  // Colors (only non-background colors remain here)
-  var [colors] = useState({
-    heading: "#ffffff",
-    body: "#ffffff",
-    cardBg: "#ffffff",
-    cardText: "#333333",
-  });
   var [openPicker, setOpenPicker] = useState(null);
 
   // Font sizes
@@ -358,8 +358,8 @@ export default function App() {
   // --- Render to canvas ---
 
   var renderSlide = useCallback(function(ctx, slideIndex) {
-    renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, colors, sizes, profileImg);
-  }, [colors, sizes, profileImg, seriesSlides, slideAssets]);
+    renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, profileImg);
+  }, [sizes, profileImg, seriesSlides, slideAssets]);
 
   var render = useCallback(function() {
     var canvas = canvasRef.current;
@@ -540,12 +540,13 @@ export default function App() {
   var handlePresetUpload = function(e) {
     var file = e.target.files[0];
     if (!file) return;
+    setPresetError("");
     var reader = new FileReader();
     reader.onload = function(ev) {
       try {
         var data = JSON.parse(ev.target.result);
         if (data.version !== 1 || !Array.isArray(data.slides)) {
-          setPdfError("Invalid preset file format (expected v1).");
+          setPresetError("Invalid preset file format (expected v1).");
           return;
         }
 
@@ -573,14 +574,16 @@ export default function App() {
           msg += " (" + missingCount + " image" + (missingCount > 1 ? "s" : "") + " not included \u2014 re-upload after loading.)";
         }
 
+        setPresetError("");
         setConfirmDialog({
           message: msg,
           onConfirm: function() {
+            setPresetError("");
             loadPresetData(data);
           }
         });
       } catch (err) {
-        setPdfError("Failed to parse preset file.");
+        setPresetError("Failed to parse preset file.");
       }
     };
     reader.readAsText(file);
@@ -714,8 +717,10 @@ export default function App() {
   };
 
   var addSlide = function() {
-    if (seriesSlides.length >= 10) return;
-    setSeriesSlides(seriesSlides.concat([makeDefaultSlide()]));
+    setSeriesSlides(function(prev) {
+      if (prev.length >= 10) return prev;
+      return prev.concat([makeDefaultSlide()]);
+    });
   };
 
   var duplicateSlide = function() {
@@ -723,82 +728,114 @@ export default function App() {
     setConfirmDialog({
       message: "Duplicate Slide " + (activeSlide + 1) + "?",
       onConfirm: function() {
-        var src = seriesSlides[activeSlide];
-        var copy = Object.assign({}, src, { cards: src.cards.slice() });
+        var insertIdx = activeSlide + 1;
 
-        var newIdx = seriesSlides.length;
-        setSeriesSlides(seriesSlides.concat([copy]));
-
-        setSlideAssets(function(prev) {
-          var next = Object.assign({}, prev);
-          next[newIdx] = Object.assign({}, getAsset(activeSlide));
+        setSeriesSlides(function(prev) {
+          if (prev.length >= 10) return prev;
+          var src = prev[activeSlide];
+          if (!src) return prev;
+          var copy = Object.assign({}, src, { cards: src.cards.slice() });
+          var next = prev.slice();
+          next.splice(insertIdx, 0, copy);
           return next;
         });
 
-        setActiveSlide(newIdx);
+        setSlideAssets(function(prev) {
+          // Shift all asset keys >= insertIdx up by 1, then copy source asset
+          var next = {};
+          Object.keys(prev).forEach(function(k) {
+            var ki = Number(k);
+            if (ki >= insertIdx) {
+              next[ki + 1] = prev[ki];
+            } else {
+              next[ki] = prev[ki];
+            }
+          });
+          var srcAsset = prev[activeSlide];
+          if (srcAsset) {
+            next[insertIdx] = Object.assign({}, srcAsset);
+          }
+          return next;
+        });
+
+        setActiveSlide(insertIdx);
       }
     });
   };
 
   var removeSlide = function(idx) {
     if (seriesSlides.length <= 1) return;
-    var next = seriesSlides.filter(function(_, i) { return i !== idx; });
-    var nextAssets = {};
-    Object.keys(slideAssets).forEach(function(k) {
-      var ki = Number(k);
-      if (ki < idx) nextAssets[ki] = slideAssets[ki];
-      else if (ki > idx) nextAssets[ki - 1] = slideAssets[ki];
+    setSeriesSlides(function(prev) {
+      if (prev.length <= 1) return prev;
+      return prev.filter(function(_, i) { return i !== idx; });
     });
-    setSeriesSlides(next);
-    setSlideAssets(nextAssets);
-    if (activeSlide >= next.length) setActiveSlide(next.length - 1);
-    else if (activeSlide === idx) setActiveSlide(Math.max(0, idx - 1));
+    setSlideAssets(function(prev) {
+      var next = {};
+      Object.keys(prev).forEach(function(k) {
+        var ki = Number(k);
+        if (ki < idx) next[ki] = prev[ki];
+        else if (ki > idx) next[ki - 1] = prev[ki];
+      });
+      return next;
+    });
+    setActiveSlide(function(prev) {
+      var newLen = seriesSlides.length - 1;
+      if (prev >= newLen) return newLen - 1;
+      if (prev === idx) return Math.max(0, idx - 1);
+      if (prev > idx) return prev - 1;
+      return prev;
+    });
   };
 
   var reorderSlide = function(fromIdx, toIdx) {
     if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
-    if (fromIdx < 0 || fromIdx >= seriesSlides.length) return;
-    if (toIdx < 0 || toIdx >= seriesSlides.length) return;
 
-    // Reorder seriesSlides
-    var nextSlides = seriesSlides.slice();
-    var moved = nextSlides.splice(fromIdx, 1)[0];
-    nextSlides.splice(toIdx, 0, moved);
-    setSeriesSlides(nextSlides);
-
-    // Build index map: old position -> new position
-    var indexMap = {};
-    for (var i = 0; i < seriesSlides.length; i++) {
-      var newPos;
-      if (i === fromIdx) {
-        newPos = toIdx;
-      } else if (fromIdx < toIdx) {
-        if (i > fromIdx && i <= toIdx) { newPos = i - 1; }
-        else { newPos = i; }
-      } else {
-        if (i >= toIdx && i < fromIdx) { newPos = i + 1; }
-        else { newPos = i; }
-      }
-      indexMap[i] = newPos;
-    }
-
-    // Remap slideAssets keys
-    var oldAssets = Object.assign({}, slideAssets);
-    var nextAssets = {};
-    Object.keys(oldAssets).forEach(function(k) {
-      var ki = Number(k);
-      if (indexMap[ki] != null) {
-        nextAssets[indexMap[ki]] = oldAssets[ki];
-      }
+    setSeriesSlides(function(prev) {
+      if (fromIdx < 0 || fromIdx >= prev.length) return prev;
+      if (toIdx < 0 || toIdx >= prev.length) return prev;
+      var next = prev.slice();
+      var moved = next.splice(fromIdx, 1)[0];
+      next.splice(toIdx, 0, moved);
+      return next;
     });
-    setSlideAssets(nextAssets);
 
-    // Update activeSlide to follow the same logical slide
-    if (activeSlide === fromIdx) {
-      setActiveSlide(toIdx);
-    } else if (indexMap[activeSlide] != null) {
-      setActiveSlide(indexMap[activeSlide]);
-    }
+    // Build index map for asset remapping
+    var buildIndexMap = function(len) {
+      var map = {};
+      for (var i = 0; i < len; i++) {
+        var newPos;
+        if (i === fromIdx) {
+          newPos = toIdx;
+        } else if (fromIdx < toIdx) {
+          if (i > fromIdx && i <= toIdx) { newPos = i - 1; }
+          else { newPos = i; }
+        } else {
+          if (i >= toIdx && i < fromIdx) { newPos = i + 1; }
+          else { newPos = i; }
+        }
+        map[i] = newPos;
+      }
+      return map;
+    };
+
+    setSlideAssets(function(prev) {
+      var indexMap = buildIndexMap(seriesSlides.length);
+      var next = {};
+      Object.keys(prev).forEach(function(k) {
+        var ki = Number(k);
+        if (indexMap[ki] != null) {
+          next[indexMap[ki]] = prev[ki];
+        }
+      });
+      return next;
+    });
+
+    setActiveSlide(function(prev) {
+      var indexMap = buildIndexMap(seriesSlides.length);
+      if (prev === fromIdx) return toIdx;
+      if (indexMap[prev] != null) return indexMap[prev];
+      return prev;
+    });
 
     setDragFrom(null);
     setDragOver(null);
@@ -818,9 +855,7 @@ export default function App() {
 
   // --- Styles ---
 
-  var inputStyle = { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 14, boxSizing: "border-box" };
-  var labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, fontSize: 13, color: "#bbb", letterSpacing: 0.5 };
-  var INLINE_SWATCHES = ["#ffffff", "#1a1a2e", "#333333", "#22c55e", "#a5b4fc", "#f59e0b", "#fb7185", "#22d3ee", "#a78bfa", "#38bdf8", "#d97706", "#fef3c7", "#e0f2fe", "#e0e7ff", "#f0fdf4", "#9ca3af"];
+  // inputStyle, labelStyle, INLINE_SWATCHES, smallBtnStyle, pickerDropdownStyle hoisted to module scope
 
   var sizeLabel = function(text, sizeKey, min, max, extra, colorVal, colorSet, colorPickerKey, opacityVal, opacitySet) {
     if (!sizeKey) return <label style={labelStyle}>{text}{extra ? " " : ""}{extra}</label>;
@@ -834,7 +869,7 @@ export default function App() {
               <button onClick={function(e) { e.stopPropagation(); setOpenPicker(cpOpen ? null : colorPickerKey); }}
                 style={{ width: 18, height: 18, borderRadius: 4, border: cpOpen ? "2px solid #6366f1" : "1px solid #444", background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
               {cpOpen && (
-                <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                     {INLINE_SWATCHES.map(function(c) {
                       var active = colorVal === c;
@@ -894,11 +929,11 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
               <button onClick={function() { setPresetName(exportPrefix || ""); setPresetDialog({ type: "save" }); }}
-                style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
+                style={smallBtnStyle}>
                 Save
               </button>
               <button onClick={function() { if (presetInputRef.current) presetInputRef.current.click(); }}
-                style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
+                style={smallBtnStyle}>
                 Load
               </button>
               <input ref={presetInputRef} type="file" accept=".json" onChange={handlePresetUpload} style={{ display: "none" }} />
@@ -916,6 +951,11 @@ export default function App() {
                 </button>
               </div>
             )}
+            {presetError && (
+              <div style={{ marginTop: 4, padding: "4px 8px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 11 }}>
+                {presetError}
+              </div>
+            )}
           </div>
           <div style={{ borderTop: "1px solid #444", marginBottom: 10 }} />
 
@@ -923,30 +963,10 @@ export default function App() {
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
-              <button onClick={syncBgToAll}
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  border: "1px solid #444",
-                  background: "#28283e",
-                  color: "#ccc",
-                  cursor: "pointer",
-                  fontSize: 9,
-                  fontWeight: 600
-                }}>
+              <button onClick={syncBgToAll} style={smallBtnStyle}>
                 Sync All
               </button>
-              <button onClick={resetBgToDefault}
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  border: "1px solid #444",
-                  background: "#28283e",
-                  color: "#ccc",
-                  cursor: "pointer",
-                  fontSize: 9,
-                  fontWeight: 600
-                }}>
+              <button onClick={resetBgToDefault} style={smallBtnStyle}>
                 Reset
               </button>
             </div>
@@ -984,7 +1004,7 @@ export default function App() {
                       <span onClick={function(e) { e.stopPropagation(); setOpenPicker(aOpen ? null : "accent"); }}
                         style={{ width: 20, height: 20, borderRadius: 5, background: aVal, display: "block", border: aOpen ? "2px solid #6366f1" : "1px solid #444", boxSizing: "border-box", cursor: "pointer" }} />
                       {aOpen && (
-                        <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                        <div style={pickerDropdownStyle}>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                             {INLINE_SWATCHES.map(function(c) {
                               return (
@@ -1016,7 +1036,7 @@ export default function App() {
                       <span onClick={function(e) { if (bsDisabled) return; e.stopPropagation(); setOpenPicker(bsOpen ? null : "solidColor"); }}
                         style={{ width: 20, height: 20, borderRadius: 5, background: bsVal, display: "block", border: bsOpen ? "2px solid #6366f1" : "1px solid #444", boxSizing: "border-box", cursor: bsDisabled ? "default" : "pointer" }} />
                       {bsOpen && !bsDisabled && (
-                        <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                        <div style={pickerDropdownStyle}>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                             {INLINE_SWATCHES.map(function(c) {
                               return (
@@ -1058,7 +1078,7 @@ export default function App() {
                         <button onClick={function(e) { if (lDisabled) return; e.stopPropagation(); setOpenPicker(lOpen ? null : "geoLines"); }}
                           style={{ width: 18, height: 18, borderRadius: 4, border: lOpen ? "2px solid #6366f1" : "1px solid #444", background: currentSlide.geoLines, cursor: lDisabled ? "default" : "pointer", padding: 0, display: "block" }} />
                         {lOpen && !lDisabled && (
-                          <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                          <div style={pickerDropdownStyle}>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                               {INLINE_SWATCHES.map(function(c) {
                                 return (
@@ -1095,7 +1115,7 @@ export default function App() {
                         <button onClick={function(e) { if (!currentSlide.frameEnabled) return; e.stopPropagation(); setOpenPicker(bOpen ? null : "border"); }}
                           style={{ width: 18, height: 18, borderRadius: 4, border: bOpen ? "2px solid #6366f1" : "1px solid #444", background: bVal, cursor: currentSlide.frameEnabled ? "pointer" : "default", padding: 0, display: "block" }} />
                         {bOpen && currentSlide.frameEnabled && (
-                          <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                          <div style={pickerDropdownStyle}>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                               {INLINE_SWATCHES.map(function(c) {
                                 return (
@@ -1131,7 +1151,7 @@ export default function App() {
                       <span onClick={function(e) { e.stopPropagation(); setOpenPicker(fOpen ? null : "footerBg"); }}
                         style={{ width: 20, height: 20, borderRadius: 5, background: fVal, display: "block", border: fOpen ? "2px solid #6366f1" : "1px solid #444", boxSizing: "border-box", cursor: "pointer" }} />
                       {fOpen && (
-                        <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                        <div style={pickerDropdownStyle}>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                             {INLINE_SWATCHES.map(function(c) {
                               return (
@@ -1461,7 +1481,7 @@ export default function App() {
                         onClick={function(e) { e.stopPropagation(); setOpenPicker(openPicker === pickerKey ? null : pickerKey); }} />
                       <span style={{ fontSize: 11, color: openPicker === pickerKey ? "#a5b4fc" : "#777", fontWeight: 600 }}>Text</span>
                       {openPicker === pickerKey && (
-                        <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                        <div style={pickerDropdownStyle}>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                             {INLINE_SWATCHES.map(function(c) { return (
                               <button key={c} onClick={function() { updateSlide(activeSlide, colorField, c); }}
@@ -1485,7 +1505,7 @@ export default function App() {
                     onClick={function(e) { if (!currentSlide.showCards) return; e.stopPropagation(); setOpenPicker(openPicker === "s-" + activeSlide + "-cardbg" ? null : "s-" + activeSlide + "-cardbg"); }} />
                   <span style={{ fontSize: 11, color: openPicker === "s-" + activeSlide + "-cardbg" ? "#a5b4fc" : "#777", fontWeight: 600 }}>Base</span>
                   {openPicker === "s-" + activeSlide + "-cardbg" && currentSlide.showCards && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}>
+                    <div style={pickerDropdownStyle}>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                         {INLINE_SWATCHES.map(function(c) { return (
                           <button key={c} onClick={function() { updateSlide(activeSlide, "cardBgColor", c); }}
