@@ -2,6 +2,22 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-27 - Pass 3: Complete extraction and redo hotkey fix
+- What changed: Finished extracting App.jsx into focused hooks and components; fixed redo hotkey robustness.
+  - Extracted `src/useSlideManagement.js` — slide CRUD, reorder, duplicate, card management, image uploads (360 lines).
+  - Extracted `src/useCanvasRenderer.js` — canvas rendering with 40ms debounce (33 lines).
+  - Extracted `src/usePdfExport.js` — PDF generation, download state, cleanup (95 lines).
+  - Extracted `src/usePresets.js` — preset serialize/deserialize, export/import, stale-load guard (292 lines). `PRESET_SLIDE_KEYS` moved to module scope.
+  - Extracted `src/SizeControl.jsx` — font-size stepper with optional color picker and opacity (75 lines). Replaces inline `sizeLabel` function.
+  - Extracted `src/SlideSelector.jsx` — numbered slide buttons with drag-to-reorder (66 lines).
+  - App.jsx reduced from 1454 to 719 lines (51% reduction).
+  - Fixed redo hotkey: `e.key` is now normalized with `.toLowerCase()` so `Shift+Z` (uppercase) correctly triggers redo.
+  - Used `pushUndoRef` (ref pattern) so hooks always call the latest `captureSnapshot` closure.
+- Why: Reduce App.jsx complexity for maintainability; fix redo not triggering on some keyboard layouts.
+- Files: `src/App.jsx` (rewritten), `src/useSlideManagement.js` (added), `src/useCanvasRenderer.js` (added), `src/usePdfExport.js` (added), `src/usePresets.js` (added), `src/SizeControl.jsx` (added), `src/SlideSelector.jsx` (added), `build.js` (updated ORDER, 19 files), `linkedin-carousel.jsx` (regenerated), `CHANGES.md` (updated).
+- Validation: `node build.js` succeeds with 19 source files. All 6 extracted functions present exactly once in artifact. No duplicate state declarations. Redo hotkey fix confirmed via grep.
+- Notes/Risks: Hooks use a `deps` object pattern; adding new dependencies requires updating both the hook signature and the caller. The `pushUndoRef` indirection adds a layer but ensures snapshot correctness across hook boundaries.
+
 ## 2026-02-27 - Pass 2: Extraction, stale-load guard, and undo/redo
 - What changed: Extracted modules from App.jsx, added async load guard, and wired undo/redo.
   - Extracted `src/pdfBuilder.js` (PDF utility functions) and `src/ColorPickerInline.jsx` (reusable color picker component) from App.jsx. Replaced 6 inline color picker IIFEs with the shared component.

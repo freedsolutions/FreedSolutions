@@ -1,4 +1,4 @@
-﻿// ---------------------------------------
+// ---------------------------------------
 // Main Component
 // ---------------------------------------
 
@@ -11,28 +11,11 @@ var pickerDropdownStyle = { position: "absolute", top: "100%", left: 0, zIndex: 
 
 export default function App() {
   var canvasRef = useRef(null);
-  var profilePicInputRef = useRef(null);
-  var screenshotInputRef = useRef(null);
-  var customBgInputRef = useRef(null);
-  var renderTimerRef = useRef(null);
-  var pdfUrlRef = useRef(null);
-  var [isCustomProfilePic, setIsCustomProfilePic] = useState(false);
   var [confirmDialog, setConfirmDialog] = useState(null);
-  var [pdfDownload, setPdfDownload] = useState(null);
-  var [pdfError, setPdfError] = useState("");
-
-  // Preset save/load state
-  var presetInputRef = useRef(null);
-  var presetUrlRef = useRef(null);
-  var presetLoadTokenRef = useRef(0);
-  var [presetDownload, setPresetDownload] = useState(null);
-  var [presetDialog, setPresetDialog] = useState(null);
-  var [presetName, setPresetName] = useState("");
-  var [presetIncludeImages, setPresetIncludeImages] = useState(true);
-  var [presetError, setPresetError] = useState("");
 
   // Undo/redo
   var undoManagerRef = useRef(createUndoManager());
+  var pushUndoRef = useRef(null);
 
   var [openPicker, setOpenPicker] = useState(null);
 
@@ -67,41 +50,26 @@ export default function App() {
     return function() { document.removeEventListener("mousedown", handler); };
   }, [openPicker]);
 
-  // Slides state
-  var [seriesSlides, setSeriesSlides] = useState([makeDefaultSlide("Heading", "Body text")]);
-  var [activeSlide, setActiveSlide] = useState(0);
-  var [slideAssets, setSlideAssets] = useState({});
-  // shape: { [slideIndex]: { image: Image|null, name: string|null, scale: number } }
-
-  var getAsset = function(idx) {
-    return slideAssets[idx] || { image: null, name: null, scale: 1 };
-  };
-
-  var setAsset = function(idx, patch) {
-    setSlideAssets(function(prev) {
-      var entry = prev[idx] || { image: null, name: null, scale: 1 };
-      var next = Object.assign({}, prev);
-      next[idx] = Object.assign({}, entry, patch);
-      return next;
-    });
-  };
-
-  var setScale = function(key, val) {
-    setAsset(key, { scale: val });
-  };
-
-  // Drag-to-reorder state
-  var [dragFrom, setDragFrom] = useState(null);
-  var [dragOver, setDragOver] = useState(null);
-
   // Export prefix
   var [exportPrefix, setExportPrefix] = useState("linkedin-slide");
 
-  // Image loading - no default profile pic; starts empty, user uploads
-  var [profileImg, setProfileImg] = useState(null);
+  // --- Slide management hook ---
+  var slideMgmt = useSlideManagement({ pushUndo: function() { if (pushUndoRef.current) pushUndoRef.current(); }, setConfirmDialog: setConfirmDialog });
 
-  // Filename tracking
-  var [profilePicName, setProfilePicName] = useState(null);
+  var seriesSlides = slideMgmt.seriesSlides;
+  var setSeriesSlides = slideMgmt.setSeriesSlides;
+  var activeSlide = slideMgmt.activeSlide;
+  var setActiveSlide = slideMgmt.setActiveSlide;
+  var slideAssets = slideMgmt.slideAssets;
+  var setSlideAssets = slideMgmt.setSlideAssets;
+  var getAsset = slideMgmt.getAsset;
+  var setScale = slideMgmt.setScale;
+  var profileImg = slideMgmt.profileImg;
+  var setProfileImg = slideMgmt.setProfileImg;
+  var profilePicName = slideMgmt.profilePicName;
+  var setProfilePicName = slideMgmt.setProfilePicName;
+  var isCustomProfilePic = slideMgmt.isCustomProfilePic;
+  var setIsCustomProfilePic = slideMgmt.setIsCustomProfilePic;
 
   // --- Undo/redo snapshot helpers ---
 
@@ -129,7 +97,8 @@ export default function App() {
     setProfilePicName(snap.profilePicName);
   };
 
-  var pushUndo = function() {
+  // Keep pushUndoRef current so hooks always call the latest captureSnapshot
+  pushUndoRef.current = function() {
     undoManagerRef.current.pushSnapshot(captureSnapshot());
   };
 
@@ -140,7 +109,7 @@ export default function App() {
       var tag = e.target && e.target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       var isCtrl = e.ctrlKey || e.metaKey;
-      if (!isCtrl || e.key !== "z") return;
+      if (!isCtrl || (e.key && e.key.toLowerCase()) !== "z") return;
       e.preventDefault();
       if (e.shiftKey) {
         // Redo
@@ -156,713 +125,36 @@ export default function App() {
     return function() { document.removeEventListener("keydown", handler); };
   });
 
-  var handleCustomUpload = function(e) {
-    var file = e.target.files[0];
-    if (!file) return;
-    var fileName = file.name;
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      var img = new Image();
-      img.onload = function() {
-        setSeriesSlides(function(prev) {
-          return prev.map(function(s, i) {
-            if (i !== activeSlide) return s;
-            return Object.assign({}, s, { customBgImage: img, customBgName: fileName, bgType: "custom" });
-          });
-        });
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  var handleScreenshotUpload = function(key, e) {
-    var file = e.target.files[0];
-    if (!file) return;
-    var fileName = file.name;
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      var img = new Image();
-      img.onload = function() {
-        setAsset(key, { name: fileName, image: img });
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  var handleProfilePicUpload = function(e) {
-    var file = e.target.files[0];
-    if (!file) return;
-    setProfilePicName(file.name);
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      var img = new Image();
-      img.onload = function() { setProfileImg(img); setIsCustomProfilePic(true); };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  var removeProfilePic = function() {
-    if (profilePicInputRef.current) { profilePicInputRef.current.value = ""; }
-    setIsCustomProfilePic(false);
-    setProfilePicName(null);
-    setProfileImg(null);
-  };
-
-  var removeCustomBg = function() {
-    if (customBgInputRef.current) { customBgInputRef.current.value = ""; }
-    setSeriesSlides(function(prev) {
-      return prev.map(function(s, i) {
-        if (i !== activeSlide) return s;
-        return Object.assign({}, s, { customBgImage: null, customBgName: null, bgType: "solid" });
-      });
-    });
-  };
-
-  var removeScreenshot = function(key) {
-    if (screenshotInputRef.current) { screenshotInputRef.current.value = ""; }
-    setSlideAssets(function(prev) {
-      var next = Object.assign({}, prev);
-      delete next[key];
-      return next;
-    });
-  };
-
-  // Screenshot metadata is unified in slideAssets.
-
-  // --- Preset serialize/deserialize ---
-
-  var PRESET_SLIDE_KEYS = [
-    "title", "showHeading", "showAccentBar", "body",
-    "titleColor", "bodyColor", "showCards", "cards",
-    "cardTextColor", "cardBgColor", "showScreenshot",
-    "showBrandName", "brandNameText", "brandNameColor",
-    "showTopCorner", "topCornerText", "topCornerColor", "topCornerOpacity",
-    "showBottomCorner", "bottomCornerText", "bottomCornerColor", "bottomCornerOpacity",
-    "solidColor", "bgType", "geoEnabled", "geoLines",
-    "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg"
-  ];
-
-  var serializePreset = function(name, includeImages) {
-    var images = {};
-
-    // Profile pic
-    if (profileImg && profileImg.src) {
-      images["profile"] = {
-        name: profilePicName || "profile.jpg",
-        dataUrl: includeImages ? profileImg.src : null
-      };
-    }
-
-    // Per-slide images
-    var serializedSlides = seriesSlides.map(function(s, i) {
-      var slide = {};
-      for (var k = 0; k < PRESET_SLIDE_KEYS.length; k++) {
-        var key = PRESET_SLIDE_KEYS[k];
-        if (key === "cards") {
-          slide[key] = s[key] ? s[key].slice() : ["Card 1"];
-        } else {
-          slide[key] = s[key];
-        }
-      }
-
-      // Custom bg -> ref
-      slide.customBgRef = null;
-      if (s.customBgImage && s.customBgImage.src) {
-        var bgRef = "bg-" + i;
-        slide.customBgRef = bgRef;
-        images[bgRef] = {
-          name: s.customBgName || ("bg-" + i + ".jpg"),
-          dataUrl: includeImages ? s.customBgImage.src : null
-        };
-      }
-
-      // Screenshot -> ref
-      slide.screenshotRef = null;
-      var asset = slideAssets[i];
-      if (asset && asset.image && asset.image.src) {
-        var ssRef = "ss-" + i;
-        slide.screenshotRef = ssRef;
-        images[ssRef] = {
-          name: asset.name || ("screenshot-" + i + ".jpg"),
-          dataUrl: includeImages ? asset.image.src : null,
-          scale: asset.scale || 1
-        };
-      }
-
-      return slide;
-    });
-
-    return {
-      version: 1,
-      generator: "linkedin-carousel",
-      name: name || "Untitled Preset",
-      createdAt: new Date().toISOString(),
-      exportPrefix: exportPrefix,
-      sizes: Object.assign({}, sizes),
-      slides: serializedSlides,
-      profilePicRef: (profileImg && profileImg.src) ? "profile" : null,
-      images: images
-    };
-  };
-
-  var loadPresetData = function(data) {
-    pushUndo();
-    // Increment load token to invalidate any in-flight async image loads from prior presets
-    var loadToken = ++presetLoadTokenRef.current;
-
-    // Restore sizes
-    if (data.sizes) {
-      setSizes(Object.assign({
-        heading: 48, body: 38, cardText: 22,
-        topCorner: 13, bottomCorner: 16, brandName: 20
-      }, data.sizes));
-    }
-
-    // Restore export prefix
-    if (data.exportPrefix != null) {
-      setExportPrefix(data.exportPrefix);
-    }
-
-    // Restore profile pic
-    var profileRef = data.profilePicRef;
-    var profileEntry = profileRef && data.images && data.images[profileRef];
-    if (profileEntry && profileEntry.dataUrl) {
-      var pImg = new Image();
-      pImg.onload = function() {
-        if (presetLoadTokenRef.current !== loadToken) return;
-        setProfileImg(pImg);
-        setIsCustomProfilePic(true);
-      };
-      pImg.src = profileEntry.dataUrl;
-      setProfilePicName(profileEntry.name || null);
-    } else {
-      setProfileImg(null);
-      setIsCustomProfilePic(false);
-      setProfilePicName(profileEntry ? profileEntry.name : null);
-    }
-
-    // Restore slides
-    var newAssets = {};
-
-    var newSlides = (data.slides || []).map(function(sd, i) {
-      var slide = makeDefaultSlide(sd.title, sd.body);
-      // Overwrite all serializable fields
-      for (var k = 0; k < PRESET_SLIDE_KEYS.length; k++) {
-        var key = PRESET_SLIDE_KEYS[k];
-        if (sd[key] !== undefined) {
-          slide[key] = key === "cards" ? (sd.cards || []).slice() : sd[key];
-        }
-      }
-
-      // Custom bg image
-      slide.customBgImage = null;
-      slide.customBgName = null;
-      var bgRef = sd.customBgRef;
-      var bgEntry = bgRef && data.images && data.images[bgRef];
-      if (bgEntry) {
-        slide.customBgName = bgEntry.name || null;
-        if (bgEntry.dataUrl) {
-          var bgImg = new Image();
-          (function(idx) {
-            bgImg.onload = function() {
-              if (presetLoadTokenRef.current !== loadToken) return;
-              setSeriesSlides(function(prev) {
-                return prev.map(function(s, si) {
-                  if (si !== idx) return s;
-                  return Object.assign({}, s, { customBgImage: bgImg });
-                });
-              });
-            };
-          })(i);
-          bgImg.src = bgEntry.dataUrl;
-        }
-      }
-
-      // Screenshot
-      var ssRef = sd.screenshotRef;
-      var ssEntry = ssRef && data.images && data.images[ssRef];
-      if (ssEntry) {
-        newAssets[i] = { image: null, name: ssEntry.name || null, scale: ssEntry.scale || 1 };
-        if (ssEntry.dataUrl) {
-          (function(idx) {
-            var ssImg = new Image();
-            ssImg.onload = function() {
-              if (presetLoadTokenRef.current !== loadToken) return;
-              setSlideAssets(function(prev) {
-                var next = Object.assign({}, prev);
-                next[idx] = Object.assign({}, next[idx] || {}, { image: ssImg });
-                return next;
-              });
-            };
-            ssImg.src = ssEntry.dataUrl;
-          })(i);
-        }
-      }
-
-      return slide;
-    });
-
-    if (newSlides.length === 0) {
-      newSlides = [makeDefaultSlide()];
-    }
-
-    setSeriesSlides(newSlides);
-    setSlideAssets(newAssets);
-    setActiveSlide(0);
-
-    // Clear PDF state
-    clearPdfDownload();
-    setPdfError("");
-  };
-
-  // --- Render to canvas ---
-
-  var renderSlide = useCallback(function(ctx, slideIndex) {
-    renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, profileImg);
-  }, [sizes, profileImg, seriesSlides, slideAssets]);
-
-  var render = useCallback(function() {
-    var canvas = canvasRef.current;
-    if (!canvas) return;
-    var ctx = canvas.getContext("2d");
-    var idx = activeSlide;
-    renderSlide(ctx, idx);
-  }, [renderSlide, activeSlide]);
-
-  useEffect(function() {
-    if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
-    renderTimerRef.current = setTimeout(function() {
-      render();
-    }, 40);
-    return function() {
-      if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
-    };
-  }, [render]);
-
-  // --- Downloads (PDF) ---
-  // Pure PDF utilities (sanitizePrefix, extractJpegBinaryFromDataUrl, buildPdfFromJpegs) in pdfBuilder.js
-
-  var captureSlideJpegBinary = function(ctx, idx) {
-    var canvas = canvasRef.current;
-    renderSlide(ctx, idx);
-    var dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-    var jpeg = extractJpegBinaryFromDataUrl(dataUrl);
-    if (!jpeg || jpeg.length === 0) {
-      throw new Error("Failed to capture JPEG data from canvas");
-    }
-    return jpeg;
-  };
-
-  var clearPdfDownload = function() {
-    if (pdfUrlRef.current) {
-      URL.revokeObjectURL(pdfUrlRef.current);
-      pdfUrlRef.current = null;
-    }
-    setPdfDownload(null);
-  };
-
-  // --- Preset export/import ---
-
-  var clearPresetDownload = function() {
-    if (presetUrlRef.current) {
-      URL.revokeObjectURL(presetUrlRef.current);
-      presetUrlRef.current = null;
-    }
-    setPresetDownload(null);
-  };
-
-  var downloadPreset = function(name, includeImages) {
-    var preset = serializePreset(name, includeImages);
-    var json = JSON.stringify(preset, null, 2);
-    var blob = new Blob([json], { type: "application/json" });
-    clearPresetDownload();
-    var url = URL.createObjectURL(blob);
-    presetUrlRef.current = url;
-    var fileName = sanitizePrefix(name || exportPrefix || "preset") + ".json";
-    setPresetDownload({ name: fileName, url: url });
-  };
-
-  var handlePresetUpload = function(e) {
-    var file = e.target.files[0];
-    if (!file) return;
-    setPresetError("");
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      try {
-        var data = JSON.parse(ev.target.result);
-        if (data.version !== 1 || !Array.isArray(data.slides)) {
-          setPresetError("Invalid preset file format (expected v1).");
-          return;
-        }
-
-        // Count missing images
-        var imageMap = (data.images && typeof data.images === "object") ? data.images : {};
-        var missingCount = 0;
-        if (data.profilePicRef) {
-          var profileEntry = imageMap[data.profilePicRef];
-          if (!profileEntry || !profileEntry.dataUrl) missingCount++;
-        }
-        for (var i = 0; i < data.slides.length; i++) {
-          var sd = data.slides[i];
-          if (sd.customBgRef) {
-            var bgEntry = imageMap[sd.customBgRef];
-            if (!bgEntry || !bgEntry.dataUrl) missingCount++;
-          }
-          if (sd.screenshotRef) {
-            var ssEntry = imageMap[sd.screenshotRef];
-            if (!ssEntry || !ssEntry.dataUrl) missingCount++;
-          }
-        }
-
-        var msg = "Load preset \u201c" + (data.name || "Untitled") + "\u201d? This replaces all current slides and settings.";
-        if (missingCount > 0) {
-          msg += " (" + missingCount + " image" + (missingCount > 1 ? "s" : "") + " not included \u2014 re-upload after loading.)";
-        }
-
-        setPresetError("");
-        setConfirmDialog({
-          message: msg,
-          onConfirm: function() {
-            setPresetError("");
-            loadPresetData(data);
-          }
-        });
-      } catch (err) {
-        setPresetError("Failed to parse preset file.");
-      }
-    };
-    reader.readAsText(file);
-    if (presetInputRef.current) presetInputRef.current.value = "";
-  };
-
-  var downloadCurrentPDF = function() {
-    var canvas = canvasRef.current;
-    if (!canvas) return;
-    setPdfError("");
-    try {
-      var ctx = canvas.getContext("2d");
-      var jpeg = captureSlideJpegBinary(ctx, activeSlide);
-      var blob = buildPdfFromJpegs([jpeg], W, H);
-      clearPdfDownload();
-      var prefix = sanitizePrefix(exportPrefix);
-      var nn = (activeSlide + 1 < 10 ? "0" : "") + (activeSlide + 1);
-      var fileName = prefix + "-" + nn + ".pdf";
-      var url = URL.createObjectURL(blob);
-      pdfUrlRef.current = url;
-      setPdfDownload({ name: fileName, url: url });
-    } catch (err) {
-      setPdfError("PDF generation failed");
-    }
-  };
-
-  var downloadAllPDF = function() {
-    var canvas = canvasRef.current;
-    if (!canvas) return;
-    var ctx = canvas.getContext("2d");
-    var total = seriesSlides.length;
-    setPdfError("");
-    try {
-      var jpegPages = [];
-      for (var i = 0; i < total; i++) {
-        jpegPages.push(captureSlideJpegBinary(ctx, i));
-      }
-      var blob = buildPdfFromJpegs(jpegPages, W, H);
-      clearPdfDownload();
-      var prefix = sanitizePrefix(exportPrefix);
-      var fileName = prefix + "-all.pdf";
-      var url = URL.createObjectURL(blob);
-      pdfUrlRef.current = url;
-      setPdfDownload({ name: fileName, url: url });
-    } catch (err) {
-      setPdfError("PDF generation failed");
-    } finally {
-      renderSlide(ctx, activeSlide);
-    }
-  };
-
-  useEffect(function() {
-    return function() {
-      if (pdfUrlRef.current) {
-        URL.revokeObjectURL(pdfUrlRef.current);
-        pdfUrlRef.current = null;
-      }
-      if (presetUrlRef.current) {
-        URL.revokeObjectURL(presetUrlRef.current);
-        presetUrlRef.current = null;
-      }
-    };
-  }, []);
-
-  // --- Series slide management ---
-
-  var updateSlide = function(idx, field, val) {
-    var next = seriesSlides.map(function(s, i) {
-      if (i !== idx) return s;
-      var updated = Object.assign({}, s);
-      updated[field] = val;
-      return updated;
-    });
-    setSeriesSlides(next);
-  };
-
-  var updateBgField = function(field, value) {
-    updateSlide(activeSlide, field, value);
-  };
-
-  var syncBgToAll = function() {
-    setConfirmDialog({
-      message: "Apply Slide " + (activeSlide + 1) + "\u2019s background settings to all slides?",
-      onConfirm: function() {
-        pushUndo();
-        var src = seriesSlides[activeSlide];
-        setSeriesSlides(function(prev) {
-          return prev.map(function(s) {
-            return Object.assign({}, s, {
-              solidColor: src.solidColor,
-              bgType: src.bgType,
-              customBgImage: src.customBgImage,
-              customBgName: src.customBgName,
-              geoEnabled: src.geoEnabled,
-              geoLines: src.geoLines,
-              frameEnabled: src.frameEnabled,
-              accentColor: src.accentColor,
-              borderColor: src.borderColor,
-              borderOpacity: src.borderOpacity,
-              footerBg: src.footerBg
-            });
-          });
-        });
-      }
-    });
-  };
-
-  var resetBgToDefault = function() {
-    setConfirmDialog({
-      message: "Reset Slide " + (activeSlide + 1) + "\u2019s background to defaults?",
-      onConfirm: function() {
-        pushUndo();
-        setSeriesSlides(function(prev) {
-          return prev.map(function(s, i) {
-            if (i !== activeSlide) return s;
-            return Object.assign({}, s, {
-              solidColor: "#1e1e2e",
-              bgType: "solid",
-              customBgImage: null,
-              customBgName: null,
-              geoEnabled: true,
-              geoLines: "#a0a0af",
-              frameEnabled: true,
-              accentColor: "#22c55e",
-              borderColor: "#ffffff",
-              borderOpacity: 25,
-              footerBg: "#ffffff"
-            });
-          });
-        });
-      }
-    });
-  };
-
-  var addSlide = function() {
-    setSeriesSlides(function(prev) {
-      if (prev.length >= 10) return prev;
-      return prev.concat([makeDefaultSlide()]);
-    });
-  };
-
-  var duplicateSlide = function() {
-    if (seriesSlides.length >= 10) return;
-    setConfirmDialog({
-      message: "Duplicate Slide " + (activeSlide + 1) + "?",
-      onConfirm: function() {
-        pushUndo();
-        var insertIdx = activeSlide + 1;
-
-        setSeriesSlides(function(prev) {
-          if (prev.length >= 10) return prev;
-          var src = prev[activeSlide];
-          if (!src) return prev;
-          var copy = Object.assign({}, src, { cards: src.cards.slice() });
-          var next = prev.slice();
-          next.splice(insertIdx, 0, copy);
-          return next;
-        });
-
-        setSlideAssets(function(prev) {
-          // Shift all asset keys >= insertIdx up by 1, then copy source asset
-          var next = {};
-          Object.keys(prev).forEach(function(k) {
-            var ki = Number(k);
-            if (ki >= insertIdx) {
-              next[ki + 1] = prev[ki];
-            } else {
-              next[ki] = prev[ki];
-            }
-          });
-          var srcAsset = prev[activeSlide];
-          if (srcAsset) {
-            next[insertIdx] = Object.assign({}, srcAsset);
-          }
-          return next;
-        });
-
-        setActiveSlide(insertIdx);
-      }
-    });
-  };
-
-  var removeSlide = function(idx) {
-    if (seriesSlides.length <= 1) return;
-    pushUndo();
-    setSeriesSlides(function(prev) {
-      if (prev.length <= 1) return prev;
-      return prev.filter(function(_, i) { return i !== idx; });
-    });
-    setSlideAssets(function(prev) {
-      var next = {};
-      Object.keys(prev).forEach(function(k) {
-        var ki = Number(k);
-        if (ki < idx) next[ki] = prev[ki];
-        else if (ki > idx) next[ki - 1] = prev[ki];
-      });
-      return next;
-    });
-    setActiveSlide(function(prev) {
-      var newLen = seriesSlides.length - 1;
-      if (prev >= newLen) return newLen - 1;
-      if (prev === idx) return Math.max(0, idx - 1);
-      if (prev > idx) return prev - 1;
-      return prev;
-    });
-  };
-
-  var reorderSlide = function(fromIdx, toIdx) {
-    if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
-    pushUndo();
-
-    setSeriesSlides(function(prev) {
-      if (fromIdx < 0 || fromIdx >= prev.length) return prev;
-      if (toIdx < 0 || toIdx >= prev.length) return prev;
-      var next = prev.slice();
-      var moved = next.splice(fromIdx, 1)[0];
-      next.splice(toIdx, 0, moved);
-      return next;
-    });
-
-    // Build index map for asset remapping
-    var buildIndexMap = function(len) {
-      var map = {};
-      for (var i = 0; i < len; i++) {
-        var newPos;
-        if (i === fromIdx) {
-          newPos = toIdx;
-        } else if (fromIdx < toIdx) {
-          if (i > fromIdx && i <= toIdx) { newPos = i - 1; }
-          else { newPos = i; }
-        } else {
-          if (i >= toIdx && i < fromIdx) { newPos = i + 1; }
-          else { newPos = i; }
-        }
-        map[i] = newPos;
-      }
-      return map;
-    };
-
-    setSlideAssets(function(prev) {
-      var indexMap = buildIndexMap(seriesSlides.length);
-      var next = {};
-      Object.keys(prev).forEach(function(k) {
-        var ki = Number(k);
-        if (indexMap[ki] != null) {
-          next[indexMap[ki]] = prev[ki];
-        }
-      });
-      return next;
-    });
-
-    setActiveSlide(function(prev) {
-      var indexMap = buildIndexMap(seriesSlides.length);
-      if (prev === fromIdx) return toIdx;
-      if (indexMap[prev] != null) return indexMap[prev];
-      return prev;
-    });
-
-    setDragFrom(null);
-    setDragOver(null);
-  };
-
-  var updateSlideCard = function(slideIdx, cardIdx, val) {
-    updateSlide(slideIdx, "cards", seriesSlides[slideIdx].cards.map(function(c, i) { return i === cardIdx ? val : c; }));
-  };
-  var addSlideCard = function(slideIdx) {
-    var s = seriesSlides[slideIdx];
-    if (s.cards.length < 5) updateSlide(slideIdx, "cards", s.cards.concat(["Card " + (s.cards.length + 1)]));
-  };
-  var removeSlideCard = function(slideIdx, cardIdx) {
-    var s = seriesSlides[slideIdx];
-    if (s.cards.length > 1) updateSlide(slideIdx, "cards", s.cards.filter(function(_, i) { return i !== cardIdx; }));
-  };
-
-  // --- Styles ---
-
-  // inputStyle, labelStyle, INLINE_SWATCHES, smallBtnStyle, pickerDropdownStyle hoisted to module scope
-
-  var sizeLabel = function(text, sizeKey, min, max, extra, colorVal, colorSet, colorPickerKey, opacityVal, opacitySet) {
-    if (!sizeKey) return <label style={labelStyle}>{text}{extra ? " " : ""}{extra}</label>;
-    var cpOpen = colorPickerKey && openPicker === colorPickerKey;
-    return (
-      <div style={{ display: "flex", alignItems: "center", marginBottom: text ? 6 : 0, gap: text ? 0 : 6 }}>
-        {text && <span style={{ fontWeight: 600, fontSize: 13, color: "#bbb", letterSpacing: 0.5, flex: 1 }}>{text}{extra ? " " : ""}{extra}</span>}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {colorPickerKey && (
-            <div style={{ position: "relative" }} data-picker={colorPickerKey}>
-              <button onClick={function(e) { e.stopPropagation(); setOpenPicker(cpOpen ? null : colorPickerKey); }}
-                style={{ width: 18, height: 18, borderRadius: 4, border: cpOpen ? "2px solid #6366f1" : "1px solid #444", background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
-              {cpOpen && (
-                <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
-                    {INLINE_SWATCHES.map(function(c) {
-                      var active = colorVal === c;
-                      return (
-                        <button key={c} onClick={function() { colorSet(c); }}
-                          style={{ width: 20, height: 20, borderRadius: 4, border: active ? "2px solid #fff" : "1px solid #444", background: c, cursor: "pointer", padding: 0, boxShadow: active ? "0 0 0 1px #6366f1" : "none" }} />
-                      );
-                    })}
-                  </div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input type="color" value={colorVal && colorVal.charAt(0) === "#" ? colorVal : "#ffffff"} onChange={function(e) { colorSet(e.target.value); }}
-                      style={{ width: 24, height: 24, border: "1px solid #444", borderRadius: 4, cursor: "pointer", background: "none", padding: 0 }} />
-                    <input value={colorVal || ""} onChange={function(e) { colorSet(e.target.value); }}
-                      style={{ flex: 1, padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, fontFamily: "monospace" }} />
-                  </div>
-                  {opacitySet && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, paddingTop: 8, borderTop: "1px solid #3a3a50" }}>
-                      <span style={{ fontSize: 10, color: "#666", whiteSpace: "nowrap" }}>Opacity</span>
-                      <input type="range" min={0} max={100} value={opacityVal != null ? opacityVal : 100} onChange={function(e) { opacitySet(Number(e.target.value)); }}
-                        style={{ flex: 1 }} />
-                      <span style={{ fontSize: 10, color: "#555", width: 28, textAlign: "right" }}>{(opacityVal != null ? opacityVal : 100) + "%"}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#28283e", borderRadius: 4, border: "1px solid #444", height: 28, overflow: "hidden" }}>
-            <button onClick={function() { if (sizes[sizeKey] > (min || 10)) setSize(sizeKey, sizes[sizeKey] - 1); }}
-              style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>{"\u2212"}</button>
-            <input value={sizes[sizeKey]} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize(sizeKey, Math.max(min || 10, Math.min(max || 60, v))); }}
-              style={{ width: 30, height: 28, border: "none", borderLeft: "1px solid #444", borderRight: "1px solid #444", background: "transparent", color: "#666", fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
-            <button onClick={function() { if (sizes[sizeKey] < (max || 60)) setSize(sizeKey, sizes[sizeKey] + 1); }}
-              style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>+</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
+  // --- Canvas rendering hook ---
+  var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
+  var renderSlide = canvasRenderer.renderSlide;
+
+  // --- PDF export hook ---
+  var pdfExport = usePdfExport(canvasRef, renderSlide, seriesSlides, activeSlide, exportPrefix);
+  var pdfDownload = pdfExport.pdfDownload;
+  var pdfError = pdfExport.pdfError;
+  var setPdfError = pdfExport.setPdfError;
+  var downloadCurrentPDF = pdfExport.downloadCurrentPDF;
+  var downloadAllPDF = pdfExport.downloadAllPDF;
+  var clearPdfDownload = pdfExport.clearPdfDownload;
+
+  // --- Presets hook ---
+  var presets = usePresets({
+    seriesSlides: seriesSlides, slideAssets: slideAssets, sizes: sizes,
+    setSizes: setSizes, profileImg: profileImg, setProfileImg: setProfileImg,
+    profilePicName: profilePicName, setProfilePicName: setProfilePicName,
+    isCustomProfilePic: isCustomProfilePic, setIsCustomProfilePic: setIsCustomProfilePic,
+    exportPrefix: exportPrefix, setExportPrefix: setExportPrefix,
+    setSeriesSlides: setSeriesSlides, setSlideAssets: setSlideAssets,
+    setActiveSlide: setActiveSlide, clearPdfDownload: clearPdfDownload,
+    setPdfError: setPdfError,
+    pushUndo: function() { if (pushUndoRef.current) pushUndoRef.current(); },
+    setConfirmDialog: setConfirmDialog
+  });
+
+  // --- Convenience aliases ---
+  var updateSlide = slideMgmt.updateSlide;
+  var updateBgField = slideMgmt.updateBgField;
   var currentSlide = seriesSlides[activeSlide] || seriesSlides[0];
   var isCustomBg = currentSlide.bgType === "custom";
 
@@ -881,32 +173,32 @@ export default function App() {
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
-              <button onClick={function() { setPresetName(exportPrefix || ""); setPresetDialog({ type: "save" }); }}
+              <button onClick={function() { presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
                 style={smallBtnStyle}>
                 Save
               </button>
-              <button onClick={function() { if (presetInputRef.current) presetInputRef.current.click(); }}
+              <button onClick={function() { if (presets.presetInputRef.current) presets.presetInputRef.current.click(); }}
                 style={smallBtnStyle}>
                 Load
               </button>
-              <input ref={presetInputRef} type="file" accept=".json" onChange={handlePresetUpload} style={{ display: "none" }} />
+              <input ref={presets.presetInputRef} type="file" accept=".json" onChange={presets.handlePresetUpload} style={{ display: "none" }} />
             </div>
-            {presetDownload && (
+            {presets.presetDownload && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                <a href={presetDownload.url} download={presetDownload.name}
-                  onClick={function() { setTimeout(clearPresetDownload, 1500); }}
+                <a href={presets.presetDownload.url} download={presets.presetDownload.name}
+                  onClick={function() { setTimeout(presets.clearPresetDownload, 1500); }}
                   style={{ fontSize: 11, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
-                  {"Save " + presetDownload.name}
+                  {"Save " + presets.presetDownload.name}
                 </a>
-                <button onClick={clearPresetDownload}
+                <button onClick={presets.clearPresetDownload}
                   style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>
                   {"\u00d7"}
                 </button>
               </div>
             )}
-            {presetError && (
+            {presets.presetError && (
               <div style={{ marginTop: 4, padding: "4px 8px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 11 }}>
-                {presetError}
+                {presets.presetError}
               </div>
             )}
           </div>
@@ -916,10 +208,10 @@ export default function App() {
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
-              <button onClick={syncBgToAll} style={smallBtnStyle}>
+              <button onClick={slideMgmt.syncBgToAll} style={smallBtnStyle}>
                 Sync All
               </button>
-              <button onClick={resetBgToDefault} style={smallBtnStyle}>
+              <button onClick={slideMgmt.resetBgToDefault} style={smallBtnStyle}>
                 Reset
               </button>
             </div>
@@ -1001,8 +293,8 @@ export default function App() {
 
                 {/* Photo upload - above thumbnail; visible only in Photo mode */}
                 <div style={{ width: "100%", marginBottom: 2, visibility: isCustomBg ? "visible" : "hidden" }}>
-                  <input ref={customBgInputRef} type="file" accept="image/*" onChange={function(e) { handleCustomUpload(e); }} style={{ display: "none" }} />
-                  <button onClick={function() { if (customBgInputRef.current) customBgInputRef.current.click(); }}
+                  <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
+                  <button onClick={function() { if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}
                     style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 10, fontWeight: 600 }}>
                     Choose File
                   </button>
@@ -1037,7 +329,7 @@ export default function App() {
                     {currentSlide.customBgImage ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 9, color: GREEN }}>{"\u2713"} Uploaded</span>
-                        <button onClick={removeCustomBg} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 9, padding: 0 }}>{"\u00d7"} Remove</button>
+                        <button onClick={slideMgmt.removeCustomBg} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 9, padding: 0 }}>{"\u00d7"} Remove</button>
                       </div>
                     ) : (
                       <span style={{ fontSize: 9, color: "#555" }}>No image</span>
@@ -1061,8 +353,8 @@ export default function App() {
                   <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PROFILE PIC</label>
                   <span style={{ fontSize: 10, color: "#555", fontWeight: 400 }}>(84 {"\u00d7"} 84px)</span>
                 </div>
-                <input ref={profilePicInputRef} type="file" accept="image/*" onChange={handleProfilePicUpload} style={{ display: "none" }} />
-                <button onClick={function() { if (profilePicInputRef.current) profilePicInputRef.current.click(); }}
+                <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
+                <button onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}
                   style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 10, fontWeight: 600, marginBottom: 2 }}>
                   Choose File
                 </button>
@@ -1073,7 +365,7 @@ export default function App() {
                   {profileImg && isCustomProfilePic ? (
                     <>
                       <span style={{ fontSize: 11, color: GREEN }}>{"\u2713"} Uploaded</span>
-                      <button onClick={removeProfilePic} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, marginLeft: 8 }}>{"\u00d7"} Remove</button>
+                      <button onClick={slideMgmt.removeProfilePic} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, marginLeft: 8 }}>{"\u00d7"} Remove</button>
                     </>
                   ) : (
                     <span style={{ fontSize: 11, color: "#555" }}>No image</span>
@@ -1097,50 +389,9 @@ export default function App() {
           <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10, paddingTop: 10 }}>
 
           {/* --- SLIDES --- */}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
-              <button onClick={duplicateSlide}
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  border: "1px solid #444",
-                  background: "#28283e",
-                  color: "#ccc",
-                  cursor: "pointer",
-                  fontSize: 9,
-                  fontWeight: 600,
-                  opacity: seriesSlides.length >= 10 ? 0.4 : 1
-                }}>
-                Duplicate
-              </button>
-            </div>
-            <div style={{ display: "flex", gap: 4, marginBottom: 0, flexWrap: "wrap" }}>
-              {seriesSlides.map(function(s, i) {
-                var isActive = activeSlide === i;
-                var isDragSource = dragFrom === i;
-                var isDragTarget = dragOver === i && dragFrom !== i;
-                var label = (i + 1).toString();
-                return (
-                  <button key={i}
-                    draggable
-                    onClick={function() { setActiveSlide(i); }}
-                    onDragStart={function(e) { setDragFrom(i); e.dataTransfer.effectAllowed = "move"; }}
-                    onDragOver={function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(i); }}
-                    onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
-                    onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
-                    onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-                    style={{ width: 56, height: 56, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 16, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
-                    {label}
-                  </button>
-                );
-              })}
-              {seriesSlides.length < 10 && (
-                <button onClick={addSlide}
-                  style={{ width: 56, height: 56, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-              )}
-            </div>
-          </div>
+          <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
+            dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
+            reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide} />
 
           {/* --- SCREENSHOT (per-slide, in Col 1) --- */}
           {currentSlide && (
@@ -1148,15 +399,15 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SCREENSHOT</label>
                 <span style={{ fontSize: 10, color: "#555", fontWeight: 400 }}>(640 {"\u00D7"} 500px)</span>
-                <button onClick={function() { var next = !currentSlide.showScreenshot; updateSlide(activeSlide, "showScreenshot", next); if (!next) { removeScreenshot(activeSlide); } }}
+                <button onClick={function() { var next = !currentSlide.showScreenshot; updateSlide(activeSlide, "showScreenshot", next); if (!next) { slideMgmt.removeScreenshot(activeSlide); } }}
                   style={{ padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showScreenshot ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                   {currentSlide.showScreenshot ? "ON" : "OFF"}
                 </button>
               </div>
               {currentSlide.showScreenshot && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input ref={screenshotInputRef} type="file" accept="image/*" onChange={function(e) { handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
-                  <button onClick={function() { if (screenshotInputRef.current) screenshotInputRef.current.click(); }}
+                  <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
+                  <button onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}
                     style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 10, fontWeight: 600 }}>
                     Choose File
                   </button>
@@ -1167,7 +418,7 @@ export default function App() {
                   {getAsset(activeSlide).image && (
                     <div style={{ marginTop: 4 }}>
                       <span style={{ fontSize: 11, color: GREEN }}>{"\u2713"} Uploaded</span>
-                      <button onClick={function() { removeScreenshot(activeSlide); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, marginLeft: 8 }}>{"\u00d7"} Remove</button>
+                      <button onClick={function() { slideMgmt.removeScreenshot(activeSlide); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, marginLeft: 8 }}>{"\u00d7"} Remove</button>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                         <span style={{ fontSize: 10, color: "#666" }}>Scale</span>
                         <input type="range" min={50} max={200} value={Math.round(getAsset(activeSlide).scale * 100)} onChange={function(e) { setScale(activeSlide, Number(e.target.value) / 100); }}
@@ -1196,7 +447,7 @@ export default function App() {
                   {"SLIDE " + (activeSlide + 1)}
                 </span>
                 {seriesSlides.length > 1 && (
-                  <button onClick={function() { removeSlide(activeSlide); }}
+                  <button onClick={function() { slideMgmt.removeSlide(activeSlide); }}
                     style={{ background: "none", border: "1px solid #f8717133", color: "#f87171", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Remove</button>
                 )}
               </div>
@@ -1211,7 +462,9 @@ export default function App() {
                 {currentSlide.showBrandName && (
                   <>
                     <div style={{ flex: 1 }} />
-                    {sizeLabel("", "brandName", 12, 60, null, currentSlide.brandNameColor, function(c) { updateSlide(activeSlide, "brandNameColor", c); }, "s-" + activeSlide + "-bn")}
+                    <SizeControl sizeKey="brandName" min={12} max={60} sizes={sizes} setSize={setSize}
+                      colorVal={currentSlide.brandNameColor} colorSet={function(c) { updateSlide(activeSlide, "brandNameColor", c); }}
+                      colorPickerKey={"s-" + activeSlide + "-bn"} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                   </>
                 )}
               </div>
@@ -1229,7 +482,12 @@ export default function App() {
                   style={{ padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showTopCorner ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                   {currentSlide.showTopCorner ? "ON" : "OFF"}
                 </button>
-                {currentSlide.showTopCorner && (<><div style={{ flex: 1 }} />{sizeLabel("", "topCorner", 8, 60, null, currentSlide.topCornerColor, function(c) { updateSlide(activeSlide, "topCornerColor", c); }, "s-" + activeSlide + "-tc", currentSlide.topCornerOpacity, function(v) { updateSlide(activeSlide, "topCornerOpacity", v); })}</>)}
+                {currentSlide.showTopCorner && (<><div style={{ flex: 1 }} />
+                  <SizeControl sizeKey="topCorner" min={8} max={60} sizes={sizes} setSize={setSize}
+                    colorVal={currentSlide.topCornerColor} colorSet={function(c) { updateSlide(activeSlide, "topCornerColor", c); }}
+                    colorPickerKey={"s-" + activeSlide + "-tc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                    opacityVal={currentSlide.topCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "topCornerOpacity", v); }} />
+                </>)}
               </div>
               {currentSlide.showTopCorner && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
@@ -1245,7 +503,12 @@ export default function App() {
                   style={{ padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showBottomCorner ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                   {currentSlide.showBottomCorner ? "ON" : "OFF"}
                 </button>
-                {currentSlide.showBottomCorner && (<><div style={{ flex: 1 }} />{sizeLabel("", "bottomCorner", 10, 60, null, currentSlide.bottomCornerColor, function(c) { updateSlide(activeSlide, "bottomCornerColor", c); }, "s-" + activeSlide + "-bc", currentSlide.bottomCornerOpacity, function(v) { updateSlide(activeSlide, "bottomCornerOpacity", v); })}</>)}
+                {currentSlide.showBottomCorner && (<><div style={{ flex: 1 }} />
+                  <SizeControl sizeKey="bottomCorner" min={10} max={60} sizes={sizes} setSize={setSize}
+                    colorVal={currentSlide.bottomCornerColor} colorSet={function(c) { updateSlide(activeSlide, "bottomCornerColor", c); }}
+                    colorPickerKey={"s-" + activeSlide + "-bc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                    opacityVal={currentSlide.bottomCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "bottomCornerOpacity", v); }} />
+                </>)}
               </div>
               {currentSlide.showBottomCorner && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
@@ -1268,7 +531,10 @@ export default function App() {
                       style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(34,197,94,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? GREEN : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
                       {"\u2501"}
                     </button>
-                    <div style={{ flex: 1 }} />{sizeLabel("", "heading", 24, 160, null, currentSlide.titleColor, function(c) { updateSlide(activeSlide, "titleColor", c); }, "s-" + activeSlide + "-title")}
+                    <div style={{ flex: 1 }} />
+                    <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
+                      colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
+                      colorPickerKey={"s-" + activeSlide + "-title"} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                   </>
                 )}
               </div>
@@ -1329,16 +595,16 @@ export default function App() {
                   {currentSlide.cards.map(function(c, i) {
                     return (
                       <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
-                        <input value={c} onChange={function(e) { updateSlideCard(activeSlide, i, e.target.value); }} placeholder={"Card " + (i + 1) + "..."}
+                        <input value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); }} placeholder={"Card " + (i + 1) + "..."}
                           style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 12, boxSizing: "border-box" }} />
                         {currentSlide.cards.length > 1 && (
-                          <button onClick={function() { removeSlideCard(activeSlide, i); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 18, padding: 4 }}>{"\u00d7"}</button>
+                          <button onClick={function() { slideMgmt.removeSlideCard(activeSlide, i); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 18, padding: 4 }}>{"\u00d7"}</button>
                         )}
                       </div>
                     );
                   })}
                   {currentSlide.cards.length < 5 && (
-                    <button onClick={function() { addSlideCard(activeSlide); }} style={{ background: "#28283e", border: "1px dashed #444", color: "#888", padding: "5px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, marginTop: 4 }}>+ Add Card</button>
+                    <button onClick={function() { slideMgmt.addSlideCard(activeSlide); }} style={{ background: "#28283e", border: "1px dashed #444", color: "#888", padding: "5px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, marginTop: 4 }}>+ Add Card</button>
                   )}
                   <p style={{ fontSize: 11, color: "#555", marginTop: 6, marginBottom: 4 }}>**word** = accent color.</p>
                 </div>
@@ -1415,31 +681,31 @@ export default function App() {
       )}
 
       {/* Save Preset dialog overlay */}
-      {presetDialog && presetDialog.type === "save" && (
+      {presets.presetDialog && presets.presetDialog.type === "save" && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
-          onClick={function() { setPresetDialog(null); }}>
+          onClick={function() { presets.setPresetDialog(null); }}>
           <div style={{ background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: "20px 24px", maxWidth: 360, textAlign: "left", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
             onClick={function(e) { e.stopPropagation(); }}>
             <p style={{ color: "#ccc", fontSize: 14, fontWeight: 600, margin: "0 0 12px 0" }}>Save Preset</p>
             <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Preset name</label>
-            <input value={presetName} onChange={function(e) { setPresetName(e.target.value); }}
+            <input value={presets.presetName} onChange={function(e) { presets.setPresetName(e.target.value); }}
               placeholder="My Carousel"
               style={inputStyle} />
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, marginBottom: 16 }}>
-              <button onClick={function() { setPresetIncludeImages(!presetIncludeImages); }}
+              <button onClick={function() { presets.setPresetIncludeImages(!presets.presetIncludeImages); }}
                 style={{ padding: "3px 12px", borderRadius: 20, border: "none",
-                  background: presetIncludeImages ? GREEN : "#555",
+                  background: presets.presetIncludeImages ? GREEN : "#555",
                   color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                {presetIncludeImages ? "ON" : "OFF"}
+                {presets.presetIncludeImages ? "ON" : "OFF"}
               </button>
               <span style={{ fontSize: 12, color: "#999" }}>Include images (larger file)</span>
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button onClick={function() { setPresetDialog(null); }}
+              <button onClick={function() { presets.setPresetDialog(null); }}
                 style={{ padding: "6px 18px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#999", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                 Cancel
               </button>
-              <button onClick={function() { downloadPreset(presetName, presetIncludeImages); setPresetDialog(null); }}
+              <button onClick={function() { presets.downloadPreset(presets.presetName, presets.presetIncludeImages); presets.setPresetDialog(null); }}
                 style={{ padding: "6px 18px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                 Save
               </button>

@@ -21,6 +21,12 @@ var ORDER = [
   "src/undoRedo.js",
   "src/pdfBuilder.js",
   "src/ColorPickerInline.jsx",
+  "src/SizeControl.jsx",
+  "src/SlideSelector.jsx",
+  "src/useSlideManagement.js",
+  "src/useCanvasRenderer.js",
+  "src/usePdfExport.js",
+  "src/usePresets.js",
   "src/App.jsx"
 ];
 
