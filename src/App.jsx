@@ -450,6 +450,8 @@ export default function App() {
                   {"SLIDE " + (activeSlide + 1)}
                 </span>
                 <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={slideMgmt.duplicateSlide}
+                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: seriesSlides.length >= 10 ? "default" : "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6, opacity: seriesSlides.length >= 10 ? 0.4 : 1 }}>Duplicate</button>
                   <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
                     style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Reset</button>
                   {seriesSlides.length > 1 && (
