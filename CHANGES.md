@@ -2,6 +2,22 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-27 - Browser smoke handoff workflow added
+- What changed: Added an explicit terminal-to-browser smoke-test handoff workflow with human-in-the-loop pause/resume control for file uploads.
+  - Updated `CLAUDE.md` with a new `Browser Smoke Test Handoff (Human-in-the-Loop)` section.
+  - Added strict pause/resume tokens for Windows file picker steps:
+    - `PAUSE_FOR_FILE_UPLOAD: <instruction>`
+    - `UPLOAD_DONE: <what was uploaded>`
+  - Added smoke gate contract: commit may occur before smoke testing; push is blocked until `RESULT: PASS`.
+  - Updated required flow and commands to split pre-smoke vs post-smoke push behavior.
+  - Added `agents/browser-smoke-tester.md` for browser-only smoke testing behavior and output format.
+  - Added `SMOKE_TEST_HANDOFF_TEMPLATE.md` as the reusable handoff card.
+  - Updated `agents/README.md` to register the new browser smoke tester spec.
+- Why: Browser extension sessions are context-isolated and need explicit, repeatable test guidance and pause points for OS file dialogs.
+- Files: `CLAUDE.md` (updated), `agents/README.md` (updated), `agents/browser-smoke-tester.md` (added), `SMOKE_TEST_HANDOFF_TEMPLATE.md` (added), `CHANGES.md` (updated).
+- Validation: Verified docs reference the new smoke workflow, pause/resume tokens, gate timing, new agent spec, and reusable handoff template.
+- Notes/Risks: This is a process-only change. Smoke quality still depends on accurate manual execution and complete handoff cards.
+
 ## 2026-02-27 - Pass 3: Complete extraction and redo hotkey fix
 - What changed: Finished extracting App.jsx into focused hooks and components; fixed redo hotkey robustness.
   - Extracted `src/useSlideManagement.js` — slide CRUD, reorder, duplicate, card management, image uploads (360 lines).

@@ -28,8 +28,9 @@ When the user sends `IMPLEMENT`:
 ## Optional Agent Specs
 Use these when you want stricter role separation without changing the core workflow:
 - `agents/planner.md`: discovery, clarifying questions, decision-complete plan.
-- `agents/implementer.md`: execute approved plan with minimal edits and validations.
+- `agents/implementer.md`: execute an approved plan with minimal edits and validations.
 - `agents/reviewer.md`: findings-first review with severity and file/line references.
+- `agents/browser-smoke-tester.md`: run browser smoke checks from a structured handoff card; no code edits.
 
 If using an agent spec, read `CLAUDE.md`, `FEATURE_CARD.md`, and that specific `agents/*.md` file at kickoff.
 
@@ -40,6 +41,30 @@ If using an agent spec, read `CLAUDE.md`, `FEATURE_CARD.md`, and that specific `
 - Planner agent kickoff: `FEATURE: Use agents/planner.md and FEATURE_CARD.md.`
 - Implementer agent kickoff: `IMPLEMENT: Use agents/implementer.md.`
 - Reviewer agent kickoff: `REVIEW: Use agents/reviewer.md.`
+- Browser smoke kickoff: `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+
+## Browser Smoke Test Handoff (Human-in-the-Loop)
+Use this when validating `linkedin-carousel.jsx` in a browser extension session that has no repository context.
+
+Rules:
+- Browser sessions are context-isolated: always provide a structured handoff prompt/card.
+- For any step that requires the Windows file picker, browser Claude must pause before the action.
+- Pause token: `PAUSE_FOR_FILE_UPLOAD: <instruction>`
+- Resume token from human: `UPLOAD_DONE: <what was uploaded>`
+- Browser Claude must not assume upload completion until it receives the resume token.
+
+Smoke signoff gate:
+- Commit is allowed before browser smoke test to enable cross-agent review.
+- Push is blocked until smoke signoff is reported as `RESULT: PASS` (or fixes are applied and re-tested).
+
+Handoff checklist:
+- Commit hash under test
+- Scope under test (in/out)
+- Required upload files
+- Test scenarios
+- Known risks to target
+
+Use `SMOKE_TEST_HANDOFF_TEMPLATE.md` as the standard handoff card.
 
 ## Required End-to-End Flow
 1. Restate request and constraints.
@@ -49,21 +74,28 @@ If using an agent spec, read `CLAUDE.md`, `FEATURE_CARD.md`, and that specific `
 5. Run focused validation for touched behavior.
 6. Update docs when behavior or process changed.
 7. Commit one atomic changeset.
-8. Push with `git push origin main`.
+8. Prepare a browser smoke handoff card with commit hash, scope, required uploads, scenarios, and known risks.
+9. Run browser smoke via `agents/browser-smoke-tester.md` and record the result.
+10. If smoke result is `FAIL`, return to implementation, then rebuild and re-test.
+11. Push with `git push origin main` only after smoke result is `PASS`.
 
 ## Required Commands
-Run these in order for normal implementation tasks:
+Pre-smoke commands:
 1. `git status --short`
 2. `node build.js`
 3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md agents`
 4. `git add <changed files>`
 5. `git commit -m "<clear summary>"`
-6. `git push origin main`
+6. `git rev-parse --short HEAD`
+
+Post-smoke command (only after `RESULT: PASS`):
+1. `git push origin main`
 
 ## Definition of Done
 All of the following must be true:
 - Artifact regenerated if any `src/*` changed.
 - Focused smoke check completed for touched area.
+- Browser smoke signoff recorded (`RESULT: PASS`) for interactive behavior changes.
 - Docs updated if behavior or process changed.
 - Working tree clean after commit.
 - Remote updated on `origin/main`.
@@ -81,3 +113,4 @@ All of the following must be true:
 - Do not edit generated artifact manually.
 - Do not skip build after source change.
 - Do not push without smoke-check + diff review.
+- Do not skip pause/resume tokens for file-picker steps in browser smoke sessions.
