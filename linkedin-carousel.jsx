@@ -1473,7 +1473,7 @@ function usePresets(deps) {
   // Auto-dismiss preset errors after 5 seconds
   useEffect(function() {
     if (!presetError) return;
-    var timer = setTimeout(function() { setPresetError(""); }, 5000);
+    var timer = setTimeout(function() { setPresetError(""); }, 10000);
     return function() { clearTimeout(timer); };
   }, [presetError]);
 
