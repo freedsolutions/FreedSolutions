@@ -2,6 +2,24 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-27 - Lean workflow consolidation and assistance pause token
+- What changed: Consolidated the handoff workflow into a lean, prescriptive docs set and added a browser roadblock pause/resume contract.
+  - Updated `CLAUDE.md` to define the lean core docs, active browser smoke agent, explicit browser pause/resume contracts, and a prescriptive 12-step human execution checklist.
+  - Added non-upload roadblock pause/resume tokens:
+    - `PAUSE_FOR_ASSISTANCE: <roadblock + requested human action>`
+    - `ASSISTANCE_DONE: <what was done>`
+  - Updated `SMOKE_TEST_HANDOFF_TEMPLATE.md` to include assistance pause/resume handling and explicit `FOLLOW_UP_FIXES` output.
+  - Updated `agents/browser-smoke-tester.md` to pause for both file upload and progress-blocking roadblocks.
+  - Simplified `agents/README.md` to a single active agent spec (`browser-smoke-tester.md`).
+  - Removed legacy agent specs:
+    - `agents/planner.md`
+    - `agents/implementer.md`
+    - `agents/reviewer.md`
+- Why: Reduce workflow complexity while preserving a repeatable, human-in-the-loop process for terminal implementation and browser smoke handoffs.
+- Files: `CLAUDE.md` (updated), `SMOKE_TEST_HANDOFF_TEMPLATE.md` (updated), `agents/browser-smoke-tester.md` (updated), `agents/README.md` (updated), `agents/planner.md` (deleted), `agents/implementer.md` (deleted), `agents/reviewer.md` (deleted), `CHANGES.md` (updated).
+- Validation: Verified required tokens and checklist entries exist; verified no stale references to deleted agent specs remain.
+- Notes/Risks: This is a process/docs-only change. Execution quality still depends on complete smoke handoff cards and explicit human responses to pause tokens.
+
 ## 2026-02-27 - Browser smoke handoff workflow added
 - What changed: Added an explicit terminal-to-browser smoke-test handoff workflow with human-in-the-loop pause/resume control for file uploads.
   - Updated `CLAUDE.md` with a new `Browser Smoke Test Handoff (Human-in-the-Loop)` section.

@@ -8,6 +8,15 @@ This repository contains the LinkedIn carousel generator with editable modular s
 - `linkedin-carousel.jsx` is the generated artifact.
 - `build.js` is the deterministic build script that regenerates `linkedin-carousel.jsx`.
 
+## Lean Core Docs
+Use only this minimal set for the default workflow:
+- `CLAUDE.md` (workflow contract)
+- `CHANGES.md` (process/behavior log)
+- `FEATURE_CARD.md` (feature intent)
+- `SMOKE_TEST_HANDOFF_TEMPLATE.md` (browser handoff card)
+- `agents/browser-smoke-tester.md` (browser smoke execution spec)
+- `agents/README.md` (agent index)
+
 ## Feature Session Protocol
 Use this two-step trigger to keep planning and execution clean:
 1. `FEATURE: <completed feature card>`
@@ -16,7 +25,7 @@ Use this two-step trigger to keep planning and execution clean:
 When a session starts with `FEATURE:`:
 1. Read `CLAUDE.md` and `FEATURE_CARD.md` first.
 2. Inspect repo context before proposing implementation.
-3. Ask clarifying questions for any ambiguity that changes scope or implementation.
+3. Ask clarifying questions for ambiguities that change scope or implementation.
 4. Produce a decision-complete plan with files, steps, validation, and risks.
 5. Stop and wait for `IMPLEMENT`.
 
@@ -25,65 +34,58 @@ When the user sends `IMPLEMENT`:
 2. Run relevant checks and validations.
 3. Summarize changed files, behavior differences, and validation results.
 
-## Optional Agent Specs
-Use these when you want stricter role separation without changing the core workflow:
-- `agents/planner.md`: discovery, clarifying questions, decision-complete plan.
-- `agents/implementer.md`: execute an approved plan with minimal edits and validations.
-- `agents/reviewer.md`: findings-first review with severity and file/line references.
-- `agents/browser-smoke-tester.md`: run browser smoke checks from a structured handoff card; no code edits.
+## Active Agent Spec
+- `agents/browser-smoke-tester.md`: browser smoke checks from a structured handoff card; no code edits.
 
-If using an agent spec, read `CLAUDE.md`, `FEATURE_CARD.md`, and that specific `agents/*.md` file at kickoff.
-
-## Kickoff Shortcuts
-- Planning kickoff: `FEATURE: Use FEATURE_CARD.md. Inspect repo, ask clarifying questions for ambiguity, produce a decision-complete plan, then wait for IMPLEMENT.`
-- Execution kickoff: `IMPLEMENT`
-- Review kickoff: `REVIEW: Findings first, ordered by severity, with file/line references.`
-- Planner agent kickoff: `FEATURE: Use agents/planner.md and FEATURE_CARD.md.`
-- Implementer agent kickoff: `IMPLEMENT: Use agents/implementer.md.`
-- Reviewer agent kickoff: `REVIEW: Use agents/reviewer.md.`
-- Browser smoke kickoff: `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+Kickoff shortcut:
+- `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
 
 ## Browser Smoke Test Handoff (Human-in-the-Loop)
-Use this when validating `linkedin-carousel.jsx` in a browser extension session that has no repository context.
+Use this when validating `linkedin-carousel.jsx` in a browser extension session with no repository context.
 
 Rules:
-- Browser sessions are context-isolated: always provide a structured handoff prompt/card.
+- Browser sessions are context-isolated: always provide a structured handoff card.
 - For any step that requires the Windows file picker, browser Claude must pause before the action.
-- Pause token: `PAUSE_FOR_FILE_UPLOAD: <instruction>`
-- Resume token from human: `UPLOAD_DONE: <what was uploaded>`
-- Browser Claude must not assume upload completion until it receives the resume token.
+- For progress-blocking roadblocks where human help can unblock testing, browser Claude must pause.
+- Upload pause token: `PAUSE_FOR_FILE_UPLOAD: <instruction>`
+- Upload resume token: `UPLOAD_DONE: <what was uploaded>`
+- Assistance pause token: `PAUSE_FOR_ASSISTANCE: <roadblock + requested human action>`
+- Assistance resume token: `ASSISTANCE_DONE: <what was done>`
+- Browser Claude must not assume completion until the corresponding resume token is received.
+
+Browser final output contract:
+- `RESULT: PASS|FAIL`
+- `SCENARIO_MATRIX` table
+- `BLOCKERS`
+- `FOLLOW_UP_FIXES` with minimal reproducible steps per failure
 
 Smoke signoff gate:
-- Commit is allowed before browser smoke test to enable cross-agent review.
-- Push is blocked until smoke signoff is reported as `RESULT: PASS` (or fixes are applied and re-tested).
-
-Handoff checklist:
-- Commit hash under test
-- Scope under test (in/out)
-- Required upload files
-- Test scenarios
-- Known risks to target
+- Commit is allowed before browser smoke test to enable review traceability.
+- Push is blocked until smoke signoff is `RESULT: PASS` (or fixes are applied and re-tested).
 
 Use `SMOKE_TEST_HANDOFF_TEMPLATE.md` as the standard handoff card.
 
-## Required End-to-End Flow
-1. Restate request and constraints.
-2. Plan impacted files.
-3. Edit only `src/*` (never direct artifact edits).
-4. Run `node build.js`.
-5. Run focused validation for touched behavior.
-6. Update docs when behavior or process changed.
-7. Commit one atomic changeset.
-8. Prepare a browser smoke handoff card with commit hash, scope, required uploads, scenarios, and known risks.
-9. Run browser smoke via `agents/browser-smoke-tester.md` and record the result.
-10. If smoke result is `FAIL`, return to implementation, then rebuild and re-test.
-11. Push with `git push origin main` only after smoke result is `PASS`.
+## Human Execution Checklist
+1. Prepare `FEATURE_CARD.md` for the feature.
+2. Run planning (`FEATURE:`) and lock an approved implementation plan.
+3. Run implementation (`IMPLEMENT`) in terminal and apply code changes.
+4. Run build and local validation in terminal.
+5. Commit source/artifact/docs changes as one atomic commit.
+6. Run post-commit review and capture findings/risks.
+7. Fill `SMOKE_TEST_HANDOFF_TEMPLATE.md` with the commit hash and scope.
+8. Start browser smoke using `agents/browser-smoke-tester.md`.
+9. During smoke, respond to:
+   - `PAUSE_FOR_FILE_UPLOAD` with `UPLOAD_DONE`
+   - `PAUSE_FOR_ASSISTANCE` with `ASSISTANCE_DONE`
+10. Collect smoke output (`RESULT`, matrix, blockers, follow-up fixes).
+11. If smoke fails, return to terminal implementation and repeat from step 3.
+12. Push to `origin/main` only after smoke returns `RESULT: PASS`.
 
 ## Required Commands
 Pre-smoke commands:
 1. `git status --short`
 2. `node build.js`
-3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md agents`
+3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md SMOKE_TEST_HANDOFF_TEMPLATE.md agents`
 4. `git add <changed files>`
 5. `git commit -m "<clear summary>"`
 6. `git rev-parse --short HEAD`
@@ -113,4 +115,4 @@ All of the following must be true:
 - Do not edit generated artifact manually.
 - Do not skip build after source change.
 - Do not push without smoke-check + diff review.
-- Do not skip pause/resume tokens for file-picker steps in browser smoke sessions.
+- Do not skip pause/resume tokens in browser smoke sessions.

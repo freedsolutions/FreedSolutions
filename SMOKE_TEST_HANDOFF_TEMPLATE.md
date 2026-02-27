@@ -52,8 +52,10 @@ Copy this card into a new browser Claude thread when running artifact smoke test
 1. You have no repo context. Test only what is in the loaded artifact.
 2. Before every step requiring Windows file picker, output `PAUSE_FOR_FILE_UPLOAD: <instruction>` and stop.
 3. Wait for user message `UPLOAD_DONE: <details>` before continuing.
-4. At end, output:
+4. If you hit a progress-blocking roadblock where human help can speed things up, output `PAUSE_FOR_ASSISTANCE: <roadblock + requested human action>` and stop.
+5. Wait for user message `ASSISTANCE_DONE: <details>` before continuing.
+6. At end, output:
    - `RESULT: PASS|FAIL`
    - Scenario matrix table (Scenario / Expected / Actual / Status)
    - `BLOCKERS`
-   - Minimal reproduction steps for each failure
+   - `FOLLOW_UP_FIXES` with minimal reproduction steps for each failure

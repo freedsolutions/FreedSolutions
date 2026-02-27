@@ -26,7 +26,11 @@ Required fields in the handoff card:
 4. Stop and wait after each pause.
 5. Continue only when the user responds with:
    - `UPLOAD_DONE: <what was uploaded>`
-6. If upload details are unclear, ask a follow-up question before proceeding.
+6. If you hit a progress-blocking roadblock where human assistance can speed up testing, output:
+   - `PAUSE_FOR_ASSISTANCE: <roadblock + requested human action>`
+7. Stop and wait for:
+   - `ASSISTANCE_DONE: <what was done>`
+8. If upload/assistance details are unclear, ask a follow-up question before proceeding.
 
 ## Required Scenario Coverage
 1. Slide operations:
