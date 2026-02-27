@@ -32,7 +32,19 @@ When a session starts with `FEATURE:`:
 When the user sends `IMPLEMENT`:
 1. Execute the approved plan with minimal targeted edits.
 2. Run relevant checks and validations.
-3. Summarize changed files, behavior differences, and validation results.
+3. Commit approved changes (no push).
+4. Produce a complete smoke handoff package for browser testing.
+5. Summarize changed files, behavior differences, validation results, and handoff package.
+
+## IMPLEMENT Output Contract (Required)
+`IMPLEMENT` is not complete until all items below are returned:
+- Commit hash (`git rev-parse --short HEAD`)
+- Files changed summary
+- Validation summary (including `node build.js`)
+- Fully filled `SMOKE_TEST_HANDOFF_TEMPLATE.md` content with:
+  - Feature-specific scenarios derived from the feature card acceptance criteria
+  - Any known risk focus for the smoke run
+- Explicit statement: `DO NOT PUSH YET - Awaiting browser smoke RESULT`
 
 ## Active Agent Spec
 - `agents/browser-smoke-tester.md`: browser smoke checks from a structured handoff card; no code edits.
@@ -81,6 +93,10 @@ Use `SMOKE_TEST_HANDOFF_TEMPLATE.md` as the standard handoff card.
 11. If smoke fails, return to terminal implementation and repeat from step 3.
 12. Push to `origin/main` only after smoke returns `RESULT: PASS`.
 
+Terminal-to-browser handoff checkpoint:
+- If terminal output does not include commit hash + filled smoke handoff card, do not start browser smoke.
+- Request the missing handoff package in terminal first.
+
 ## Required Commands
 Pre-smoke commands:
 1. `git status --short`
@@ -89,6 +105,7 @@ Pre-smoke commands:
 4. `git add <changed files>`
 5. `git commit -m "<clear summary>"`
 6. `git rev-parse --short HEAD`
+7. Fill and return `SMOKE_TEST_HANDOFF_TEMPLATE.md` in terminal output
 
 Post-smoke command (only after `RESULT: PASS`):
 1. `git push origin main`

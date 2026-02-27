@@ -2,6 +2,18 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-27 - Enforced terminal handoff package before browser smoke
+- What changed: Strengthened workflow contracts so terminal implementation must hand off commit + smoke card before browser testing starts.
+  - Updated `CLAUDE.md` with a strict `IMPLEMENT Output Contract`.
+  - Added required handoff artifacts: commit hash, validation summary, and fully filled `SMOKE_TEST_HANDOFF_TEMPLATE.md`.
+  - Added terminal-to-browser checkpoint: do not begin browser smoke without the handoff package.
+  - Updated pre-smoke command list to include returning the filled smoke card.
+  - Updated `SMOKE_TEST_HANDOFF_TEMPLATE.md` with a required "Feature-Specific Scenarios" section derived from feature acceptance criteria.
+- Why: Prevent recurring execution gaps where terminal flow stops before commit or before preparing browser smoke scenarios.
+- Files: `CLAUDE.md` (updated), `SMOKE_TEST_HANDOFF_TEMPLATE.md` (updated), `CHANGES.md` (updated).
+- Validation: Verified new contract text and required fields are present in both workflow and template docs.
+- Notes/Risks: This is process-only; enforcement still depends on following the documented gate.
+
 ## 2026-02-27 - Lean workflow consolidation and assistance pause token
 - What changed: Consolidated the handoff workflow into a lean, prescriptive docs set and added a browser roadblock pause/resume contract.
   - Updated `CLAUDE.md` to define the lean core docs, active browser smoke agent, explicit browser pause/resume contracts, and a prescriptive 12-step human execution checklist.

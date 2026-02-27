@@ -39,6 +39,12 @@ Copy this card into a new browser Claude thread when running artifact smoke test
    - Custom background image
    - Screenshot image
 
+## Feature-Specific Scenarios (Required)
+- Add checks copied from current feature acceptance criteria.
+- Example format:
+  - `<scenario>` -> Expected: `<result>`
+  - `<scenario>` -> Expected: `<result>`
+
 ## Known Risk Focus
 - `<risk area 1>`
 - `<risk area 2>`
