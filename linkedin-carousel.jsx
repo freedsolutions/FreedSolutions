@@ -1167,26 +1167,31 @@ function useSlideManagement(deps) {
 
   var removeSlide = function(idx) {
     if (seriesSlides.length <= 1) return;
-    deps.pushUndo();
-    setSeriesSlides(function(prev) {
-      if (prev.length <= 1) return prev;
-      return prev.filter(function(_, i) { return i !== idx; });
-    });
-    setSlideAssets(function(prev) {
-      var next = {};
-      Object.keys(prev).forEach(function(k) {
-        var ki = Number(k);
-        if (ki < idx) next[ki] = prev[ki];
-        else if (ki > idx) next[ki - 1] = prev[ki];
-      });
-      return next;
-    });
-    setActiveSlide(function(prev) {
-      var newLen = seriesSlides.length - 1;
-      if (prev >= newLen) return newLen - 1;
-      if (prev === idx) return Math.max(0, idx - 1);
-      if (prev > idx) return prev - 1;
-      return prev;
+    deps.setConfirmDialog({
+      message: "Remove Slide " + (idx + 1) + "?",
+      onConfirm: function() {
+        deps.pushUndo();
+        setSeriesSlides(function(prev) {
+          if (prev.length <= 1) return prev;
+          return prev.filter(function(_, i) { return i !== idx; });
+        });
+        setSlideAssets(function(prev) {
+          var next = {};
+          Object.keys(prev).forEach(function(k) {
+            var ki = Number(k);
+            if (ki < idx) next[ki] = prev[ki];
+            else if (ki > idx) next[ki - 1] = prev[ki];
+          });
+          return next;
+        });
+        setActiveSlide(function(prev) {
+          var newLen = seriesSlides.length - 1;
+          if (prev >= newLen) return newLen - 1;
+          if (prev === idx) return Math.max(0, idx - 1);
+          if (prev > idx) return prev - 1;
+          return prev;
+        });
+      }
     });
   };
 
