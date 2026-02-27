@@ -197,8 +197,10 @@ export default function App() {
               </div>
             )}
             {presets.presetError && (
-              <div style={{ marginTop: 4, padding: "4px 8px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 11 }}>
-                {presets.presetError}
+              <div style={{ marginTop: 4, padding: "4px 8px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ flex: 1 }}>{presets.presetError}</span>
+                <button onClick={function() { presets.setPresetError(""); }}
+                  style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>{"\u00d7"}</button>
               </div>
             )}
           </div>
@@ -391,7 +393,8 @@ export default function App() {
           {/* --- SLIDES --- */}
           <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
             dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
-            reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide} />
+            reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
+            removeSlide={slideMgmt.removeSlide} />
 
           {/* --- SCREENSHOT (per-slide, in Col 1) --- */}
           {currentSlide && (
@@ -446,10 +449,14 @@ export default function App() {
                 <span style={{ color: "#888", fontSize: 12, fontWeight: 600 }}>
                   {"SLIDE " + (activeSlide + 1)}
                 </span>
-                {seriesSlides.length > 1 && (
-                  <button onClick={function() { slideMgmt.removeSlide(activeSlide); }}
-                    style={{ background: "none", border: "1px solid #f8717133", color: "#f87171", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Remove</button>
-                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
+                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Reset</button>
+                  {seriesSlides.length > 1 && (
+                    <button onClick={function() { slideMgmt.removeSlide(activeSlide); }}
+                      style={{ background: "none", border: "1px solid #f8717133", color: "#f87171", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Remove</button>
+                  )}
+                </div>
               </div>
 
               {/* -- Footer & Pic toggle (per-slide) -- */}

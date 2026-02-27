@@ -264,6 +264,26 @@ function useSlideManagement(deps) {
     });
   };
 
+  var resetSlide = function(idx) {
+    deps.setConfirmDialog({
+      message: "Reset Slide " + (idx + 1) + " to defaults?",
+      onConfirm: function() {
+        deps.pushUndo();
+        setSeriesSlides(function(prev) {
+          return prev.map(function(s, i) {
+            if (i !== idx) return s;
+            return makeDefaultSlide();
+          });
+        });
+        setSlideAssets(function(prev) {
+          var next = Object.assign({}, prev);
+          delete next[idx];
+          return next;
+        });
+      }
+    });
+  };
+
   var reorderSlide = function(fromIdx, toIdx) {
     if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
     deps.pushUndo();
@@ -348,7 +368,7 @@ function useSlideManagement(deps) {
     updateSlide: updateSlide, updateBgField: updateBgField,
     syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault,
     addSlide: addSlide, duplicateSlide: duplicateSlide,
-    removeSlide: removeSlide, reorderSlide: reorderSlide,
+    removeSlide: removeSlide, resetSlide: resetSlide, reorderSlide: reorderSlide,
     updateSlideCard: updateSlideCard, addSlideCard: addSlideCard, removeSlideCard: removeSlideCard,
     handleCustomUpload: handleCustomUpload,
     handleScreenshotUpload: handleScreenshotUpload,

@@ -849,9 +849,9 @@ function SizeControl(props) {
 // ===================================================
 // SlideSelector Component
 // ===================================================
-// Renders numbered slide buttons with drag-to-reorder and add/duplicate controls.
+// Renders numbered slide buttons with drag-to-reorder, remove overlay, and add/duplicate controls.
 // Props: seriesSlides, activeSlide, setActiveSlide, dragFrom, setDragFrom,
-//        dragOver, setDragOver, reorderSlide, addSlide, duplicateSlide
+//        dragOver, setDragOver, reorderSlide, addSlide, duplicateSlide, removeSlide
 
 function SlideSelector(props) {
   var seriesSlides = props.seriesSlides;
@@ -864,6 +864,9 @@ function SlideSelector(props) {
   var reorderSlide = props.reorderSlide;
   var addSlide = props.addSlide;
   var duplicateSlide = props.duplicateSlide;
+  var removeSlide = props.removeSlide;
+
+  var canRemove = seriesSlides.length > 1;
 
   return (
     <div style={{ marginBottom: 10 }}>
@@ -891,17 +894,25 @@ function SlideSelector(props) {
           var isDragTarget = dragOver === i && dragFrom !== i;
           var label = (i + 1).toString();
           return (
-            <button key={i}
-              draggable
-              onClick={function() { setActiveSlide(i); }}
-              onDragStart={function(e) { setDragFrom(i); e.dataTransfer.effectAllowed = "move"; }}
-              onDragOver={function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(i); }}
-              onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
-              onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
-              onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-              style={{ width: 56, height: 56, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 16, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
-              {label}
-            </button>
+            <div key={i} style={{ position: "relative" }}>
+              <button
+                draggable
+                onClick={function() { setActiveSlide(i); }}
+                onDragStart={function(e) { setDragFrom(i); e.dataTransfer.effectAllowed = "move"; }}
+                onDragOver={function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(i); }}
+                onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
+                onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
+                onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
+                style={{ width: 56, height: 56, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 16, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
+                {label}
+              </button>
+              {canRemove && (
+                <button
+                  onClick={function(e) { e.stopPropagation(); removeSlide(i); }}
+                  onDragStart={function(e) { e.preventDefault(); e.stopPropagation(); }}
+                  style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: 8, border: "none", background: "rgba(100,100,100,0.7)", color: "#f87171", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{"\u00d7"}</button>
+              )}
+            </div>
           );
         })}
         {seriesSlides.length < 10 && (
@@ -1179,6 +1190,26 @@ function useSlideManagement(deps) {
     });
   };
 
+  var resetSlide = function(idx) {
+    deps.setConfirmDialog({
+      message: "Reset Slide " + (idx + 1) + " to defaults?",
+      onConfirm: function() {
+        deps.pushUndo();
+        setSeriesSlides(function(prev) {
+          return prev.map(function(s, i) {
+            if (i !== idx) return s;
+            return makeDefaultSlide();
+          });
+        });
+        setSlideAssets(function(prev) {
+          var next = Object.assign({}, prev);
+          delete next[idx];
+          return next;
+        });
+      }
+    });
+  };
+
   var reorderSlide = function(fromIdx, toIdx) {
     if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
     deps.pushUndo();
@@ -1263,7 +1294,7 @@ function useSlideManagement(deps) {
     updateSlide: updateSlide, updateBgField: updateBgField,
     syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault,
     addSlide: addSlide, duplicateSlide: duplicateSlide,
-    removeSlide: removeSlide, reorderSlide: reorderSlide,
+    removeSlide: removeSlide, resetSlide: resetSlide, reorderSlide: reorderSlide,
     updateSlideCard: updateSlideCard, addSlideCard: addSlideCard, removeSlideCard: removeSlideCard,
     handleCustomUpload: handleCustomUpload,
     handleScreenshotUpload: handleScreenshotUpload,
@@ -1439,6 +1470,13 @@ function usePresets(deps) {
   var [presetIncludeImages, setPresetIncludeImages] = useState(true);
   var [presetError, setPresetError] = useState("");
 
+  // Auto-dismiss preset errors after 5 seconds
+  useEffect(function() {
+    if (!presetError) return;
+    var timer = setTimeout(function() { setPresetError(""); }, 5000);
+    return function() { clearTimeout(timer); };
+  }, [presetError]);
+
   var clearPresetDownload = function() {
     if (presetUrlRef.current) {
       URL.revokeObjectURL(presetUrlRef.current);
@@ -1608,6 +1646,7 @@ function usePresets(deps) {
   };
 
   var downloadPreset = function(name, includeImages) {
+    setPresetError("");
     var preset = serializePreset(name, includeImages);
     var json = JSON.stringify(preset, null, 2);
     var blob = new Blob([json], { type: "application/json" });
@@ -1896,8 +1935,10 @@ export default function App() {
               </div>
             )}
             {presets.presetError && (
-              <div style={{ marginTop: 4, padding: "4px 8px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 11 }}>
-                {presets.presetError}
+              <div style={{ marginTop: 4, padding: "4px 8px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ flex: 1 }}>{presets.presetError}</span>
+                <button onClick={function() { presets.setPresetError(""); }}
+                  style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>{"\u00d7"}</button>
               </div>
             )}
           </div>
@@ -2090,7 +2131,8 @@ export default function App() {
           {/* --- SLIDES --- */}
           <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
             dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
-            reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide} />
+            reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
+            removeSlide={slideMgmt.removeSlide} />
 
           {/* --- SCREENSHOT (per-slide, in Col 1) --- */}
           {currentSlide && (
@@ -2145,10 +2187,14 @@ export default function App() {
                 <span style={{ color: "#888", fontSize: 12, fontWeight: 600 }}>
                   {"SLIDE " + (activeSlide + 1)}
                 </span>
-                {seriesSlides.length > 1 && (
-                  <button onClick={function() { slideMgmt.removeSlide(activeSlide); }}
-                    style={{ background: "none", border: "1px solid #f8717133", color: "#f87171", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Remove</button>
-                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
+                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Reset</button>
+                  {seriesSlides.length > 1 && (
+                    <button onClick={function() { slideMgmt.removeSlide(activeSlide); }}
+                      style={{ background: "none", border: "1px solid #f8717133", color: "#f87171", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Remove</button>
+                  )}
+                </div>
               </div>
 
               {/* -- Footer & Pic toggle (per-slide) -- */}

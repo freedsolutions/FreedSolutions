@@ -33,6 +33,13 @@ function usePresets(deps) {
   var [presetIncludeImages, setPresetIncludeImages] = useState(true);
   var [presetError, setPresetError] = useState("");
 
+  // Auto-dismiss preset errors after 5 seconds
+  useEffect(function() {
+    if (!presetError) return;
+    var timer = setTimeout(function() { setPresetError(""); }, 5000);
+    return function() { clearTimeout(timer); };
+  }, [presetError]);
+
   var clearPresetDownload = function() {
     if (presetUrlRef.current) {
       URL.revokeObjectURL(presetUrlRef.current);
@@ -202,6 +209,7 @@ function usePresets(deps) {
   };
 
   var downloadPreset = function(name, includeImages) {
+    setPresetError("");
     var preset = serializePreset(name, includeImages);
     var json = JSON.stringify(preset, null, 2);
     var blob = new Blob([json], { type: "application/json" });
