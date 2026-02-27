@@ -25,10 +25,21 @@ When the user sends `IMPLEMENT`:
 2. Run relevant checks and validations.
 3. Summarize changed files, behavior differences, and validation results.
 
+## Optional Agent Specs
+Use these when you want stricter role separation without changing the core workflow:
+- `agents/planner.md`: discovery, clarifying questions, decision-complete plan.
+- `agents/implementer.md`: execute approved plan with minimal edits and validations.
+- `agents/reviewer.md`: findings-first review with severity and file/line references.
+
+If using an agent spec, read `CLAUDE.md`, `FEATURE_CARD.md`, and that specific `agents/*.md` file at kickoff.
+
 ## Kickoff Shortcuts
 - Planning kickoff: `FEATURE: Use FEATURE_CARD.md. Inspect repo, ask clarifying questions for ambiguity, produce a decision-complete plan, then wait for IMPLEMENT.`
 - Execution kickoff: `IMPLEMENT`
 - Review kickoff: `REVIEW: Findings first, ordered by severity, with file/line references.`
+- Planner agent kickoff: `FEATURE: Use agents/planner.md and FEATURE_CARD.md.`
+- Implementer agent kickoff: `IMPLEMENT: Use agents/implementer.md.`
+- Reviewer agent kickoff: `REVIEW: Use agents/reviewer.md.`
 
 ## Required End-to-End Flow
 1. Restate request and constraints.
@@ -44,7 +55,7 @@ When the user sends `IMPLEMENT`:
 Run these in order for normal implementation tasks:
 1. `git status --short`
 2. `node build.js`
-3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md`
+3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md agents`
 4. `git add <changed files>`
 5. `git commit -m "<clear summary>"`
 6. `git push origin main`

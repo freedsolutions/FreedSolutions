@@ -2,6 +2,13 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-27 - Added optional agent specs scaffold
+- What changed: Added `agents/` docs (`README`, `planner`, `implementer`, `reviewer`) and linked them from `CLAUDE.md`.
+- Why: Provide reusable role-based prompts while keeping `CLAUDE.md` as the core workflow source of truth.
+- Files: `CLAUDE.md` (updated), `agents/README.md` (added), `agents/planner.md` (added), `agents/implementer.md` (added), `agents/reviewer.md` (added), `CHANGES.md` (updated).
+- Validation: Confirmed agent docs are present, referenced in `CLAUDE.md`, and included in the workflow diff checklist.
+- Notes/Risks: Agents are guidance-only; inconsistent trigger usage can reduce consistency.
+
 ## 2026-02-27 - Added feature session scaffold
 - What changed: Added `FEATURE_CARD.md` template and a `FEATURE` -> `IMPLEMENT` session protocol in `CLAUDE.md`.
 - Why: Standardize kickoff prompts without repeatedly pasting long instructions.
