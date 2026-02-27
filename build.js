@@ -18,6 +18,9 @@ var ORDER = [
   "src/canvas/renderSlideContent.js",
   "src/canvas/renderSlide.js",
   "src/slideFactory.js",
+  "src/undoRedo.js",
+  "src/pdfBuilder.js",
+  "src/ColorPickerInline.jsx",
   "src/App.jsx"
 ];
 
