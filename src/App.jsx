@@ -173,11 +173,11 @@ export default function App() {
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
-              <button onClick={function() { presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
+              <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
                 style={smallBtnStyle}>
                 Save
               </button>
-              <button onClick={function() { if (presets.presetInputRef.current) presets.presetInputRef.current.click(); }}
+              <button onClick={function() { presets.setPresetError(""); if (presets.presetInputRef.current) presets.presetInputRef.current.click(); }}
                 style={smallBtnStyle}>
                 Load
               </button>
