@@ -131,6 +131,10 @@ function usePresets(deps) {
         deps.setProfileImg(pImg);
         deps.setIsCustomProfilePic(true);
       };
+      pImg.onerror = function() {
+        if (presetLoadTokenRef.current !== loadToken) return;
+        setPresetError("Failed to load profile image from preset.");
+      };
       pImg.src = profileEntry.dataUrl;
       deps.setProfilePicName(profileEntry.name || null);
     } else {
@@ -168,6 +172,10 @@ function usePresets(deps) {
                 });
               });
             };
+            bgImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load background image for slide " + (idx + 1) + ".");
+            };
           })(i);
           bgImg.src = bgEntry.dataUrl;
         }
@@ -187,6 +195,10 @@ function usePresets(deps) {
                 next[idx] = Object.assign({}, next[idx] || {}, { image: ssImg });
                 return next;
               });
+            };
+            ssImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load screenshot image for slide " + (idx + 1) + ".");
             };
             ssImg.src = ssEntry.dataUrl;
           })(i);
@@ -220,6 +232,21 @@ function usePresets(deps) {
     setPresetDownload({ name: fileName, url: url });
   };
 
+  var validatePresetData = function(data) {
+    if (!data || typeof data !== "object") return "Invalid preset file (not an object).";
+    if (data.version !== 1) return "Invalid preset file format (expected v1).";
+    if (!Array.isArray(data.slides)) return "Invalid preset file (missing slides array).";
+    if (data.slides.length === 0) return "Preset contains no slides.";
+    if (data.slides.length > MAX_SLIDES) return "Preset exceeds maximum of " + MAX_SLIDES + " slides.";
+    for (var i = 0; i < data.slides.length; i++) {
+      var entry = data.slides[i];
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return "Malformed slide entry at position " + (i + 1) + ".";
+      }
+    }
+    return null;
+  };
+
   var handlePresetUpload = function(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -228,8 +255,9 @@ function usePresets(deps) {
     reader.onload = function(ev) {
       try {
         var data = JSON.parse(ev.target.result);
-        if (data.version !== 1 || !Array.isArray(data.slides)) {
-          setPresetError("Invalid preset file format (expected v1).");
+        var validationError = validatePresetData(data);
+        if (validationError) {
+          setPresetError(validationError);
           return;
         }
 
@@ -261,7 +289,11 @@ function usePresets(deps) {
           message: msg,
           onConfirm: function() {
             setPresetError("");
-            loadPresetData(data);
+            try {
+              loadPresetData(data);
+            } catch (loadErr) {
+              setPresetError("Failed to apply preset: " + (loadErr.message || "unknown error"));
+            }
           }
         });
       } catch (err) {

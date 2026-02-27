@@ -2,6 +2,20 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-27 - Bug-hardening pass: constants, preset validation, reorder, undo listener, snapshots
+- What changed: Centralized slide limits, hardened preset import, fixed reorder consistency, stabilized undo/redo listener, and defensively copied undo snapshots.
+  - Added `MAX_SLIDES` constant to `src/constants.js`; replaced all hard-coded `10` slide-limit checks in `useSlideManagement.js`, `SlideSelector.jsx`, and `App.jsx`.
+  - Added strict `validatePresetData()` in `usePresets.js`: rejects non-object/null slide entries, enforces `MAX_SLIDES` limit with clear error, validates shape before confirm dialog.
+  - Wrapped `loadPresetData()` call in try/catch to surface failures as `presetError`.
+  - Added `Image.onerror` handlers for profile, background, and screenshot data-url loads in preset loading.
+  - Refactored `reorderSlide` in `useSlideManagement.js` so index map is built once from a single snapshot length and shared by `setSlideAssets` and `setActiveSlide`.
+  - Stabilized undo/redo keydown listener in `App.jsx`: now uses ref-based indirection (`captureSnapshotRef`, `restoreSnapshotRef`) with a `[]` dependency array so the listener registers once instead of every render.
+  - `captureSnapshot()` now shallow-copies `seriesSlides` (including each slide's `cards` array), `slideAssets` entries, and `sizes` to prevent reference fragility while preserving Image object references.
+- Why: Reduce fragility from hard-coded limits, reject malformed preset files early, prevent silent image load failures, ensure reorder correctness, and eliminate unnecessary listener churn.
+- Files: `src/constants.js`, `src/useSlideManagement.js`, `src/SlideSelector.jsx`, `src/App.jsx`, `src/usePresets.js`, `linkedin-carousel.jsx` (regenerated), `CHANGES.md`.
+- Validation: `node build.js` succeeds. Grep confirms `MAX_SLIDES` usage, `onerror`/`validate` in presets, stable listener registration.
+- Notes/Risks: `MAX_SLIDES` is a module-scope var consumed by build concatenation; changing it requires only one edit. Preset validation rejects (not truncates) oversized presets.
+
 ## 2026-02-27 - Enforced terminal handoff package before browser smoke
 - What changed: Strengthened workflow contracts so terminal implementation must hand off commit + smoke card before browser testing starts.
   - Updated `CLAUDE.md` with a strict `IMPLEMENT Output Contract`.

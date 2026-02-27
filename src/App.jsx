@@ -75,9 +75,14 @@ export default function App() {
 
   var captureSnapshot = function() {
     return {
-      seriesSlides: seriesSlides,
-      slideAssets: slideAssets,
-      sizes: sizes,
+      seriesSlides: seriesSlides.map(function(s) {
+        return Object.assign({}, s, { cards: s.cards ? s.cards.slice() : s.cards });
+      }),
+      slideAssets: Object.keys(slideAssets).reduce(function(acc, k) {
+        acc[k] = Object.assign({}, slideAssets[k]);
+        return acc;
+      }, {}),
+      sizes: Object.assign({}, sizes),
       activeSlide: activeSlide,
       exportPrefix: exportPrefix,
       profileImg: profileImg,
@@ -102,7 +107,13 @@ export default function App() {
     undoManagerRef.current.pushSnapshot(captureSnapshot());
   };
 
-  // Global keyboard handler for undo/redo
+  // Stable refs for undo/redo keyboard handler
+  var captureSnapshotRef = useRef(captureSnapshot);
+  var restoreSnapshotRef = useRef(restoreSnapshot);
+  captureSnapshotRef.current = captureSnapshot;
+  restoreSnapshotRef.current = restoreSnapshot;
+
+  // Global keyboard handler for undo/redo (registered once)
   useEffect(function() {
     var handler = function(e) {
       // Skip if focus is in an input, textarea, or select (preserve native text undo)
@@ -112,18 +123,16 @@ export default function App() {
       if (!isCtrl || (e.key && e.key.toLowerCase()) !== "z") return;
       e.preventDefault();
       if (e.shiftKey) {
-        // Redo
-        var redoSnap = undoManagerRef.current.redo(captureSnapshot());
-        if (redoSnap) restoreSnapshot(redoSnap);
+        var redoSnap = undoManagerRef.current.redo(captureSnapshotRef.current());
+        if (redoSnap) restoreSnapshotRef.current(redoSnap);
       } else {
-        // Undo
-        var undoSnap = undoManagerRef.current.undo(captureSnapshot());
-        if (undoSnap) restoreSnapshot(undoSnap);
+        var undoSnap = undoManagerRef.current.undo(captureSnapshotRef.current());
+        if (undoSnap) restoreSnapshotRef.current(undoSnap);
       }
     };
     document.addEventListener("keydown", handler);
     return function() { document.removeEventListener("keydown", handler); };
-  });
+  }, []);
 
   // --- Canvas rendering hook ---
   var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
@@ -451,7 +460,7 @@ export default function App() {
                 </span>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={slideMgmt.duplicateSlide}
-                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: seriesSlides.length >= 10 ? "default" : "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6, opacity: seriesSlides.length >= 10 ? 0.4 : 1 }}>Duplicate</button>
+                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>Duplicate</button>
                   <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
                     style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Reset</button>
                   {seriesSlides.length > 1 && (

@@ -34,7 +34,7 @@ function SlideSelector(props) {
             cursor: "pointer",
             fontSize: 9,
             fontWeight: 600,
-            opacity: seriesSlides.length >= 10 ? 0.4 : 1
+            opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1
           }}>
           Duplicate
         </button>
@@ -67,7 +67,7 @@ function SlideSelector(props) {
             </div>
           );
         })}
-        {seriesSlides.length < 10 && (
+        {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
             style={{ width: 56, height: 56, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}

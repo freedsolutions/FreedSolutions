@@ -194,13 +194,13 @@ function useSlideManagement(deps) {
 
   var addSlide = function() {
     setSeriesSlides(function(prev) {
-      if (prev.length >= 10) return prev;
+      if (prev.length >= MAX_SLIDES) return prev;
       return prev.concat([makeDefaultSlide()]);
     });
   };
 
   var duplicateSlide = function() {
-    if (seriesSlides.length >= 10) return;
+    if (seriesSlides.length >= MAX_SLIDES) return;
     deps.setConfirmDialog({
       message: "Duplicate Slide " + (activeSlide + 1) + "?",
       onConfirm: function() {
@@ -208,7 +208,7 @@ function useSlideManagement(deps) {
         var insertIdx = activeSlide + 1;
 
         setSeriesSlides(function(prev) {
-          if (prev.length >= 10) return prev;
+          if (prev.length >= MAX_SLIDES) return prev;
           var src = prev[activeSlide];
           if (!src) return prev;
           var copy = Object.assign({}, src, { cards: src.cards.slice() });
@@ -293,15 +293,6 @@ function useSlideManagement(deps) {
     if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
     deps.pushUndo();
 
-    setSeriesSlides(function(prev) {
-      if (fromIdx < 0 || fromIdx >= prev.length) return prev;
-      if (toIdx < 0 || toIdx >= prev.length) return prev;
-      var next = prev.slice();
-      var moved = next.splice(fromIdx, 1)[0];
-      next.splice(toIdx, 0, moved);
-      return next;
-    });
-
     var buildIndexMap = function(len) {
       var map = {};
       for (var i = 0; i < len; i++) {
@@ -320,8 +311,19 @@ function useSlideManagement(deps) {
       return map;
     };
 
+    setSeriesSlides(function(prev) {
+      if (fromIdx < 0 || fromIdx >= prev.length) return prev;
+      if (toIdx < 0 || toIdx >= prev.length) return prev;
+      var next = prev.slice();
+      var moved = next.splice(fromIdx, 1)[0];
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+
+    var snapshotLen = seriesSlides.length;
+    var indexMap = buildIndexMap(snapshotLen);
+
     setSlideAssets(function(prev) {
-      var indexMap = buildIndexMap(seriesSlides.length);
       var next = {};
       Object.keys(prev).forEach(function(k) {
         var ki = Number(k);
@@ -333,7 +335,6 @@ function useSlideManagement(deps) {
     });
 
     setActiveSlide(function(prev) {
-      var indexMap = buildIndexMap(seriesSlides.length);
       if (prev === fromIdx) return toIdx;
       if (indexMap[prev] != null) return indexMap[prev];
       return prev;

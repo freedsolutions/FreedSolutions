@@ -12,6 +12,7 @@ var BORDER_WIDTH = 2.5;
 var GREEN = "#22c55e";
 var FOOTER_PIC_SIZE = 84;
 var FOOTER_BADGE_H = 48;
+var MAX_SLIDES = 10;
 
 // ---------------------------------------
 // hexToRgba
@@ -882,7 +883,7 @@ function SlideSelector(props) {
             cursor: "pointer",
             fontSize: 9,
             fontWeight: 600,
-            opacity: seriesSlides.length >= 10 ? 0.4 : 1
+            opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1
           }}>
           Duplicate
         </button>
@@ -915,7 +916,7 @@ function SlideSelector(props) {
             </div>
           );
         })}
-        {seriesSlides.length < 10 && (
+        {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
             style={{ width: 56, height: 56, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
@@ -1120,13 +1121,13 @@ function useSlideManagement(deps) {
 
   var addSlide = function() {
     setSeriesSlides(function(prev) {
-      if (prev.length >= 10) return prev;
+      if (prev.length >= MAX_SLIDES) return prev;
       return prev.concat([makeDefaultSlide()]);
     });
   };
 
   var duplicateSlide = function() {
-    if (seriesSlides.length >= 10) return;
+    if (seriesSlides.length >= MAX_SLIDES) return;
     deps.setConfirmDialog({
       message: "Duplicate Slide " + (activeSlide + 1) + "?",
       onConfirm: function() {
@@ -1134,7 +1135,7 @@ function useSlideManagement(deps) {
         var insertIdx = activeSlide + 1;
 
         setSeriesSlides(function(prev) {
-          if (prev.length >= 10) return prev;
+          if (prev.length >= MAX_SLIDES) return prev;
           var src = prev[activeSlide];
           if (!src) return prev;
           var copy = Object.assign({}, src, { cards: src.cards.slice() });
@@ -1219,15 +1220,6 @@ function useSlideManagement(deps) {
     if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
     deps.pushUndo();
 
-    setSeriesSlides(function(prev) {
-      if (fromIdx < 0 || fromIdx >= prev.length) return prev;
-      if (toIdx < 0 || toIdx >= prev.length) return prev;
-      var next = prev.slice();
-      var moved = next.splice(fromIdx, 1)[0];
-      next.splice(toIdx, 0, moved);
-      return next;
-    });
-
     var buildIndexMap = function(len) {
       var map = {};
       for (var i = 0; i < len; i++) {
@@ -1246,8 +1238,19 @@ function useSlideManagement(deps) {
       return map;
     };
 
+    setSeriesSlides(function(prev) {
+      if (fromIdx < 0 || fromIdx >= prev.length) return prev;
+      if (toIdx < 0 || toIdx >= prev.length) return prev;
+      var next = prev.slice();
+      var moved = next.splice(fromIdx, 1)[0];
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+
+    var snapshotLen = seriesSlides.length;
+    var indexMap = buildIndexMap(snapshotLen);
+
     setSlideAssets(function(prev) {
-      var indexMap = buildIndexMap(seriesSlides.length);
       var next = {};
       Object.keys(prev).forEach(function(k) {
         var ki = Number(k);
@@ -1259,7 +1262,6 @@ function useSlideManagement(deps) {
     });
 
     setActiveSlide(function(prev) {
-      var indexMap = buildIndexMap(seriesSlides.length);
       if (prev === fromIdx) return toIdx;
       if (indexMap[prev] != null) return indexMap[prev];
       return prev;
@@ -1573,6 +1575,10 @@ function usePresets(deps) {
         deps.setProfileImg(pImg);
         deps.setIsCustomProfilePic(true);
       };
+      pImg.onerror = function() {
+        if (presetLoadTokenRef.current !== loadToken) return;
+        setPresetError("Failed to load profile image from preset.");
+      };
       pImg.src = profileEntry.dataUrl;
       deps.setProfilePicName(profileEntry.name || null);
     } else {
@@ -1610,6 +1616,10 @@ function usePresets(deps) {
                 });
               });
             };
+            bgImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load background image for slide " + (idx + 1) + ".");
+            };
           })(i);
           bgImg.src = bgEntry.dataUrl;
         }
@@ -1629,6 +1639,10 @@ function usePresets(deps) {
                 next[idx] = Object.assign({}, next[idx] || {}, { image: ssImg });
                 return next;
               });
+            };
+            ssImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load screenshot image for slide " + (idx + 1) + ".");
             };
             ssImg.src = ssEntry.dataUrl;
           })(i);
@@ -1662,6 +1676,21 @@ function usePresets(deps) {
     setPresetDownload({ name: fileName, url: url });
   };
 
+  var validatePresetData = function(data) {
+    if (!data || typeof data !== "object") return "Invalid preset file (not an object).";
+    if (data.version !== 1) return "Invalid preset file format (expected v1).";
+    if (!Array.isArray(data.slides)) return "Invalid preset file (missing slides array).";
+    if (data.slides.length === 0) return "Preset contains no slides.";
+    if (data.slides.length > MAX_SLIDES) return "Preset exceeds maximum of " + MAX_SLIDES + " slides.";
+    for (var i = 0; i < data.slides.length; i++) {
+      var entry = data.slides[i];
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        return "Malformed slide entry at position " + (i + 1) + ".";
+      }
+    }
+    return null;
+  };
+
   var handlePresetUpload = function(e) {
     var file = e.target.files[0];
     if (!file) return;
@@ -1670,8 +1699,9 @@ function usePresets(deps) {
     reader.onload = function(ev) {
       try {
         var data = JSON.parse(ev.target.result);
-        if (data.version !== 1 || !Array.isArray(data.slides)) {
-          setPresetError("Invalid preset file format (expected v1).");
+        var validationError = validatePresetData(data);
+        if (validationError) {
+          setPresetError(validationError);
           return;
         }
 
@@ -1703,7 +1733,11 @@ function usePresets(deps) {
           message: msg,
           onConfirm: function() {
             setPresetError("");
-            loadPresetData(data);
+            try {
+              loadPresetData(data);
+            } catch (loadErr) {
+              setPresetError("Failed to apply preset: " + (loadErr.message || "unknown error"));
+            }
           }
         });
       } catch (err) {
@@ -1818,9 +1852,14 @@ export default function App() {
 
   var captureSnapshot = function() {
     return {
-      seriesSlides: seriesSlides,
-      slideAssets: slideAssets,
-      sizes: sizes,
+      seriesSlides: seriesSlides.map(function(s) {
+        return Object.assign({}, s, { cards: s.cards ? s.cards.slice() : s.cards });
+      }),
+      slideAssets: Object.keys(slideAssets).reduce(function(acc, k) {
+        acc[k] = Object.assign({}, slideAssets[k]);
+        return acc;
+      }, {}),
+      sizes: Object.assign({}, sizes),
       activeSlide: activeSlide,
       exportPrefix: exportPrefix,
       profileImg: profileImg,
@@ -1845,7 +1884,13 @@ export default function App() {
     undoManagerRef.current.pushSnapshot(captureSnapshot());
   };
 
-  // Global keyboard handler for undo/redo
+  // Stable refs for undo/redo keyboard handler
+  var captureSnapshotRef = useRef(captureSnapshot);
+  var restoreSnapshotRef = useRef(restoreSnapshot);
+  captureSnapshotRef.current = captureSnapshot;
+  restoreSnapshotRef.current = restoreSnapshot;
+
+  // Global keyboard handler for undo/redo (registered once)
   useEffect(function() {
     var handler = function(e) {
       // Skip if focus is in an input, textarea, or select (preserve native text undo)
@@ -1855,18 +1900,16 @@ export default function App() {
       if (!isCtrl || (e.key && e.key.toLowerCase()) !== "z") return;
       e.preventDefault();
       if (e.shiftKey) {
-        // Redo
-        var redoSnap = undoManagerRef.current.redo(captureSnapshot());
-        if (redoSnap) restoreSnapshot(redoSnap);
+        var redoSnap = undoManagerRef.current.redo(captureSnapshotRef.current());
+        if (redoSnap) restoreSnapshotRef.current(redoSnap);
       } else {
-        // Undo
-        var undoSnap = undoManagerRef.current.undo(captureSnapshot());
-        if (undoSnap) restoreSnapshot(undoSnap);
+        var undoSnap = undoManagerRef.current.undo(captureSnapshotRef.current());
+        if (undoSnap) restoreSnapshotRef.current(undoSnap);
       }
     };
     document.addEventListener("keydown", handler);
     return function() { document.removeEventListener("keydown", handler); };
-  });
+  }, []);
 
   // --- Canvas rendering hook ---
   var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
@@ -2194,7 +2237,7 @@ export default function App() {
                 </span>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={slideMgmt.duplicateSlide}
-                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: seriesSlides.length >= 10 ? "default" : "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6, opacity: seriesSlides.length >= 10 ? 0.4 : 1 }}>Duplicate</button>
+                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>Duplicate</button>
                   <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
                     style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Reset</button>
                   {seriesSlides.length > 1 && (
