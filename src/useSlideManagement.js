@@ -291,6 +291,12 @@ function useSlideManagement(deps) {
 
   var reorderSlide = function(fromIdx, toIdx) {
     if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
+    var snapshotLen = seriesSlides.length;
+    if (fromIdx < 0 || fromIdx >= snapshotLen || toIdx < 0 || toIdx >= snapshotLen) {
+      setDragFrom(null);
+      setDragOver(null);
+      return;
+    }
     deps.pushUndo();
 
     var buildIndexMap = function(len) {
@@ -320,7 +326,6 @@ function useSlideManagement(deps) {
       return next;
     });
 
-    var snapshotLen = seriesSlides.length;
     var indexMap = buildIndexMap(snapshotLen);
 
     setSlideAssets(function(prev) {
