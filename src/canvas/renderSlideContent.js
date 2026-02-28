@@ -43,6 +43,10 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     var cardsLineData = [];
     for (var cpi = 0; cpi < slide.cards.length; cpi++) {
       var cardRaw = slide.cards[cpi] || "";
+      if (cardRaw.replace(/\*\*(.+?)\*\*/g, "$1").trim() === "") {
+        cardsLineData.push([]);
+        continue;
+      }
       var cardNlLines = cardRaw.split("\n");
       var allWrapped = [];
       for (var cnl = 0; cnl < cardNlLines.length; cnl++) {

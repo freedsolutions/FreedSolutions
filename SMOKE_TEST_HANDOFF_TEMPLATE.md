@@ -3,7 +3,7 @@
 Copy this card into a new browser Claude thread when running artifact smoke tests.
 
 ## Metadata
-- Commit hash under test: `1ba720a`
+- Commit hash under test: `<set-after-patch-commit>`
 - Branch: `main`
 - Build confirmation: `node build.js` succeeded (yes, 2026-02-28)
 - Artifact loaded confirmation: `linkedin-carousel.jsx` loaded in browser (`yes/no`)
