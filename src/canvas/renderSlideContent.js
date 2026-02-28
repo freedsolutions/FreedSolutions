@@ -80,9 +80,11 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       if (cardHeights[ci] === 0) continue;
       var cy = runningY;
       var cardH = cardHeights[ci];
+      var cardX = pad - 10 + textPadding;
+      var cardW = maxW - textPadding * 2 + 20;
       ctx.fillStyle = slide.cardBgColor || colors.cardBg;
       ctx.beginPath();
-      ctx.roundRect(pad - 10 + textPadding, cy, maxW - textPadding * 2 + 20, cardH, 16);
+      ctx.roundRect(cardX, cy, cardW, cardH, 16);
       ctx.fill();
       if (showChecks) {
         ctx.fillStyle = colors.accent;
@@ -99,6 +101,10 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         ctx.lineTo(pad + textPadding + 30, cy - 22);
         ctx.stroke();
       }
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(cardX, cy, cardW, cardH, 16);
+      ctx.clip();
       ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
       var lineY = cy + 38;
       for (var cli = 0; cli < cardsLineData[ci].length; cli++) {
@@ -107,6 +113,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, "600", slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset);
         lineY += sizes.cardText + 6;
       }
+      ctx.restore();
       runningY += cardH + gap;
     }
     ty = runningY;
