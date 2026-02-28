@@ -11,9 +11,9 @@ This folder contains lightweight agent role specs for the prescriptive Claude Co
 2. Run Claude Code phase:
    - `CLAUDE_PHASE: Use agents/claude-feature-implementer.md with FEATURE_CARD.md.`
 3. Run Codex phase using Claude's commit hash:
-   - `CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+   - `CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST.md.`
 4. Run Browser smoke phase:
-   - `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+   - `SMOKE: In browser Claude extension, paste the full contents of SMOKE_TEST.md into a new thread and run smoke tests. DO NOT CLOSE OUT THE BROWSER.`
 
 ## Guardrails
 - Phases must run in order with explicit handoff outputs at each gate.

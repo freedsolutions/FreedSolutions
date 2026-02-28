@@ -4,7 +4,7 @@
 Own Phase 2 only: review Claude's commit, patch/recommit until clean, and finalize smoke handoff card.
 
 ## Kickoff Command
-`CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+`CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST.md.`
 
 ## Required Steps
 1. Review the specified commit with findings-first code review rigor:
@@ -25,7 +25,7 @@ Own Phase 2 only: review Claude's commit, patch/recommit until clean, and finali
 - Files changed summary
 - Validation summary
 - Review summary (or explicit "no findings")
-- Completed `SMOKE_TEST_HANDOFF_TEMPLATE.md` content
+- Completed `SMOKE_TEST.md` content
 - Exact gate line: `DO NOT PUSH YET - Awaiting browser smoke RESULT`
 
 ## Guardrails

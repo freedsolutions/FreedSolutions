@@ -4,7 +4,7 @@
 Run browser smoke tests only. Do not propose or perform code edits in this role.
 
 ## Input
-Expect a `Smoke Test Handoff Card` from the terminal workflow. If any required field is missing, request it before testing.
+Expect a pasted `Smoke Test Handoff Card` from the terminal workflow (`SMOKE_TEST.md`). If any required field is missing, request it before testing.
 
 Required fields in the handoff card:
 - Commit hash under test

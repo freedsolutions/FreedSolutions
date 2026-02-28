@@ -2,6 +2,22 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Smoke handoff rename and paste-only browser kickoff
+- What changed: Standardized smoke handoff naming and browser execution instructions.
+  - Added `SMOKE_TEST.md` as the canonical smoke handoff card.
+  - Updated workflow/agent command references to use `SMOKE_TEST.md`.
+  - Updated Step 4 browser kickoff to paste-only:
+    - `SMOKE: In browser Claude extension, paste the full contents of SMOKE_TEST.md into a new thread and run smoke tests. DO NOT CLOSE OUT THE BROWSER.`
+  - Embedded browser smoke execution contract inside `SMOKE_TEST.md` so browser runs do not depend on loading repo files.
+  - Converted `SMOKE_TEST_HANDOFF_TEMPLATE.md` into a one-cycle compatibility/deprecation pointer.
+  - Updated `scripts/prepare-smoke-handoff.js` to resolve handoff files in this order:
+    1) `SMOKE_TEST.md`
+    2) `SMOKE_TEST_HANDOFF_TEMPLATE.md` (fallback)
+- Why: Reduce handoff friction, match browser extension constraints (paste workflow), and make browser execution instructions explicit and self-contained.
+- Files: `SMOKE_TEST.md` (added), `SMOKE_TEST_HANDOFF_TEMPLATE.md` (compatibility pointer), `scripts/prepare-smoke-handoff.js` (updated), `WORKFLOW_QUICKSTART.txt` (updated), `CLAUDE.md` (updated), `agents/README.md` (updated), `agents/codex-commit-review-patcher.md` (updated), `agents/terminal-feature-flow.md` (updated), `agents/browser-smoke-tester.md` (updated), `CHANGES.md` (updated).
+- Validation: `node scripts/prepare-smoke-handoff.js` updates `SMOKE_TEST.md`; active workflow docs now reference paste-only browser kickoff and include `DO NOT CLOSE OUT THE BROWSER`.
+- Notes/Risks: Legacy filename compatibility is temporary and should be removed after one release cycle.
+
 ## 2026-02-28 - Prescriptive Claude -> Codex -> Browser phase workflow
 - What changed: Replaced the prior single-owner default with an explicit back-to-back three-phase workflow.
   - Updated `CLAUDE.md` to make phase order mandatory:

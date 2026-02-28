@@ -9,7 +9,7 @@ Legacy single-owner terminal flow retained for reference. The default workflow i
 ## One-Command Trigger
 Use this exact command in terminal Claude/Codex:
 
-`SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+`SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST.md.`
 
 Do not use this as default. Prefer `CLAUDE_PHASE` then `CODEX_PHASE` as defined in `CLAUDE.md`.
 
@@ -34,7 +34,7 @@ Must include all:
 - Files changed summary
 - Validation summary
 - Commit-review summary (or explicit "no findings")
-- Completed `SMOKE_TEST_HANDOFF_TEMPLATE.md` content
+- Completed `SMOKE_TEST.md` content
 - Exact gate line: `DO NOT PUSH YET - Awaiting browser smoke RESULT`
 
 ## Guardrails

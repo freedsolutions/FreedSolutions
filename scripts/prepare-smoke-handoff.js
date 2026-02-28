@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 /*
- * Sync SMOKE_TEST_HANDOFF_TEMPLATE.md metadata with current repo state.
+ * Sync smoke handoff metadata with current repo state.
  * Intended to run after a successful build and commit.
+ * Canonical file: SMOKE_TEST.md
+ * One-cycle fallback: SMOKE_TEST_HANDOFF_TEMPLATE.md
  */
 
 var fs = require("fs");
@@ -10,7 +12,10 @@ var path = require("path");
 var cp = require("child_process");
 
 var ROOT = path.join(__dirname, "..");
-var HANDOFF_PATH = path.join(ROOT, "SMOKE_TEST_HANDOFF_TEMPLATE.md");
+var HANDOFF_CANDIDATES = [
+  "SMOKE_TEST.md",
+  "SMOKE_TEST_HANDOFF_TEMPLATE.md"
+];
 
 function run(cmd) {
   return cp.execSync(cmd, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] }).toString().trim();
@@ -24,9 +29,16 @@ function todayIsoDate() {
   return y + "-" + m + "-" + day;
 }
 
-if (!fs.existsSync(HANDOFF_PATH)) {
-  throw new Error("Missing handoff template: " + HANDOFF_PATH);
+function resolveHandoffPath() {
+  for (var i = 0; i < HANDOFF_CANDIDATES.length; i++) {
+    var candidatePath = path.join(ROOT, HANDOFF_CANDIDATES[i]);
+    if (fs.existsSync(candidatePath)) return candidatePath;
+  }
+  throw new Error("Missing smoke handoff file. Expected one of: " + HANDOFF_CANDIDATES.join(", "));
 }
+
+var handoffPath = resolveHandoffPath();
+var handoffName = path.basename(handoffPath);
 
 var hash = run("git rev-parse --short HEAD");
 if (!hash) {
@@ -34,7 +46,7 @@ if (!hash) {
 }
 
 var date = todayIsoDate();
-var text = fs.readFileSync(HANDOFF_PATH, "utf8");
+var text = fs.readFileSync(handoffPath, "utf8");
 
 if (!/^- Commit hash under test: `.*`$/m.test(text)) {
   throw new Error("Could not find commit hash line in handoff template.");
@@ -49,8 +61,9 @@ text = text.replace(
   "- Build confirmation: `node build.js` succeeded (yes, " + date + ")"
 );
 
-fs.writeFileSync(HANDOFF_PATH, text, "utf8");
+fs.writeFileSync(handoffPath, text, "utf8");
 
-console.log("Updated SMOKE_TEST_HANDOFF_TEMPLATE.md:");
+console.log("Updated " + handoffName + ":");
+console.log("- File path: " + handoffPath);
 console.log("- Commit hash under test: " + hash);
 console.log("- Build confirmation date: " + date);
