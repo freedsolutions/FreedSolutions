@@ -33,7 +33,7 @@ function usePresets(deps) {
   var [presetIncludeImages, setPresetIncludeImages] = useState(true);
   var [presetError, setPresetError] = useState("");
 
-  // Auto-dismiss preset errors after 5 seconds
+  // Auto-dismiss preset errors after 10 seconds
   useEffect(function() {
     if (!presetError) return;
     var timer = setTimeout(function() { setPresetError(""); }, 10000);
