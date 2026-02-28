@@ -14,42 +14,47 @@ Use only this minimal set for the default workflow:
 - `CHANGES.md` (process/behavior log)
 - `FEATURE_CARD.md` (feature intent)
 - `SMOKE_TEST_HANDOFF_TEMPLATE.md` (browser handoff card)
+- `scripts/prepare-smoke-handoff.js` (handoff metadata stamper)
+- `agents/terminal-feature-flow.md` (one-command terminal execution spec)
 - `agents/browser-smoke-tester.md` (browser smoke execution spec)
 - `agents/README.md` (agent index)
 
-## Feature Session Protocol
-Use this two-step trigger to keep planning and execution clean:
+## Feature Session Protocol (Preferred: One Command)
+Primary kickoff command:
+- `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+
+`SHIP` must execute end-to-end:
+1. Read `CLAUDE.md`, `FEATURE_CARD.md`, and repo context.
+2. Implement feature changes with minimal targeted edits.
+3. Run validation (`node build.js` minimum).
+4. Commit changes (no push).
+5. Review latest commit with code-review rigor.
+6. If findings exist, patch + rebuild + recommit, then re-review.
+7. Repeat until no material findings remain.
+8. Run `node scripts/prepare-smoke-handoff.js`.
+9. Return final smoke handoff package for browser testing.
+
+Fallback (legacy) two-step trigger remains supported:
 1. `FEATURE: <completed feature card>`
 2. `IMPLEMENT`
 
-When a session starts with `FEATURE:`:
-1. Read `CLAUDE.md` and `FEATURE_CARD.md` first.
-2. Inspect repo context before proposing implementation.
-3. Ask clarifying questions for ambiguities that change scope or implementation.
-4. Produce a decision-complete plan with files, steps, validation, and risks.
-5. Stop and wait for `IMPLEMENT`.
-
-When the user sends `IMPLEMENT`:
-1. Execute the approved plan with minimal targeted edits.
-2. Run relevant checks and validations.
-3. Commit approved changes (no push).
-4. Produce a complete smoke handoff package for browser testing.
-5. Summarize changed files, behavior differences, validation results, and handoff package.
-
-## IMPLEMENT Output Contract (Required)
-`IMPLEMENT` is not complete until all items below are returned:
+## SHIP Output Contract (Required)
+`SHIP` is not complete until all items below are returned:
 - Commit hash (`git rev-parse --short HEAD`)
 - Files changed summary
 - Validation summary (including `node build.js`)
+- Commit-review summary (findings, or explicit "no findings")
 - Fully filled `SMOKE_TEST_HANDOFF_TEMPLATE.md` content with:
   - Feature-specific scenarios derived from the feature card acceptance criteria
   - Any known risk focus for the smoke run
 - Explicit statement: `DO NOT PUSH YET - Awaiting browser smoke RESULT`
 
-## Active Agent Spec
+## Active Agent Specs
+- `agents/terminal-feature-flow.md`: terminal implementation + commit-review + handoff prep flow.
 - `agents/browser-smoke-tester.md`: browser smoke checks from a structured handoff card; no code edits.
 
 Kickoff shortcut:
+- `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
 - `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
 
 ## Browser Smoke Test Handoff (Human-in-the-Loop)
@@ -79,19 +84,20 @@ Use `SMOKE_TEST_HANDOFF_TEMPLATE.md` as the standard handoff card.
 
 ## Human Execution Checklist
 1. Prepare `FEATURE_CARD.md` for the feature.
-2. Run planning (`FEATURE:`) and lock an approved implementation plan.
-3. Run implementation (`IMPLEMENT`) in terminal and apply code changes.
-4. Run build and local validation in terminal.
-5. Commit source/artifact/docs changes as one atomic commit.
-6. Run post-commit review and capture findings/risks.
-7. Fill `SMOKE_TEST_HANDOFF_TEMPLATE.md` with the commit hash and scope.
-8. Start browser smoke using `agents/browser-smoke-tester.md`.
-9. During smoke, respond to:
+2. Run one-command terminal flow:
+   - `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+3. Confirm terminal output includes:
+   - final commit hash
+   - validation summary
+   - commit-review summary
+   - completed smoke handoff card
+4. Start browser smoke using `agents/browser-smoke-tester.md`.
+5. During smoke, respond to:
    - `PAUSE_FOR_FILE_UPLOAD` with `UPLOAD_DONE`
    - `PAUSE_FOR_ASSISTANCE` with `ASSISTANCE_DONE`
-10. Collect smoke output (`RESULT`, matrix, blockers, follow-up fixes).
-11. If smoke fails, return to terminal implementation and repeat from step 3.
-12. Push to `origin/main` only after smoke returns `RESULT: PASS`.
+6. Collect smoke output (`RESULT`, matrix, blockers, follow-up fixes).
+7. If smoke fails, rerun `SHIP` with patch scope from blockers.
+8. Push to `origin/main` only after smoke returns `RESULT: PASS`.
 
 Terminal-to-browser handoff checkpoint:
 - If terminal output does not include commit hash + filled smoke handoff card, do not start browser smoke.
@@ -101,11 +107,12 @@ Terminal-to-browser handoff checkpoint:
 Pre-smoke commands:
 1. `git status --short`
 2. `node build.js`
-3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md SMOKE_TEST_HANDOFF_TEMPLATE.md agents`
+3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md SMOKE_TEST_HANDOFF_TEMPLATE.md agents scripts`
 4. `git add <changed files>`
 5. `git commit -m "<clear summary>"`
-6. `git rev-parse --short HEAD`
-7. Fill and return `SMOKE_TEST_HANDOFF_TEMPLATE.md` in terminal output
+6. `git show --name-status --oneline -1`
+7. `node scripts/prepare-smoke-handoff.js`
+8. Return filled `SMOKE_TEST_HANDOFF_TEMPLATE.md` in terminal output
 
 Post-smoke command (only after `RESULT: PASS`):
 1. `git push origin main`

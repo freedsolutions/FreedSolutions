@@ -2,6 +2,30 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - One-command SHIP flow and handoff metadata automation
+- What changed: Added a single-command terminal delivery flow and automated smoke handoff metadata stamping.
+  - Added `agents/terminal-feature-flow.md` as the execution spec for end-to-end terminal work:
+    - implement from `FEATURE_CARD.md`
+    - build and validate
+    - commit
+    - commit review
+    - patch/recommit review loop
+    - smoke handoff prep
+  - Added `scripts/prepare-smoke-handoff.js` to update `SMOKE_TEST_HANDOFF_TEMPLATE.md` with:
+    - current short commit hash from `git rev-parse --short HEAD`
+    - build confirmation date stamp in `YYYY-MM-DD`
+  - Updated `CLAUDE.md`:
+    - new preferred kickoff trigger:
+      - `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+    - added `SHIP` output contract (includes commit-review summary)
+    - updated checklist and required commands to include `node scripts/prepare-smoke-handoff.js`
+    - expanded active agent specs to include terminal + browser roles
+  - Updated `agents/README.md` to register both agent specs and document the `SHIP` -> `SMOKE` sequence.
+- Why: Remove repeated manual coordination steps and make feature delivery + smoke handoff startable from one command with consistent outputs.
+- Files: `CLAUDE.md` (updated), `agents/README.md` (updated), `agents/terminal-feature-flow.md` (added), `scripts/prepare-smoke-handoff.js` (added), `CHANGES.md` (updated).
+- Validation: Script parses and rewrites expected handoff lines; workflow docs now contain a single canonical kickoff command and updated required command list.
+- Notes/Risks: `scripts/prepare-smoke-handoff.js` should run after commit so the handoff hash matches the exact commit under test.
+
 ## 2026-02-28 - Column 2 text UX overhaul, decorator toggles, canvas wrapping, visual polish
 - What changed: Overhauled text editing UX and canvas rendering across Column 2, separated decorator controls, updated defaults, and added visual polish.
   - Converted all Column 2 text inputs (Brand Name, Top Corner, Bottom Corner, Heading, Card inputs) to auto-expanding `<textarea>` elements that grow line-by-line up to `max-height: 50vh`.
