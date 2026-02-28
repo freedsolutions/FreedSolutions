@@ -2,6 +2,27 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Prescriptive Claude -> Codex -> Browser phase workflow
+- What changed: Replaced the prior single-owner default with an explicit back-to-back three-phase workflow.
+  - Updated `CLAUDE.md` to make phase order mandatory:
+    - Phase 1 (Claude Code): implement + validate + commit
+    - Phase 2 (Codex): review Claude commit + patch/recommit + finalize handoff
+    - Phase 3 (Browser): smoke test only from provided handoff context
+  - Added strict phase kickoff commands:
+    - `CLAUDE_PHASE: Use agents/claude-feature-implementer.md with FEATURE_CARD.md.`
+    - `CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+    - `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+  - Added phase-specific output contracts and gate lines (`HANDOFF_TO_CODEX`, `DO NOT PUSH YET - Awaiting browser smoke RESULT`).
+  - Added new agent specs:
+    - `agents/claude-feature-implementer.md`
+    - `agents/codex-commit-review-patcher.md`
+  - Updated `agents/README.md` to document the new mandatory sequence.
+  - Marked `agents/terminal-feature-flow.md` as legacy (non-default).
+- Why: Match actual operating model where Claude and Codex run distinct responsibilities sequentially before browser smoke.
+- Files: `CLAUDE.md` (updated), `agents/README.md` (updated), `agents/claude-feature-implementer.md` (added), `agents/codex-commit-review-patcher.md` (added), `agents/terminal-feature-flow.md` (updated), `CHANGES.md` (updated).
+- Validation: Verified docs now define one canonical default sequence with explicit phase gates and exact kickoff commands.
+- Notes/Risks: Keep using `node scripts/prepare-smoke-handoff.js` in Phase 2 so smoke metadata tracks the final commit under test.
+
 ## 2026-02-28 - One-command SHIP flow and handoff metadata automation
 - What changed: Added a single-command terminal delivery flow and automated smoke handoff metadata stamping.
   - Added `agents/terminal-feature-flow.md` as the execution spec for end-to-end terminal work:

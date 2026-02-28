@@ -1,12 +1,17 @@
-# Terminal Feature Flow Agent
+# Terminal Feature Flow Agent (Legacy)
 
 ## Role
-Run the full terminal delivery flow from `FEATURE_CARD.md` through implementation, commit review, final patches, and smoke handoff preparation.
+Legacy single-owner terminal flow retained for reference. The default workflow is now split:
+- Phase 1 in Claude Code
+- Phase 2 in Codex
+- Phase 3 in Browser smoke
 
 ## One-Command Trigger
 Use this exact command in terminal Claude/Codex:
 
 `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+
+Do not use this as default. Prefer `CLAUDE_PHASE` then `CODEX_PHASE` as defined in `CLAUDE.md`.
 
 ## Operating Steps (Required)
 1. Read `CLAUDE.md`, `FEATURE_CARD.md`, and relevant code context.

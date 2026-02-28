@@ -15,46 +15,50 @@ Use only this minimal set for the default workflow:
 - `FEATURE_CARD.md` (feature intent)
 - `SMOKE_TEST_HANDOFF_TEMPLATE.md` (browser handoff card)
 - `scripts/prepare-smoke-handoff.js` (handoff metadata stamper)
-- `agents/terminal-feature-flow.md` (one-command terminal execution spec)
+- `agents/claude-feature-implementer.md` (Phase 1: Claude implementation + commit)
+- `agents/codex-commit-review-patcher.md` (Phase 2: Codex review + patch + handoff finalization)
 - `agents/browser-smoke-tester.md` (browser smoke execution spec)
 - `agents/README.md` (agent index)
 
-## Feature Session Protocol (Preferred: One Command)
-Primary kickoff command:
-- `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+## Feature Session Protocol (Default, Prescriptive, Back-to-Back)
+Phases must run in this exact order with no skipping:
+1. Phase 1 (Claude Code): implement + validate + commit.
+2. Phase 2 (Codex): review Claude commit + patch/recommit loop + finalize smoke handoff.
+3. Phase 3 (Browser Claude Extension): smoke test only from provided handoff context.
 
-`SHIP` must execute end-to-end:
-1. Read `CLAUDE.md`, `FEATURE_CARD.md`, and repo context.
-2. Implement feature changes with minimal targeted edits.
-3. Run validation (`node build.js` minimum).
-4. Commit changes (no push).
-5. Review latest commit with code-review rigor.
-6. If findings exist, patch + rebuild + recommit, then re-review.
-7. Repeat until no material findings remain.
-8. Run `node scripts/prepare-smoke-handoff.js`.
-9. Return final smoke handoff package for browser testing.
+Phase 1 kickoff command (Claude Code):
+- `CLAUDE_PHASE: Use agents/claude-feature-implementer.md with FEATURE_CARD.md.`
 
-Fallback (legacy) two-step trigger remains supported:
-1. `FEATURE: <completed feature card>`
-2. `IMPLEMENT`
+Phase 2 kickoff command (Codex, immediately after Phase 1):
+- `CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST_HANDOFF_TEMPLATE.md.`
 
-## SHIP Output Contract (Required)
-`SHIP` is not complete until all items below are returned:
+Phase 3 kickoff command (Browser Claude, after Phase 2):
+- `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+
+## Phase Output Contracts (Required)
+Phase 1 (`CLAUDE_PHASE`) is not complete until all are returned:
 - Commit hash (`git rev-parse --short HEAD`)
 - Files changed summary
 - Validation summary (including `node build.js`)
-- Commit-review summary (findings, or explicit "no findings")
-- Fully filled `SMOKE_TEST_HANDOFF_TEMPLATE.md` content with:
-  - Feature-specific scenarios derived from the feature card acceptance criteria
-  - Any known risk focus for the smoke run
-- Explicit statement: `DO NOT PUSH YET - Awaiting browser smoke RESULT`
+- Known risk notes for Codex reviewer
+- Exact gate line: `HANDOFF_TO_CODEX`
+
+Phase 2 (`CODEX_PHASE`) is not complete until all are returned:
+- Final commit hash under test
+- Files changed summary
+- Validation summary (including `node build.js` if source changed)
+- Commit-review summary (findings or explicit "no findings")
+- Fully filled `SMOKE_TEST_HANDOFF_TEMPLATE.md` content
+- Exact gate line: `DO NOT PUSH YET - Awaiting browser smoke RESULT`
 
 ## Active Agent Specs
-- `agents/terminal-feature-flow.md`: terminal implementation + commit-review + handoff prep flow.
+- `agents/claude-feature-implementer.md`: Claude phase implementation + commit handoff.
+- `agents/codex-commit-review-patcher.md`: Codex phase review/patch loop + handoff finalization.
 - `agents/browser-smoke-tester.md`: browser smoke checks from a structured handoff card; no code edits.
 
 Kickoff shortcut:
-- `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+- `CLAUDE_PHASE: Use agents/claude-feature-implementer.md with FEATURE_CARD.md.`
+- `CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST_HANDOFF_TEMPLATE.md.`
 - `SMOKE: Use agents/browser-smoke-tester.md and SMOKE_TEST_HANDOFF_TEMPLATE.md.`
 
 ## Browser Smoke Test Handoff (Human-in-the-Loop)
@@ -84,35 +88,39 @@ Use `SMOKE_TEST_HANDOFF_TEMPLATE.md` as the standard handoff card.
 
 ## Human Execution Checklist
 1. Prepare `FEATURE_CARD.md` for the feature.
-2. Run one-command terminal flow:
-   - `SHIP: Use agents/terminal-feature-flow.md with FEATURE_CARD.md and produce a completed SMOKE_TEST_HANDOFF_TEMPLATE.md.`
-3. Confirm terminal output includes:
-   - final commit hash
-   - validation summary
-   - commit-review summary
-   - completed smoke handoff card
-4. Start browser smoke using `agents/browser-smoke-tester.md`.
-5. During smoke, respond to:
+2. Run Claude Code phase:
+   - `CLAUDE_PHASE: Use agents/claude-feature-implementer.md with FEATURE_CARD.md.`
+3. Confirm Claude output includes commit hash + `HANDOFF_TO_CODEX`.
+4. Run Codex phase immediately using Claude commit hash:
+   - `CODEX_PHASE: Use agents/codex-commit-review-patcher.md to review and patch commit <hash>, then finalize SMOKE_TEST_HANDOFF_TEMPLATE.md.`
+5. Confirm Codex output includes completed handoff card + `DO NOT PUSH YET - Awaiting browser smoke RESULT`.
+6. Start browser smoke using `agents/browser-smoke-tester.md`.
+7. During smoke, respond to:
    - `PAUSE_FOR_FILE_UPLOAD` with `UPLOAD_DONE`
    - `PAUSE_FOR_ASSISTANCE` with `ASSISTANCE_DONE`
-6. Collect smoke output (`RESULT`, matrix, blockers, follow-up fixes).
-7. If smoke fails, rerun `SHIP` with patch scope from blockers.
-8. Push to `origin/main` only after smoke returns `RESULT: PASS`.
+8. Collect smoke output (`RESULT`, matrix, blockers, follow-up fixes).
+9. If smoke fails, rerun Phase 2 (`CODEX_PHASE`) with blocker patch scope.
+10. Push to `origin/main` only after smoke returns `RESULT: PASS`.
 
 Terminal-to-browser handoff checkpoint:
 - If terminal output does not include commit hash + filled smoke handoff card, do not start browser smoke.
 - Request the missing handoff package in terminal first.
 
 ## Required Commands
-Pre-smoke commands:
+Phase 1 commands (Claude Code):
 1. `git status --short`
 2. `node build.js`
 3. `git diff -- src linkedin-carousel.jsx CLAUDE.md CHANGES.md FEATURE_CARD.md SMOKE_TEST_HANDOFF_TEMPLATE.md agents scripts`
 4. `git add <changed files>`
 5. `git commit -m "<clear summary>"`
 6. `git show --name-status --oneline -1`
-7. `node scripts/prepare-smoke-handoff.js`
-8. Return filled `SMOKE_TEST_HANDOFF_TEMPLATE.md` in terminal output
+
+Phase 2 commands (Codex):
+1. `git show --name-status --oneline <claude-commit-hash>`
+2. Review + patch + commit loop until no material findings remain
+3. `node build.js` (required if source changed)
+4. `node scripts/prepare-smoke-handoff.js`
+5. Return filled `SMOKE_TEST_HANDOFF_TEMPLATE.md` in terminal output
 
 Post-smoke command (only after `RESULT: PASS`):
 1. `git push origin main`
