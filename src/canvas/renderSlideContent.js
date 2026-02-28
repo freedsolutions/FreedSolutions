@@ -10,15 +10,20 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
   var ty = topY;
   if (slide.showHeading !== false) {
-    var headingParsed = extractAccentMarkers(slide.title || "");
     ctx.font = 'bold ' + sizes.heading + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, "bold");
     ty = topY + sizes.heading * 1.22;
-    var hOffset = 0;
-    for (var i = 0; i < titleLines.length; i++) {
-      renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, "bold", slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset);
-      hOffset += titleLines[i].length + 1;
-      ty += sizes.heading * 1.22;
+    var headingRawLines = (slide.title || "").split("\n");
+    for (var hli = 0; hli < headingRawLines.length; hli++) {
+      var hRaw = headingRawLines[hli];
+      if (hRaw.trim() === "") { ty += sizes.heading * 0.5; continue; }
+      var headingParsed = extractAccentMarkers(hRaw);
+      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, "bold");
+      var hOffset = 0;
+      for (var i = 0; i < titleLines.length; i++) {
+        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, "bold", slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset);
+        hOffset += titleLines[i].length + 1;
+        ty += sizes.heading * 1.22;
+      }
     }
 
     if (slide.showAccentBar !== false && (!slide.showCards || !slide.cards || slide.cards.length === 0)) {
@@ -28,50 +33,75 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   }
 
   if (slide.showCards && slide.cards && slide.cards.length > 0) {
+    var showChecks = slide.showCardChecks !== false;
     var cardStartY = (slide.showHeading !== false) ? ty + 45 : ty + 60;
     var cardPadV = 20;
     var gap = 20;
     var textPadding = 40;
     var cardContentW = maxW - 40;
-    var cardsParsed = [];
+    // Pre-compute wrapped lines per card (handling newlines)
+    var cardsLineData = [];
     for (var cpi = 0; cpi < slide.cards.length; cpi++) {
-      cardsParsed.push(extractAccentMarkers(slide.cards[cpi] || ""));
+      var cardRaw = slide.cards[cpi] || "";
+      var cardNlLines = cardRaw.split("\n");
+      var allWrapped = [];
+      for (var cnl = 0; cnl < cardNlLines.length; cnl++) {
+        var nlLine = cardNlLines[cnl];
+        if (nlLine.trim() === "") { allWrapped.push({ text: "", empty: true }); continue; }
+        var nlParsed = extractAccentMarkers(nlLine);
+        ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        var nlWrapped = wrapText(ctx, nlParsed.cleanText, cardContentW, sizes.cardText, "600");
+        var nlOffset = 0;
+        for (var nw = 0; nw < nlWrapped.length; nw++) {
+          allWrapped.push({ text: nlWrapped[nw], parsed: nlParsed, offset: nlOffset });
+          nlOffset += nlWrapped[nw].length + 1;
+        }
+      }
+      cardsLineData.push(allWrapped);
     }
     var cardHeights = [];
-    for (var ch = 0; ch < cardsParsed.length; ch++) {
-      if (!cardsParsed[ch].cleanText.trim()) { cardHeights.push(0); continue; }
-      var chLines = wrapText(ctx, cardsParsed[ch].cleanText, cardContentW, sizes.cardText, "600");
-      var textH = chLines.length * (sizes.cardText + 6);
+    for (var ch = 0; ch < cardsLineData.length; ch++) {
+      var visibleLines = 0;
+      var emptyLines = 0;
+      for (var chl = 0; chl < cardsLineData[ch].length; chl++) {
+        if (cardsLineData[ch][chl].empty) emptyLines++;
+        else visibleLines++;
+      }
+      if (visibleLines === 0 && emptyLines === 0) { cardHeights.push(0); continue; }
+      var textH = visibleLines * (sizes.cardText + 6) + emptyLines * (sizes.cardText * 0.5);
       cardHeights.push(Math.max(80, textH + cardPadV * 2 + 10));
     }
     var runningY = cardStartY;
-    for (var ci = 0; ci < cardsParsed.length; ci++) {
-      if (!cardsParsed[ci].cleanText.trim()) continue;
+    for (var ci = 0; ci < cardsLineData.length; ci++) {
+      if (cardHeights[ci] === 0) continue;
       var cy = runningY;
       var cardH = cardHeights[ci];
       ctx.fillStyle = slide.cardBgColor || colors.cardBg;
       ctx.beginPath();
       ctx.roundRect(pad - 10 + textPadding, cy, maxW - textPadding * 2 + 20, cardH, 16);
       ctx.fill();
-      ctx.fillStyle = colors.accent;
-      ctx.beginPath();
-      ctx.arc(pad + textPadding + 18, cy - 14, 22, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = slide.cardBgColor || colors.cardBg;
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.beginPath();
-      ctx.moveTo(pad + textPadding + 8, cy - 14);
-      ctx.lineTo(pad + textPadding + 16, cy - 6);
-      ctx.lineTo(pad + textPadding + 30, cy - 22);
-      ctx.stroke();
+      if (showChecks) {
+        ctx.fillStyle = colors.accent;
+        ctx.beginPath();
+        ctx.arc(pad + textPadding + 18, cy - 14, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = slide.cardBgColor || colors.cardBg;
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(pad + textPadding + 8, cy - 14);
+        ctx.lineTo(pad + textPadding + 16, cy - 6);
+        ctx.lineTo(pad + textPadding + 30, cy - 22);
+        ctx.stroke();
+      }
       ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
-      var cardLines = wrapText(ctx, cardsParsed[ci].cleanText, cardContentW, sizes.cardText, "600");
-      var cOffset = 0;
-      for (var cli = 0; cli < cardLines.length; cli++) {
-        renderLineWithAccents(ctx, cardLines[cli], pad + textPadding + 20, cy + 38 + cli * (sizes.cardText + 6), sizes.cardText, "600", slide.cardTextColor || colors.cardText, colors.accent, cardsParsed[ci].markers, cOffset);
-        cOffset += cardLines[cli].length + 1;
+      var lineY = cy + 38;
+      for (var cli = 0; cli < cardsLineData[ci].length; cli++) {
+        var ld = cardsLineData[ci][cli];
+        if (ld.empty) { lineY += sizes.cardText * 0.5; continue; }
+        renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, "600", slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset);
+        lineY += sizes.cardText + 6;
       }
       runningY += cardH + gap;
     }

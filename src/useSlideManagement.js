@@ -181,7 +181,7 @@ function useSlideManagement(deps) {
               geoEnabled: true,
               geoLines: "#a0a0af",
               frameEnabled: true,
-              accentColor: "#22c55e",
+              accentColor: "#a5b4fc",
               borderColor: "#ffffff",
               borderOpacity: 25,
               footerBg: "#ffffff"

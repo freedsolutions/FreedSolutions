@@ -14,7 +14,7 @@
 
 var PRESET_SLIDE_KEYS = [
   "title", "showHeading", "showAccentBar", "body",
-  "titleColor", "bodyColor", "showCards", "cards",
+  "titleColor", "bodyColor", "showCards", "showCardChecks", "cards",
   "cardTextColor", "cardBgColor", "showScreenshot",
   "showBrandName", "brandNameText", "brandNameColor",
   "showTopCorner", "topCornerText", "topCornerColor", "topCornerOpacity",

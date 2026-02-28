@@ -348,15 +348,20 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
   var ty = topY;
   if (slide.showHeading !== false) {
-    var headingParsed = extractAccentMarkers(slide.title || "");
     ctx.font = 'bold ' + sizes.heading + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
-    var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, "bold");
     ty = topY + sizes.heading * 1.22;
-    var hOffset = 0;
-    for (var i = 0; i < titleLines.length; i++) {
-      renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, "bold", slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset);
-      hOffset += titleLines[i].length + 1;
-      ty += sizes.heading * 1.22;
+    var headingRawLines = (slide.title || "").split("\n");
+    for (var hli = 0; hli < headingRawLines.length; hli++) {
+      var hRaw = headingRawLines[hli];
+      if (hRaw.trim() === "") { ty += sizes.heading * 0.5; continue; }
+      var headingParsed = extractAccentMarkers(hRaw);
+      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, "bold");
+      var hOffset = 0;
+      for (var i = 0; i < titleLines.length; i++) {
+        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, "bold", slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset);
+        hOffset += titleLines[i].length + 1;
+        ty += sizes.heading * 1.22;
+      }
     }
 
     if (slide.showAccentBar !== false && (!slide.showCards || !slide.cards || slide.cards.length === 0)) {
@@ -366,50 +371,75 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   }
 
   if (slide.showCards && slide.cards && slide.cards.length > 0) {
+    var showChecks = slide.showCardChecks !== false;
     var cardStartY = (slide.showHeading !== false) ? ty + 45 : ty + 60;
     var cardPadV = 20;
     var gap = 20;
     var textPadding = 40;
     var cardContentW = maxW - 40;
-    var cardsParsed = [];
+    // Pre-compute wrapped lines per card (handling newlines)
+    var cardsLineData = [];
     for (var cpi = 0; cpi < slide.cards.length; cpi++) {
-      cardsParsed.push(extractAccentMarkers(slide.cards[cpi] || ""));
+      var cardRaw = slide.cards[cpi] || "";
+      var cardNlLines = cardRaw.split("\n");
+      var allWrapped = [];
+      for (var cnl = 0; cnl < cardNlLines.length; cnl++) {
+        var nlLine = cardNlLines[cnl];
+        if (nlLine.trim() === "") { allWrapped.push({ text: "", empty: true }); continue; }
+        var nlParsed = extractAccentMarkers(nlLine);
+        ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+        var nlWrapped = wrapText(ctx, nlParsed.cleanText, cardContentW, sizes.cardText, "600");
+        var nlOffset = 0;
+        for (var nw = 0; nw < nlWrapped.length; nw++) {
+          allWrapped.push({ text: nlWrapped[nw], parsed: nlParsed, offset: nlOffset });
+          nlOffset += nlWrapped[nw].length + 1;
+        }
+      }
+      cardsLineData.push(allWrapped);
     }
     var cardHeights = [];
-    for (var ch = 0; ch < cardsParsed.length; ch++) {
-      if (!cardsParsed[ch].cleanText.trim()) { cardHeights.push(0); continue; }
-      var chLines = wrapText(ctx, cardsParsed[ch].cleanText, cardContentW, sizes.cardText, "600");
-      var textH = chLines.length * (sizes.cardText + 6);
+    for (var ch = 0; ch < cardsLineData.length; ch++) {
+      var visibleLines = 0;
+      var emptyLines = 0;
+      for (var chl = 0; chl < cardsLineData[ch].length; chl++) {
+        if (cardsLineData[ch][chl].empty) emptyLines++;
+        else visibleLines++;
+      }
+      if (visibleLines === 0 && emptyLines === 0) { cardHeights.push(0); continue; }
+      var textH = visibleLines * (sizes.cardText + 6) + emptyLines * (sizes.cardText * 0.5);
       cardHeights.push(Math.max(80, textH + cardPadV * 2 + 10));
     }
     var runningY = cardStartY;
-    for (var ci = 0; ci < cardsParsed.length; ci++) {
-      if (!cardsParsed[ci].cleanText.trim()) continue;
+    for (var ci = 0; ci < cardsLineData.length; ci++) {
+      if (cardHeights[ci] === 0) continue;
       var cy = runningY;
       var cardH = cardHeights[ci];
       ctx.fillStyle = slide.cardBgColor || colors.cardBg;
       ctx.beginPath();
       ctx.roundRect(pad - 10 + textPadding, cy, maxW - textPadding * 2 + 20, cardH, 16);
       ctx.fill();
-      ctx.fillStyle = colors.accent;
-      ctx.beginPath();
-      ctx.arc(pad + textPadding + 18, cy - 14, 22, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = slide.cardBgColor || colors.cardBg;
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.beginPath();
-      ctx.moveTo(pad + textPadding + 8, cy - 14);
-      ctx.lineTo(pad + textPadding + 16, cy - 6);
-      ctx.lineTo(pad + textPadding + 30, cy - 22);
-      ctx.stroke();
+      if (showChecks) {
+        ctx.fillStyle = colors.accent;
+        ctx.beginPath();
+        ctx.arc(pad + textPadding + 18, cy - 14, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = slide.cardBgColor || colors.cardBg;
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(pad + textPadding + 8, cy - 14);
+        ctx.lineTo(pad + textPadding + 16, cy - 6);
+        ctx.lineTo(pad + textPadding + 30, cy - 22);
+        ctx.stroke();
+      }
       ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
-      var cardLines = wrapText(ctx, cardsParsed[ci].cleanText, cardContentW, sizes.cardText, "600");
-      var cOffset = 0;
-      for (var cli = 0; cli < cardLines.length; cli++) {
-        renderLineWithAccents(ctx, cardLines[cli], pad + textPadding + 20, cy + 38 + cli * (sizes.cardText + 6), sizes.cardText, "600", slide.cardTextColor || colors.cardText, colors.accent, cardsParsed[ci].markers, cOffset);
-        cOffset += cardLines[cli].length + 1;
+      var lineY = cy + 38;
+      for (var cli = 0; cli < cardsLineData[ci].length; cli++) {
+        var ld = cardsLineData[ci][cli];
+        if (ld.empty) { lineY += sizes.cardText * 0.5; continue; }
+        renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, "600", slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset);
+        lineY += sizes.cardText + 6;
       }
       runningY += cardH + gap;
     }
@@ -505,8 +535,9 @@ function makeDefaultSlide(title, body) {
     showAccentBar: true,
     body: body || "Your text here...",
     titleColor: "#ffffff",
-    bodyColor: "#22c55e",
+    bodyColor: "#a5b4fc",
     showCards: false,
+    showCardChecks: true,
     cards: ["Card 1"],
     cardTextColor: "#333333",
     cardBgColor: "#ffffff",
@@ -529,7 +560,7 @@ function makeDefaultSlide(title, body) {
     geoEnabled: true,
     geoLines: "#a0a0af",
     frameEnabled: true,
-    accentColor: "#22c55e",
+    accentColor: "#a5b4fc",
     borderColor: "#ffffff",
     borderOpacity: 25,
     footerBg: "#ffffff"
@@ -1108,7 +1139,7 @@ function useSlideManagement(deps) {
               geoEnabled: true,
               geoLines: "#a0a0af",
               frameEnabled: true,
-              accentColor: "#22c55e",
+              accentColor: "#a5b4fc",
               borderColor: "#ffffff",
               borderOpacity: 25,
               footerBg: "#ffffff"
@@ -1463,7 +1494,7 @@ function usePdfExport(canvasRef, renderSlide, seriesSlides, activeSlide, exportP
 
 var PRESET_SLIDE_KEYS = [
   "title", "showHeading", "showAccentBar", "body",
-  "titleColor", "bodyColor", "showCards", "cards",
+  "titleColor", "bodyColor", "showCards", "showCardChecks", "cards",
   "cardTextColor", "cardBgColor", "showScreenshot",
   "showBrandName", "brandNameText", "brandNameColor",
   "showTopCorner", "topCornerText", "topCornerColor", "topCornerOpacity",
@@ -2187,6 +2218,9 @@ export default function App() {
             reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
             removeSlide={slideMgmt.removeSlide} />
 
+          {/* -- Divider: Above Screenshot -- */}
+          <div style={{ borderTop: "1px solid #333", marginTop: 10, marginBottom: 10 }} />
+
           {/* --- SCREENSHOT (per-slide, in Col 1) --- */}
           {currentSlide && (
             <div style={{ marginTop: 6 }}>
@@ -2270,8 +2304,9 @@ export default function App() {
               </div>
               {currentSlide.showBrandName && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); }} placeholder="Brand name..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 6, fontSize: 12 })} />
+                  <textarea value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Brand name..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 6, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -2291,8 +2326,9 @@ export default function App() {
               </div>
               {currentSlide.showTopCorner && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); }} placeholder="Top corner..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12 })} />
+                  <textarea value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Top corner..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -2312,8 +2348,9 @@ export default function App() {
               </div>
               {currentSlide.showBottomCorner && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); }} placeholder="Bottom corner..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12 })} />
+                  <textarea value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Bottom corner..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -2326,11 +2363,6 @@ export default function App() {
                 </button>
                 {currentSlide.showHeading && (
                   <>
-                    <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar); }}
-                      title="Accent bar"
-                      style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(34,197,94,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? GREEN : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
-                      {"\u2501"}
-                    </button>
                     <div style={{ flex: 1 }} />
                     <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
                       colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
@@ -2340,8 +2372,9 @@ export default function App() {
               </div>
               {currentSlide.showHeading && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.title} onChange={function(e) { updateSlide(activeSlide, "title", e.target.value); }} placeholder="Heading..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12 })} />
+                  <textarea value={currentSlide.title} onChange={function(e) { updateSlide(activeSlide, "title", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Heading..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -2352,6 +2385,21 @@ export default function App() {
                 <span style={{ color: "#2a2a3e", margin: "0 4px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
+                <div style={{ flex: 1 }} />
+                {/* Decorator toggle: accent bar (Body mode) or checkmark (Cards mode) */}
+                {!currentSlide.showCards ? (
+                  <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar); }}
+                    title="Accent bar"
+                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    {"\u2501"}
+                  </button>
+                ) : (
+                  <button onClick={function() { updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false)); }}
+                    title="Card checkmarks"
+                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showCardChecks !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showCardChecks !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    {"\u2713"}
+                  </button>
+                )}
               </div>
 
               {/* Color swatch row - Text + Base always visible; Base greyed when Body mode */}
@@ -2383,8 +2431,9 @@ export default function App() {
               {/* Body content */}
               {!currentSlide.showCards && (
                 <div>
-                  <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); }} rows={2}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 13, boxSizing: "border-box", resize: "vertical" }} />
+                  <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 13, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
                   <p style={{ fontSize: 11, color: "#555", marginTop: 2, marginBottom: 8 }}>**word** = accent color.</p>
                 </div>
               )}
@@ -2395,8 +2444,9 @@ export default function App() {
                   {currentSlide.cards.map(function(c, i) {
                     return (
                       <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
-                        <input value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); }} placeholder={"Card " + (i + 1) + "..."}
-                          style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 12, boxSizing: "border-box" }} />
+                        <textarea value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder={"Card " + (i + 1) + "..."} rows={1}
+                          ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                          style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 12, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
                         {currentSlide.cards.length > 1 && (
                           <button onClick={function() { slideMgmt.removeSlideCard(activeSlide, i); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 18, padding: 4 }}>{"\u00d7"}</button>
                         )}

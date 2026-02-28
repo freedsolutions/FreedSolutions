@@ -2,6 +2,23 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Column 2 text UX overhaul, decorator toggles, canvas wrapping, visual polish
+- What changed: Overhauled text editing UX and canvas rendering across Column 2, separated decorator controls, updated defaults, and added visual polish.
+  - Converted all Column 2 text inputs (Brand Name, Top Corner, Bottom Corner, Heading, Card inputs) to auto-expanding `<textarea>` elements that grow line-by-line up to `max-height: 50vh`.
+  - Replaced fixed `rows={2}` on Body textarea with dynamic auto-expanding behavior.
+  - Added multi-line support for Heading canvas rendering: splits on `\n`, then wraps each line within bounding box.
+  - Added multi-line support for Card canvas rendering: splits on `\n`, then wraps each line within card bounding box.
+  - Separated decorator toggles: accent bar (`—`) toggle now appears only in Body mode; new checkmark (`✓`) toggle appears only in Cards mode. Both independent per-slide, default ON.
+  - Added `showCardChecks` per-slide property to `makeDefaultSlide()` and `PRESET_SLIDE_KEYS` for preset round-trip.
+  - Canvas card renderer conditionally renders checkmark circles based on `showCardChecks`.
+  - Changed default accent color from `#22c55e` (green) to `#a5b4fc` (soft indigo) in `slideFactory.js` (`bodyColor`, `accentColor`) and `useSlideManagement.js` (`resetBgToDefault`).
+  - Added horizontal divider (`1px solid #333`) above the Screenshot section in Column 1.
+  - `GREEN` constant remains `#22c55e` for functional UI toggle backgrounds (ON buttons).
+- Why: Improve text editing ergonomics, enable multi-line heading/card content, give users independent decorator control, and refresh default accent color.
+- Files: `src/App.jsx`, `src/slideFactory.js`, `src/useSlideManagement.js`, `src/usePresets.js`, `src/canvas/renderSlideContent.js`, `linkedin-carousel.jsx` (regenerated), `CHANGES.md`, `FEATURE_CARD.md`.
+- Validation: `node build.js` succeeds with 19 source files. Grep confirms: 6 `<textarea` elements in artifact, `showCardChecks` in factory/preset/canvas/UI, `#a5b4fc` default accent, heading `\n` split, card `\n` split, `#333` separator.
+- Notes/Risks: `showCardChecks` defaults to `true` via `!== false` guard for backward-compat with presets that lack the property. Existing presets without `showCardChecks` will still show checkmarks.
+
 ## 2026-02-27 - Bug-hardening pass: constants, preset validation, reorder, undo listener, snapshots
 - What changed: Centralized slide limits, hardened preset import, fixed reorder consistency, stabilized undo/redo listener, and defensively copied undo snapshots.
   - Added `MAX_SLIDES` constant to `src/constants.js`; replaced all hard-coded `10` slide-limit checks in `useSlideManagement.js`, `SlideSelector.jsx`, and `App.jsx`.

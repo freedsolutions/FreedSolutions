@@ -405,6 +405,9 @@ export default function App() {
             reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
             removeSlide={slideMgmt.removeSlide} />
 
+          {/* -- Divider: Above Screenshot -- */}
+          <div style={{ borderTop: "1px solid #333", marginTop: 10, marginBottom: 10 }} />
+
           {/* --- SCREENSHOT (per-slide, in Col 1) --- */}
           {currentSlide && (
             <div style={{ marginTop: 6 }}>
@@ -488,8 +491,9 @@ export default function App() {
               </div>
               {currentSlide.showBrandName && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); }} placeholder="Brand name..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 6, fontSize: 12 })} />
+                  <textarea value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Brand name..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 6, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -509,8 +513,9 @@ export default function App() {
               </div>
               {currentSlide.showTopCorner && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); }} placeholder="Top corner..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12 })} />
+                  <textarea value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Top corner..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -530,8 +535,9 @@ export default function App() {
               </div>
               {currentSlide.showBottomCorner && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); }} placeholder="Bottom corner..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12 })} />
+                  <textarea value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Bottom corner..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -544,11 +550,6 @@ export default function App() {
                 </button>
                 {currentSlide.showHeading && (
                   <>
-                    <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar); }}
-                      title="Accent bar"
-                      style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(34,197,94,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? GREEN : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
-                      {"\u2501"}
-                    </button>
                     <div style={{ flex: 1 }} />
                     <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
                       colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
@@ -558,8 +559,9 @@ export default function App() {
               </div>
               {currentSlide.showHeading && (
                 <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
-                  <input value={currentSlide.title} onChange={function(e) { updateSlide(activeSlide, "title", e.target.value); }} placeholder="Heading..."
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12 })} />
+                  <textarea value={currentSlide.title} onChange={function(e) { updateSlide(activeSlide, "title", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Heading..." rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -570,6 +572,21 @@ export default function App() {
                 <span style={{ color: "#2a2a3e", margin: "0 4px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
+                <div style={{ flex: 1 }} />
+                {/* Decorator toggle: accent bar (Body mode) or checkmark (Cards mode) */}
+                {!currentSlide.showCards ? (
+                  <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar); }}
+                    title="Accent bar"
+                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    {"\u2501"}
+                  </button>
+                ) : (
+                  <button onClick={function() { updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false)); }}
+                    title="Card checkmarks"
+                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showCardChecks !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showCardChecks !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    {"\u2713"}
+                  </button>
+                )}
               </div>
 
               {/* Color swatch row - Text + Base always visible; Base greyed when Body mode */}
@@ -601,8 +618,9 @@ export default function App() {
               {/* Body content */}
               {!currentSlide.showCards && (
                 <div>
-                  <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); }} rows={2}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 13, boxSizing: "border-box", resize: "vertical" }} />
+                  <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} rows={1}
+                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 13, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
                   <p style={{ fontSize: 11, color: "#555", marginTop: 2, marginBottom: 8 }}>**word** = accent color.</p>
                 </div>
               )}
@@ -613,8 +631,9 @@ export default function App() {
                   {currentSlide.cards.map(function(c, i) {
                     return (
                       <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
-                        <input value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); }} placeholder={"Card " + (i + 1) + "..."}
-                          style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 12, boxSizing: "border-box" }} />
+                        <textarea value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder={"Card " + (i + 1) + "..."} rows={1}
+                          ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                          style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 12, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
                         {currentSlide.cards.length > 1 && (
                           <button onClick={function() { slideMgmt.removeSlideCard(activeSlide, i); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 18, padding: 4 }}>{"\u00d7"}</button>
                         )}
