@@ -1,95 +1,73 @@
 # FEATURE CARD
 
-Feature: Screenshot layout expansion, edge-to-edge screenshots, accent bar margin tie-in, Top Corner case freedom, font swap, and auto-overwrite screenshots
+Feature: Two-pane layout — eliminate dead space by merging sidebar and editor into a single left column
 
 Goal:
-Give users more control over screenshot real estate and layout density. Add a toggle that expands the screenshot footprint by compressing body/cards content, allow screenshots to bleed to the slide edge when scaled up, tie accent bar/checkmark vertical position to the expansion toggle, remove forced uppercase on Top Corner text, replace the Georgia font with a smoother alternative, and auto-overwrite existing screenshots on upload or paste without a confirmation prompt.
+Replace the current 3-column layout (fixed sidebar | flexible editor | flexible preview) with a 2-pane layout (left pane | right preview pane) to eliminate the dead space that appears below the sidebar and editor columns. The left pane stacks the top-level settings (currently Col 1: presets, background, profile pic, slides, screenshot) above the per-slide editor (currently Col 2: footer, corners, heading, body/cards). Both panes should be roughly equal width.
 
 ---
 
 ## In scope
 
-### 1. "Expand Screenshots" toggle in Body/Cards section
-- Add a new on/off toggle button in the Body/Cards section header row (next to the existing Body/Cards mode toggle) that enables a larger vertical footprint for the screenshot area.
-- When ON: compress the body/cards content zone (reduce the minimum `ssY` threshold and/or increase the body start position) so the screenshot container gets more vertical space.
-- When OFF (default): current layout behavior is preserved exactly.
-- New per-slide state property: `expandScreenshot` (boolean, default `false`).
-- Initialize in `makeDefaultSlide()` and handle in preset save/load with `false` fallback.
-- Toggle must call `pushUndo()` before mutating state.
+### 1. Merge Col 1 and Col 2 into a single left pane
+- Replace the 3-child flex container (`flex: 0 0 240px` | `flex: 1 1 280px` | `flex: 1 1 360px`) with a 2-child flex container: left pane and right preview pane.
+- Left pane contains two stacked sections (top and bottom) rendered as a single scrollable column:
+  - **Top section** — top-level slide settings (in current order): Presets, Background, Profile Pic, Slides selector, Screenshot toggle/upload/scale.
+  - **Bottom section** — per-slide editor panel (in current order): Slide header (Duplicate/Reset/Remove), Footer & Pic, Top Corner, Bottom Corner, Heading, Body/Cards, content textareas.
+- Remove the fixed 240px width constraint on the former sidebar content so it can fill the left pane width naturally.
 
-### 2. Tie Accent Bar / Checkmark to the expansion toggle
-- When "Expand Screenshots" is ON, shift the accent bar (Body mode) and card checkmarks (Cards mode) upward to reduce vertical spacing between the heading and the body/cards content. This frees additional vertical pixels for the screenshot below.
-- This adjustment applies to the canvas rendering positions only (`renderSlideContent.js`), not to the settings panel layout.
-- The shift must not collapse natural inter-section line spacing — it only tightens the gap between heading and body/cards by a controlled amount (e.g., reduce the `ty + 100` body offset and `ty + 10` accent bar offset proportionally).
-- When "Expand Screenshots" is OFF, accent bar and checkmarks render at their current positions (no change).
+### 2. Equal-width 2-pane split
+- Both panes should share available space roughly equally (e.g., `flex: 1 1 50%` each, or a similar approach).
+- Maintain reasonable min-width constraints so neither pane collapses too small (e.g., ~380px left, ~360px right).
+- Keep the preview pane sticky behavior (`position: sticky; top: 24px; alignSelf: flex-start`).
 
-### 3. Edge-to-edge screenshots (no margins when scaled up)
-- When a screenshot is scaled up beyond the content-width boundary, allow it to render to the full slide edges (X = 0, width = canvas width) instead of being clipped to `pad` (80px) margins.
-- The clipping rectangle in `drawScreenshot()` should expand from `(pad, ssY, maxW, ssH)` to `(0, ssY, W, ssH)` when the scaled image dimensions exceed the current content-width box.
-- Alternatively, provide a per-slide toggle or tie this behavior to the "Expand Screenshots" toggle from feature 1 — if expand is ON, screenshots use full-width bounds.
-- The 12px `roundRect` clip radius should be set to 0 for edge-to-edge mode (sharp edges at slide boundary).
+### 3. Preserve all existing functionality
+- No controls, toggles, inputs, or features are added or removed — only repositioned.
+- All existing inline styles, color schemes, spacing patterns, and component behavior remain intact.
+- Undo/redo, preset save/load, screenshot upload/paste, PDF download — all unchanged.
 
-### 4. Remove forced uppercase on Top Corner text
-- Remove the `.toUpperCase()` call in `drawTopCorner()` (`overlays.js`, line 47) so the text renders exactly as the user types it.
-- The default text in `makeDefaultSlide()` can remain `"LABEL"` (uppercase by convention), but users can now type mixed-case or lowercase and have it respected.
-- No changes to the input field, state shape, or settings panel — only the canvas rendering call.
-
-### 5. Replace Georgia font with a smoother alternative
-- Swap the Georgia entry in `FONT_OPTIONS` (`constants.js`) with a smoother serif or sans-serif system font.
-- Recommended replacement: **Cambria** (`"Cambria, Georgia, serif"`) — a modern, smooth serif designed for on-screen readability, available on Windows/macOS.
-- Alternative candidates if Cambria is unsuitable: **Palatino Linotype** (`"Palatino Linotype", "Book Antiqua", Palatino, serif`) or **Segoe UI** (`"Segoe UI", Tahoma, Geneva, sans-serif`).
-- Update the `label` in `FONT_OPTIONS` to match the new font name.
-- All existing slides using Georgia should gracefully fall back (CSS font stack includes Georgia as fallback if Cambria is unavailable).
-
-### 6. Auto-overwrite existing screenshots on upload or paste
-- When uploading or pasting a screenshot and the active slide already has a screenshot, replace it immediately without any confirmation dialog or warning.
-- This applies to both the file-upload input handler (`handleScreenshotUpload`) and the global paste handler.
-- Current behavior already calls `setAsset()` which replaces, but verify there is no `confirm()` or warning gate anywhere in the flow. If one exists, remove it. If none exists, confirm no regression introduces one.
-- The undo stack still captures the previous state, so users can revert with `Ctrl+Z` if the replacement was unintended.
+### 4. Adapt the former sidebar sections to wider layout
+- The Background section's internal 50/50 split (color controls left, photo upload right) should still work at the wider width.
+- The Slides selector (flex-wrap numbered buttons) will naturally reflow to the wider container.
+- Profile Pic and Screenshot sections expand to fill width gracefully.
 
 ---
 
 ## Out of scope
-- No changes to horizontal body/cards text layout or wrapping width (only vertical compression for feature 1).
-- No new screenshot positioning controls (drag, offset) — only expansion of the available area and edge bleed.
-- No changes to PDF export logic (canvas changes propagate automatically).
-- No removal of other font options — only replacing Georgia.
-- No changes to the screenshot scale slider behavior or range — only how the scaled result is clipped/rendered.
-- No rich-text or per-word casing in Top Corner — entire text block is rendered as typed.
-- No changes to Bottom Corner or other text sections for case behavior (only Top Corner is affected).
+- No new features, controls, or settings panels.
+- No changes to canvas rendering, PDF export, or slide data model.
+- No changes to the Preview pane's internal layout or content.
+- No responsive/mobile breakpoints (current app is desktop-only).
+- No collapsible/accordion sections (vertical stacking only).
+- No drag-to-resize pane divider.
+- No changes to component files other than `App.jsx` (and the generated `linkedin-carousel.jsx` via build).
 
 ---
 
 ## Constraints
-- Follow existing code patterns: functional state updates, per-slide state objects, `pushUndo()` before mutations, optional-field fallback on preset load.
-- System/web-safe fonts only. No `@font-face`, no network font loading, no new dependencies.
-- New per-slide state properties must be initialized in `makeDefaultSlide()` and round-trip correctly through preset save/load.
-- Canvas layout math must remain deterministic — the "Expand Screenshots" toggle changes offsets by fixed amounts, not by dynamic text measurement.
-- Edge-to-edge screenshot rendering must not draw outside the canvas bounds (0 to W horizontally, respect existing vertical bounds).
-- The Top Corner uppercase removal must not affect any other text section's rendering.
+- Layout changes are confined to `src/App.jsx` — specifically the main flex container and column wrapper `<div>` elements.
+- All styling remains inline (no external CSS, consistent with existing patterns).
+- `node build.js` must succeed and regenerate `linkedin-carousel.jsx` cleanly.
+- The stacked left pane must not introduce a nested scrollbar — the page-level scroll handles overflow naturally.
 
 ---
 
 ## Risks
 
-- **Vertical compression trade-off**: Compressing body/cards content for a larger screenshot footprint may cause text truncation or overlap on slides with long body text or many cards. Mitigation: only compress when the toggle is ON, and test with max-length content.
-- **Edge-to-edge clipping interaction**: Expanding the screenshot clip region to full canvas width may interact with the global slide frame/border if one is rendered. Verify the screenshot layer draws under any global frame overlay.
-- **Font fallback chain**: Replacing Georgia with Cambria depends on Cambria being available. The font stack must include Georgia as a fallback so existing content doesn't break on systems without Cambria. Canvas `measureText` will use whichever font is actually resolved, so layout should remain correct.
-- **Preset backward compatibility**: New `expandScreenshot` property will be absent in older presets. Load logic must default to `false` (current behavior preserved).
-- **Top Corner uppercase user expectation**: Users who relied on auto-uppercase may be surprised if they re-type text in lowercase. The default template text remains uppercase, so new slides look the same.
+- **Width reflow**: Former sidebar content (Presets, Background, Profile Pic) was designed for a narrow 240px column. At ~50% viewport width (~500-600px), these sections will be wider than before. The existing flex/inline layouts should handle this gracefully, but Background's internal 50/50 split and color picker sizing should be visually verified.
+- **Vertical length**: Stacking all settings + editor content in one column makes the left pane taller. If it exceeds the viewport height, the user scrolls while the preview stays sticky — this is the intended behavior but should be confirmed.
+- **Preview pane sizing**: Removing the `maxWidth: 520px` cap on the preview or adjusting it may be needed if the equal split makes it too wide or narrow. The 800x1000 canvas scales via `width: 100%` so it should adapt, but verify the aspect ratio looks correct.
 
 ---
 
 ## Acceptance
 
-1. **Expand Screenshots toggle** appears in the Body/Cards section header row and persists per-slide.
-2. When toggle is ON, the screenshot container is visibly taller (more vertical space) compared to OFF.
-3. When toggle is ON, accent bar (Body mode) and card checkmarks (Cards mode) shift upward to contribute vertical space, without collapsing natural line spacing.
-4. When toggle is OFF, all layout matches current (pre-feature) behavior exactly.
-5. Screenshots scaled beyond content width render edge-to-edge (full canvas width, no horizontal margins, no rounded corners at edges).
-6. Top Corner text renders exactly as typed — mixed case, lowercase, and uppercase all display correctly.
-7. Georgia font option is replaced with Cambria (or chosen alternative) in the font selector dropdown; existing slides using Georgia fall back gracefully.
-8. Uploading or pasting a screenshot when one already exists replaces it immediately with no confirmation prompt.
-9. `Ctrl+Z` undo works for all new state mutations (expand toggle, screenshot replacement).
-10. Loading a preset saved before this feature works correctly (new fields default to current values).
-11. `node build.js` succeeds with no regressions in existing behavior.
+1. The app renders as a 2-pane layout: left pane (settings + editor stacked) and right pane (preview).
+2. No dead space appears below the left pane — content flows continuously from top-level settings into per-slide editor.
+3. Both panes are approximately equal width on a standard desktop viewport (1200-1400px).
+4. All existing controls and features work identically to before (no functional regressions).
+5. Preview pane remains sticky while scrolling the left pane content.
+6. Background section's internal layout (color pickers, photo upload) renders cleanly at the wider width.
+7. Slides selector buttons reflow naturally in the wider container.
+8. `node build.js` succeeds with no errors.
+9. Loading an existing preset produces the same visual output on the canvas (no rendering changes).

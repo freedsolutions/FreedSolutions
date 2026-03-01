@@ -3,40 +3,36 @@
 Paste this full card into a new browser Claude extension thread to run smoke tests.
 
 ## Metadata
-- Commit hash under test: `2c002e1`
+- Commit hash under test: `PENDING`
 - Branch: `main`
 - Build confirmation: `node build.js` succeeded (yes, 2026-03-01)
 - Artifact loaded confirmation: `linkedin-carousel.jsx` loaded in browser (`yes/no`)
 
 ## Scope
 - In scope:
-  - **Expand Screenshots toggle**: New per-slide toggle in Body/Cards section header row; when ON, compresses body/cards content vertically so screenshot gets more space
-  - **Accent bar / checkmark tie-in**: When expand is ON, accent bar and card checkmarks shift upward to contribute vertical space
-  - **Edge-to-edge screenshots**: When expand is ON, screenshots render full canvas width (no horizontal margins, no rounded corners at edges)
-  - **Top Corner case freedom**: Text renders exactly as typed — no forced uppercase
-  - **Font swap**: Georgia replaced with Cambria (with Georgia fallback) in font selector
-  - **Auto-overwrite screenshots**: Uploading or pasting a screenshot replaces existing one without confirmation prompt
+  - **2-pane layout**: Merged sidebar (Col 1) and editor (Col 2) into a single left pane; preview remains the right pane
+  - **Equal-width split**: Both panes share available space roughly equally (`flex: 1 1 50%` each)
+  - **Former sidebar sections at wider width**: Presets, Background, Profile Pic, Slides selector, Screenshot sections now render at ~50% viewport width instead of fixed 240px
+  - **Sticky preview**: Preview pane retains sticky positioning while scrolling the left pane
+  - **No functional changes**: All controls, toggles, inputs, and features are repositioned only — no behavior changes
 - Out of scope:
-  - Horizontal body/cards text layout changes
-  - New screenshot positioning controls (drag, offset)
-  - PDF export logic changes
-  - Removal of other font options
-  - Screenshot scale slider behavior changes
-  - Rich-text or per-word casing in Top Corner
-  - Bottom Corner or other text sections for case behavior
+  - New features, controls, or settings panels
+  - Changes to canvas rendering, PDF export, or slide data model
+  - Changes to preview pane internal layout or content
+  - Responsive/mobile breakpoints
+  - Collapsible/accordion sections
+  - Drag-to-resize pane divider
 
 ## Required Upload Checkpoints
 - Profile image upload: `not-required`
 - Custom background image upload: `not-required`
-- Screenshot image upload: `required` (test both file upload and clipboard paste)
+- Screenshot image upload: `not-required`
 
 ## Scenario Checklist
 1. Slide operations
    - Add, edit, duplicate adjacent, delete, drag reorder
 2. Presets
-   - Save preset with expandScreenshot ON
-   - Load valid preset (with and without expandScreenshot field)
-   - Load invalid JSON/version and verify preset error location/message
+   - Save preset, load valid preset, load invalid JSON and verify error
 3. Undo/redo
    - Undo via `Ctrl/Cmd+Z`
    - Redo via `Ctrl/Cmd+Shift+Z`
@@ -51,72 +47,70 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
 
 ## Feature-Specific Scenarios (Required)
 
-### Expand Screenshots Toggle Visibility & State
-- Look at the Body/Cards section header row -> Expected: BODY | CARDS labels, then a small expand button (arrow icon), then font size stepper
-- Click the expand button -> Expected: button highlights (indigo tint), canvas re-renders with compressed body/cards content and larger screenshot area
-- Click expand button again -> Expected: button dims, canvas reverts to normal layout
-- Switch to a different slide -> Expected: expand state is per-slide (other slide may have different expand state)
-- Switch back -> Expected: expand state preserved
+### 2-Pane Layout Rendering
+- Load the artifact in browser -> Expected: app renders with exactly 2 columns — a left pane (settings + editor stacked vertically) and a right pane (preview)
+- No visible dead space between the top-level settings and the per-slide editor -> Expected: settings flow continuously into the slide editor with no large gap or empty column
 
-### Accent Bar Tie-In (Body Mode, Expand ON)
-- Set expand ON, Body mode, accent bar enabled -> Expected: accent bar renders closer to heading text than when expand is OFF
-- Set expand OFF -> Expected: accent bar returns to its normal position (wider gap below heading)
+### Equal-Width Panes
+- On a standard desktop viewport (1200-1400px) -> Expected: both panes are approximately equal width (roughly 50/50 split)
+- Resize browser window wider (1600px+) -> Expected: both panes grow proportionally, maintaining roughly equal width
+- Resize browser window narrower (toward ~800px) -> Expected: panes respect min-width constraints (left ~380px, right ~360px); may trigger horizontal scroll below minimum
 
-### Card Checkmark Tie-In (Cards Mode, Expand ON)
-- Set expand ON, Cards mode with checkmarks enabled -> Expected: cards start higher on the canvas, checkmark circles shift up accordingly
-- Set expand OFF -> Expected: cards return to normal vertical position
+### Left Pane Content Order
+- Inspect the left pane from top to bottom -> Expected: content appears in this order:
+  1. Presets (Save/Load buttons)
+  2. Background section (color controls + photo upload)
+  3. Profile Pic section
+  4. Slides selector (numbered buttons with drag reorder)
+  5. Screenshot toggle/upload/scale
+  6. Slide Editor panel (SLIDE N header, Duplicate/Reset/Remove, Footer & Pic, Corners, Heading, Body/Cards)
+- No controls are missing compared to the 3-column layout
 
-### Edge-to-Edge Screenshots (Expand ON)
-- Set expand ON, upload a screenshot -> Expected: screenshot renders full-width (edge-to-edge, no left/right padding), no rounded corners at slide edges
-- Scale slider to 150% -> Expected: screenshot fills edge-to-edge with no horizontal clipping margins
-- Set expand OFF -> Expected: screenshot reverts to padded layout with rounded corners (12px radius)
+### Former Sidebar Sections at Wider Width
+- Background section -> Expected: internal 50/50 split (color controls left, photo upload right) renders cleanly at the wider width; color picker dropdowns don't clip or overflow
+- Slides selector -> Expected: numbered slide buttons reflow naturally in the wider container (more buttons per row)
+- Profile Pic section -> Expected: expands to fill width gracefully
+- Screenshot section -> Expected: scale slider and upload button fill width gracefully
 
-### Screenshot Area Expansion
-- Set expand ON with body text -> Expected: screenshot area is visibly taller (starts at a lower minimum Y = 300 instead of 420)
-- Set expand OFF -> Expected: screenshot area returns to normal size
+### Sticky Preview Pane
+- Add enough content to make the left pane scroll (e.g., add multiple slides, expand body text) -> Expected: scrolling the page keeps the preview pane fixed/sticky in the viewport
+- Preview pane should not scroll with the left pane content -> Expected: preview stays anchored at `top: 24px`
 
-### Top Corner Case Freedom
-- Type mixed-case text in Top Corner field (e.g., "Hello World") -> Expected: canvas renders "Hello World" exactly (NOT "HELLO WORLD")
-- Type all lowercase "label" -> Expected: canvas renders "label"
-- Type all uppercase "LABEL" -> Expected: canvas renders "LABEL"
-- Default text on new slide is "LABEL" -> Expected: renders as "LABEL" (default is uppercase by convention)
+### Preview Pane Sizing
+- Canvas preview renders at natural width within its pane -> Expected: 800x1000 canvas scales via `width: 100%` and maintains correct 4:5 aspect ratio
+- No maxWidth cap on preview pane -> Expected: preview pane grows with available space (no fixed 520px cap)
 
-### Font Swap: Cambria Replaces Georgia
-- Open any color swatch popover with font selector -> Expected: font dropdown shows "Cambria" instead of "Georgia"
-- Select Cambria font for heading -> Expected: canvas renders heading in Cambria serif font; text wrapping re-measures correctly
-- Existing slides using Georgia font stack -> Expected: graceful fallback (Cambria, Georgia, serif font stack)
+### All Existing Features Work
+- Toggle Body/Cards mode -> Expected: mode switches correctly, canvas updates
+- Change heading text -> Expected: canvas renders updated heading
+- Change background color -> Expected: canvas renders updated background
+- Upload profile image -> Expected: profile pic renders on canvas
+- Upload screenshot -> Expected: screenshot renders on canvas
+- Expand Screenshots toggle (if ON) -> Expected: edge-to-edge screenshot rendering still works
+- Top Corner text renders exactly as typed (case freedom) -> Expected: no forced uppercase
+- Font selector in color popovers -> Expected: font changes apply to canvas text
+- Download Current Slide PDF -> Expected: PDF downloads successfully
+- Save and Load preset -> Expected: round-trip preserves all settings
 
-### Auto-Overwrite Screenshots
-- Upload a screenshot via Choose File while one already exists -> Expected: new screenshot replaces old immediately, no confirmation dialog
-- Paste a screenshot (Ctrl+V with image in clipboard) while one already exists -> Expected: new pasted image replaces old immediately, no confirmation dialog
-- After replacement, press Ctrl+Z -> Expected: undo restores previous screenshot state
-
-### Per-Slide Independence
-- Set Slide 1 expand ON, Slide 2 expand OFF -> switch between slides -> Expected: each slide renders with its own expand state
-- Save preset with mixed expand states -> load preset -> Expected: per-slide expand states restored correctly
-
-### Preset Round-Trip
-- Set expandScreenshot ON on some slides -> Save preset -> Load preset -> Expected: expand states restored correctly per-slide
-- Load a preset saved BEFORE this feature (no expandScreenshot field) -> Expected: defaults to OFF (current behavior), no errors
-
-### Canvas Layout Accuracy
-- Expand ON + long body text -> Expected: body text may be compressed but does not overlap heading or screenshot area
-- Expand ON + many cards -> Expected: cards stack tighter, screenshot area below is larger
-- Expand OFF -> Expected: all layout identical to pre-feature behavior
+### No Visual Regressions
+- Load an existing preset -> Expected: canvas output is identical to the 3-column layout version (no rendering changes)
+- Compare general look and feel -> Expected: dark theme, card styling, spacing all consistent with existing design
 
 ## Known Risk Focus
-- Vertical compression trade-off: long body text + expand ON may truncate; toggle is off by default
-- Edge-to-edge clipping: screenshot draws under border frame overlay
-- Font fallback: Cambria availability depends on system; Georgia in fallback chain
-- Preset backward compatibility: `expandScreenshot` absent from older presets defaults to `false`
-- Top Corner uppercase user expectation: default template text remains uppercase
+- Width reflow: former sidebar content (Presets, Background, Profile Pic) was designed for 240px; now at ~500-600px. Background's internal 50/50 split and color picker sizing should be verified.
+- Vertical length: stacking all settings + editor in one column makes the left pane taller. User scrolls while preview stays sticky — intended behavior.
+- Preview pane sizing: removed the `maxWidth: 520px` cap; canvas scales via `width: 100%` so aspect ratio should be preserved.
+- Min-width constraints: left pane at 380px + right pane at 360px + 20px gap = 760px minimum before horizontal scroll.
 
 ## Pass Criteria
 - No functional breakage visible to end users.
 - All scenarios above pass.
-- Expand ON produces visibly more screenshot space than OFF.
-- Top Corner text renders exactly as typed.
-- Cambria appears in font selector and renders correctly on canvas.
+- App renders as exactly 2 panes (no 3-column layout remnants).
+- No dead space between settings and editor in left pane.
+- Both panes are approximately equal width on standard desktop.
+- Preview pane remains sticky while scrolling left pane.
+- All existing controls and features work identically to before.
+- Loading an existing preset produces the same visual output on canvas.
 - Any failure includes reproducible steps and impact.
 
 ## Browser Execution Instructions (Embedded Agent Contract)

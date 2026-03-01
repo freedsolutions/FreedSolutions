@@ -2186,8 +2186,11 @@ export default function App() {
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
 
-        {/* -- COL 1: Settings + Slides -- */}
-        <div style={{ flex: "0 0 240px", minWidth: 220 }}>
+        {/* -- LEFT PANE: Settings + Slide Editor -- */}
+        <div style={{ flex: "1 1 50%", minWidth: 380 }}>
+
+        {/* --- Top Section: Settings + Slides --- */}
+        <div>
 
           {/* --- PRESETS --- */}
           <div style={{ marginBottom: 14 }}>
@@ -2459,11 +2462,9 @@ export default function App() {
           )}
 
           </div>
-
         </div>
 
-          {/* -- COL 2: Slide Editor -- */}
-          <div style={{ flex: "1 1 280px", minWidth: 300 }}>
+          {/* --- Bottom Section: Slide Editor --- */}
 
           {/* --- SLIDE EDITOR --- */}
           {currentSlide && (
@@ -2681,11 +2682,10 @@ export default function App() {
             </div>
           )}
 
+        </div>
 
-          </div>
-
-          {/* -- COL 3: Preview -- */}
-          <div style={{ flex: "1 1 360px", minWidth: 320, maxWidth: 520, position: "sticky", top: 24, alignSelf: "flex-start" }}>
+          {/* -- RIGHT PANE: Preview -- */}
+          <div style={{ flex: "1 1 50%", minWidth: 360, position: "sticky", top: 24, alignSelf: "flex-start" }}>
             <p style={{ fontSize: 13, color: "#666", marginBottom: 8, fontWeight: 600, letterSpacing: 1 }}>PREVIEW</p>
             <canvas ref={canvasRef} width={W} height={H}
               style={{ width: "100%", height: "auto", borderRadius: 12, border: "1px solid #222", display: "block" }} />

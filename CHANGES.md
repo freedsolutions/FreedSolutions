@@ -2,6 +2,17 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Two-pane layout: merge sidebar and editor into single left column
+- What changed: Replaced the 3-column layout (fixed sidebar | flexible editor | flexible preview) with a 2-pane layout (left pane | right preview pane) to eliminate dead space below the sidebar.
+  - **Left pane**: Stacks top-level settings (Presets, Background, Profile Pic, Slides selector, Screenshot) above the per-slide editor (Slide header, Footer & Pic, Corners, Heading, Body/Cards) in a single scrollable column. Uses `flex: "1 1 50%"` with `minWidth: 380`.
+  - **Right pane (preview)**: Uses `flex: "1 1 50%"` with `minWidth: 360`, retains `position: sticky; top: 24px; alignSelf: flex-start`. Removed the former `maxWidth: 520` cap so preview grows with available space.
+  - **Removed fixed 240px width**: Former sidebar content no longer constrained to `flex: "0 0 240px"`; sections (Background 50/50 split, Slides selector, Profile Pic, Screenshot) reflow naturally at the wider width.
+  - No controls, toggles, inputs, or features were added or removed — only repositioned.
+- Why: Eliminate the persistent dead space that appeared below the sidebar and editor columns in the 3-column layout.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx` (regenerated), `CHANGES.md`, `SMOKE_TEST.md`, `FEATURE_CARD.md`.
+- Validation: `node build.js` succeeds with 19 source files. Div balance matches original (verified programmatically). Layout produces 2 flex children inside the main container.
+- Notes/Risks: Former sidebar sections (Presets, Background, Profile Pic) were designed for 240px width; at ~50% viewport (~500-600px) they will be wider. Background's internal 50/50 split and color picker sizing should be visually verified. Left pane is taller due to stacking — preview stays sticky while user scrolls. Min-width sum (380 + 360 + 20 gap = 760px) may cause horizontal scroll on very narrow windows.
+
 ## 2026-03-01 - Editor column responsiveness and decorator toggle placement polish
 - What changed: Refined Column 2/3 layout behavior and moved the decorator toggle to align with heading controls.
   - **Decorator toggle relocation**: The accent/checkmark toggle now appears in the `HEADING` row next to the ON/OFF toggle, and was removed from the Body/Cards color swatch row.
