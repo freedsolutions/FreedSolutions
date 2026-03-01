@@ -2101,20 +2101,21 @@ export default function App() {
       if (!imageItem) return;
 
       e.preventDefault();
+      // Capture target slide at paste time so async load can't drift to another slide.
+      var targetSlide = activeSlideRef.current;
       var blob = imageItem.getAsFile();
       if (!blob) return;
       var reader = new FileReader();
       reader.onload = function(ev) {
         var img = new Image();
         img.onload = function() {
-          var idx = activeSlideRef.current;
           var mgmt = slideMgmtRef.current;
           var slides = seriesSlidesRef.current;
           // Auto-enable screenshot if not already on
-          if (slides[idx] && !slides[idx].showScreenshot) {
-            mgmt.updateSlide(idx, "showScreenshot", true);
+          if (slides[targetSlide] && !slides[targetSlide].showScreenshot) {
+            mgmt.updateSlide(targetSlide, "showScreenshot", true);
           }
-          mgmt.setAsset(idx, { name: "pasted-image.png", image: img });
+          mgmt.setAsset(targetSlide, { name: "pasted-image.png", image: img });
         };
         img.src = ev.target.result;
       };

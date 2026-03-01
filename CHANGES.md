@@ -2,6 +2,16 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Fix paste screenshot target slide race
+- What changed: Pasted screenshot assignment now captures the active slide index at paste time instead of reading it later inside async image load callbacks.
+  - In `App.jsx` paste handler, store `targetSlide` before `FileReader`/`Image` async work.
+  - Use `targetSlide` for both auto-enabling `showScreenshot` and `setAsset(...)`.
+  - Regenerated `linkedin-carousel.jsx` via build.
+- Why: Prevent pasted screenshots from landing on the wrong slide if the user changes active slide immediately after pressing paste.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx`, `CHANGES.md`.
+- Validation: `node build.js` succeeds; bundled artifact uses `targetSlide` in paste handler.
+- Notes/Risks: Undo behavior remains unchanged from existing screenshot upload flow.
+
 ## 2026-02-28 - Remove screenshot bounds frame and add paste screenshot support
 - What changed: Two addendum improvements to the screenshot feature.
   - **Screenshot bounds frame removed**: Removed the solid 1px `rgba(255,255,255,0.1)` border stroke drawn around uploaded screenshots on canvas in `drawScreenshot()`. The rounded-rect clip path and image placement are unchanged; only the visible border is removed.
