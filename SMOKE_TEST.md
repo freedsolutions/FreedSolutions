@@ -3,7 +3,7 @@
 Paste this full card into a new browser Claude extension thread to run smoke tests.
 
 ## Metadata
-- Commit hash under test: `PENDING`
+- Commit hash under test: `2c002e1`
 - Branch: `main`
 - Build confirmation: `node build.js` succeeded (yes, 2026-03-01)
 - Artifact loaded confirmation: `linkedin-carousel.jsx` loaded in browser (`yes/no`)
