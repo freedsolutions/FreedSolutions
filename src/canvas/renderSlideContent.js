@@ -158,7 +158,9 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
   if (slide.showScreenshot) {
     var bottomBound = frameBottom ? frameBottom - 20 : H - 80;
-    var ssY = Math.max(ty + 20, expand ? 300 : 420);
+    var hasHeading = slide.showHeading !== false;
+    var ssFloor = expand ? (hasHeading ? 300 : 180) : (hasHeading ? 420 : 200);
+    var ssY = Math.max(ty + 20, ssFloor);
     var ssX = expand ? 0 : pad;
     var ssW = expand ? W : maxW;
     var ssH = bottomBound - ssY;

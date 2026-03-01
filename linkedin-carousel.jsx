@@ -518,7 +518,9 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
   if (slide.showScreenshot) {
     var bottomBound = frameBottom ? frameBottom - 20 : H - 80;
-    var ssY = Math.max(ty + 20, expand ? 300 : 420);
+    var hasHeading = slide.showHeading !== false;
+    var ssFloor = expand ? (hasHeading ? 300 : 180) : (hasHeading ? 420 : 200);
+    var ssY = Math.max(ty + 20, ssFloor);
     var ssX = expand ? 0 : pad;
     var ssW = expand ? W : maxW;
     var ssH = bottomBound - ssY;
@@ -2223,8 +2225,44 @@ export default function App() {
 
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
-        {/* -- LEFT COLUMN: Slides -- */}
+        {/* -- LEFT COLUMN: Presets + Slides -- */}
         <div style={{ flex: "0 0 136px", minWidth: 136, maxWidth: 136, alignSelf: "flex-start" }}>
+          {/* --- PRESETS --- */}
+          <div style={{ marginBottom: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: 0, fontSize: 11 })}>PRESETS</label>
+              <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
+                style={smallBtnStyle}>
+                Save
+              </button>
+              <button onClick={function() { presets.setPresetError(""); if (presets.presetInputRef.current) presets.presetInputRef.current.click(); }}
+                style={smallBtnStyle}>
+                Load
+              </button>
+              <input ref={presets.presetInputRef} type="file" accept=".json" onChange={presets.handlePresetUpload} style={{ display: "none" }} />
+            </div>
+            {presets.presetDownload && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                <a href={presets.presetDownload.url} download={presets.presetDownload.name}
+                  onClick={function() { setTimeout(presets.clearPresetDownload, 1500); }}
+                  style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                  {"Save " + presets.presetDownload.name}
+                </a>
+                <button onClick={presets.clearPresetDownload}
+                  style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>
+                  {"\u00d7"}
+                </button>
+              </div>
+            )}
+            {presets.presetError && (
+              <div style={{ marginTop: 2, padding: "3px 6px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ flex: 1 }}>{presets.presetError}</span>
+                <button onClick={function() { presets.setPresetError(""); }}
+                  style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>{"\u00d7"}</button>
+              </div>
+            )}
+          </div>
+          <div style={{ borderTop: "1px solid #444", marginTop: 6, marginBottom: 6 }} />
           <div style={{ marginBottom: 10 }}>
             <button onClick={slideMgmt.duplicateSlide}
               style={{ width: "100%", padding: "6px 8px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>
@@ -2242,47 +2280,7 @@ export default function App() {
         {/* -- CENTER PANE: Settings + Slide Editor -- */}
         <div style={{ flex: "1 1 0", minWidth: 420 }}>
 
-        {/* --- Top Section: Settings --- */}
-        <div>
-
-          {/* --- PRESETS --- */}
-          <div style={{ marginBottom: 14, position: "relative", paddingRight: 160 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
-              <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
-                style={smallBtnStyle}>
-                Save
-              </button>
-              <button onClick={function() { presets.setPresetError(""); if (presets.presetInputRef.current) presets.presetInputRef.current.click(); }}
-                style={smallBtnStyle}>
-                Load
-              </button>
-              <input ref={presets.presetInputRef} type="file" accept=".json" onChange={presets.handlePresetUpload} style={{ display: "none" }} />
-            </div>
-            {presets.presetDownload && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                <a href={presets.presetDownload.url} download={presets.presetDownload.name}
-                  onClick={function() { setTimeout(presets.clearPresetDownload, 1500); }}
-                  style={{ fontSize: 11, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
-                  {"Save " + presets.presetDownload.name}
-                </a>
-                <button onClick={presets.clearPresetDownload}
-                  style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>
-                  {"\u00d7"}
-                </button>
-              </div>
-            )}
-            {presets.presetError && (
-              <div style={{ marginTop: 4, padding: "4px 8px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ flex: 1 }}>{presets.presetError}</span>
-                <button onClick={function() { presets.setPresetError(""); }}
-                  style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>{"\u00d7"}</button>
-              </div>
-            )}
-          </div>
-          <div style={{ borderTop: "1px solid #444", marginBottom: 10 }} />
-
-          {/* --- BACKGROUND --- */}
+        {/* --- BACKGROUND --- */}
           <div style={{ marginBottom: 14, position: "relative", paddingRight: 140 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
@@ -2496,7 +2494,6 @@ export default function App() {
 
           {/* -- Divider before Slide Editor -- */}
           <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
-        </div>
 
           {/* --- Bottom Section: Slide Editor --- */}
 
