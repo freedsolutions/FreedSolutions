@@ -38,7 +38,7 @@ Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defi
 ## Workflow: Write → Build → See → Push
 
 ### 1. Write
-Edit source files in `src/`.
+Edit source files in `src/`. Draft `FEATURE_CARD.md` for anything non-trivial.
 
 **Adding a new source file:**
 1. Create the file in `src/` (or `src/canvas/` for rendering code)
@@ -76,6 +76,7 @@ When working with Claude Code, Codex, or any AI assistant on this repo:
 - Add a `CHANGES.md` entry if behavior changed
 - If a new source file was created, add it to `ORDER` in `build.js` at the correct dependency position
 - Commit all changed files (source + artifact + docs) atomically
+- Replace `FEATURE_CARD.md` with current feature scope before starting (do not append to prior feature cards)
 
 **For code review**, the assistant should:
 - Review the diff with findings-first rigor (bugs/regressions/risks, severity ordered)
@@ -94,6 +95,7 @@ When working with Claude Code, Codex, or any AI assistant on this repo:
 |------|---------|-------------|
 | `CLAUDE.md` | Workflow contract | Workflow/process changes |
 | `CHANGES.md` | Behavior/process changelog | Behavior or process changes |
+| `FEATURE_CARD.md` | Current feature scope | Replaced each new feature session |
 
 **Code artifacts** (rarely touched directly):
 | File | Purpose | Updated when |
