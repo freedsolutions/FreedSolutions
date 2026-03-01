@@ -1,73 +1,74 @@
 # FEATURE CARD
 
-Feature: Two-pane layout — eliminate dead space by merging sidebar and editor into a single left column
+Feature: Unified page scroll + Background panel layout fixes
 
 Goal:
-Replace the current 3-column layout (fixed sidebar | flexible editor | flexible preview) with a 2-pane layout (left pane | right preview pane) to eliminate the dead space that appears below the sidebar and editor columns. The left pane stacks the top-level settings (currently Col 1: presets, background, profile pic, slides, screenshot) above the per-slide editor (currently Col 2: footer, corners, heading, body/cards). Both panes should be roughly equal width.
+Three related UI polish fixes: (1) unify scroll axes so all 3 panes scroll together, (2) eliminate dead space below Background controls by repositioning the Profile/Screenshot cards, and (3) fix the Scale slider overflow in the Screenshot card.
 
 ---
 
 ## In scope
 
-### 1. Merge Col 1 and Col 2 into a single left pane
-- Replace the 3-child flex container (`flex: 0 0 240px` | `flex: 1 1 280px` | `flex: 1 1 360px`) with a 2-child flex container: left pane and right preview pane.
-- Left pane contains two stacked sections (top and bottom) rendered as a single scrollable column:
-  - **Top section** — top-level slide settings (in current order): Presets, Background, Profile Pic, Slides selector, Screenshot toggle/upload/scale.
-  - **Bottom section** — per-slide editor panel (in current order): Slide header (Duplicate/Reset/Remove), Footer & Pic, Top Corner, Bottom Corner, Heading, Body/Cards, content textareas.
-- Remove the fixed 240px width constraint on the former sidebar content so it can fill the left pane width naturally.
+### 1. Remove sticky from Left pane (Slide Selector)
+- In `src/App.jsx` line ~230, remove `position: "sticky"` and `top: 24` from the Left column's style object.
+- Keep `alignSelf: "flex-start"` so the pane still aligns to the top of the flex row (doesn't stretch).
 
-### 2. Equal-width 2-pane split
-- Both panes should share available space roughly equally (e.g., `flex: 1 1 50%` each, or a similar approach).
-- Maintain reasonable min-width constraints so neither pane collapses too small (e.g., ~380px left, ~360px right).
-- Keep the preview pane sticky behavior (`position: sticky; top: 24px; alignSelf: flex-start`).
+### 2. Remove sticky from Right pane (Preview)
+- In `src/App.jsx` line ~731, remove `position: "sticky"` and `top: 24` from the Right pane's style object.
+- Keep `alignSelf: "flex-start"` so the pane still aligns to the top of the flex row.
 
-### 3. Preserve all existing functionality
-- No controls, toggles, inputs, or features are added or removed — only repositioned.
-- All existing inline styles, color schemes, spacing patterns, and component behavior remain intact.
-- Undo/redo, preset save/load, screenshot upload/paste, PDF download — all unchanged.
+### 3. Fix dead space below Background controls
+The BACKGROUND section (line ~289) contains a three-zone flex row (line ~301):
+- Left zone (line ~304): Solid/Photo pill + Accent/Base/Layer/Frame/Footer controls — tallest child
+- Middle zone (line ~373): BG thumbnail preview
+- Right zone (line ~423): Profile card + Screenshot card, `flex: "0 0 126px"`, `alignSelf: "flex-start"`
 
-### 4. Adapt the former sidebar sections to wider layout
-- The Background section's internal 50/50 split (color controls left, photo upload right) should still work at the wider width.
-- The Slides selector (flex-wrap numbered buttons) will naturally reflow to the wider container.
-- Profile Pic and Screenshot sections expand to fill width gracefully.
+The left zone is the tallest sibling, creating visible dead space below the right zone's cards.
+
+**Fix**: Pull the right zone (Profile + Screenshot) out of the three-zone flex row and position it at the top-right of the BACKGROUND panel container (line ~289). Use `position: absolute; top: 0; right: 0` on the right zone, relative to the BACKGROUND panel which gets `position: relative`. Add `paddingRight` to the panel to reserve space for the absolutely-positioned right zone so it doesn't overlap the header row or flex row content.
+
+### 4. Fix Scale slider overflow in Screenshot card
+In the Screenshot card (line ~483-487), the Scale row's range input with `flex: 1` plus the 32px percentage label overflows the 126px-wide container.
+
+**Fix**: Add `minWidth: 0` to the range input (`<input type="range">` at line ~485) and `overflow: "hidden"` to the Scale row's flex container (line ~483). This constrains the flex child to respect the container bounds.
+
+### 5. Rebuild artifact
+- Run `node build.js` to regenerate `linkedin-carousel.jsx`.
 
 ---
 
 ## Out of scope
-- No new features, controls, or settings panels.
+- No new features, controls, or UI elements.
 - No changes to canvas rendering, PDF export, or slide data model.
-- No changes to the Preview pane's internal layout or content.
-- No responsive/mobile breakpoints (current app is desktop-only).
-- No collapsible/accordion sections (vertical stacking only).
-- No drag-to-resize pane divider.
-- No changes to component files other than `App.jsx` (and the generated `linkedin-carousel.jsx` via build).
+- No changes to any component other than `src/App.jsx` (and the generated `linkedin-carousel.jsx` via build).
+- No independent/inner scrollbars on any pane.
 
 ---
 
 ## Constraints
-- Layout changes are confined to `src/App.jsx` — specifically the main flex container and column wrapper `<div>` elements.
-- All styling remains inline (no external CSS, consistent with existing patterns).
+- Layout changes confined to `src/App.jsx` — inline style modifications only.
 - `node build.js` must succeed and regenerate `linkedin-carousel.jsx` cleanly.
-- The stacked left pane must not introduce a nested scrollbar — the page-level scroll handles overflow naturally.
+- All existing functionality remains intact.
+- Do NOT change any canvas rendering logic, slide state, or feature behavior. Only adjust editor panel layout/styling.
 
 ---
 
 ## Risks
 
-- **Width reflow**: Former sidebar content (Presets, Background, Profile Pic) was designed for a narrow 240px column. At ~50% viewport width (~500-600px), these sections will be wider than before. The existing flex/inline layouts should handle this gracefully, but Background's internal 50/50 split and color picker sizing should be visually verified.
-- **Vertical length**: Stacking all settings + editor content in one column makes the left pane taller. If it exceeds the viewport height, the user scrolls while the preview stays sticky — this is the intended behavior but should be confirmed.
-- **Preview pane sizing**: Removing the `maxWidth: 520px` cap on the preview or adjusting it may be needed if the equal split makes it too wide or narrow. The 800x1000 canvas scales via `width: 100%` so it should adapt, but verify the aspect ratio looks correct.
+- **Preview not visible while editing**: With sticky removed, the preview canvas scrolls off-screen when the user scrolls down through Center pane settings. This is the intended trade-off per user preference — unified scroll over sticky preview.
+- **Slide selector not visible**: The Left slide selector also scrolls away when the Center content is long. Acceptable per user preference.
+- **Absolute positioning edge cases**: Moving the right zone to `position: absolute` means it no longer participates in flex row height calculation. If the Profile+Screenshot stack becomes taller than the left zone's content, it could overflow the BACKGROUND panel. This is unlikely given current card sizes (~200px total vs left zone ~250px+), but should be visually verified.
+- **Scale slider fix is minimal**: Adding `minWidth: 0` + `overflow: hidden` is the standard flex overflow fix; low regression risk.
 
 ---
 
 ## Acceptance
 
-1. The app renders as a 2-pane layout: left pane (settings + editor stacked) and right pane (preview).
-2. No dead space appears below the left pane — content flows continuously from top-level settings into per-slide editor.
-3. Both panes are approximately equal width on a standard desktop viewport (1200-1400px).
-4. All existing controls and features work identically to before (no functional regressions).
-5. Preview pane remains sticky while scrolling the left pane content.
-6. Background section's internal layout (color pickers, photo upload) renders cleanly at the wider width.
-7. Slides selector buttons reflow naturally in the wider container.
-8. `node build.js` succeeds with no errors.
-9. Loading an existing preset produces the same visual output on the canvas (no rendering changes).
+1. All 3 panes scroll together with the page — no pane remains fixed/pinned.
+2. No pane has its own independent scrollbar.
+3. Left and Right panes still align to the top of the flex row (not stretched full height).
+4. Profile and Screenshot cards sit flush with the top of the BACKGROUND section — no dead space below them.
+5. Scale slider and percentage label stay within the 126px Screenshot card bounds — no overflow/bleed.
+6. All existing controls and features work identically (no functional regressions).
+7. `node build.js` succeeds with no errors.
+8. Canvas preview renders correctly at the same size/aspect ratio as before.

@@ -227,7 +227,7 @@ export default function App() {
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
         {/* -- LEFT COLUMN: Slides -- */}
-        <div style={{ flex: "0 0 136px", minWidth: 136, maxWidth: 136, position: "sticky", top: 24, alignSelf: "flex-start" }}>
+        <div style={{ flex: "0 0 136px", minWidth: 136, maxWidth: 136, alignSelf: "flex-start" }}>
           <div style={{ marginBottom: 10 }}>
             <button onClick={slideMgmt.duplicateSlide}
               style={{ width: "100%", padding: "6px 8px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>
@@ -286,7 +286,7 @@ export default function App() {
           <div style={{ borderTop: "1px solid #444", marginBottom: 10 }} />
 
           {/* --- BACKGROUND --- */}
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 14, position: "relative", paddingRight: 140 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
               <button onClick={slideMgmt.syncBgToAll} style={smallBtnStyle}>
@@ -419,8 +419,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Right zone: Profile Pic + Screenshot (stacked) */}
-              <div style={{ flex: "0 0 126px", width: 126, minWidth: 126, paddingLeft: 6, borderLeft: "1px solid #333", display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6, alignSelf: "flex-start" }}>
+              {/* Right zone: Profile Pic + Screenshot (stacked) — absolutely positioned */}
+              <div style={{ position: "absolute", top: 0, right: 0, width: 126, paddingLeft: 6, borderLeft: "1px solid #333", display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6 }}>
                 {/* Profile card */}
                 <div style={{ background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 6px 5px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
                   {profileImg && isCustomProfilePic && (
@@ -451,13 +451,6 @@ export default function App() {
                 {/* Screenshot card */}
                 {currentSlide && (
                   <div style={{ background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 6px", display: "flex", flexDirection: "column", position: "relative" }}>
-                    {currentSlide.showScreenshot && getAsset(activeSlide).image && (
-                      <button onClick={function() { slideMgmt.removeScreenshot(activeSlide); }}
-                        title="Remove screenshot"
-                        style={{ position: "absolute", top: 6, right: 6, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0, lineHeight: 1 }}>
-                        {"\u00d7"}
-                      </button>
-                    )}
                     <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 5, justifyContent: "space-between" }}>
                       <label style={{ fontSize: 9, color: "#888", fontWeight: 600, letterSpacing: 0.5, marginBottom: 0 }}>SCREENSHOT</label>
                       <button onClick={function() { var next = !currentSlide.showScreenshot; updateSlide(activeSlide, "showScreenshot", next); if (!next) { slideMgmt.removeScreenshot(activeSlide); } }}
@@ -478,12 +471,13 @@ export default function App() {
                         {getAsset(activeSlide).image ? (
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span style={{ fontSize: 10, color: GREEN }}>{"\u2713"} Uploaded</span>
+                              <span style={{ fontSize: 9, color: GREEN }}>{"\u2713"} Uploaded</span>
+                              <button onClick={function() { slideMgmt.removeScreenshot(activeSlide); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 9, padding: 0 }}>{"\u00d7"} Remove</button>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, overflow: "hidden" }}>
                               <span style={{ fontSize: 9, color: "#666" }}>Scale</span>
                               <input type="range" min={50} max={200} value={Math.round(getAsset(activeSlide).scale * 100)} onChange={function(e) { setScale(activeSlide, Number(e.target.value) / 100); }}
-                                style={{ flex: 1 }} />
+                                style={{ flex: 1, minWidth: 0 }} />
                               <span style={{ fontSize: 9, color: "#777", width: 32, textAlign: "right" }}>{Math.round(getAsset(activeSlide).scale * 100) + "%"}</span>
                             </div>
                           </div>
@@ -728,7 +722,7 @@ export default function App() {
         </div>
 
           {/* -- RIGHT PANE: Preview -- */}
-          <div style={{ flex: "1 1 0", minWidth: 360, position: "sticky", top: 24, alignSelf: "flex-start" }}>
+          <div style={{ flex: "1 1 0", minWidth: 360, alignSelf: "flex-start" }}>
             <p style={{ fontSize: 13, color: "#666", marginBottom: 8, fontWeight: 600, letterSpacing: 1 }}>PREVIEW</p>
             <div style={{ marginBottom: 8 }}>
               <label style={{ fontSize: 10, color: "#666", display: "block", marginBottom: 2 }}>Filename prefix</label>

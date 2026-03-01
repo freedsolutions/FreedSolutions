@@ -3,25 +3,21 @@
 Paste this full card into a new browser Claude extension thread to run smoke tests.
 
 ## Metadata
-- Commit hash under test: `6a624d7`
+- Commit hash under test: `1a4dfe5`
 - Branch: `main`
 - Build confirmation: `node build.js` succeeded (yes, 2026-03-01)
 - Artifact loaded confirmation: `linkedin-carousel.jsx` loaded in browser (`yes/no`)
 
 ## Scope
 - In scope:
-  - **2-pane layout**: Merged sidebar (Col 1) and editor (Col 2) into a single left pane; preview remains the right pane
-  - **Equal-width split**: Both panes share available space roughly equally (`flex: 1 1 50%` each)
-  - **Former sidebar sections at wider width**: Presets, Background, Profile Pic, Slides selector, Screenshot sections now render at ~50% viewport width instead of fixed 240px
-  - **Sticky preview**: Preview pane retains sticky positioning while scrolling the left pane
-  - **No functional changes**: All controls, toggles, inputs, and features are repositioned only — no behavior changes
+  - **Unified page scroll**: Removed `position: sticky` from Left pane (Slide Selector) and Right pane (Preview) so all 3 panes scroll together with the page
+  - **Background panel dead space fix**: Pulled the Profile + Screenshot cards out of the Background flex row via `position: absolute; top: 0; right: 0` relative to the BACKGROUND container, eliminating dead space below them
+  - **Scale slider overflow fix**: Added `minWidth: 0` to the range input and `overflow: hidden` to the Scale row container to prevent overflow in the 126px-wide Screenshot card
 - Out of scope:
-  - New features, controls, or settings panels
+  - New features, controls, or UI elements
   - Changes to canvas rendering, PDF export, or slide data model
-  - Changes to preview pane internal layout or content
-  - Responsive/mobile breakpoints
-  - Collapsible/accordion sections
-  - Drag-to-resize pane divider
+  - Changes to any component other than `src/App.jsx` (and the generated `linkedin-carousel.jsx` via build)
+  - Independent/inner scrollbars on any pane
 
 ## Required Upload Checkpoints
 - Profile image upload: `not-required`
@@ -47,38 +43,19 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
 
 ## Feature-Specific Scenarios (Required)
 
-### 2-Pane Layout Rendering
-- Load the artifact in browser -> Expected: app renders with exactly 2 columns — a left pane (settings + editor stacked vertically) and a right pane (preview)
-- No visible dead space between the top-level settings and the per-slide editor -> Expected: settings flow continuously into the slide editor with no large gap or empty column
+### Unified Page Scroll
+- Scroll the page down when the Center pane has enough content (e.g., multiple slides, expanded body text) -> Expected: All 3 panes (Left slide selector, Center editor, Right preview) scroll together with the page. No pane stays fixed/pinned.
+- No pane has its own independent scrollbar -> Expected: Only the page-level scrollbar exists; no inner scrollbars on any pane.
+- Left and Right panes still align to the top of the flex row -> Expected: Left pane (slide selector) and Right pane (preview) start at the top of the layout, not stretched full height.
 
-### Equal-Width Panes
-- On a standard desktop viewport (1200-1400px) -> Expected: both panes are approximately equal width (roughly 50/50 split)
-- Resize browser window wider (1600px+) -> Expected: both panes grow proportionally, maintaining roughly equal width
-- Resize browser window narrower (toward ~800px) -> Expected: panes respect min-width constraints (left ~380px, right ~360px); may trigger horizontal scroll below minimum
+### Background Panel Dead Space Fix
+- Open the app and look at the BACKGROUND section -> Expected: The Profile card and Screenshot card sit flush with the top-right corner of the BACKGROUND section. No visible dead space below them.
+- The left zone (Solid/Photo pill, Accent, Base, Layer, Frame, Footer) renders normally -> Expected: All color controls and toggles are visible and functional, no overlap with the Profile/Screenshot cards.
+- The middle zone (BG thumbnail preview) renders normally -> Expected: Thumbnail displays correctly, no overlap or clipping.
 
-### Left Pane Content Order
-- Inspect the left pane from top to bottom -> Expected: content appears in this order:
-  1. Presets (Save/Load buttons)
-  2. Background section (color controls + photo upload)
-  3. Profile Pic section
-  4. Slides selector (numbered buttons with drag reorder)
-  5. Screenshot toggle/upload/scale
-  6. Slide Editor panel (SLIDE N header, Duplicate/Reset/Remove, Footer & Pic, Corners, Heading, Body/Cards)
-- No controls are missing compared to the 3-column layout
-
-### Former Sidebar Sections at Wider Width
-- Background section -> Expected: internal 50/50 split (color controls left, photo upload right) renders cleanly at the wider width; color picker dropdowns don't clip or overflow
-- Slides selector -> Expected: numbered slide buttons reflow naturally in the wider container (more buttons per row)
-- Profile Pic section -> Expected: expands to fill width gracefully
-- Screenshot section -> Expected: scale slider and upload button fill width gracefully
-
-### Sticky Preview Pane
-- Add enough content to make the left pane scroll (e.g., add multiple slides, expand body text) -> Expected: scrolling the page keeps the preview pane fixed/sticky in the viewport
-- Preview pane should not scroll with the left pane content -> Expected: preview stays anchored at `top: 24px`
-
-### Preview Pane Sizing
-- Canvas preview renders at natural width within its pane -> Expected: 800x1000 canvas scales via `width: 100%` and maintains correct 4:5 aspect ratio
-- No maxWidth cap on preview pane -> Expected: preview pane grows with available space (no fixed 520px cap)
+### Scale Slider Overflow Fix
+- Upload a screenshot and enable the Screenshot toggle -> Expected: The Scale slider and percentage label (e.g., "100%") stay entirely within the 126px-wide Screenshot card. No horizontal overflow or bleed.
+- Drag the Scale slider from min (50%) to max (200%) -> Expected: Slider operates smoothly within bounds, percentage label updates correctly.
 
 ### All Existing Features Work
 - Toggle Body/Cards mode -> Expected: mode switches correctly, canvas updates
@@ -93,24 +70,24 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
 - Save and Load preset -> Expected: round-trip preserves all settings
 
 ### No Visual Regressions
-- Load an existing preset -> Expected: canvas output is identical to the 3-column layout version (no rendering changes)
+- Load an existing preset -> Expected: canvas output is identical to before (no rendering changes)
 - Compare general look and feel -> Expected: dark theme, card styling, spacing all consistent with existing design
 
 ## Known Risk Focus
-- Width reflow: former sidebar content (Presets, Background, Profile Pic) was designed for 240px; now at ~500-600px. Background's internal 50/50 split and color picker sizing should be verified.
-- Vertical length: stacking all settings + editor in one column makes the left pane taller. User scrolls while preview stays sticky — intended behavior.
-- Preview pane sizing: removed the `maxWidth: 520px` cap; canvas scales via `width: 100%` so aspect ratio should be preserved.
-- Min-width constraints: left pane at 380px + right pane at 360px + 20px gap = 760px minimum before horizontal scroll.
+- **Preview not visible while editing**: With sticky removed, the preview canvas scrolls off-screen when the user scrolls down. This is the intended trade-off per user preference (unified scroll over sticky preview).
+- **Slide selector not visible while scrolling**: Left slide selector also scrolls away. Acceptable per user preference.
+- **Absolute positioning edge case**: Profile + Screenshot stack is absolutely positioned; if it becomes taller than the left zone, it could overflow the BACKGROUND panel. Unlikely given current card sizes (~200px total vs left zone ~250px+).
+- **Scale slider fix is minimal**: `minWidth: 0` + `overflow: hidden` is standard flex overflow fix; low regression risk.
 
 ## Pass Criteria
 - No functional breakage visible to end users.
 - All scenarios above pass.
-- App renders as exactly 2 panes (no 3-column layout remnants).
-- No dead space between settings and editor in left pane.
-- Both panes are approximately equal width on standard desktop.
-- Preview pane remains sticky while scrolling left pane.
+- All 3 panes scroll together with the page (no sticky behavior).
+- No pane has its own independent scrollbar.
+- Profile and Screenshot cards sit flush with top of BACKGROUND section (no dead space).
+- Scale slider stays within Screenshot card bounds (no overflow).
 - All existing controls and features work identically to before.
-- Loading an existing preset produces the same visual output on canvas.
+- Canvas preview renders correctly at same size/aspect ratio.
 - Any failure includes reproducible steps and impact.
 
 ## Browser Execution Instructions (Embedded Agent Contract)

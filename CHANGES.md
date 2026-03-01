@@ -2,6 +2,16 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Unified page scroll + Background panel layout fixes
+- What changed: Three layout polish fixes in `src/App.jsx`.
+  - **Unified page scroll**: Removed `position: "sticky"` and `top: 24` from the Left pane (Slide Selector, line ~230) and Right pane (Preview, line ~731). Both panes retain `alignSelf: "flex-start"` so they align to the top of the flex row without stretching.
+  - **Background panel dead space fix**: The right zone (Profile + Screenshot cards) was inside the three-zone flex row in the BACKGROUND section. Pulled it out using `position: absolute; top: 0; right: 0` relative to the BACKGROUND container (which now has `position: relative; paddingRight: 140`). This eliminates dead space below the cards caused by the taller left zone sibling.
+  - **Scale slider overflow fix**: Added `overflow: "hidden"` to the Scale row flex container and `minWidth: 0` to the range input in the Screenshot card to prevent the slider + percentage label from overflowing the 126px-wide container.
+- Why: User-requested polish: unified scrolling (no sticky panes), eliminate dead space in Background section, and fix Scale slider overflow.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx` (regenerated), `CHANGES.md`, `SMOKE_TEST.md`, `FEATURE_CARD.md`.
+- Validation: `node build.js` succeeds with 19 source files. Zero `position: "sticky"` in App.jsx. BACKGROUND container has `position: relative; paddingRight: 140`. Right zone has `position: absolute; top: 0; right: 0`. Scale row has `overflow: "hidden"` and range input has `minWidth: 0`.
+- Notes/Risks: Preview and slide selector now scroll off-screen — intended trade-off per user preference. Absolute positioning means Profile+Screenshot no longer contribute to flex row height; overflow unlikely given current card sizes (~200px vs left zone ~250px+).
+
 ## 2026-03-01 - Two-pane layout: merge sidebar and editor into single left column
 - What changed: Replaced the 3-column layout (fixed sidebar | flexible editor | flexible preview) with a 2-pane layout (left pane | right preview pane) to eliminate dead space below the sidebar.
   - **Left pane**: Stacks top-level settings (Presets, Background, Profile Pic, Slides selector, Screenshot) above the per-slide editor (Slide header, Footer & Pic, Corners, Heading, Body/Cards) in a single scrollable column. Uses `flex: "1 1 50%"` with `minWidth: 380`.
