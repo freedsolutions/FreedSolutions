@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkedIn Carousel — Local Preview</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    #root { min-height: 100vh; }
+    #loading {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; color: #888; font-size: 14px;
+    }
+    #error {
+      color: #c00; white-space: pre-wrap; padding: 24px;
+      font-family: monospace; font-size: 13px; line-height: 1.5;
+    }
+  </style>
+  <!-- React 18.2.0 UMD — pin to match Claude.ai artifact sandbox -->
+  <script src="https://unpkg.com/react@18.2.0/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js" crossorigin></script>
+  <!-- Babel Standalone: transforms JSX in the browser at load time -->
+  <script src="https://unpkg.com/@babel/standalone@7.26.10/babel.min.js" crossorigin></script>
+</head>
+<body>
+  <div id="root"><div id="loading">Loading artifact...</div></div>
+  <script>
+    (async function () {
+      function showError(msg) {
+        document.getElementById('root').innerHTML = '<div id="error">' + msg + '</div>';
+      }
+      try {
+        var res = await fetch('./linkedin-carousel.jsx');
+        if (!res.ok) throw new Error('Failed to load artifact: ' + res.status);
+        var source = await res.text();
+        source = source.replace(
+          /^import\s+(\{[^}]+\})\s+from\s+["']react["'];?\s*$/gm,
+          'var $1 = React;'
+        );
+        source = source.replace(
+          /^import\s+(\{[^}]+\})\s+from\s+["']react-dom(?:\/[^"']*)?["'];?\s*$/gm,
+          'var $1 = ReactDOM;'
+        );
+        source = source.replace(
+          /^import\s+React\s+from\s+["']react["'];?\s*$/gm,
+          ''
+        );
+        source = source.replace(
+          /^import\s+ReactDOM\s+from\s+["']react-dom["'];?\s*$/gm,
+          ''
+        );
+        source = source.replace(/export\s+default\s+function\s+App/g, 'function App');
+        var transformed = Babel.transform(source, {
+          presets: ['react'],
+          filename: 'linkedin-carousel.jsx',
+        }).code;
+        var script = document.createElement('script');
+        script.textContent = transformed;
+        document.body.appendChild(script);
+        if (typeof App !== 'function') {
+          throw new Error('App component not found after loading artifact. Check browser console for errors.');
+        }
+        var root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+      } catch (err) {
+        showError('preview.html error:\n\n' + err.message + '\n\n' + (err.stack || ''));
+        console.error(err);
+      }
+    })();
+  </script>
+</body>
+</html>

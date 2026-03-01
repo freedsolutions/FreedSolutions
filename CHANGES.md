@@ -2,6 +2,18 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Workflow simplification: preview.html + lean doc set
+- What changed: Replaced 4-step orchestrated workflow (Claude Code → Codex → browser smoke) with simplified Write → Build → See → Push flow.
+  - **Added `preview.html`**: Single HTML file that loads the built `linkedin-carousel.jsx` artifact in a local browser via Babel Standalone (JSX transform) and React 18.2.0 UMD from unpkg CDN. Rewrites bare ESM imports (`import { useState } from "react"`) into destructured globals (`var { useState } = React;`). Requires a local server (`npx serve . --listen 5173`). Zero npm dependencies.
+  - **Replaced `CLAUDE.md`**: Rewritten from ~200-line 4-step contractual process with agent orchestration to ~70-line write/build/see/push workflow. AI assistants get simple context instead of rigid role specs.
+  - **Deleted smoke infrastructure**: Removed `SMOKE_TEST.md`, all agent specs (`agents/`), and `scripts/prepare-smoke-handoff.js`. Browser smoke is no longer a mandatory gate — optional AI review replaces structured handoff cards.
+  - **Deleted `FEATURE_CARD.md`**: Feature scoping now happens in the prompt, not a separate file.
+  - **Lean doc set**: `CLAUDE.md`, `CHANGES.md`, `preview.html`. Down from 11 markdown files.
+- Why: Workflow had more governance than a solo operator needs. Structured handoff cards, role-isolated agents, pause/resume tokens, and multi-step copy-paste orchestration added overhead without proportional value. Local preview provides faster feedback than AI-driven smoke testing.
+- Files: `preview.html` (added), `CLAUDE.md` (rewritten), `FEATURE_CARD.md` (deleted), `SMOKE_TEST.md` (deleted), `agents/*` (deleted), `scripts/prepare-smoke-handoff.js` (deleted), `CHANGES.md` (updated).
+- Validation: `preview.html` loads artifact when served locally (`npx serve . --listen 5173`). `node build.js` unaffected. No source or artifact changes.
+- Notes/Risks: `preview.html` uses Babel Standalone for JSX transform (~1-2s load time for ~2776-line file). Requires local server (fetch fails on file:// due to CORS). React version pinned to 18.2.0 via CDN URL — update if Claude.ai sandbox version changes.
+
 ## 2026-03-01 - Per-slide profile picture + unified Reset/Sync All for all background settings
 - What changed: Made profile picture per-slide and extended Reset/Sync All to cover all background-panel settings.
   - **Per-slide profile picture**: Moved `profileImg` and `profilePicName` from global state into per-slide data model in `slideFactory.js`. Updated `handleProfilePicUpload()` and `removeProfilePic()` in `useSlideManagement.js` to write to the active slide. Updated `renderSlideToCanvas` in `renderSlide.js` to read `slide.profileImg` instead of a global `profileImg` parameter. Removed global `profileImg`/`setProfileImg`/`profilePicName`/`setProfilePicName`/`isCustomProfilePic`/`setIsCustomProfilePic` state. Updated `useCanvasRenderer.js` to drop the `profileImg` parameter. Updated `App.jsx` profile UI to read/write from `currentSlide.profileImg`/`currentSlide.profilePicName`. Removed profile state from undo/redo snapshots (now captured as part of `seriesSlides`).
