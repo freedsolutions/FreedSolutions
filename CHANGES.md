@@ -2,6 +2,52 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Framed-box header + Preview pane tightening
+- What changed: Header sections are now framed boxes with consistent UI patterns. Preview pane restructured.
+  - **(i) Framed boxes**: Background, Profile, and Screenshot are each wrapped in `#0f0f1a` bordered boxes with `8px` border-radius, giving consistent visual framing.
+  - **(ii) Background 2-column stack**: Accent/Layer in column 1, Base/Frame in column 2 (vertical stacks). Upload button + ✓/× as column 3, all stacked vertically.
+  - **(iii) Consistent Upload UI**: All three sections use the same pattern — "Upload\n(WxH)" 2-line button with ✓ and × stacked vertically beside it. No "Remove" text, no "No image" placeholders.
+  - **(iv) Profile compact**: Circle preview (48px) centered under PROFILE label, Upload button + ✓/× below it.
+  - **(v) Screenshot inline**: ON/OFF toggle in header, Scale slider + Upload button + ✓/× all on one row. Upload button sits to the right of the slider.
+  - **(vi) Sync All/Reset full-height**: Buttons stretch to fill the full header height with `flex: 1`.
+  - **(vii) Preview pane**: Filename prefix input moved to the PREVIEW header row (same line). Download buttons are single-line centered below. No multi-line button text. Removed `minWidth: 360` — pane sizes naturally.
+  - **(viii) Outer margins**: Reduced padding to `10px 12px`, removed `maxWidth: 1520` cap, tightened column gap from `20px` to `14px`, title font reduced to `18px`.
+- Why: The previous layout had inconsistent section styling, wasted vertical space with separate header rows for labels vs controls, and the Preview pane had unnecessary horizontal padding.
+- Files: `src/App.jsx` (header + preview layout rewrite).
+
+## 2026-03-01 - Compact single-row header: Background + Profile + Screenshot
+- What changed: Collapsed the frozen header into one tight horizontal row with consistent patterns across all three sections.
+  - **(i) Killed PHOTO BG card + Solid/Photo toggle**: Background photo upload is now just an "Upload (800x1000)" button in the BACKGROUND header row. Clicking it sets bgType to custom and opens the file picker in one action. Remove button appears inline after upload.
+  - **(ii) Stacked Sync All / Reset**: Moved to a vertical stack on the left edge of the header row.
+  - **(iii) Background controls compacted**: Accent/Base on one row, Layer+Frame on a second row (side by side instead of stacked). Labels shrunk to 11px.
+  - **(iv) Profile section raised**: Header row with PROFILE label + "Upload (84x84)" button + x remove. Circle preview shrunk to 52px and sits directly below the header — no extra padding or bottom buttons.
+  - **(v) Screenshot section raised**: Header row with SCREENSHOT label + ON/OFF pill + "Upload (800x1000)" + checkmark/remove. Scale slider appears inline below only when an image is uploaded. Killed "No image" placeholder text and dashed-border empty state.
+  - **(vi) Consistent pattern**: All three sections use the same header style: label + Upload(dims) + status in one row, with content below only when needed.
+- Why: The previous layout had three card-style boxes at different heights, a separate PHOTO BG toggle/label, and unnecessary empty states. The new layout is one compact row that maximizes vertical space for the slide editor below.
+- Files: `src/App.jsx` (header layout rewrite).
+
+## 2026-03-01 - Feature flow: SHIP command + Playwright MCP smoke testing
+- What changed: Added prescriptive feature flow to `CLAUDE.md` defining the `SHIP` kick-off command and automatic implement → self-review → smoke test → commit loop.
+  - **SHIP command**: Single command (`SHIP: Read CLAUDE.md and FEATURE_CARD.md, then implement the feature.`) kicks off the full feature cycle in Claude Code.
+  - **Self-review step**: Claude Code reviews its own diff against `FEATURE_CARD.md` scope and code quality before proceeding to smoke test.
+  - **Playwright MCP smoke test**: Claude Code uses Playwright MCP to open `preview.html`, verify the new feature works, and check for visual regressions. Patches and re-tests if issues found.
+  - **Human review gate**: Claude Code commits but does not push — waits for human review before push.
+- Why: Wire up the full feature cycle as a single kick-off command with automatic QC and visual verification, replacing the previous generic AI assistant context section.
+- Files: `CLAUDE.md` (updated), `CHANGES.md` (updated).
+- Validation: No source or artifact changes. Workflow-only update.
+- Notes/Risks: Playwright MCP smoke test requires `npx serve . --listen 5173` running in a separate terminal. Smoke test is intentionally light — verifies new feature + quick visual check, not a full regression suite.
+
+## 2026-03-01 - Header layout compaction + preview fit
+- What changed: Compacted the Background header section and fixed Preview pane scrollbar issues.
+  - **(i) Removed thumbnail preview**: Killed the background thumbnail (solid/photo preview with layer/frame overlays) to reclaim horizontal space.
+  - **(ii) Photo BG card**: Moved Solid/Photo pill toggle out of the BACKGROUND header row into a card-style group (matching Profile/Screenshot cards). File upload controls (Choose File, status, remove) are grouped inside the card. When in Solid mode the card shows a "Switch to Photo mode" placeholder.
+  - **(iii) Sync All + Reset relocated**: Pushed to the right edge of the BACKGROUND header row (was inline after the pill toggle).
+  - **(iv) Horizontal card layout**: Profile and Screenshot cards moved from absolute-positioned right column into the main flex row alongside Accent/Base/Layer/Frame controls and the new Photo BG card.
+  - **(v) Preview canvas viewport fit**: Canvas now uses `maxHeight: 100%` + `aspectRatio` constraint instead of `width: 100%; height: auto`, so it shrinks to fit available viewport height without scrollbars at 100% zoom.
+  - **(vi) Download button labels**: Renamed "Download Current" to "Download Current Slide (pdf)" and "Download All N" to "Download All Slides (pdf)".
+- Why: The previous layout wasted vertical space with the thumbnail and caused the Preview pane to overflow with scrollbars at 100% zoom. The card-style grouping for Photo BG is more consistent with the Profile/Screenshot card pattern.
+- Files: `src/App.jsx` (layout restructure).
+
 ## 2026-03-01 - UI tightening and freeze pane overhaul
 - What changed: Major layout overhaul to tighten the header area and freeze it so only the slide editor and preview canvas scroll.
   - **(i) Solid/Photo inline**: Moved Solid/Photo toggle into the BACKGROUND header row, saving one full row.

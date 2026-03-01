@@ -66,27 +66,46 @@ For visual/UX judgment calls on new features, use browser Claude as a second pai
 git push origin main
 ```
 
-## AI Assistant Context
+## Feature Flow
 
-When working with Claude Code, Codex, or any AI assistant on this repo:
+### Step 1 — Prep (you do this before Claude Code)
+Fill out `FEATURE_CARD.md` with the current feature using any agent/model. Replace the entire file — never append to prior cards.
 
-**For feature implementation**, the assistant should:
+### Step 2 — Kick off
+Paste into Claude Code:
+
+SHIP: Read CLAUDE.md and FEATURE_CARD.md, then implement the feature.
+
+### Step 3 — Claude Code executes (automatic)
+Claude Code runs this loop without pausing:
+
+**Implement:**
+- Read `FEATURE_CARD.md` scope and `CLAUDE.md` guardrails
 - Make targeted edits in `src/`
-- Run `node build.js` to regenerate the artifact
-- Add a `CHANGES.md` entry if behavior changed
-- If a new source file was created, add it to `ORDER` in `build.js` at the correct dependency position
-- Commit all changed files (source + artifact + docs) atomically
-- Replace `FEATURE_CARD.md` with current feature scope before starting (do not append to prior feature cards)
+- If a new source file was created, add it to `ORDER` in `build.js`
+- Run `node build.js` — fix any build errors before continuing
 
-**For code review**, the assistant should:
-- Review the diff with findings-first rigor (bugs/regressions/risks, severity ordered)
-- Patch issues, rebuild, recommit until clean
+**Self-review:**
+- Review own diff against `FEATURE_CARD.md` scope (anything missing? anything out of scope?)
+- Review code quality: bugs, regressions, risks — severity ordered
+- Patch issues, rebuild, repeat until clean
 
-**For smoke testing** (optional, for visual/UX verification):
-- Open `preview.html` in a local browser to verify changes visually
-- For a second opinion, describe the change to browser Claude and let it explore
-- Useful for: layout changes, new UI controls, visual regressions
-- Not needed for: refactors, bug fixes with obvious behavioral impact, non-visual changes
+**Smoke test (via Playwright MCP):**
+- Open `http://localhost:5173/preview.html` in Playwright browser
+- Light test: verify the new feature works per `FEATURE_CARD.md` scope
+- Quick visual check: does the layout look right? Any obvious regressions?
+- If issues found: patch, rebuild, re-test
+- Requires `npx serve . --listen 5173` running in a separate terminal
+
+**Wrap up:**
+- Add `CHANGES.md` entry if behavior changed
+- Commit all changed files atomically (source + artifact + docs)
+- Do NOT push
+
+### Step 4 — Your review
+Claude Code pauses after commit. Review the diff. Then either:
+- Request patches: describe what to fix, Claude Code patches and re-runs Step 3 from self-review onward
+- Push: `git push origin main`
 
 ## Project Files
 
