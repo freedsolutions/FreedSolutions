@@ -1635,6 +1635,14 @@ var PRESET_SLIDE_KEYS = [
   "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg"
 ];
 
+var LEGACY_GEORGIA_FONT = "Georgia, serif";
+var CAMBRIA_FONT_STACK = "Cambria, Georgia, serif";
+
+function normalizeLegacyFontFamily(value) {
+  if (value === LEGACY_GEORGIA_FONT) return CAMBRIA_FONT_STACK;
+  return value;
+}
+
 function usePresets(deps) {
   var presetInputRef = useRef(null);
   var presetUrlRef = useRef(null);
@@ -1762,7 +1770,13 @@ function usePresets(deps) {
       for (var k = 0; k < PRESET_SLIDE_KEYS.length; k++) {
         var key = PRESET_SLIDE_KEYS[k];
         if (sd[key] !== undefined) {
-          slide[key] = key === "cards" ? (sd.cards || []).slice() : sd[key];
+          if (key === "cards") {
+            slide[key] = (sd.cards || []).slice();
+          } else if (/FontFamily$/.test(key)) {
+            slide[key] = normalizeLegacyFontFamily(sd[key]);
+          } else {
+            slide[key] = sd[key];
+          }
         }
       }
 

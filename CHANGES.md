@@ -2,6 +2,13 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Normalize legacy Georgia preset fonts to Cambria stack
+- What changed: Preset loading now maps legacy font values of `"Georgia, serif"` to `"Cambria, Georgia, serif"` for all `*FontFamily` slide fields.
+- Why: Prevent the font dropdown from entering an unmatched value state when loading older presets saved before Georgia was replaced by Cambria.
+- Files: `src/usePresets.js`, `linkedin-carousel.jsx`, `CHANGES.md`.
+- Validation: `node build.js` succeeds; preset load path normalizes legacy Georgia values while preserving serif rendering.
+- Notes/Risks: Mapping only runs during preset load and does not alter non-Georgia font values.
+
 ## 2026-03-01 - Screenshot expansion, edge-to-edge, accent bar tie-in, Top Corner case freedom, font swap
 - What changed: Six layout and UX improvements in a single feature pass.
   - **Expand Screenshots toggle**: New per-slide `expandScreenshot` boolean (default `false`) with toggle button in Body/Cards section header row. When ON: body/cards content zone is compressed vertically, screenshot minimum Y threshold drops from 420 to 300, and screenshot renders edge-to-edge (full canvas width, 0px horizontal margin, no rounded corners at slide edge).
