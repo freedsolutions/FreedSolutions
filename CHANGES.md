@@ -2,6 +2,17 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Editor column responsiveness and decorator toggle placement polish
+- What changed: Refined Column 2/3 layout behavior and moved the decorator toggle to align with heading controls.
+  - **Decorator toggle relocation**: The accent/checkmark toggle now appears in the `HEADING` row next to the ON/OFF toggle, and was removed from the Body/Cards color swatch row.
+  - **Column 2 min width**: Increased Slide Editor pane minimum width from `260` to `300` to prevent right-edge control overflow (notably `+` buttons) at narrower app widths.
+  - **Column 3 growth behavior**: Preview pane now uses flexible sizing (`flex: 1 1 360px`, `minWidth: 320`, `maxWidth: 520`) instead of fixed auto width, so it grows alongside Column 2 on wide screens.
+  - **Responsive preview canvas sizing**: Preview canvas style changed from fixed `360x450` CSS size to `width: 100%`, `height: auto` so it scales with Column 3 width while preserving aspect ratio.
+- Why: Keep controls fully visible in the editor pane and improve horizontal space distribution between editor and preview on larger displays.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx`, `CHANGES.md`.
+- Validation: `node build.js` succeeds and regenerated bundle reflects updated flex/canvas sizing.
+- Notes/Risks: Preview can render larger than before on wide windows (bounded by `maxWidth: 520`); no canvas export/render math changes.
+
 ## 2026-03-01 - Normalize legacy Georgia preset fonts to Cambria stack
 - What changed: Preset loading now maps legacy font values of `"Georgia, serif"` to `"Cambria, Georgia, serif"` for all `*FontFamily` slide fields.
 - Why: Prevent the font dropdown from entering an unmatched value state when loading older presets saved before Georgia was replaced by Cambria.

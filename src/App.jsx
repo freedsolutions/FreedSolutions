@@ -504,7 +504,7 @@ export default function App() {
         </div>
 
           {/* -- COL 2: Slide Editor -- */}
-          <div style={{ flex: "1 1 280px", minWidth: 260 }}>
+          <div style={{ flex: "1 1 280px", minWidth: 300 }}>
 
           {/* --- SLIDE EDITOR --- */}
           {currentSlide && (
@@ -609,6 +609,19 @@ export default function App() {
                   style={{ padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showHeading ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                   {currentSlide.showHeading ? "ON" : "OFF"}
                 </button>
+                {!currentSlide.showCards ? (
+                  <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true); }}
+                    title="Accent bar"
+                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    {"\u2501"}
+                  </button>
+                ) : (
+                  <button onClick={function() { updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false), true); }}
+                    title="Card checkmarks"
+                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showCardChecks !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showCardChecks !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    {"\u2713"}
+                  </button>
+                )}
                 {currentSlide.showHeading && (
                   <>
                     <div style={{ flex: 1 }} />
@@ -655,22 +668,8 @@ export default function App() {
                 ); })()}
               </div>
 
-              {/* Decorator toggle + Color swatch row */}
+              {/* Color swatch row */}
               <div style={{ display: "flex", gap: 16, marginTop: 6, marginBottom: 6, alignItems: "center" }}>
-                {/* Decorator toggle: accent bar (Body mode) or checkmark (Cards mode) */}
-                {!currentSlide.showCards ? (
-                  <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true); }}
-                    title="Accent bar"
-                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
-                    {"\u2501"}
-                  </button>
-                ) : (
-                  <button onClick={function() { updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false), true); }}
-                    title="Card checkmarks"
-                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showCardChecks !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showCardChecks !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
-                    {"\u2713"}
-                  </button>
-                )}
                 {/* Text swatch - context-aware: bodyColor in Body mode, cardTextColor in Cards mode */}
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <ColorPickerInline pickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} value={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")} onChange={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
@@ -727,10 +726,10 @@ export default function App() {
           </div>
 
           {/* -- COL 3: Preview -- */}
-          <div style={{ flex: "0 0 auto", position: "sticky", top: 24, alignSelf: "flex-start" }}>
+          <div style={{ flex: "1 1 360px", minWidth: 320, maxWidth: 520, position: "sticky", top: 24, alignSelf: "flex-start" }}>
             <p style={{ fontSize: 13, color: "#666", marginBottom: 8, fontWeight: 600, letterSpacing: 1 }}>PREVIEW</p>
             <canvas ref={canvasRef} width={W} height={H}
-              style={{ width: 360, height: 450, borderRadius: 12, border: "1px solid #222", display: "block" }} />
+              style={{ width: "100%", height: "auto", borderRadius: 12, border: "1px solid #222", display: "block" }} />
             <button onClick={downloadCurrentPDF}
               style={{ marginTop: 12, width: "100%", padding: "12px 0", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               Download Current Slide (PDF)
