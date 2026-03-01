@@ -2,6 +2,22 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - UI tightening and freeze pane overhaul
+- What changed: Major layout overhaul to tighten the header area and freeze it so only the slide editor and preview canvas scroll.
+  - **(i) Solid/Photo inline**: Moved Solid/Photo toggle into the BACKGROUND header row, saving one full row.
+  - **(ii) Merged Accent+Base**: Combined onto a single row. Removed Footer color from Background section; it now lives in Footer & Pic.
+  - **(iii) Inline swatches**: Moved Text/Base color swatches into BODY/CARDS and FOOTER & PIC section headers, eliminating dedicated swatch rows.
+  - **(iv) Expanded Profile/Screenshot**: Wider right zone (126→144px), larger profile circle (48→64px).
+  - **(v) Profile buttons redesign**: Replaced absolute "×" remove with [Upload] [✕ Remove] buttons below the profile circle.
+  - **(vi) Dimension text moved**: "800×1000px" moved from bottom of page to Screenshot section header subtitle.
+  - **(vii) PREVIEW header aligned**: Now uses same labelStyle as BACKGROUND/PRESETS headers.
+  - **(viii) 3-tile download row**: Filename input + Download Current + Download All in a single horizontal row. Download All always visible (disabled when 1 slide).
+  - **(ix) Enlarged Presets**: PRESETS header uses full labelStyle, Save/Load are larger buttons on separate row.
+  - **(x) Freeze pane**: Viewport-height layout with frozen header region (Background, Profile/Screenshot, Preview controls) and independently scrollable bottom region (Slide editor, Slides list, Preview canvas) in each column.
+- Why: Full-screen view had dead space above the slide editor. Freeze pane keeps settings visible while scrolling through slide content.
+- Files: `src/App.jsx` (layout overhaul), `src/useSlideManagement.js` (removed `footerBg` from Sync All and Reset — now per-slide via Footer & Pic section).
+- Notes/Risks: Footer background color is no longer synced by "Sync All" or reset by "Reset" in the Background section. It is now controlled per-slide from the Footer & Pic section. Color picker dropdowns in frozen sections use `position: absolute` with `zIndex: 60` — frozen divs have no overflow clipping to avoid dropdown cutoff.
+
 ## 2026-03-01 - Harden CLAUDE.md: architecture, source manifest, zero-dep and ORDER guardrails
 - What changed: Added missing architectural context and guardrails to CLAUDE.md to prevent silent build failures and constraint violations.
   - **Architecture section**: Documents what the app is (LinkedIn carousel designer, canvas-based React), runtime model (React 18.2.0 UMD + Babel Standalone 7.26.10), version pins and why they're pinned (Claude.ai sandbox parity), and the zero-dependency constraint with its rationale.
