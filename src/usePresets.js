@@ -18,7 +18,7 @@ var PRESET_SLIDE_KEYS = [
   "bodyColor", "bodyFontFamily", "bodyBold", "bodyItalic",
   "showCards", "showCardChecks", "cards",
   "cardTextColor", "cardFontFamily", "cardBold", "cardItalic", "cardBgColor",
-  "showScreenshot",
+  "expandScreenshot", "showScreenshot",
   "showBrandName", "brandNameText", "brandNameColor",
   "brandNameFontFamily", "brandNameBold", "brandNameItalic",
   "showTopCorner", "topCornerText", "topCornerColor",

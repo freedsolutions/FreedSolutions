@@ -1,118 +1,95 @@
 # FEATURE CARD
 
-Feature: Typography controls (bold / italic + font selector) in color swatch pop-ups
+Feature: Screenshot layout expansion, edge-to-edge screenshots, accent bar margin tie-in, Top Corner case freedom, font swap, and auto-overwrite screenshots
 
 Goal:
-Give each text element per-slide typographic control — font family, bold, and italic — surfaced inside the existing color swatch pop-up for that element. This keeps related styling co-located ("everything about how this text looks lives in one popover") and avoids cluttering Column 2 with extra rows of controls.
+Give users more control over screenshot real estate and layout density. Add a toggle that expands the screenshot footprint by compressing body/cards content, allow screenshots to bleed to the slide edge when scaled up, tie accent bar/checkmark vertical position to the expansion toggle, remove forced uppercase on Top Corner text, replace the Georgia font with a smoother alternative, and auto-overwrite existing screenshots on upload or paste without a confirmation prompt.
 
 ---
 
 ## In scope
 
-### 1. Expand color swatch pop-ups with typography controls
-- Every color swatch pop-up (Heading, Body, Cards, Label, Brand Name — wherever a color picker popover exists today) gains:
-  - **B / I toggle buttons** — a small row of two icon-style toggles (Bold, Italic) placed directly above or below the existing swatch grid inside the popover.
-  - **Font selector dropdown** — a compact `<select>` with 4–6 font options, placed adjacent to the B/I row.
-- The popover must remain usable at its current width. If space is tight, stack font selector above and B/I row below the swatches (or vice versa). Avoid making the popover dramatically larger.
-- Each toggle is independent (bold + italic can be on simultaneously).
-- All controls apply per-element, per-slide (e.g., Slide 1 Heading can be bold sans-serif while Slide 2 Heading is italic serif).
+### 1. "Expand Screenshots" toggle in Body/Cards section
+- Add a new on/off toggle button in the Body/Cards section header row (next to the existing Body/Cards mode toggle) that enables a larger vertical footprint for the screenshot area.
+- When ON: compress the body/cards content zone (reduce the minimum `ssY` threshold and/or increase the body start position) so the screenshot container gets more vertical space.
+- When OFF (default): current layout behavior is preserved exactly.
+- New per-slide state property: `expandScreenshot` (boolean, default `false`).
+- Initialize in `makeDefaultSlide()` and handle in preset save/load with `false` fallback.
+- Toggle must call `pushUndo()` before mutating state.
 
-### 2. Per-slide state for typography properties
-- Add new per-slide state properties for each styled text element. Naming convention example for Heading:
-  - `headingFontFamily` — string, default `"Inter"` (or whatever the current hardcoded font is)
-  - `headingBold` — boolean, default `false`
-  - `headingItalic` — boolean, default `false`
-- Repeat the pattern for Body, Cards, Label, and Brand Name (e.g., `bodyFontFamily`, `bodyBold`, `cardsFontFamily`, `labelBold`, etc.).
-- Initialize all in `makeDefaultSlide()` with sensible defaults (current look = no bold, no italic, current font family).
-- Handle in preset save/load: treat as optional on load with current-default fallback so older presets without these fields load cleanly.
+### 2. Tie Accent Bar / Checkmark to the expansion toggle
+- When "Expand Screenshots" is ON, shift the accent bar (Body mode) and card checkmarks (Cards mode) upward to reduce vertical spacing between the heading and the body/cards content. This frees additional vertical pixels for the screenshot below.
+- This adjustment applies to the canvas rendering positions only (`renderSlideContent.js`), not to the settings panel layout.
+- The shift must not collapse natural inter-section line spacing — it only tightens the gap between heading and body/cards by a controlled amount (e.g., reduce the `ty + 100` body offset and `ty + 10` accent bar offset proportionally).
+- When "Expand Screenshots" is OFF, accent bar and checkmarks render at their current positions (no change).
 
-### 3. Font family options
-- Provide a small curated list (no external font loading complexity). Suggested set:
-  - **Inter** (current default / clean sans-serif)
-  - **Georgia** (classic serif)
-  - **Courier New / monospace** (editorial / techy feel)
-  - **Arial** (safe neutral sans-serif)
-  - **Trebuchet MS** (slightly more personality, still system-available)
-- All must be system/web-safe fonts that are reliably available in the browser *and* render correctly on `<canvas>` without `@font-face` loading. If the app currently loads a custom font (e.g., via Google Fonts), it can be included as an additional option, but the core set must not depend on network availability.
-- The font selector should display each option name rendered in its own font (inline preview) if feasible within a `<select>`, or at minimum label them clearly.
+### 3. Edge-to-edge screenshots (no margins when scaled up)
+- When a screenshot is scaled up beyond the content-width boundary, allow it to render to the full slide edges (X = 0, width = canvas width) instead of being clipped to `pad` (80px) margins.
+- The clipping rectangle in `drawScreenshot()` should expand from `(pad, ssY, maxW, ssH)` to `(0, ssY, W, ssH)` when the scaled image dimensions exceed the current content-width box.
+- Alternatively, provide a per-slide toggle or tie this behavior to the "Expand Screenshots" toggle from feature 1 — if expand is ON, screenshots use full-width bounds.
+- The 12px `roundRect` clip radius should be set to 0 for edge-to-edge mode (sharp edges at slide boundary).
 
-### 4. Canvas rendering updates
-- **Bold / Italic**: Compose the `ctx.font` string dynamically from the per-slide state. Example: `"bold italic 28px Inter"`. This is natively supported by canvas — no special drawing logic needed.
-- **Font family**: Apply to `ctx.font` string before any `measureText` or `fillText` calls for the relevant element. All existing layout math (wrapping, bounding box, accent bar positioning) must re-measure after font change since different fonts have different metrics.
+### 4. Remove forced uppercase on Top Corner text
+- Remove the `.toUpperCase()` call in `drawTopCorner()` (`overlays.js`, line 47) so the text renders exactly as the user types it.
+- The default text in `makeDefaultSlide()` can remain `"LABEL"` (uppercase by convention), but users can now type mixed-case or lowercase and have it respected.
+- No changes to the input field, state shape, or settings panel — only the canvas rendering call.
 
-### 5. Undo integration
-- `pushUndo()` before any typography state mutation (same pattern as existing color/text changes).
+### 5. Replace Georgia font with a smoother alternative
+- Swap the Georgia entry in `FONT_OPTIONS` (`constants.js`) with a smoother serif or sans-serif system font.
+- Recommended replacement: **Cambria** (`"Cambria, Georgia, serif"`) — a modern, smooth serif designed for on-screen readability, available on Windows/macOS.
+- Alternative candidates if Cambria is unsuitable: **Palatino Linotype** (`"Palatino Linotype", "Book Antiqua", Palatino, serif`) or **Segoe UI** (`"Segoe UI", Tahoma, Geneva, sans-serif`).
+- Update the `label` in `FONT_OPTIONS` to match the new font name.
+- All existing slides using Georgia should gracefully fall back (CSS font stack includes Georgia as fallback if Cambria is unavailable).
 
-### 6. Relocate decorator toggles (accent bar / checkmark)
-- Move the `—` (accent bar) and `✓` (checkmark) decorator toggles from their current position above the font-size stepper to a new position **immediately before the "Text" and "Base" color swatches**, under the Body/Cards section header.
-- Current flow: `Body/Cards toggle → decorator toggle → font size → color swatches → textarea`
-- New flow: `Body/Cards toggle → font size → decorator toggle → color swatches → textarea`
-- This groups the decorator toggle with the visual styling controls (swatches) rather than with the content structure controls (mode switch, font size), which is a more natural editing flow.
-- No state or behavior changes — only the DOM position of the toggle within Column 2.
-- The toggle visibility rule is unchanged: Body mode shows `—`, Cards mode shows `✓`.
+### 6. Auto-overwrite existing screenshots on upload or paste
+- When uploading or pasting a screenshot and the active slide already has a screenshot, replace it immediately without any confirmation dialog or warning.
+- This applies to both the file-upload input handler (`handleScreenshotUpload`) and the global paste handler.
+- Current behavior already calls `setAsset()` which replaces, but verify there is no `confirm()` or warning gate anywhere in the flow. If one exists, remove it. If none exists, confirm no regression introduces one.
+- The undo stack still captures the previous state, so users can revert with `Ctrl+Z` if the replacement was unintended.
 
 ---
 
 ## Out of scope
-- No rich-text *within* a single field (e.g., bolding one word in a sentence). All typography controls apply to the entire text element uniformly.
-- No underline support (cut for complexity — canvas has no native text-decoration; would require custom draw logic per wrapped line).
-- No font size changes in this feature (already handled by existing font-size controls).
-- No text color changes in this feature (already handled by existing swatch).
-- No changes to PDF export logic (PDF export should naturally pick up canvas changes since it screenshots the canvas, but no export-specific work).
-- No custom/uploaded fonts.
-- No text-shadow, letter-spacing, or other extended typographic properties.
+- No changes to horizontal body/cards text layout or wrapping width (only vertical compression for feature 1).
+- No new screenshot positioning controls (drag, offset) — only expansion of the available area and edge bleed.
+- No changes to PDF export logic (canvas changes propagate automatically).
+- No removal of other font options — only replacing Georgia.
+- No changes to the screenshot scale slider behavior or range — only how the scaled result is clipped/rendered.
+- No rich-text or per-word casing in Top Corner — entire text block is rendered as typed.
+- No changes to Bottom Corner or other text sections for case behavior (only Top Corner is affected).
 
 ---
 
 ## Constraints
-- Follow existing code patterns: functional state updates, per-slide state objects, `pushUndo()` before mutations, confirm dialogs for destructive actions.
-- Popover sizing must remain reasonable — the pop-up should not feel bloated. Target: no more than ~35–45px of additional height for the new controls.
-- System/web-safe fonts only. No `@font-face` declarations, no network font loading, no new dependencies.
-- New per-slide state properties must be initialized in `makeDefaultSlide()` and handled in preset save/load so they round-trip correctly. Treat as optional on load with current-default fallback so older presets without these fields still load cleanly.
-- Canvas text measurement (`ctx.measureText`) must be called *after* setting the composed `ctx.font` string (including bold/italic/family) so wrapping breakpoints and layout are accurate for the active font.
+- Follow existing code patterns: functional state updates, per-slide state objects, `pushUndo()` before mutations, optional-field fallback on preset load.
+- System/web-safe fonts only. No `@font-face`, no network font loading, no new dependencies.
+- New per-slide state properties must be initialized in `makeDefaultSlide()` and round-trip correctly through preset save/load.
+- Canvas layout math must remain deterministic — the "Expand Screenshots" toggle changes offsets by fixed amounts, not by dynamic text measurement.
+- Edge-to-edge screenshot rendering must not draw outside the canvas bounds (0 to W horizontally, respect existing vertical bounds).
+- The Top Corner uppercase removal must not affect any other text section's rendering.
 
 ---
 
 ## Risks
 
-- **Font metrics vary across families**: Switching from Inter to Georgia changes character widths, ascenders, descenders, and line height. All layout that depends on text measurement (heading wrap → accent bar Y-position, card text overflow/clip, body text wrapping) must re-measure with the active font. If any layout uses hardcoded pixel offsets instead of measured values, font switching will break it.
-- **Canvas font string parsing**: The `ctx.font` string has a specific syntax (`"italic bold 24px Inter"`). Order matters — style before weight before size before family. A malformed string silently falls back to the browser default, which is very hard to debug. Build a small helper function (e.g., `composeFont(family, size, bold, italic)`) and use it everywhere.
-- **Preset backward compatibility**: New per-slide properties (~3 per text element × 5 elements = ~15 total) will be absent in presets saved before this change. Load logic must default all of them gracefully — same pattern as the `showAccentBar`/`showCardChecks` fields from the previous feature card.
-- **Popover layout on small screens**: Adding controls to the popover could cause overflow or clipping if the popover is positioned near a viewport edge. Test with popovers that open near the bottom of Column 2.
+- **Vertical compression trade-off**: Compressing body/cards content for a larger screenshot footprint may cause text truncation or overlap on slides with long body text or many cards. Mitigation: only compress when the toggle is ON, and test with max-length content.
+- **Edge-to-edge clipping interaction**: Expanding the screenshot clip region to full canvas width may interact with the global slide frame/border if one is rendered. Verify the screenshot layer draws under any global frame overlay.
+- **Font fallback chain**: Replacing Georgia with Cambria depends on Cambria being available. The font stack must include Georgia as a fallback so existing content doesn't break on systems without Cambria. Canvas `measureText` will use whichever font is actually resolved, so layout should remain correct.
+- **Preset backward compatibility**: New `expandScreenshot` property will be absent in older presets. Load logic must default to `false` (current behavior preserved).
+- **Top Corner uppercase user expectation**: Users who relied on auto-uppercase may be surprised if they re-type text in lowercase. The default template text remains uppercase, so new slides look the same.
 
 ---
 
 ## Acceptance
 
-- All color swatch pop-ups include B/I toggles and a font family selector.
-- Toggling Bold or Italic for any text element updates the canvas preview immediately.
-- Changing font family for any text element updates the canvas preview immediately, with correct wrapping and layout.
-- Each typography property is independent per element, per slide.
-- Font selector offers 4–6 system-safe fonts; all render correctly on canvas.
-- Existing heading wrap → accent bar dynamic positioning still works correctly after font change.
-- Loading a preset saved before this feature still works (new fields default to current values).
-- `Ctrl+Z` undo works for all new typography mutations.
-- Popover remains visually clean and does not overflow at typical viewport sizes.
-- Decorator toggle (`—` / `✓`) appears directly before the Text/Base color swatches in the Body/Cards section, not above the font-size stepper.
-- `node build.js` succeeds with no regressions in existing behavior.
-
----
-
-## Update Addendum (Requested)
-
-### A. Remove screenshot bounds frame
-- Remove the outside thin frame that represents screenshot bounds on the slide.
-- Keep screenshot placement and scale behavior unchanged unless a small adjustment is required to remove frame artifacts.
-- Do not remove unrelated global slide frame controls; this applies only to the screenshot bounds frame visualization.
-
-### B. Add paste screenshot support (in addition to upload)
-- Add support for pasting a screenshot image from clipboard into the active slide (`Ctrl+V` / `Cmd+V`) when the app is focused.
-- Keep the existing file-upload screenshot flow fully supported.
-- Pasted images should populate the same state shape used by uploads (active slide screenshot image, filename fallback, default scale).
-- If clipboard content does not include an image, fail gracefully with no UI breakage.
-- Do not intercept normal text paste inside focused input/textarea/select elements.
-
-### Addendum acceptance
-- Screenshot bounds frame is no longer visible on-canvas.
-- Users can paste an image and immediately see it as the active slide screenshot, same as upload behavior.
-- Pasting non-image content causes no errors and does not interfere with normal text entry paste.
+1. **Expand Screenshots toggle** appears in the Body/Cards section header row and persists per-slide.
+2. When toggle is ON, the screenshot container is visibly taller (more vertical space) compared to OFF.
+3. When toggle is ON, accent bar (Body mode) and card checkmarks (Cards mode) shift upward to contribute vertical space, without collapsing natural line spacing.
+4. When toggle is OFF, all layout matches current (pre-feature) behavior exactly.
+5. Screenshots scaled beyond content width render edge-to-edge (full canvas width, no horizontal margins, no rounded corners at edges).
+6. Top Corner text renders exactly as typed — mixed case, lowercase, and uppercase all display correctly.
+7. Georgia font option is replaced with Cambria (or chosen alternative) in the font selector dropdown; existing slides using Georgia fall back gracefully.
+8. Uploading or pasting a screenshot when one already exists replaces it immediately with no confirmation prompt.
+9. `Ctrl+Z` undo works for all new state mutations (expand toggle, screenshot replacement).
+10. Loading a preset saved before this feature works correctly (new fields default to current values).
+11. `node build.js` succeeds with no regressions in existing behavior.

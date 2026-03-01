@@ -2,13 +2,14 @@
 // Screenshot renderer
 // ---------------------------------------
 
-function drawScreenshot(ctx, screenshot, x, y, w, h, scale) {
+function drawScreenshot(ctx, screenshot, x, y, w, h, scale, edgeToEdge) {
+  var radius = edgeToEdge ? 0 : 12;
   if (!screenshot) {
     ctx.strokeStyle = "rgba(255,255,255,0.1)";
     ctx.lineWidth = 1;
     ctx.setLineDash([6, 6]);
     ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 12);
+    ctx.roundRect(x, y, w, h, radius);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = "rgba(255,255,255,0.15)";
@@ -34,7 +35,7 @@ function drawScreenshot(ctx, screenshot, x, y, w, h, scale) {
 
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 12);
+  ctx.roundRect(x, y, w, h, radius);
   ctx.clip();
   ctx.drawImage(screenshot, dx, dy, dw, dh);
   ctx.restore();

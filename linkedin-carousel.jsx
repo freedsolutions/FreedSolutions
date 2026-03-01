@@ -17,7 +17,7 @@ var MAX_SLIDES = 10;
 // System-safe font options for typography controls
 var FONT_OPTIONS = [
   { value: '"Helvetica Neue", Helvetica, Arial, sans-serif', label: "Helvetica Neue" },
-  { value: "Georgia, serif", label: "Georgia" },
+  { value: "Cambria, Georgia, serif", label: "Cambria" },
   { value: '"Courier New", Courier, monospace', label: "Courier New" },
   { value: "Arial, sans-serif", label: "Arial" },
   { value: '"Trebuchet MS", sans-serif', label: "Trebuchet MS" }
@@ -275,7 +275,7 @@ function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fo
   var weight = fontBold !== false ? "700" : "normal";
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 13, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 40);
-  ctx.fillText(text.toUpperCase(), MARGIN, MARGIN + (size || 13));
+  ctx.fillText(text, MARGIN, MARGIN + (size || 13));
 }
 
 function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
@@ -319,13 +319,14 @@ function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {
 // Screenshot renderer
 // ---------------------------------------
 
-function drawScreenshot(ctx, screenshot, x, y, w, h, scale) {
+function drawScreenshot(ctx, screenshot, x, y, w, h, scale, edgeToEdge) {
+  var radius = edgeToEdge ? 0 : 12;
   if (!screenshot) {
     ctx.strokeStyle = "rgba(255,255,255,0.1)";
     ctx.lineWidth = 1;
     ctx.setLineDash([6, 6]);
     ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 12);
+    ctx.roundRect(x, y, w, h, radius);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = "rgba(255,255,255,0.15)";
@@ -351,7 +352,7 @@ function drawScreenshot(ctx, screenshot, x, y, w, h, scale) {
 
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 12);
+  ctx.roundRect(x, y, w, h, radius);
   ctx.clip();
   ctx.drawImage(screenshot, dx, dy, dw, dh);
   ctx.restore();
@@ -382,6 +383,8 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   var bodyWeight = bodyBold ? "bold" : "600";
   var cardWeight = cardBold ? "bold" : "600";
 
+  var expand = !!slide.expandScreenshot;
+
   var ty = topY;
   if (slide.showHeading !== false) {
     ctx.font = composeFont(titleFamily, sizes.heading, titleWeight, titleItalic);
@@ -401,14 +404,15 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     }
 
     if (slide.showAccentBar !== false && (!slide.showCards || !slide.cards || slide.cards.length === 0)) {
+      var accentBarOffset = expand ? 0 : 10;
       ctx.fillStyle = colors.accent;
-      ctx.fillRect(pad, ty + 10, 50, 3);
+      ctx.fillRect(pad, ty + accentBarOffset, 50, 3);
     }
   }
 
   if (slide.showCards && slide.cards && slide.cards.length > 0) {
     var showChecks = slide.showCardChecks !== false;
-    var cardStartY = (slide.showHeading !== false) ? ty + 45 : ty + 60;
+    var cardStartY = (slide.showHeading !== false) ? ty + (expand ? 20 : 45) : ty + (expand ? 30 : 60);
     var cardPadV = 20;
     var gap = 20;
     var textPadding = 40;
@@ -493,7 +497,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     ty = runningY;
   } else if (slide.body) {
     var bodyLines = (slide.body || "").split("\n");
-    var bodyY = (slide.showHeading !== false) ? ty + 100 : ty + 60;
+    var bodyY = (slide.showHeading !== false) ? ty + (expand ? 40 : 100) : ty + (expand ? 30 : 60);
     for (var bli = 0; bli < bodyLines.length; bli++) {
       var rawLine = bodyLines[bli];
       if (rawLine.trim() === "" || rawLine.replace(/\*\*(.+?)\*\*/g, "$1").trim() === "") {
@@ -514,11 +518,12 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
   if (slide.showScreenshot) {
     var bottomBound = frameBottom ? frameBottom - 20 : H - 80;
-    var ssY = Math.max(ty + 20, 420);
-    var ssW = maxW;
+    var ssY = Math.max(ty + 20, expand ? 300 : 420);
+    var ssX = expand ? 0 : pad;
+    var ssW = expand ? W : maxW;
     var ssH = bottomBound - ssY;
     if (ssH > 60) {
-      drawScreenshot(ctx, screenshot || null, pad, ssY, ssW, ssH, scale);
+      drawScreenshot(ctx, screenshot || null, ssX, ssY, ssW, ssH, scale, expand);
     }
   }
 }
@@ -597,6 +602,7 @@ function makeDefaultSlide(title, body) {
     cardBold: false,
     cardItalic: false,
     cardBgColor: "#ffffff",
+    expandScreenshot: false,
     showScreenshot: false,
     showBrandName: true,
     brandNameText: "Brand Name",
@@ -1618,7 +1624,7 @@ var PRESET_SLIDE_KEYS = [
   "bodyColor", "bodyFontFamily", "bodyBold", "bodyItalic",
   "showCards", "showCardChecks", "cards",
   "cardTextColor", "cardFontFamily", "cardBold", "cardItalic", "cardBgColor",
-  "showScreenshot",
+  "expandScreenshot", "showScreenshot",
   "showBrandName", "brandNameText", "brandNameColor",
   "brandNameFontFamily", "brandNameBold", "brandNameItalic",
   "showTopCorner", "topCornerText", "topCornerColor",
@@ -2575,6 +2581,11 @@ export default function App() {
                 <span style={{ color: "#2a2a3e", margin: "0 4px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
+                <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
+                  title="Expand screenshot area"
+                  style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: currentSlide.expandScreenshot ? "rgba(165,180,252,0.2)" : "#28283e", color: currentSlide.expandScreenshot ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px", marginLeft: 6 }}>
+                  {"\u2922"}
+                </button>
                 <div style={{ flex: 1 }} />
                 {/* Font size stepper - always visible, context-aware */}
                 {(function() { var sk = currentSlide.showCards ? "cardText" : "body"; return (

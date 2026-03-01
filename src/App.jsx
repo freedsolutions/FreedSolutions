@@ -636,6 +636,11 @@ export default function App() {
                 <span style={{ color: "#2a2a3e", margin: "0 4px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
+                <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
+                  title="Expand screenshot area"
+                  style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: currentSlide.expandScreenshot ? "rgba(165,180,252,0.2)" : "#28283e", color: currentSlide.expandScreenshot ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px", marginLeft: 6 }}>
+                  {"\u2922"}
+                </button>
                 <div style={{ flex: 1 }} />
                 {/* Font size stepper - always visible, context-aware */}
                 {(function() { var sk = currentSlide.showCards ? "cardText" : "body"; return (

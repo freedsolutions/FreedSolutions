@@ -24,6 +24,7 @@ function makeDefaultSlide(title, body) {
     cardBold: false,
     cardItalic: false,
     cardBgColor: "#ffffff",
+    expandScreenshot: false,
     showScreenshot: false,
     showBrandName: true,
     brandNameText: "Brand Name",

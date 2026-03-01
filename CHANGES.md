@@ -2,6 +2,19 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Screenshot expansion, edge-to-edge, accent bar tie-in, Top Corner case freedom, font swap
+- What changed: Six layout and UX improvements in a single feature pass.
+  - **Expand Screenshots toggle**: New per-slide `expandScreenshot` boolean (default `false`) with toggle button in Body/Cards section header row. When ON: body/cards content zone is compressed vertically, screenshot minimum Y threshold drops from 420 to 300, and screenshot renders edge-to-edge (full canvas width, 0px horizontal margin, no rounded corners at slide edge).
+  - **Accent bar / checkmark tie-in**: When expand is ON, accent bar offset reduced from 10px to 0px; card start Y reduced from 45 to 20 (with heading) or 60 to 30 (without); body start Y reduced from 100 to 40 (with heading) or 60 to 30 (without).
+  - **Edge-to-edge screenshots**: `drawScreenshot()` now accepts an `edgeToEdge` parameter; when true, clip radius is 0 and the clip/draw region uses `(0, ssY, W, ssH)` instead of `(pad, ssY, maxW, ssH)`.
+  - **Top Corner case freedom**: Removed `.toUpperCase()` in `drawTopCorner()` so text renders exactly as typed.
+  - **Font swap**: Replaced Georgia with Cambria in `FONT_OPTIONS` (`"Cambria, Georgia, serif"`); Georgia remains in fallback chain.
+  - **Auto-overwrite screenshots**: Verified no confirmation prompt exists in upload or paste flows; behavior already correct.
+- Why: Give users more control over screenshot real estate and layout density, remove forced uppercase on Top Corner text, and provide a smoother serif font alternative.
+- Files: `src/slideFactory.js`, `src/usePresets.js`, `src/App.jsx`, `src/canvas/renderSlideContent.js`, `src/canvas/screenshot.js`, `src/canvas/overlays.js`, `src/constants.js`, `linkedin-carousel.jsx` (regenerated), `CHANGES.md`, `SMOKE_TEST.md`, `FEATURE_CARD.md`.
+- Validation: `node build.js` succeeds. New `expandScreenshot` property in factory/preset/UI/canvas. `.toUpperCase()` removed from `drawTopCorner`. Cambria in `FONT_OPTIONS`. No `confirm()` in screenshot upload/paste paths.
+- Notes/Risks: Vertical compression when expand is ON may cause text truncation on slides with long body text — mitigated by toggle being off by default. Edge-to-edge screenshot draws under border frame overlay. Cambria availability depends on system; Georgia in fallback chain. `expandScreenshot` absent from older presets defaults to `false` via `makeDefaultSlide()`.
+
 ## 2026-02-28 - Fix paste screenshot target slide race
 - What changed: Pasted screenshot assignment now captures the active slide index at paste time instead of reading it later inside async image load callbacks.
   - In `App.jsx` paste handler, store `targetSlide` before `FileReader`/`Image` async work.

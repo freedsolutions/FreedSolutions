@@ -44,7 +44,7 @@ function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fo
   var weight = fontBold !== false ? "700" : "normal";
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 13, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 40);
-  ctx.fillText(text.toUpperCase(), MARGIN, MARGIN + (size || 13));
+  ctx.fillText(text, MARGIN, MARGIN + (size || 13));
 }
 
 function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {

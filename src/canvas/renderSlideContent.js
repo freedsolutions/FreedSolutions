@@ -23,6 +23,8 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   var bodyWeight = bodyBold ? "bold" : "600";
   var cardWeight = cardBold ? "bold" : "600";
 
+  var expand = !!slide.expandScreenshot;
+
   var ty = topY;
   if (slide.showHeading !== false) {
     ctx.font = composeFont(titleFamily, sizes.heading, titleWeight, titleItalic);
@@ -42,14 +44,15 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     }
 
     if (slide.showAccentBar !== false && (!slide.showCards || !slide.cards || slide.cards.length === 0)) {
+      var accentBarOffset = expand ? 0 : 10;
       ctx.fillStyle = colors.accent;
-      ctx.fillRect(pad, ty + 10, 50, 3);
+      ctx.fillRect(pad, ty + accentBarOffset, 50, 3);
     }
   }
 
   if (slide.showCards && slide.cards && slide.cards.length > 0) {
     var showChecks = slide.showCardChecks !== false;
-    var cardStartY = (slide.showHeading !== false) ? ty + 45 : ty + 60;
+    var cardStartY = (slide.showHeading !== false) ? ty + (expand ? 20 : 45) : ty + (expand ? 30 : 60);
     var cardPadV = 20;
     var gap = 20;
     var textPadding = 40;
@@ -134,7 +137,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     ty = runningY;
   } else if (slide.body) {
     var bodyLines = (slide.body || "").split("\n");
-    var bodyY = (slide.showHeading !== false) ? ty + 100 : ty + 60;
+    var bodyY = (slide.showHeading !== false) ? ty + (expand ? 40 : 100) : ty + (expand ? 30 : 60);
     for (var bli = 0; bli < bodyLines.length; bli++) {
       var rawLine = bodyLines[bli];
       if (rawLine.trim() === "" || rawLine.replace(/\*\*(.+?)\*\*/g, "$1").trim() === "") {
@@ -155,11 +158,12 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
   if (slide.showScreenshot) {
     var bottomBound = frameBottom ? frameBottom - 20 : H - 80;
-    var ssY = Math.max(ty + 20, 420);
-    var ssW = maxW;
+    var ssY = Math.max(ty + 20, expand ? 300 : 420);
+    var ssX = expand ? 0 : pad;
+    var ssW = expand ? W : maxW;
     var ssH = bottomBound - ssY;
     if (ssH > 60) {
-      drawScreenshot(ctx, screenshot || null, pad, ssY, ssW, ssH, scale);
+      drawScreenshot(ctx, screenshot || null, ssX, ssY, ssW, ssH, scale, expand);
     }
   }
 }

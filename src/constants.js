@@ -17,7 +17,7 @@ var MAX_SLIDES = 10;
 // System-safe font options for typography controls
 var FONT_OPTIONS = [
   { value: '"Helvetica Neue", Helvetica, Arial, sans-serif', label: "Helvetica Neue" },
-  { value: "Georgia, serif", label: "Georgia" },
+  { value: "Cambria, Georgia, serif", label: "Cambria" },
   { value: '"Courier New", Courier, monospace', label: "Courier New" },
   { value: "Arial, sans-serif", label: "Arial" },
   { value: '"Trebuchet MS", sans-serif', label: "Trebuchet MS" }
