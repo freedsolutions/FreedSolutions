@@ -136,6 +136,7 @@ export default function App() {
 
   // --- Canvas rendering hook ---
   var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
+  var thumbUrls = canvasRenderer.thumbUrls;
   var renderSlide = canvasRenderer.renderSlide;
 
   // --- PDF export hook ---
@@ -403,7 +404,7 @@ export default function App() {
           <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
             dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
             reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
-            removeSlide={slideMgmt.removeSlide} />
+            removeSlide={slideMgmt.removeSlide} thumbUrls={thumbUrls} />
 
           {/* -- Divider: Above Screenshot -- */}
           <div style={{ borderTop: "1px solid #333", marginTop: 10, marginBottom: 10 }} />
