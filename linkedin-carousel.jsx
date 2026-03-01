@@ -14,6 +14,29 @@ var FOOTER_PIC_SIZE = 84;
 var FOOTER_BADGE_H = 48;
 var MAX_SLIDES = 10;
 
+// System-safe font options for typography controls
+var FONT_OPTIONS = [
+  { value: '"Helvetica Neue", Helvetica, Arial, sans-serif', label: "Helvetica Neue" },
+  { value: "Georgia, serif", label: "Georgia" },
+  { value: '"Courier New", Courier, monospace', label: "Courier New" },
+  { value: "Arial, sans-serif", label: "Arial" },
+  { value: '"Trebuchet MS", sans-serif', label: "Trebuchet MS" }
+];
+
+var DEFAULT_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+
+// Compose a valid ctx.font string: "italic bold 24px FontFamily"
+// weight can be boolean true ("bold"), false (omit), or a string like "600", "700", "900", "bold"
+function composeFont(family, size, weight, italic) {
+  var parts = [];
+  if (italic) parts.push("italic");
+  if (weight === true) parts.push("bold");
+  else if (weight && weight !== "normal" && weight !== false) parts.push(weight);
+  parts.push(size + "px");
+  parts.push(family || DEFAULT_FONT);
+  return parts.join(" ");
+}
+
 // ---------------------------------------
 // hexToRgba
 // ---------------------------------------
@@ -124,9 +147,9 @@ function renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled) {
 // Text helpers
 // ---------------------------------------
 
-function wrapText(ctx, text, maxWidth, fontSize, fontWeight) {
+function wrapText(ctx, text, maxWidth, fontSize, fontWeight, fontFamily, fontItalic) {
   fontWeight = fontWeight || "bold";
-  ctx.font = fontWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, fontSize, fontWeight, !!fontItalic);
   var words = text.split(" ");
   var lines = [];
   var line = "";
@@ -157,9 +180,10 @@ function extractAccentMarkers(text) {
   return { cleanText: cleanText, markers: markers };
 }
 
-function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor, accentColor, markers, lineOffset) {
+function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor, accentColor, markers, lineOffset, fontFamily, fontItalic) {
+  var family = fontFamily || DEFAULT_FONT;
   if (!markers || markers.length === 0) {
-    ctx.font = baseWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = composeFont(family, fontSize, baseWeight, !!fontItalic);
     ctx.fillStyle = baseColor;
     ctx.fillText(line, x, y);
     return;
@@ -174,7 +198,7 @@ function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor,
     hits.push({ start: s, end: e });
   }
   if (hits.length === 0) {
-    ctx.font = baseWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = composeFont(family, fontSize, baseWeight, !!fontItalic);
     ctx.fillStyle = baseColor;
     ctx.fillText(line, x, y);
     return;
@@ -194,10 +218,10 @@ function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor,
   for (var si = 0; si < segments.length; si++) {
     var seg = segments[si];
     if (seg.isAccent) {
-      ctx.font = "900 " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      ctx.font = composeFont(family, fontSize, "900", !!fontItalic);
       ctx.fillStyle = accentColor;
     } else {
-      ctx.font = baseWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      ctx.font = composeFont(family, fontSize, baseWeight, !!fontItalic);
       ctx.fillStyle = baseColor;
     }
     ctx.fillText(seg.text, xPos, y);
@@ -209,7 +233,7 @@ function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor,
 // Overlays: footer, corners, border frame
 // ---------------------------------------
 
-function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, footerText, textSize, opacity) {
+function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, footerText, textSize, opacity, fontFamily, fontBold, fontItalic) {
   var prevAlpha = ctx.globalAlpha;
   ctx.globalAlpha = (opacity != null ? opacity : 100) / 100;
   var badgeH = FOOTER_BADGE_H;
@@ -223,7 +247,8 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   ctx.fill();
 
   ctx.fillStyle = footerText || "#1a1a2e";
-  ctx.font = 'bold ' + (textSize || 20) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  var footerWeight = fontBold !== false ? "bold" : "normal";
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, textSize || 20, footerWeight, !!fontItalic);
   var tw = ctx.measureText(name).width;
   ctx.fillText(name, (W - tw) / 2, badgeY + 31);
 
@@ -246,14 +271,16 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   ctx.globalAlpha = prevAlpha;
 }
 
-function drawTopCorner(ctx, text, color, opacity, size) {
-  ctx.font = '700 ' + (size || 13) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+  var weight = fontBold !== false ? "700" : "normal";
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 13, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 40);
   ctx.fillText(text.toUpperCase(), MARGIN, MARGIN + (size || 13));
 }
 
-function drawBottomCorner(ctx, text, color, opacity, size) {
-  ctx.font = '600 ' + (size || 16) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+  var weight = fontBold ? "bold" : "600";
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 16, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
   ctx.fillText(text, MARGIN, H - MARGIN + 4);
 }
@@ -346,19 +373,34 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   var topY = Math.max(pad, (frameTop || 0) + innerPad);
   var maxW = W - pad * 2;
 
+  // Resolve per-element typography with backward-compat defaults
+  var titleFamily = slide.titleFontFamily || DEFAULT_FONT;
+  var titleBold = slide.titleBold !== false;
+  var titleItalic = !!slide.titleItalic;
+  var bodyFamily = slide.bodyFontFamily || DEFAULT_FONT;
+  var bodyBold = !!slide.bodyBold;
+  var bodyItalic = !!slide.bodyItalic;
+  var cardFamily = slide.cardFontFamily || DEFAULT_FONT;
+  var cardBold = !!slide.cardBold;
+  var cardItalic = !!slide.cardItalic;
+
+  var titleWeight = titleBold ? "bold" : "normal";
+  var bodyWeight = bodyBold ? "bold" : "600";
+  var cardWeight = cardBold ? "bold" : "600";
+
   var ty = topY;
   if (slide.showHeading !== false) {
-    ctx.font = 'bold ' + sizes.heading + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = composeFont(titleFamily, sizes.heading, titleWeight, titleItalic);
     ty = topY + sizes.heading * 1.22;
     var headingRawLines = (slide.title || "").split("\n");
     for (var hli = 0; hli < headingRawLines.length; hli++) {
       var hRaw = headingRawLines[hli];
       if (hRaw.trim() === "") { ty += sizes.heading * 0.5; continue; }
       var headingParsed = extractAccentMarkers(hRaw);
-      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, "bold");
+      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, titleWeight, titleFamily, titleItalic);
       var hOffset = 0;
       for (var i = 0; i < titleLines.length; i++) {
-        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, "bold", slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset);
+        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, titleWeight, slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset, titleFamily, titleItalic);
         hOffset += titleLines[i].length + 1;
         ty += sizes.heading * 1.22;
       }
@@ -391,8 +433,8 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         var nlLine = cardNlLines[cnl];
         if (nlLine.trim() === "") { allWrapped.push({ text: "", empty: true }); continue; }
         var nlParsed = extractAccentMarkers(nlLine);
-        ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
-        var nlWrapped = wrapText(ctx, nlParsed.cleanText, cardContentW, sizes.cardText, "600");
+        ctx.font = composeFont(cardFamily, sizes.cardText, cardWeight, cardItalic);
+        var nlWrapped = wrapText(ctx, nlParsed.cleanText, cardContentW, sizes.cardText, cardWeight, cardFamily, cardItalic);
         var nlOffset = 0;
         for (var nw = 0; nw < nlWrapped.length; nw++) {
           allWrapped.push({ text: nlWrapped[nw], parsed: nlParsed, offset: nlOffset });
@@ -443,12 +485,12 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       ctx.beginPath();
       ctx.roundRect(cardX, cy, cardW, cardH, 16);
       ctx.clip();
-      ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      ctx.font = composeFont(cardFamily, sizes.cardText, cardWeight, cardItalic);
       var lineY = cy + 38;
       for (var cli = 0; cli < cardsLineData[ci].length; cli++) {
         var ld = cardsLineData[ci][cli];
         if (ld.empty) { lineY += sizes.cardText * 0.5; continue; }
-        renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, "600", slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset);
+        renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, cardWeight, slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset, cardFamily, cardItalic);
         lineY += sizes.cardText + 6;
       }
       ctx.restore();
@@ -464,10 +506,10 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         bodyY += sizes.body * 0.6;
       } else {
         var lineParsed = extractAccentMarkers(rawLine);
-        var wrapped = wrapText(ctx, lineParsed.cleanText, maxW, sizes.body, "600");
+        var wrapped = wrapText(ctx, lineParsed.cleanText, maxW, sizes.body, bodyWeight, bodyFamily, bodyItalic);
         var bOffset = 0;
         for (var wi = 0; wi < wrapped.length; wi++) {
-          renderLineWithAccents(ctx, wrapped[wi], pad, bodyY, sizes.body, "600", slide.bodyColor || colors.accent, colors.accent, lineParsed.markers, bOffset);
+          renderLineWithAccents(ctx, wrapped[wi], pad, bodyY, sizes.body, bodyWeight, slide.bodyColor || colors.accent, colors.accent, lineParsed.markers, bOffset, bodyFamily, bodyItalic);
           bOffset += wrapped[wi].length + 1;
           bodyY += sizes.body * 1.4;
         }
@@ -516,7 +558,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, 
   var borderBottom = slide.showBrandName ? H - MARGIN - FOOTER_PIC_SIZE + 8 - FOOTER_BADGE_H / 2 : H - MARGIN - 16;
 
   if (slide.showTopCorner && slide.topCornerText) {
-    drawTopCorner(ctx, slide.topCornerText, slide.topCornerColor, slide.topCornerOpacity, sizes.topCorner);
+    drawTopCorner(ctx, slide.topCornerText, slide.topCornerColor, slide.topCornerOpacity, sizes.topCorner, slide.topCornerFontFamily, slide.topCornerBold, slide.topCornerItalic);
   }
 
   var asset = slideAssets[slideIndex] || { image: null, name: null, scale: 1 };
@@ -527,11 +569,11 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, 
   }
 
   if (slide.showBrandName) {
-    drawCenteredFooter(ctx, profileImg, slide.brandNameText, borderBottom, slide.footerBg, slide.brandNameColor, sizes.brandName, 100);
+    drawCenteredFooter(ctx, profileImg, slide.brandNameText, borderBottom, slide.footerBg, slide.brandNameColor, sizes.brandName, 100, slide.brandNameFontFamily, slide.brandNameBold, slide.brandNameItalic);
   }
 
   if (slide.showBottomCorner && slide.bottomCornerText) {
-    drawBottomCorner(ctx, slide.bottomCornerText, slide.bottomCornerColor, slide.bottomCornerOpacity, sizes.bottomCorner);
+    drawBottomCorner(ctx, slide.bottomCornerText, slide.bottomCornerColor, slide.bottomCornerOpacity, sizes.bottomCorner, slide.bottomCornerFontFamily, slide.bottomCornerBold, slide.bottomCornerItalic);
   }
 }
 
@@ -546,23 +588,41 @@ function makeDefaultSlide(title, body) {
     showAccentBar: true,
     body: body || "Your text here...",
     titleColor: "#ffffff",
+    titleFontFamily: DEFAULT_FONT,
+    titleBold: true,
+    titleItalic: false,
     bodyColor: "#a5b4fc",
+    bodyFontFamily: DEFAULT_FONT,
+    bodyBold: false,
+    bodyItalic: false,
     showCards: false,
     showCardChecks: true,
     cards: ["Card 1"],
     cardTextColor: "#333333",
+    cardFontFamily: DEFAULT_FONT,
+    cardBold: false,
+    cardItalic: false,
     cardBgColor: "#ffffff",
     showScreenshot: false,
     showBrandName: true,
     brandNameText: "Brand Name",
     brandNameColor: "#1a1a2e",
+    brandNameFontFamily: DEFAULT_FONT,
+    brandNameBold: true,
+    brandNameItalic: false,
     showTopCorner: true,
     topCornerText: "LABEL",
     topCornerColor: "#ffffff",
+    topCornerFontFamily: DEFAULT_FONT,
+    topCornerBold: true,
+    topCornerItalic: false,
     topCornerOpacity: 40,
     showBottomCorner: false,
     bottomCornerText: "Brand Name",
     bottomCornerColor: "#ffffff",
+    bottomCornerFontFamily: DEFAULT_FONT,
+    bottomCornerBold: false,
+    bottomCornerItalic: false,
     bottomCornerOpacity: 35,
     solidColor: "#1e1e2e",
     bgType: "solid",
@@ -748,7 +808,15 @@ function ColorPickerInline(props) {
   var disabled = props.disabled || false;
   var opacityVal = props.opacityVal;
   var onOpacityChange = props.onOpacityChange;
+  // Typography props (optional)
+  var fontFamily = props.fontFamily;
+  var onFontFamilyChange = props.onFontFamilyChange;
+  var bold = props.bold;
+  var onBoldChange = props.onBoldChange;
+  var italic = props.italic;
+  var onItalicChange = props.onItalicChange;
 
+  var hasTypography = !!onFontFamilyChange;
   var isOpen = openPicker === pickerKey && !disabled;
 
   return (
@@ -769,6 +837,24 @@ function ColorPickerInline(props) {
       />
       {isOpen && (
         <div style={pickerDropdownStyle}>
+          {hasTypography && (
+            <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #3a3a50" }}>
+              <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { onFontFamilyChange(e.target.value); }}
+                style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, marginBottom: 6, cursor: "pointer" }}>
+                {FONT_OPTIONS.map(function(f) {
+                  return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
+                })}
+              </select>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={function() { onBoldChange(!bold); }}
+                  title="Bold"
+                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: bold ? "rgba(165,180,252,0.25)" : "#28283e", color: bold ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+                <button onClick={function() { onItalicChange(!italic); }}
+                  title="Italic"
+                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: italic ? "rgba(165,180,252,0.25)" : "#28283e", color: italic ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+              </div>
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
             {INLINE_SWATCHES.map(function(c) {
               return (
@@ -816,9 +902,10 @@ function ColorPickerInline(props) {
 // ===================================================
 // SizeControl Component
 // ===================================================
-// Renders a font-size stepper with optional color picker and opacity.
+// Renders a font-size stepper with optional color picker, opacity, and typography controls.
 // Props: text, sizeKey, min, max, extra, sizes, setSize, colorVal, colorSet,
-//        colorPickerKey, openPicker, setOpenPicker, opacityVal, opacitySet
+//        colorPickerKey, openPicker, setOpenPicker, opacityVal, opacitySet,
+//        fontFamily, fontFamilySet, boldVal, boldSet, italicVal, italicSet
 
 function SizeControl(props) {
   var text = props.text;
@@ -835,6 +922,15 @@ function SizeControl(props) {
   var setOpenPicker = props.setOpenPicker;
   var opacityVal = props.opacityVal;
   var opacitySet = props.opacitySet;
+  // Typography props (optional)
+  var fontFamily = props.fontFamily;
+  var fontFamilySet = props.fontFamilySet;
+  var boldVal = props.boldVal;
+  var boldSet = props.boldSet;
+  var italicVal = props.italicVal;
+  var italicSet = props.italicSet;
+
+  var hasTypography = !!fontFamilySet;
 
   if (!sizeKey) return <label style={labelStyle}>{text}{extra ? " " : ""}{extra}</label>;
 
@@ -849,6 +945,24 @@ function SizeControl(props) {
               style={{ width: 18, height: 18, borderRadius: 4, border: cpOpen ? "2px solid #6366f1" : "1px solid #444", background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
             {cpOpen && (
               <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
+                {hasTypography && (
+                  <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #3a3a50" }}>
+                    <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { fontFamilySet(e.target.value); }}
+                      style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, marginBottom: 6, cursor: "pointer" }}>
+                      {FONT_OPTIONS.map(function(f) {
+                        return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
+                      })}
+                    </select>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button onClick={function() { boldSet(!boldVal); }}
+                        title="Bold"
+                        style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: boldVal ? "rgba(165,180,252,0.25)" : "#28283e", color: boldVal ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+                      <button onClick={function() { italicSet(!italicVal); }}
+                        title="Italic"
+                        style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: italicVal ? "rgba(165,180,252,0.25)" : "#28283e", color: italicVal ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                   {INLINE_SWATCHES.map(function(c) {
                     var active = colorVal === c;
@@ -1506,11 +1620,17 @@ function usePdfExport(canvasRef, renderSlide, seriesSlides, activeSlide, exportP
 
 var PRESET_SLIDE_KEYS = [
   "title", "showHeading", "showAccentBar", "body",
-  "titleColor", "bodyColor", "showCards", "showCardChecks", "cards",
-  "cardTextColor", "cardBgColor", "showScreenshot",
+  "titleColor", "titleFontFamily", "titleBold", "titleItalic",
+  "bodyColor", "bodyFontFamily", "bodyBold", "bodyItalic",
+  "showCards", "showCardChecks", "cards",
+  "cardTextColor", "cardFontFamily", "cardBold", "cardItalic", "cardBgColor",
+  "showScreenshot",
   "showBrandName", "brandNameText", "brandNameColor",
-  "showTopCorner", "topCornerText", "topCornerColor", "topCornerOpacity",
-  "showBottomCorner", "bottomCornerText", "bottomCornerColor", "bottomCornerOpacity",
+  "brandNameFontFamily", "brandNameBold", "brandNameItalic",
+  "showTopCorner", "topCornerText", "topCornerColor",
+  "topCornerFontFamily", "topCornerBold", "topCornerItalic", "topCornerOpacity",
+  "showBottomCorner", "bottomCornerText", "bottomCornerColor",
+  "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
   "solidColor", "bgType", "geoEnabled", "geoLines",
   "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg"
 ];
@@ -2310,7 +2430,10 @@ export default function App() {
                     <div style={{ flex: 1 }} />
                     <SizeControl sizeKey="brandName" min={12} max={60} sizes={sizes} setSize={setSize}
                       colorVal={currentSlide.brandNameColor} colorSet={function(c) { updateSlide(activeSlide, "brandNameColor", c); }}
-                      colorPickerKey={"s-" + activeSlide + "-bn"} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                      colorPickerKey={"s-" + activeSlide + "-bn"} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                      fontFamily={currentSlide.brandNameFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "brandNameFontFamily", v); }}
+                      boldVal={currentSlide.brandNameBold} boldSet={function(v) { updateSlide(activeSlide, "brandNameBold", v); }}
+                      italicVal={currentSlide.brandNameItalic} italicSet={function(v) { updateSlide(activeSlide, "brandNameItalic", v); }} />
                   </>
                 )}
               </div>
@@ -2333,7 +2456,10 @@ export default function App() {
                   <SizeControl sizeKey="topCorner" min={8} max={60} sizes={sizes} setSize={setSize}
                     colorVal={currentSlide.topCornerColor} colorSet={function(c) { updateSlide(activeSlide, "topCornerColor", c); }}
                     colorPickerKey={"s-" + activeSlide + "-tc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                    opacityVal={currentSlide.topCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "topCornerOpacity", v); }} />
+                    opacityVal={currentSlide.topCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "topCornerOpacity", v); }}
+                    fontFamily={currentSlide.topCornerFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "topCornerFontFamily", v); }}
+                    boldVal={currentSlide.topCornerBold} boldSet={function(v) { updateSlide(activeSlide, "topCornerBold", v); }}
+                    italicVal={currentSlide.topCornerItalic} italicSet={function(v) { updateSlide(activeSlide, "topCornerItalic", v); }} />
                 </>)}
               </div>
               {currentSlide.showTopCorner && (
@@ -2355,7 +2481,10 @@ export default function App() {
                   <SizeControl sizeKey="bottomCorner" min={10} max={60} sizes={sizes} setSize={setSize}
                     colorVal={currentSlide.bottomCornerColor} colorSet={function(c) { updateSlide(activeSlide, "bottomCornerColor", c); }}
                     colorPickerKey={"s-" + activeSlide + "-bc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                    opacityVal={currentSlide.bottomCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "bottomCornerOpacity", v); }} />
+                    opacityVal={currentSlide.bottomCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "bottomCornerOpacity", v); }}
+                    fontFamily={currentSlide.bottomCornerFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "bottomCornerFontFamily", v); }}
+                    boldVal={currentSlide.bottomCornerBold} boldSet={function(v) { updateSlide(activeSlide, "bottomCornerBold", v); }}
+                    italicVal={currentSlide.bottomCornerItalic} italicSet={function(v) { updateSlide(activeSlide, "bottomCornerItalic", v); }} />
                 </>)}
               </div>
               {currentSlide.showBottomCorner && (
@@ -2378,7 +2507,10 @@ export default function App() {
                     <div style={{ flex: 1 }} />
                     <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
                       colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
-                      colorPickerKey={"s-" + activeSlide + "-title"} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                      colorPickerKey={"s-" + activeSlide + "-title"} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                      fontFamily={currentSlide.titleFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "titleFontFamily", v); }}
+                      boldVal={currentSlide.titleBold} boldSet={function(v) { updateSlide(activeSlide, "titleBold", v); }}
+                      italicVal={currentSlide.titleItalic} italicSet={function(v) { updateSlide(activeSlide, "titleItalic", v); }} />
                   </>
                 )}
               </div>
@@ -2418,7 +2550,13 @@ export default function App() {
               <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
                 {/* Text swatch - context-aware: bodyColor in Body mode, cardTextColor in Cards mode */}
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <ColorPickerInline pickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} value={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")} onChange={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                  <ColorPickerInline pickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} value={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")} onChange={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                    fontFamily={currentSlide.showCards ? currentSlide.cardFontFamily : currentSlide.bodyFontFamily}
+                    onFontFamilyChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardFontFamily" : "bodyFontFamily", v); }}
+                    bold={currentSlide.showCards ? currentSlide.cardBold : currentSlide.bodyBold}
+                    onBoldChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardBold" : "bodyBold", v); }}
+                    italic={currentSlide.showCards ? currentSlide.cardItalic : currentSlide.bodyItalic}
+                    onItalicChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardItalic" : "bodyItalic", v); }} />
                   <span style={{ fontSize: 11, color: "#777", fontWeight: 600 }}>Text</span>
                 </div>
                 {/* Base swatch (card bg) - greyed out in Body mode */}

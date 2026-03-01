@@ -3,24 +3,25 @@
 Paste this full card into a new browser Claude extension thread to run smoke tests.
 
 ## Metadata
-- Commit hash under test: `234b2c0`
+- Commit hash under test: `163432e`
 - Branch: `main`
 - Build confirmation: `node build.js` succeeded (yes, 2026-02-28)
 - Artifact loaded confirmation: `linkedin-carousel.jsx` loaded in browser (`yes/no`)
 
 ## Scope
 - In scope:
-  - Auto-expanding textareas for all Column 2 text fields
-  - Canvas text wrapping for Heading, Body, and Card text
-  - Multi-line card input and rendering
-  - Separate decorator toggles: accent bar (Body mode) and checkmark (Cards mode)
-  - Default accent color changed to `#a5b4fc` (soft indigo)
-  - Horizontal separator above Screenshot section in Column 1
+  - Typography controls (bold/italic toggles + font family selector) in all color swatch pop-ups
+  - Per-slide typography state for Heading, Body, Cards, Brand Name, Top Corner, Bottom Corner
+  - 5 system-safe font options: Helvetica Neue, Georgia, Courier New, Arial, Trebuchet MS
+  - Canvas rendering updates to use dynamic font composition via `composeFont()`
+  - Preset save/load round-trip for new typography properties
+  - Undo support for typography mutations (automatic via existing snapshot system)
 - Out of scope:
-  - PDF export logic changes
-  - Preset serialization format changes (backward-compatible)
-  - Background controls, canvas background rendering, drag-to-reorder behavior
-  - Label and Brand Name canvas wrapping (remain single-line on canvas)
+  - Rich text within a single field (no per-word bold/italic)
+  - Underline, text shadow, letter spacing
+  - Font size changes (already handled by existing controls)
+  - PDF export logic changes (naturally picks up canvas changes)
+  - Custom/uploaded fonts
 
 ## Required Upload Checkpoints
 - Profile image upload: `not-required`
@@ -31,8 +32,8 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
 1. Slide operations
    - Add, edit, duplicate adjacent, delete, drag reorder
 2. Presets
-   - Save preset
-   - Load valid preset
+   - Save preset with typography changes
+   - Load valid preset (with and without typography fields)
    - Load invalid JSON/version and verify preset error location/message
 3. Undo/redo
    - Undo via `Ctrl/Cmd+Z`
@@ -47,36 +48,67 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
    - Screenshot image
 
 ## Feature-Specific Scenarios (Required)
-- Type long text in Brand Name field -> Expected: textarea auto-expands line-by-line, no internal scrollbar until ~50vh
-- Type long text in Top Corner field -> Expected: textarea auto-expands
-- Type long text in Bottom Corner field -> Expected: textarea auto-expands
-- Type long text in Heading field -> Expected: textarea auto-expands; canvas preview wraps heading text within bounding box
-- Type multi-line text in Heading (press Enter) -> Expected: textarea grows; canvas renders each line with word-wrap
-- Type long text in Body field -> Expected: textarea auto-expands (no fixed 2-row limit); canvas wraps body text
-- Type multi-line text in Body (press Enter) -> Expected: canvas renders each line correctly
-- Switch to Cards mode and type long text in a Card input -> Expected: textarea auto-expands; canvas wraps card text
-- Type multi-line text in Card input (press Enter) -> Expected: textarea grows; canvas renders multi-line card text
-- In Body mode, locate the accent bar toggle next to BODY|CARDS -> Expected: toggle is visible, defaults to ON
-- Toggle accent bar OFF in Body mode -> Expected: canvas accent bar under heading disappears
-- Switch to Cards mode -> Expected: accent bar toggle disappears, checkmark toggle appears (defaults to ON)
-- Toggle checkmark OFF in Cards mode -> Expected: canvas card checkmark circles disappear, card text remains
-- Toggle checkmark ON again -> Expected: checkmark circles reappear
-- Switch back to Body mode -> Expected: checkmark toggle disappears, accent bar toggle reappears with its last state
-- Create a new slide -> Expected: default accent color on canvas is soft indigo (`#a5b4fc`), not green
-- Verify Body text default color is indigo on new slide -> Expected: `#a5b4fc`
-- Locate Column 1 Screenshot section -> Expected: horizontal line divider appears above it
-- Save preset with showCardChecks OFF, reload -> Expected: checkmark toggle restores to OFF state
-- Ctrl+Z after toggling decorator -> Expected: undo still works (no regression)
+
+### Typography Controls Visibility
+- Click the Heading color swatch -> Expected: popover opens with font selector dropdown and B/I toggle buttons above the swatch grid
+- Click the Body/Cards text color swatch -> Expected: popover opens with font selector dropdown and B/I toggles above swatches
+- Click the Brand Name color swatch -> Expected: popover opens with font selector + B/I toggles
+- Click the Top Corner color swatch -> Expected: popover opens with font selector + B/I toggles
+- Click the Bottom Corner color swatch -> Expected: popover opens with font selector + B/I toggles
+- Click the Card Background color swatch -> Expected: popover opens with swatch grid only (NO font controls — card bg has no text)
+
+### Bold Toggle
+- In Heading popover, click B toggle -> Expected: canvas heading text toggles between bold and normal weight immediately
+- Default heading should be bold (B toggle active/highlighted) -> Expected: B button shows highlighted state
+- In Body mode, open Text color popover, click B -> Expected: body text on canvas becomes bold
+- Default body should NOT be bold -> Expected: B button shows inactive/dim state
+- In Cards mode, open Text color popover, click B -> Expected: card text on canvas becomes bold
+
+### Italic Toggle
+- In Heading popover, click I toggle -> Expected: canvas heading text becomes italic immediately
+- Click I again -> Expected: heading reverts to non-italic
+- Bold + Italic simultaneously -> Expected: heading renders bold italic on canvas
+- In Body mode, click I -> Expected: body text on canvas becomes italic
+
+### Font Family Selector
+- In Heading popover, change font to Georgia -> Expected: canvas heading renders in Georgia serif font; text wrapping re-measures correctly
+- Change heading font to Courier New -> Expected: heading renders in monospace; wrapping adjusts to wider character widths
+- Change body font to Arial -> Expected: body text on canvas changes to Arial
+- Change card text font to Trebuchet MS -> Expected: card text on canvas changes
+- Change Brand Name font to Georgia -> Expected: footer badge text renders in Georgia
+
+### Per-Slide Independence
+- Set Slide 1 heading to Georgia bold italic -> switch to Slide 2 -> Expected: Slide 2 heading still uses default Helvetica Neue bold
+- Go back to Slide 1 -> Expected: Georgia bold italic is preserved
+
+### Canvas Layout Accuracy
+- Change heading font to Courier New (wider characters) -> Expected: heading text wraps correctly at new character widths; accent bar position adjusts below last heading line
+- Use **accent markers** in heading with Georgia font -> Expected: accent-colored words render correctly inline with normal words
+- Type long body text with Georgia font -> Expected: wrapping breakpoints are accurate for Georgia metrics
+- Cards with Courier New font -> Expected: card text wraps within card bounds; card heights adjust to fit
+
+### Preset Round-Trip
+- Set multiple typography options across slides -> Save preset -> Load the saved preset -> Expected: all font families, bold states, and italic states restore correctly
+- Load a preset saved BEFORE this feature (older preset without typography fields) -> Expected: all elements default to Helvetica Neue, heading bold, others non-bold, none italic — no errors
+
+### Undo
+- Change heading font from Helvetica Neue to Georgia -> Ctrl+Z -> Expected: heading reverts to Helvetica Neue (undo captures full state)
+- Toggle body bold on -> Ctrl+Z -> Expected: body reverts to non-bold
+
+### Popover UX
+- Open any typography popover -> Expected: popover does not overflow or clip at typical viewport sizes
+- Font dropdown, B/I toggles, swatches, hex input all visible and usable without scrolling
 
 ## Known Risk Focus
-- Auto-expanding textarea `ref` callback may not re-fire on React re-renders for card list items (key stability)
-- `showCardChecks` backward-compat: old presets without the property should still show checkmarks (via `!== false` guard)
-- Heading newline splitting must not break accent marker highlighting across lines
-- Card newline splitting must not break accent marker highlighting within cards
+- Font metrics vary across families: wrapping and layout must re-measure with the active font
+- `composeFont()` string syntax: style before weight before size before family
+- Preset backward compatibility: 15 new per-slide properties default gracefully via `makeDefaultSlide()`
+- Popover sizing: typography controls add ~35-40px of height to the popover
 
 ## Pass Criteria
 - No functional breakage visible to end users.
 - All scenarios above pass.
+- Existing heading wrap -> accent bar dynamic positioning still works after font change.
 - Any failure includes reproducible steps and impact.
 
 ## Browser Execution Instructions (Embedded Agent Contract)

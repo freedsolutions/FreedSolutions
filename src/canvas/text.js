@@ -1,10 +1,10 @@
-﻿// ---------------------------------------
+// ---------------------------------------
 // Text helpers
 // ---------------------------------------
 
-function wrapText(ctx, text, maxWidth, fontSize, fontWeight) {
+function wrapText(ctx, text, maxWidth, fontSize, fontWeight, fontFamily, fontItalic) {
   fontWeight = fontWeight || "bold";
-  ctx.font = fontWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, fontSize, fontWeight, !!fontItalic);
   var words = text.split(" ");
   var lines = [];
   var line = "";
@@ -35,9 +35,10 @@ function extractAccentMarkers(text) {
   return { cleanText: cleanText, markers: markers };
 }
 
-function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor, accentColor, markers, lineOffset) {
+function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor, accentColor, markers, lineOffset, fontFamily, fontItalic) {
+  var family = fontFamily || DEFAULT_FONT;
   if (!markers || markers.length === 0) {
-    ctx.font = baseWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = composeFont(family, fontSize, baseWeight, !!fontItalic);
     ctx.fillStyle = baseColor;
     ctx.fillText(line, x, y);
     return;
@@ -52,7 +53,7 @@ function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor,
     hits.push({ start: s, end: e });
   }
   if (hits.length === 0) {
-    ctx.font = baseWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = composeFont(family, fontSize, baseWeight, !!fontItalic);
     ctx.fillStyle = baseColor;
     ctx.fillText(line, x, y);
     return;
@@ -72,10 +73,10 @@ function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor,
   for (var si = 0; si < segments.length; si++) {
     var seg = segments[si];
     if (seg.isAccent) {
-      ctx.font = "900 " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      ctx.font = composeFont(family, fontSize, "900", !!fontItalic);
       ctx.fillStyle = accentColor;
     } else {
-      ctx.font = baseWeight + " " + fontSize + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      ctx.font = composeFont(family, fontSize, baseWeight, !!fontItalic);
       ctx.fillStyle = baseColor;
     }
     ctx.fillText(seg.text, xPos, y);

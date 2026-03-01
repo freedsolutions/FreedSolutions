@@ -14,11 +14,17 @@
 
 var PRESET_SLIDE_KEYS = [
   "title", "showHeading", "showAccentBar", "body",
-  "titleColor", "bodyColor", "showCards", "showCardChecks", "cards",
-  "cardTextColor", "cardBgColor", "showScreenshot",
+  "titleColor", "titleFontFamily", "titleBold", "titleItalic",
+  "bodyColor", "bodyFontFamily", "bodyBold", "bodyItalic",
+  "showCards", "showCardChecks", "cards",
+  "cardTextColor", "cardFontFamily", "cardBold", "cardItalic", "cardBgColor",
+  "showScreenshot",
   "showBrandName", "brandNameText", "brandNameColor",
-  "showTopCorner", "topCornerText", "topCornerColor", "topCornerOpacity",
-  "showBottomCorner", "bottomCornerText", "bottomCornerColor", "bottomCornerOpacity",
+  "brandNameFontFamily", "brandNameBold", "brandNameItalic",
+  "showTopCorner", "topCornerText", "topCornerColor",
+  "topCornerFontFamily", "topCornerBold", "topCornerItalic", "topCornerOpacity",
+  "showBottomCorner", "bottomCornerText", "bottomCornerColor",
+  "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
   "solidColor", "bgType", "geoEnabled", "geoLines",
   "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg"
 ];

@@ -2,6 +2,25 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Typography controls (bold/italic + font selector) in color swatch pop-ups
+- What changed: Added per-element typography controls — font family selector, bold toggle, and italic toggle — inside every color swatch pop-up.
+  - Added `composeFont()` helper in `constants.js` to build valid `ctx.font` strings from family, size, weight, and italic parameters.
+  - Added `FONT_OPTIONS` constant with 5 system-safe fonts: Helvetica Neue, Georgia, Courier New, Arial, Trebuchet MS.
+  - Added 15 new per-slide state properties (3 per text element × 5 elements): `*FontFamily`, `*Bold`, `*Italic` for title, body, card, brandName, topCorner, bottomCorner.
+  - Initialized all new properties in `makeDefaultSlide()` with backward-compatible defaults (current look preserved).
+  - Added new properties to `PRESET_SLIDE_KEYS` for preset save/load round-trip; older presets without these fields load cleanly via `makeDefaultSlide()` fallback.
+  - Extended `ColorPickerInline` component with optional typography props: `fontFamily`/`onFontFamilyChange`, `bold`/`onBoldChange`, `italic`/`onItalicChange`.
+  - Extended `SizeControl` component with optional typography props: `fontFamily`/`fontFamilySet`, `boldVal`/`boldSet`, `italicVal`/`italicSet`.
+  - Typography controls (font dropdown + B/I toggles) appear above the swatch grid inside the popover when typography props are provided.
+  - Wired typography props for all 5 text elements in `App.jsx`: Heading, Body/Cards (context-aware), Brand Name, Top Corner, Bottom Corner.
+  - Updated all canvas rendering to use `composeFont()`: `text.js` (`wrapText`, `renderLineWithAccents`), `renderSlideContent.js`, `overlays.js` (`drawCenteredFooter`, `drawTopCorner`, `drawBottomCorner`), `renderSlide.js`.
+  - Canvas text measurement (`ctx.measureText`) now runs after setting the composed font with correct family/weight/italic, ensuring accurate wrapping and layout.
+  - Undo support is automatic — typography state is part of `seriesSlides` captured in full snapshots.
+- Why: Give users per-slide typographic control with font family, bold, and italic, co-located inside existing color popovers to avoid cluttering the UI.
+- Files: `src/constants.js`, `src/slideFactory.js`, `src/usePresets.js`, `src/ColorPickerInline.jsx`, `src/SizeControl.jsx`, `src/App.jsx`, `src/canvas/text.js`, `src/canvas/renderSlideContent.js`, `src/canvas/overlays.js`, `src/canvas/renderSlide.js`, `linkedin-carousel.jsx` (regenerated), `CHANGES.md`, `SMOKE_TEST.md`.
+- Validation: `node build.js` succeeds with 19 source files. Grep confirms: `composeFont` (12 occurrences), `FONT_OPTIONS` (3), `DEFAULT_FONT` (18), `titleFontFamily` (4), `bodyFontFamily` (5), `cardFontFamily` (5), `brandNameFontFamily` (4), `fontFamilySet` (8), `onFontFamilyChange` (4).
+- Notes/Risks: Font metrics vary across families — all layout math (wrapping, accent bar positioning, card sizing) re-measures with the active font via `composeFont()`. Older presets without typography fields load cleanly because `makeDefaultSlide()` provides defaults and `PRESET_SLIDE_KEYS` iteration only copies present keys.
+
 ## 2026-02-28 - 4-step prescriptive workflow with hardened agent outputs
 - What changed: Redesigned the workflow from 3 phases to 4 explicit steps, hardened every agent to output prescriptive next-step text, and consolidated human-facing docs.
   - Merged `WORKFLOW_QUICKSTART.txt` into the top of `CLAUDE.md` as a human-facing quickstart section; deleted the standalone file.

@@ -1,4 +1,4 @@
-﻿// ---------------------------------------
+// ---------------------------------------
 // Unified slide content renderer
 // ---------------------------------------
 
@@ -8,19 +8,34 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   var topY = Math.max(pad, (frameTop || 0) + innerPad);
   var maxW = W - pad * 2;
 
+  // Resolve per-element typography with backward-compat defaults
+  var titleFamily = slide.titleFontFamily || DEFAULT_FONT;
+  var titleBold = slide.titleBold !== false;
+  var titleItalic = !!slide.titleItalic;
+  var bodyFamily = slide.bodyFontFamily || DEFAULT_FONT;
+  var bodyBold = !!slide.bodyBold;
+  var bodyItalic = !!slide.bodyItalic;
+  var cardFamily = slide.cardFontFamily || DEFAULT_FONT;
+  var cardBold = !!slide.cardBold;
+  var cardItalic = !!slide.cardItalic;
+
+  var titleWeight = titleBold ? "bold" : "normal";
+  var bodyWeight = bodyBold ? "bold" : "600";
+  var cardWeight = cardBold ? "bold" : "600";
+
   var ty = topY;
   if (slide.showHeading !== false) {
-    ctx.font = 'bold ' + sizes.heading + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.font = composeFont(titleFamily, sizes.heading, titleWeight, titleItalic);
     ty = topY + sizes.heading * 1.22;
     var headingRawLines = (slide.title || "").split("\n");
     for (var hli = 0; hli < headingRawLines.length; hli++) {
       var hRaw = headingRawLines[hli];
       if (hRaw.trim() === "") { ty += sizes.heading * 0.5; continue; }
       var headingParsed = extractAccentMarkers(hRaw);
-      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, "bold");
+      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, titleWeight, titleFamily, titleItalic);
       var hOffset = 0;
       for (var i = 0; i < titleLines.length; i++) {
-        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, "bold", slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset);
+        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, titleWeight, slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset, titleFamily, titleItalic);
         hOffset += titleLines[i].length + 1;
         ty += sizes.heading * 1.22;
       }
@@ -53,8 +68,8 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         var nlLine = cardNlLines[cnl];
         if (nlLine.trim() === "") { allWrapped.push({ text: "", empty: true }); continue; }
         var nlParsed = extractAccentMarkers(nlLine);
-        ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
-        var nlWrapped = wrapText(ctx, nlParsed.cleanText, cardContentW, sizes.cardText, "600");
+        ctx.font = composeFont(cardFamily, sizes.cardText, cardWeight, cardItalic);
+        var nlWrapped = wrapText(ctx, nlParsed.cleanText, cardContentW, sizes.cardText, cardWeight, cardFamily, cardItalic);
         var nlOffset = 0;
         for (var nw = 0; nw < nlWrapped.length; nw++) {
           allWrapped.push({ text: nlWrapped[nw], parsed: nlParsed, offset: nlOffset });
@@ -105,12 +120,12 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       ctx.beginPath();
       ctx.roundRect(cardX, cy, cardW, cardH, 16);
       ctx.clip();
-      ctx.font = '600 ' + sizes.cardText + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      ctx.font = composeFont(cardFamily, sizes.cardText, cardWeight, cardItalic);
       var lineY = cy + 38;
       for (var cli = 0; cli < cardsLineData[ci].length; cli++) {
         var ld = cardsLineData[ci][cli];
         if (ld.empty) { lineY += sizes.cardText * 0.5; continue; }
-        renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, "600", slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset);
+        renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, cardWeight, slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset, cardFamily, cardItalic);
         lineY += sizes.cardText + 6;
       }
       ctx.restore();
@@ -126,10 +141,10 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         bodyY += sizes.body * 0.6;
       } else {
         var lineParsed = extractAccentMarkers(rawLine);
-        var wrapped = wrapText(ctx, lineParsed.cleanText, maxW, sizes.body, "600");
+        var wrapped = wrapText(ctx, lineParsed.cleanText, maxW, sizes.body, bodyWeight, bodyFamily, bodyItalic);
         var bOffset = 0;
         for (var wi = 0; wi < wrapped.length; wi++) {
-          renderLineWithAccents(ctx, wrapped[wi], pad, bodyY, sizes.body, "600", slide.bodyColor || colors.accent, colors.accent, lineParsed.markers, bOffset);
+          renderLineWithAccents(ctx, wrapped[wi], pad, bodyY, sizes.body, bodyWeight, slide.bodyColor || colors.accent, colors.accent, lineParsed.markers, bOffset, bodyFamily, bodyItalic);
           bOffset += wrapped[wi].length + 1;
           bodyY += sizes.body * 1.4;
         }

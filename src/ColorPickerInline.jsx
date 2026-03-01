@@ -11,7 +11,15 @@ function ColorPickerInline(props) {
   var disabled = props.disabled || false;
   var opacityVal = props.opacityVal;
   var onOpacityChange = props.onOpacityChange;
+  // Typography props (optional)
+  var fontFamily = props.fontFamily;
+  var onFontFamilyChange = props.onFontFamilyChange;
+  var bold = props.bold;
+  var onBoldChange = props.onBoldChange;
+  var italic = props.italic;
+  var onItalicChange = props.onItalicChange;
 
+  var hasTypography = !!onFontFamilyChange;
   var isOpen = openPicker === pickerKey && !disabled;
 
   return (
@@ -32,6 +40,24 @@ function ColorPickerInline(props) {
       />
       {isOpen && (
         <div style={pickerDropdownStyle}>
+          {hasTypography && (
+            <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #3a3a50" }}>
+              <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { onFontFamilyChange(e.target.value); }}
+                style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, marginBottom: 6, cursor: "pointer" }}>
+                {FONT_OPTIONS.map(function(f) {
+                  return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
+                })}
+              </select>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={function() { onBoldChange(!bold); }}
+                  title="Bold"
+                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: bold ? "rgba(165,180,252,0.25)" : "#28283e", color: bold ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+                <button onClick={function() { onItalicChange(!italic); }}
+                  title="Italic"
+                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: italic ? "rgba(165,180,252,0.25)" : "#28283e", color: italic ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+              </div>
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
             {INLINE_SWATCHES.map(function(c) {
               return (

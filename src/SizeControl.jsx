@@ -1,9 +1,10 @@
 // ===================================================
 // SizeControl Component
 // ===================================================
-// Renders a font-size stepper with optional color picker and opacity.
+// Renders a font-size stepper with optional color picker, opacity, and typography controls.
 // Props: text, sizeKey, min, max, extra, sizes, setSize, colorVal, colorSet,
-//        colorPickerKey, openPicker, setOpenPicker, opacityVal, opacitySet
+//        colorPickerKey, openPicker, setOpenPicker, opacityVal, opacitySet,
+//        fontFamily, fontFamilySet, boldVal, boldSet, italicVal, italicSet
 
 function SizeControl(props) {
   var text = props.text;
@@ -20,6 +21,15 @@ function SizeControl(props) {
   var setOpenPicker = props.setOpenPicker;
   var opacityVal = props.opacityVal;
   var opacitySet = props.opacitySet;
+  // Typography props (optional)
+  var fontFamily = props.fontFamily;
+  var fontFamilySet = props.fontFamilySet;
+  var boldVal = props.boldVal;
+  var boldSet = props.boldSet;
+  var italicVal = props.italicVal;
+  var italicSet = props.italicSet;
+
+  var hasTypography = !!fontFamilySet;
 
   if (!sizeKey) return <label style={labelStyle}>{text}{extra ? " " : ""}{extra}</label>;
 
@@ -34,6 +44,24 @@ function SizeControl(props) {
               style={{ width: 18, height: 18, borderRadius: 4, border: cpOpen ? "2px solid #6366f1" : "1px solid #444", background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
             {cpOpen && (
               <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
+                {hasTypography && (
+                  <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #3a3a50" }}>
+                    <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { fontFamilySet(e.target.value); }}
+                      style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, marginBottom: 6, cursor: "pointer" }}>
+                      {FONT_OPTIONS.map(function(f) {
+                        return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
+                      })}
+                    </select>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button onClick={function() { boldSet(!boldVal); }}
+                        title="Bold"
+                        style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: boldVal ? "rgba(165,180,252,0.25)" : "#28283e", color: boldVal ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+                      <button onClick={function() { italicSet(!italicVal); }}
+                        title="Italic"
+                        style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: italicVal ? "rgba(165,180,252,0.25)" : "#28283e", color: italicVal ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
                   {INLINE_SWATCHES.map(function(c) {
                     var active = colorVal === c;

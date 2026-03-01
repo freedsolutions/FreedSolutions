@@ -1,8 +1,8 @@
-﻿// ---------------------------------------
+// ---------------------------------------
 // Overlays: footer, corners, border frame
 // ---------------------------------------
 
-function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, footerText, textSize, opacity) {
+function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, footerText, textSize, opacity, fontFamily, fontBold, fontItalic) {
   var prevAlpha = ctx.globalAlpha;
   ctx.globalAlpha = (opacity != null ? opacity : 100) / 100;
   var badgeH = FOOTER_BADGE_H;
@@ -16,7 +16,8 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   ctx.fill();
 
   ctx.fillStyle = footerText || "#1a1a2e";
-  ctx.font = 'bold ' + (textSize || 20) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+  var footerWeight = fontBold !== false ? "bold" : "normal";
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, textSize || 20, footerWeight, !!fontItalic);
   var tw = ctx.measureText(name).width;
   ctx.fillText(name, (W - tw) / 2, badgeY + 31);
 
@@ -39,14 +40,16 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   ctx.globalAlpha = prevAlpha;
 }
 
-function drawTopCorner(ctx, text, color, opacity, size) {
-  ctx.font = '700 ' + (size || 13) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+  var weight = fontBold !== false ? "700" : "normal";
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 13, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 40);
   ctx.fillText(text.toUpperCase(), MARGIN, MARGIN + (size || 13));
 }
 
-function drawBottomCorner(ctx, text, color, opacity, size) {
-  ctx.font = '600 ' + (size || 16) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+  var weight = fontBold ? "bold" : "600";
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 16, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
   ctx.fillText(text, MARGIN, H - MARGIN + 4);
 }
