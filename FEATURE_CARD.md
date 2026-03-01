@@ -43,6 +43,14 @@ Give each text element per-slide typographic control — font family, bold, and 
 ### 5. Undo integration
 - `pushUndo()` before any typography state mutation (same pattern as existing color/text changes).
 
+### 6. Relocate decorator toggles (accent bar / checkmark)
+- Move the `—` (accent bar) and `✓` (checkmark) decorator toggles from their current position above the font-size stepper to a new position **immediately before the "Text" and "Base" color swatches**, under the Body/Cards section header.
+- Current flow: `Body/Cards toggle → decorator toggle → font size → color swatches → textarea`
+- New flow: `Body/Cards toggle → font size → decorator toggle → color swatches → textarea`
+- This groups the decorator toggle with the visual styling controls (swatches) rather than with the content structure controls (mode switch, font size), which is a more natural editing flow.
+- No state or behavior changes — only the DOM position of the toggle within Column 2.
+- The toggle visibility rule is unchanged: Body mode shows `—`, Cards mode shows `✓`.
+
 ---
 
 ## Out of scope
@@ -85,4 +93,5 @@ Give each text element per-slide typographic control — font family, bold, and 
 - Loading a preset saved before this feature still works (new fields default to current values).
 - `Ctrl+Z` undo works for all new typography mutations.
 - Popover remains visually clean and does not overflow at typical viewport sizes.
+- Decorator toggle (`—` / `✓`) appears directly before the Text/Base color swatches in the Body/Cards section, not above the font-size stepper.
 - `node build.js` succeeds with no regressions in existing behavior.

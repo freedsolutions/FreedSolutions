@@ -3,7 +3,7 @@
 Paste this full card into a new browser Claude extension thread to run smoke tests.
 
 ## Metadata
-- Commit hash under test: `163432e`
+- Commit hash under test: `d3dbe77`
 - Branch: `main`
 - Build confirmation: `node build.js` succeeded (yes, 2026-02-28)
 - Artifact loaded confirmation: `linkedin-carousel.jsx` loaded in browser (`yes/no`)
@@ -16,6 +16,7 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
   - Canvas rendering updates to use dynamic font composition via `composeFont()`
   - Preset save/load round-trip for new typography properties
   - Undo support for typography mutations (automatic via existing snapshot system)
+  - Decorator toggle relocation: accent bar / checkmark moved from Body/Cards toggle row to immediately before Text/Base color swatches
 - Out of scope:
   - Rich text within a single field (no per-word bold/italic)
   - Underline, text shadow, letter spacing
@@ -94,6 +95,13 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
 ### Undo
 - Change heading font from Helvetica Neue to Georgia -> Ctrl+Z -> Expected: heading reverts to Helvetica Neue (undo captures full state)
 - Toggle body bold on -> Ctrl+Z -> Expected: body reverts to non-bold
+
+### Decorator Toggle Position
+- In Body mode, look at the Body/Cards section layout -> Expected: order is BODY|CARDS toggle + font size stepper on one row, then decorator `—` button immediately before the Text color swatch on the next row
+- In Cards mode, look at the Body/Cards section layout -> Expected: order is BODY|CARDS toggle + font size stepper on one row, then decorator `✓` button immediately before the Text color swatch on the next row
+- The decorator toggle should NOT appear next to the BODY|CARDS text labels (old position)
+- Click the `—` toggle in Body mode -> Expected: accent bar toggles on/off on canvas (same behavior as before, just new position)
+- Click the `✓` toggle in Cards mode -> Expected: card checkmarks toggle on/off on canvas (same behavior as before, just new position)
 
 ### Popover UX
 - Open any typography popover -> Expected: popover does not overflow or clip at typical viewport sizes

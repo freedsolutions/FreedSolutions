@@ -2,6 +2,18 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Relocate decorator toggles before color swatches
+- What changed: Moved the accent bar (`—`) and checkmark (`✓`) decorator toggles from the Body/Cards toggle row to immediately before the Text/Base color swatches.
+  - Previous layout: `Body/Cards toggle → decorator toggle → font size → color swatches → textarea`
+  - New layout: `Body/Cards toggle → font size → decorator toggle → color swatches → textarea`
+  - Font size stepper moved up into the Body/Cards toggle row (right-aligned).
+  - Decorator toggle now shares a row with the Text and Base color swatches, appearing as the first element.
+  - No state or behavior changes — only the DOM position within Column 2.
+- Why: Group the decorator toggle with visual styling controls (color swatches) rather than with content structure controls (mode switch), creating a more natural editing flow.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx` (regenerated), `SMOKE_TEST.md`, `CHANGES.md`.
+- Validation: `node build.js` succeeds with 19 source files. Artifact confirms new DOM order: Body/Cards toggle + font stepper, then decorator toggle + swatches.
+- Notes/Risks: Pure layout change — no state, behavior, or canvas rendering modifications.
+
 ## 2026-02-28 - Fix undo snapshotting for typography controls
 - What changed: Typography mutations now push undo snapshots before state updates, so `Ctrl+Z` reliably reverts font family, bold, and italic changes.
   - Updated typography setters in `src/App.jsx` for all five text elements (heading, body/cards, brand name, top corner, bottom corner) to call `updateSlide(..., true)`.
