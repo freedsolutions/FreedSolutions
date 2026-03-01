@@ -2,6 +2,15 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Fix undo snapshotting for typography controls
+- What changed: Typography mutations now push undo snapshots before state updates, so `Ctrl+Z` reliably reverts font family, bold, and italic changes.
+  - Updated typography setters in `src/App.jsx` for all five text elements (heading, body/cards, brand name, top corner, bottom corner) to call `updateSlide(..., true)`.
+  - Regenerated `linkedin-carousel.jsx` via build so bundled output matches source.
+- Why: The typography feature introduced new mutations without snapshot pushes, which made those changes non-undoable in normal editing flow.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx`.
+- Validation: `node build.js` succeeds; grep confirms typography setters now pass snapshot flag `true`.
+- Notes/Risks: This does not change legacy undo behavior for unrelated existing controls that still mutate without snapshots.
+
 ## 2026-02-28 - Typography controls (bold/italic + font selector) in color swatch pop-ups
 - What changed: Added per-element typography controls — font family selector, bold toggle, and italic toggle — inside every color swatch pop-up.
   - Added `composeFont()` helper in `constants.js` to build valid `ctx.font` strings from family, size, weight, and italic parameters.
