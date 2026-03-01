@@ -286,7 +286,7 @@ export default function App() {
             <div style={{ display: "flex", gap: 14, alignItems: "stretch" }}>
 
               {/* Left zone: Solid/Photo pill + Accent / Base / Layer / Frame */}
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+              <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column" }}>
 
                 {/* Solid / Photo pill */}
                 <div style={{ marginBottom: 20 }}>
@@ -355,7 +355,7 @@ export default function App() {
               </div>
 
               {/* Middle zone: upload + thumbnail + status */}
-              <div style={{ flex: "0 0 auto", width: 110, position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ flex: 1, minWidth: 100, position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
 
                 {/* Photo upload - above thumbnail; visible only in Photo mode */}
                 <div style={{ width: "100%", marginBottom: 2, visibility: isCustomBg ? "visible" : "hidden" }}>
