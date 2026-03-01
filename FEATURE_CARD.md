@@ -1,74 +1,85 @@
 # FEATURE CARD
 
-Feature: Unified page scroll + Background panel layout fixes
+Feature: Per-slide profile picture + unified Reset/Sync All for all background settings
 
 Goal:
-Three related UI polish fixes: (1) unify scroll axes so all 3 panes scroll together, (2) eliminate dead space below Background controls by repositioning the Profile/Screenshot cards, and (3) fix the Scale slider overflow in the Screenshot card.
+Make the profile picture customizable per-slide (like all other background settings already are), then extend Reset and Sync All to cover all background-panel settings — including Profile and Screenshot — so the UI behavior is consistent and predictable.
 
 ---
 
 ## In scope
 
-### 1. Remove sticky from Left pane (Slide Selector)
-- In `src/App.jsx` line ~230, remove `position: "sticky"` and `top: 24` from the Left column's style object.
-- Keep `alignSelf: "flex-start"` so the pane still aligns to the top of the flex row (doesn't stretch).
+### 1. Per-slide profile picture
 
-### 2. Remove sticky from Right pane (Preview)
-- In `src/App.jsx` line ~731, remove `position: "sticky"` and `top: 24` from the Right pane's style object.
-- Keep `alignSelf: "flex-start"` so the pane still aligns to the top of the flex row.
+Currently, `profileImg` / `profilePicName` are global state in App.jsx (via `useSlideManagement.js`). Every slide renders the same profile picture in its footer.
 
-### 3. Fix dead space below Background controls
-The BACKGROUND section (line ~289) contains a three-zone flex row (line ~301):
-- Left zone (line ~304): Solid/Photo pill + Accent/Base/Layer/Frame/Footer controls — tallest child
-- Middle zone (line ~373): BG thumbnail preview
-- Right zone (line ~423): Profile card + Screenshot card, `flex: "0 0 126px"`, `alignSelf: "flex-start"`
+**Change**: Move profile picture storage into the per-slide data model so each slide can have its own profile image (or none).
 
-The left zone is the tallest sibling, creating visible dead space below the right zone's cards.
+- Add `profileImg` (Image object | null) and `profilePicName` (string | null) to the slide factory defaults in `src/slideFactory.js`.
+- Update `handleProfilePicUpload()` and `removeProfilePic()` in `src/useSlideManagement.js` to write to the active slide's fields instead of top-level state.
+- Update canvas rendering (`drawCenteredFooter` in `src/canvas/backgrounds.js`) to read `profileImg` from the current slide object rather than a single global prop.
+- Update the Background panel UI in `src/App.jsx` to read/write profile state from the active slide.
+- Update preset save/load in `src/usePresets.js` to serialize per-slide profile data instead of a single global value.
+- Remove the now-unused global `profileImg` / `setProfileImg` / `profilePicName` / `setProfilePicName` state.
 
-**Fix**: Pull the right zone (Profile + Screenshot) out of the three-zone flex row and position it at the top-right of the BACKGROUND panel container (line ~289). Use `position: absolute; top: 0; right: 0` on the right zone, relative to the BACKGROUND panel which gets `position: relative`. Add `paddingRight` to the panel to reserve space for the absolutely-positioned right zone so it doesn't overlap the header row or flex row content.
+### 2. Extend Sync All to include Profile and Screenshot
 
-### 4. Fix Scale slider overflow in Screenshot card
-In the Screenshot card (line ~483-487), the Scale row's range input with `flex: 1` plus the 32px percentage label overflows the 126px-wide container.
+`syncBgToAll()` in `useSlideManagement.js` currently copies background visual properties from the active slide to all slides but excludes profile and screenshot settings.
 
-**Fix**: Add `minWidth: 0` to the range input (`<input type="range">` at line ~485) and `overflow: "hidden"` to the Scale row's flex container (line ~483). This constrains the flex child to respect the container bounds.
+**Change**: Sync All copies the active slide's full background-panel state to every other slide, including:
+- All existing background fields (solidColor, bgType, customBgImage, etc.)
+- Profile fields: `profileImg`, `profilePicName`
+- Screenshot fields: `showScreenshot`, `expandScreenshot`
+- Screenshot assets: copy the active slide's `slideAssets` entry to all other slide indices
 
-### 5. Rebuild artifact
+### 3. Extend Reset to include Profile and Screenshot
+
+`resetBgToDefault()` in `useSlideManagement.js` currently resets only background visual properties on the active slide.
+
+**Change**: Reset also clears:
+- Profile fields: `profileImg: null`, `profilePicName: null`
+- Screenshot fields: `showScreenshot: false`, `expandScreenshot: false`
+- Screenshot assets: remove the active slide's `slideAssets` entry
+
+### 4. Rebuild artifact
 - Run `node build.js` to regenerate `linkedin-carousel.jsx`.
 
 ---
 
 ## Out of scope
-- No new features, controls, or UI elements.
-- No changes to canvas rendering, PDF export, or slide data model.
-- No changes to any component other than `src/App.jsx` (and the generated `linkedin-carousel.jsx` via build).
-- No independent/inner scrollbars on any pane.
+- No UI layout changes (the Background panel arrangement stays as-is).
+- No new UI controls or visual elements.
+- No changes to PDF export logic beyond what naturally follows from per-slide profile data.
+- No changes to slide duplication logic beyond ensuring duplicated slides copy the profile fields.
+- No migration of existing presets — new presets will save per-slide; old presets without per-slide profile will fall back to defaults on load.
 
 ---
 
 ## Constraints
-- Layout changes confined to `src/App.jsx` — inline style modifications only.
+- Changes confined to `src/slideFactory.js`, `src/useSlideManagement.js`, `src/App.jsx`, `src/canvas/backgrounds.js`, `src/usePresets.js`, and the generated `linkedin-carousel.jsx` via build.
 - `node build.js` must succeed and regenerate `linkedin-carousel.jsx` cleanly.
-- All existing functionality remains intact.
-- Do NOT change any canvas rendering logic, slide state, or feature behavior. Only adjust editor panel layout/styling.
+- All existing functionality remains intact — slides that previously showed a global profile picture should still render correctly (per-slide defaults to null/no profile, user re-uploads per slide as desired).
+- Confirmation dialogs for Sync All and Reset must reflect expanded scope (e.g., "Apply Slide N's background, profile, and screenshot settings to all slides?").
 
 ---
 
 ## Risks
 
-- **Preview not visible while editing**: With sticky removed, the preview canvas scrolls off-screen when the user scrolls down through Center pane settings. This is the intended trade-off per user preference — unified scroll over sticky preview.
-- **Slide selector not visible**: The Left slide selector also scrolls away when the Center content is long. Acceptable per user preference.
-- **Absolute positioning edge cases**: Moving the right zone to `position: absolute` means it no longer participates in flex row height calculation. If the Profile+Screenshot stack becomes taller than the left zone's content, it could overflow the BACKGROUND panel. This is unlikely given current card sizes (~200px total vs left zone ~250px+), but should be visually verified.
-- **Scale slider fix is minimal**: Adding `minWidth: 0` + `overflow: hidden` is the standard flex overflow fix; low regression risk.
+- **Profile data duplication**: Storing an `Image` object per slide increases memory usage if the user uploads large images to many slides. Acceptable trade-off for the carousel's typical 2–10 slide count.
+- **Preset backward compatibility**: Existing saved presets store profile as a global field. Loading an old preset into the new per-slide model will result in no profile on any slide (defaults to null). This is acceptable — user can re-upload. No migration needed.
+- **Sync All blast radius expanded**: Syncing now overwrites profile and screenshot on all slides, which is more destructive than before. The confirmation dialog mitigates this, and the behavior matches user expectation that "Sync All" means *all* background-panel settings.
+- **Canvas rendering regression**: Changing `drawCenteredFooter` to read profile from the slide object instead of a single prop requires careful plumbing to ensure the correct slide's profile is passed during rendering. Must verify all render paths (preview, PDF export, individual slide render).
 
 ---
 
 ## Acceptance
 
-1. All 3 panes scroll together with the page — no pane remains fixed/pinned.
-2. No pane has its own independent scrollbar.
-3. Left and Right panes still align to the top of the flex row (not stretched full height).
-4. Profile and Screenshot cards sit flush with the top of the BACKGROUND section — no dead space below them.
-5. Scale slider and percentage label stay within the 126px Screenshot card bounds — no overflow/bleed.
-6. All existing controls and features work identically (no functional regressions).
-7. `node build.js` succeeds with no errors.
-8. Canvas preview renders correctly at the same size/aspect ratio as before.
+1. Each slide can have its own profile picture (or no profile picture), independent of other slides.
+2. Uploading/removing a profile picture in the Background panel affects only the active slide.
+3. The canvas preview renders the correct per-slide profile picture in each slide's footer.
+4. **Sync All** copies all background-panel settings (colors, image, layers, frame, footer, profile, screenshot) from the active slide to every other slide, with a confirmation dialog that mentions the expanded scope.
+5. **Reset** clears all background-panel settings (including profile and screenshot) on the active slide to defaults, with a confirmation dialog that mentions the expanded scope.
+6. Slide duplication copies the source slide's profile and screenshot data to the new slide.
+7. PDF export renders per-slide profile pictures correctly.
+8. `node build.js` succeeds with no errors.
+9. No functional regressions in any other feature area.

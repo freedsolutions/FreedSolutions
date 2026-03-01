@@ -7,8 +7,6 @@
 //   slideAssets, setSlideAssets, getAsset, setAsset, setScale,
 //   dragFrom, setDragFrom, dragOver, setDragOver,
 //   profilePicInputRef, screenshotInputRef, customBgInputRef,
-//   profileImg, setProfileImg, profilePicName, setProfilePicName,
-//   isCustomProfilePic, setIsCustomProfilePic,
 //   updateSlide, updateBgField, syncBgToAll, resetBgToDefault,
 //   addSlide, duplicateSlide, removeSlide, reorderSlide,
 //   updateSlideCard, addSlideCard, removeSlideCard,
@@ -20,14 +18,11 @@ function useSlideManagement(deps) {
   var screenshotInputRef = useRef(null);
   var customBgInputRef = useRef(null);
 
-  var [isCustomProfilePic, setIsCustomProfilePic] = useState(false);
   var [seriesSlides, setSeriesSlides] = useState([makeDefaultSlide("Heading", "Body text")]);
   var [activeSlide, setActiveSlide] = useState(0);
   var [slideAssets, setSlideAssets] = useState({});
   var [dragFrom, setDragFrom] = useState(null);
   var [dragOver, setDragOver] = useState(null);
-  var [profileImg, setProfileImg] = useState(null);
-  var [profilePicName, setProfilePicName] = useState(null);
 
   var getAsset = function(idx) {
     return slideAssets[idx] || { image: null, name: null, scale: 1 };
@@ -86,11 +81,19 @@ function useSlideManagement(deps) {
   var handleProfilePicUpload = function(e) {
     var file = e.target.files[0];
     if (!file) return;
-    setProfilePicName(file.name);
+    var fileName = file.name;
+    var targetSlide = activeSlide;
     var reader = new FileReader();
     reader.onload = function(ev) {
       var img = new Image();
-      img.onload = function() { setProfileImg(img); setIsCustomProfilePic(true); };
+      img.onload = function() {
+        setSeriesSlides(function(prev) {
+          return prev.map(function(s, i) {
+            if (i !== targetSlide) return s;
+            return Object.assign({}, s, { profileImg: img, profilePicName: fileName });
+          });
+        });
+      };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
@@ -98,9 +101,12 @@ function useSlideManagement(deps) {
 
   var removeProfilePic = function() {
     if (profilePicInputRef.current) { profilePicInputRef.current.value = ""; }
-    setIsCustomProfilePic(false);
-    setProfilePicName(null);
-    setProfileImg(null);
+    setSeriesSlides(function(prev) {
+      return prev.map(function(s, i) {
+        if (i !== activeSlide) return s;
+        return Object.assign({}, s, { profileImg: null, profilePicName: null });
+      });
+    });
   };
 
   var removeCustomBg = function() {
@@ -141,10 +147,11 @@ function useSlideManagement(deps) {
 
   var syncBgToAll = function() {
     deps.setConfirmDialog({
-      message: "Apply Slide " + (activeSlide + 1) + "\u2019s background settings to all slides?",
+      message: "Apply Slide " + (activeSlide + 1) + "\u2019s background, profile, and screenshot settings to all slides?",
       onConfirm: function() {
         deps.pushUndo();
         var src = seriesSlides[activeSlide];
+        var srcAsset = slideAssets[activeSlide] || null;
         setSeriesSlides(function(prev) {
           return prev.map(function(s) {
             return Object.assign({}, s, {
@@ -158,9 +165,22 @@ function useSlideManagement(deps) {
               accentColor: src.accentColor,
               borderColor: src.borderColor,
               borderOpacity: src.borderOpacity,
-              footerBg: src.footerBg
+              footerBg: src.footerBg,
+              profileImg: src.profileImg,
+              profilePicName: src.profilePicName,
+              showScreenshot: src.showScreenshot,
+              expandScreenshot: src.expandScreenshot
             });
           });
+        });
+        setSlideAssets(function(prev) {
+          var next = {};
+          for (var i = 0; i < seriesSlides.length; i++) {
+            if (srcAsset) {
+              next[i] = Object.assign({}, srcAsset);
+            }
+          }
+          return next;
         });
       }
     });
@@ -168,7 +188,7 @@ function useSlideManagement(deps) {
 
   var resetBgToDefault = function() {
     deps.setConfirmDialog({
-      message: "Reset Slide " + (activeSlide + 1) + "\u2019s background to defaults?",
+      message: "Reset Slide " + (activeSlide + 1) + "\u2019s background, profile, and screenshot to defaults?",
       onConfirm: function() {
         deps.pushUndo();
         setSeriesSlides(function(prev) {
@@ -185,9 +205,18 @@ function useSlideManagement(deps) {
               accentColor: "#a5b4fc",
               borderColor: "#ffffff",
               borderOpacity: 25,
-              footerBg: "#ffffff"
+              footerBg: "#ffffff",
+              profileImg: null,
+              profilePicName: null,
+              showScreenshot: false,
+              expandScreenshot: false
             });
           });
+        });
+        setSlideAssets(function(prev) {
+          var next = Object.assign({}, prev);
+          delete next[activeSlide];
+          return next;
         });
       }
     });
@@ -374,9 +403,6 @@ function useSlideManagement(deps) {
     profilePicInputRef: profilePicInputRef,
     screenshotInputRef: screenshotInputRef,
     customBgInputRef: customBgInputRef,
-    profileImg: profileImg, setProfileImg: setProfileImg,
-    profilePicName: profilePicName, setProfilePicName: setProfilePicName,
-    isCustomProfilePic: isCustomProfilePic, setIsCustomProfilePic: setIsCustomProfilePic,
     updateSlide: updateSlide, updateBgField: updateBgField,
     syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault,
     addSlide: addSlide, duplicateSlide: duplicateSlide,

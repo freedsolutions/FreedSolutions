@@ -2,6 +2,18 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Per-slide profile picture + unified Reset/Sync All for all background settings
+- What changed: Made profile picture per-slide and extended Reset/Sync All to cover all background-panel settings.
+  - **Per-slide profile picture**: Moved `profileImg` and `profilePicName` from global state into per-slide data model in `slideFactory.js`. Updated `handleProfilePicUpload()` and `removeProfilePic()` in `useSlideManagement.js` to write to the active slide. Updated `renderSlideToCanvas` in `renderSlide.js` to read `slide.profileImg` instead of a global `profileImg` parameter. Removed global `profileImg`/`setProfileImg`/`profilePicName`/`setProfilePicName`/`isCustomProfilePic`/`setIsCustomProfilePic` state. Updated `useCanvasRenderer.js` to drop the `profileImg` parameter. Updated `App.jsx` profile UI to read/write from `currentSlide.profileImg`/`currentSlide.profilePicName`. Removed profile state from undo/redo snapshots (now captured as part of `seriesSlides`).
+  - **Sync All expanded**: `syncBgToAll()` now copies profile fields (`profileImg`, `profilePicName`) and screenshot fields (`showScreenshot`, `expandScreenshot`, plus `slideAssets` entry) from the active slide to all slides. Confirmation dialog updated to mention "background, profile, and screenshot".
+  - **Reset expanded**: `resetBgToDefault()` now clears profile fields (`profileImg: null`, `profilePicName: null`) and screenshot fields (`showScreenshot: false`, `expandScreenshot: false`, plus removing the `slideAssets` entry) on the active slide. Confirmation dialog updated to mention "background, profile, and screenshot".
+  - **Preset serialization updated**: Profile images are now serialized per-slide using `profileRef` (pattern matches `customBgRef`). `profilePicName` added to `PRESET_SLIDE_KEYS`. Legacy presets with global `profilePicRef` are backward-compatible: global profile is applied to slide 0 on load.
+  - **Slide duplication**: Naturally copies per-slide profile fields via `Object.assign`.
+- Why: Make profile picture independently customizable per slide and make Reset/Sync All cover the full scope of the background panel for consistent, predictable UI behavior.
+- Files: `src/slideFactory.js`, `src/useSlideManagement.js`, `src/useCanvasRenderer.js`, `src/canvas/renderSlide.js`, `src/App.jsx`, `src/usePresets.js`, `linkedin-carousel.jsx` (regenerated), `CHANGES.md`, `SMOKE_TEST.md`, `FEATURE_CARD.md`.
+- Validation: `node build.js` succeeds with 19 source files. No global `profileImg` state remains. `slide.profileImg` used in canvas rendering. Per-slide profile in factory defaults. `syncBgToAll` copies profile + screenshot. `resetBgToDefault` clears profile + screenshot. Preset save/load uses per-slide `profileRef`. Legacy `profilePicRef` backward compat applied to slide 0.
+- Notes/Risks: Storing an `Image` object per slide increases memory if user uploads large images to many slides; acceptable for typical 2-10 slide count. Existing presets without per-slide profile load cleanly (defaults to null via `makeDefaultSlide()`). Legacy presets with global `profilePicRef` apply profile to first slide only.
+
 ## 2026-03-01 - Unified page scroll + Background panel layout fixes
 - What changed: Three layout polish fixes in `src/App.jsx`.
   - **Unified page scroll**: Removed `position: "sticky"` and `top: 24` from the Left pane (Slide Selector, line ~230) and Right pane (Preview, line ~731). Both panes retain `alignSelf: "flex-start"` so they align to the top of the flex row without stretching.

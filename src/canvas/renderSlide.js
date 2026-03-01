@@ -2,7 +2,7 @@
 // Top-level render orchestrator (pure function)
 // ---------------------------------------
 
-function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, profileImg) {
+function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes) {
   ctx.clearRect(0, 0, W, H);
   var slide = seriesSlides[slideIndex] || seriesSlides[0];
 
@@ -38,7 +38,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, 
   }
 
   if (slide.showBrandName) {
-    drawCenteredFooter(ctx, profileImg, slide.brandNameText, borderBottom, slide.footerBg, slide.brandNameColor, sizes.brandName, 100, slide.brandNameFontFamily, slide.brandNameBold, slide.brandNameItalic);
+    drawCenteredFooter(ctx, slide.profileImg, slide.brandNameText, borderBottom, slide.footerBg, slide.brandNameColor, sizes.brandName, 100, slide.brandNameFontFamily, slide.brandNameBold, slide.brandNameItalic);
   }
 
   if (slide.showBottomCorner && slide.bottomCornerText) {

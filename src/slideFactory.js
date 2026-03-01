@@ -56,6 +56,8 @@ function makeDefaultSlide(title, body) {
     accentColor: "#a5b4fc",
     borderColor: "#ffffff",
     borderOpacity: 25,
-    footerBg: "#ffffff"
+    footerBg: "#ffffff",
+    profileImg: null,
+    profilePicName: null
   };
 }

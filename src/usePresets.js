@@ -2,9 +2,8 @@
 // usePresets Hook
 // ===================================================
 // Manages preset serialize/deserialize, export/import, and stale-load guard.
-// Params: deps object { seriesSlides, slideAssets, sizes, setSizes, profileImg,
-//   setProfileImg, profilePicName, setProfilePicName, isCustomProfilePic,
-//   setIsCustomProfilePic, exportPrefix, setExportPrefix, setSeriesSlides,
+// Params: deps object { seriesSlides, slideAssets, sizes, setSizes,
+//   exportPrefix, setExportPrefix, setSeriesSlides,
 //   setSlideAssets, setActiveSlide, clearPdfDownload, setPdfError, pushUndo,
 //   setConfirmDialog }
 // Returns: { presetInputRef, presetDownload, presetDialog, setPresetDialog,
@@ -26,7 +25,8 @@ var PRESET_SLIDE_KEYS = [
   "showBottomCorner", "bottomCornerText", "bottomCornerColor",
   "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
   "solidColor", "bgType", "geoEnabled", "geoLines",
-  "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg"
+  "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg",
+  "profilePicName"
 ];
 
 var LEGACY_GEORGIA_FONT = "Georgia, serif";
@@ -65,13 +65,6 @@ function usePresets(deps) {
   var serializePreset = function(name, includeImages) {
     var images = {};
 
-    if (deps.profileImg && deps.profileImg.src) {
-      images["profile"] = {
-        name: deps.profilePicName || "profile.jpg",
-        dataUrl: includeImages ? deps.profileImg.src : null
-      };
-    }
-
     var serializedSlides = deps.seriesSlides.map(function(s, i) {
       var slide = {};
       for (var k = 0; k < PRESET_SLIDE_KEYS.length; k++) {
@@ -81,6 +74,16 @@ function usePresets(deps) {
         } else {
           slide[key] = s[key];
         }
+      }
+
+      slide.profileRef = null;
+      if (s.profileImg && s.profileImg.src) {
+        var profRef = "prof-" + i;
+        slide.profileRef = profRef;
+        images[profRef] = {
+          name: s.profilePicName || ("profile-" + i + ".jpg"),
+          dataUrl: includeImages ? s.profileImg.src : null
+        };
       }
 
       slide.customBgRef = null;
@@ -116,7 +119,6 @@ function usePresets(deps) {
       exportPrefix: deps.exportPrefix,
       sizes: Object.assign({}, deps.sizes),
       slides: serializedSlides,
-      profilePicRef: (deps.profileImg && deps.profileImg.src) ? "profile" : null,
       images: images
     };
   };
@@ -136,26 +138,9 @@ function usePresets(deps) {
       deps.setExportPrefix(data.exportPrefix);
     }
 
-    var profileRef = data.profilePicRef;
-    var profileEntry = profileRef && data.images && data.images[profileRef];
-    if (profileEntry && profileEntry.dataUrl) {
-      var pImg = new Image();
-      pImg.onload = function() {
-        if (presetLoadTokenRef.current !== loadToken) return;
-        deps.setProfileImg(pImg);
-        deps.setIsCustomProfilePic(true);
-      };
-      pImg.onerror = function() {
-        if (presetLoadTokenRef.current !== loadToken) return;
-        setPresetError("Failed to load profile image from preset.");
-      };
-      pImg.src = profileEntry.dataUrl;
-      deps.setProfilePicName(profileEntry.name || null);
-    } else {
-      deps.setProfileImg(null);
-      deps.setIsCustomProfilePic(false);
-      deps.setProfilePicName(profileEntry ? profileEntry.name : null);
-    }
+    // Legacy backward compat: old presets stored profile globally as profilePicRef
+    var legacyProfileRef = data.profilePicRef;
+    var legacyProfileEntry = legacyProfileRef && data.images && data.images[legacyProfileRef];
 
     var newAssets = {};
 
@@ -171,6 +156,55 @@ function usePresets(deps) {
           } else {
             slide[key] = sd[key];
           }
+        }
+      }
+
+      // Per-slide profile image
+      slide.profileImg = null;
+      var profRef = sd.profileRef;
+      var profEntry = profRef && data.images && data.images[profRef];
+      if (profEntry) {
+        slide.profilePicName = profEntry.name || null;
+        if (profEntry.dataUrl) {
+          (function(idx) {
+            var profImg = new Image();
+            profImg.onload = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              deps.setSeriesSlides(function(prev) {
+                return prev.map(function(s, si) {
+                  if (si !== idx) return s;
+                  return Object.assign({}, s, { profileImg: profImg });
+                });
+              });
+            };
+            profImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load profile image for slide " + (idx + 1) + ".");
+            };
+            profImg.src = profEntry.dataUrl;
+          })(i);
+        }
+      } else if (legacyProfileEntry && legacyProfileEntry.dataUrl) {
+        // Legacy: apply global profile to first slide only
+        if (i === 0) {
+          slide.profilePicName = legacyProfileEntry.name || null;
+          (function(idx) {
+            var legImg = new Image();
+            legImg.onload = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              deps.setSeriesSlides(function(prev) {
+                return prev.map(function(s, si) {
+                  if (si !== idx) return s;
+                  return Object.assign({}, s, { profileImg: legImg });
+                });
+              });
+            };
+            legImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load profile image from preset.");
+            };
+            legImg.src = legacyProfileEntry.dataUrl;
+          })(i);
         }
       }
 
@@ -283,12 +317,12 @@ function usePresets(deps) {
 
         var imageMap = (data.images && typeof data.images === "object") ? data.images : {};
         var missingCount = 0;
-        if (data.profilePicRef) {
-          var profileEntryCheck = imageMap[data.profilePicRef];
-          if (!profileEntryCheck || !profileEntryCheck.dataUrl) missingCount++;
-        }
         for (var i = 0; i < data.slides.length; i++) {
           var sd = data.slides[i];
+          if (sd.profileRef) {
+            var profEntryCheck = imageMap[sd.profileRef];
+            if (!profEntryCheck || !profEntryCheck.dataUrl) missingCount++;
+          }
           if (sd.customBgRef) {
             var bgEntryCheck = imageMap[sd.customBgRef];
             if (!bgEntryCheck || !bgEntryCheck.dataUrl) missingCount++;
@@ -297,6 +331,11 @@ function usePresets(deps) {
             var ssEntryCheck = imageMap[sd.screenshotRef];
             if (!ssEntryCheck || !ssEntryCheck.dataUrl) missingCount++;
           }
+        }
+        // Legacy compat: check global profilePicRef from old presets
+        if (data.profilePicRef && !data.slides.some(function(s) { return s.profileRef; })) {
+          var legacyProfCheck = imageMap[data.profilePicRef];
+          if (!legacyProfCheck || !legacyProfCheck.dataUrl) missingCount++;
         }
 
         var msg = "Load preset \u201c" + (data.name || "Untitled") + "\u201d? This replaces all current slides and settings.";

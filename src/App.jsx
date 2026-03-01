@@ -64,13 +64,6 @@ export default function App() {
   var setSlideAssets = slideMgmt.setSlideAssets;
   var getAsset = slideMgmt.getAsset;
   var setScale = slideMgmt.setScale;
-  var profileImg = slideMgmt.profileImg;
-  var setProfileImg = slideMgmt.setProfileImg;
-  var profilePicName = slideMgmt.profilePicName;
-  var setProfilePicName = slideMgmt.setProfilePicName;
-  var isCustomProfilePic = slideMgmt.isCustomProfilePic;
-  var setIsCustomProfilePic = slideMgmt.setIsCustomProfilePic;
-
   // --- Undo/redo snapshot helpers ---
 
   var captureSnapshot = function() {
@@ -84,10 +77,7 @@ export default function App() {
       }, {}),
       sizes: Object.assign({}, sizes),
       activeSlide: activeSlide,
-      exportPrefix: exportPrefix,
-      profileImg: profileImg,
-      isCustomProfilePic: isCustomProfilePic,
-      profilePicName: profilePicName
+      exportPrefix: exportPrefix
     };
   };
 
@@ -97,9 +87,6 @@ export default function App() {
     setSizes(snap.sizes);
     setActiveSlide(snap.activeSlide);
     setExportPrefix(snap.exportPrefix);
-    setProfileImg(snap.profileImg);
-    setIsCustomProfilePic(snap.isCustomProfilePic);
-    setProfilePicName(snap.profilePicName);
   };
 
   // Keep pushUndoRef current so hooks always call the latest captureSnapshot
@@ -187,7 +174,7 @@ export default function App() {
   }, []);
 
   // --- Canvas rendering hook ---
-  var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
+  var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, activeSlide);
   var renderSlide = canvasRenderer.renderSlide;
 
   // --- PDF export hook ---
@@ -202,9 +189,7 @@ export default function App() {
   // --- Presets hook ---
   var presets = usePresets({
     seriesSlides: seriesSlides, slideAssets: slideAssets, sizes: sizes,
-    setSizes: setSizes, profileImg: profileImg, setProfileImg: setProfileImg,
-    profilePicName: profilePicName, setProfilePicName: setProfilePicName,
-    isCustomProfilePic: isCustomProfilePic, setIsCustomProfilePic: setIsCustomProfilePic,
+    setSizes: setSizes,
     exportPrefix: exportPrefix, setExportPrefix: setExportPrefix,
     setSeriesSlides: setSeriesSlides, setSlideAssets: setSlideAssets,
     setActiveSlide: setActiveSlide, clearPdfDownload: clearPdfDownload,
@@ -423,7 +408,7 @@ export default function App() {
               <div style={{ position: "absolute", top: 0, right: 0, width: 126, paddingLeft: 6, borderLeft: "1px solid #333", display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6 }}>
                 {/* Profile card */}
                 <div style={{ background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 6px 5px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
-                  {profileImg && isCustomProfilePic && (
+                  {currentSlide.profileImg && (
                     <button onClick={slideMgmt.removeProfilePic}
                       title="Remove profile image"
                       style={{ position: "absolute", top: 4, right: 5, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0, lineHeight: 1 }}>
@@ -440,8 +425,8 @@ export default function App() {
                     Choose
                   </button>
                   <div style={{ width: 48, height: 48, borderRadius: "50%", overflow: "hidden", border: "2px solid #444", background: "#111119", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {profileImg ? (
-                      <img src={profileImg.src} alt="Profile pic" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {currentSlide.profileImg ? (
+                      <img src={currentSlide.profileImg.src} alt="Profile pic" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <span style={{ fontSize: 9, color: "#555" }}>None</span>
                     )}

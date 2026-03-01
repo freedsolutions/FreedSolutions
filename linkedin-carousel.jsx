@@ -532,7 +532,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 // Top-level render orchestrator (pure function)
 // ---------------------------------------
 
-function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, profileImg) {
+function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes) {
   ctx.clearRect(0, 0, W, H);
   var slide = seriesSlides[slideIndex] || seriesSlides[0];
 
@@ -568,7 +568,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, 
   }
 
   if (slide.showBrandName) {
-    drawCenteredFooter(ctx, profileImg, slide.brandNameText, borderBottom, slide.footerBg, slide.brandNameColor, sizes.brandName, 100, slide.brandNameFontFamily, slide.brandNameBold, slide.brandNameItalic);
+    drawCenteredFooter(ctx, slide.profileImg, slide.brandNameText, borderBottom, slide.footerBg, slide.brandNameColor, sizes.brandName, 100, slide.brandNameFontFamily, slide.brandNameBold, slide.brandNameItalic);
   }
 
   if (slide.showBottomCorner && slide.bottomCornerText) {
@@ -634,7 +634,9 @@ function makeDefaultSlide(title, body) {
     accentColor: "#a5b4fc",
     borderColor: "#ffffff",
     borderOpacity: 25,
-    footerBg: "#ffffff"
+    footerBg: "#ffffff",
+    profileImg: null,
+    profilePicName: null
   };
 }
 
@@ -1076,8 +1078,6 @@ function SlideSelector(props) {
 //   slideAssets, setSlideAssets, getAsset, setAsset, setScale,
 //   dragFrom, setDragFrom, dragOver, setDragOver,
 //   profilePicInputRef, screenshotInputRef, customBgInputRef,
-//   profileImg, setProfileImg, profilePicName, setProfilePicName,
-//   isCustomProfilePic, setIsCustomProfilePic,
 //   updateSlide, updateBgField, syncBgToAll, resetBgToDefault,
 //   addSlide, duplicateSlide, removeSlide, reorderSlide,
 //   updateSlideCard, addSlideCard, removeSlideCard,
@@ -1089,14 +1089,11 @@ function useSlideManagement(deps) {
   var screenshotInputRef = useRef(null);
   var customBgInputRef = useRef(null);
 
-  var [isCustomProfilePic, setIsCustomProfilePic] = useState(false);
   var [seriesSlides, setSeriesSlides] = useState([makeDefaultSlide("Heading", "Body text")]);
   var [activeSlide, setActiveSlide] = useState(0);
   var [slideAssets, setSlideAssets] = useState({});
   var [dragFrom, setDragFrom] = useState(null);
   var [dragOver, setDragOver] = useState(null);
-  var [profileImg, setProfileImg] = useState(null);
-  var [profilePicName, setProfilePicName] = useState(null);
 
   var getAsset = function(idx) {
     return slideAssets[idx] || { image: null, name: null, scale: 1 };
@@ -1155,11 +1152,19 @@ function useSlideManagement(deps) {
   var handleProfilePicUpload = function(e) {
     var file = e.target.files[0];
     if (!file) return;
-    setProfilePicName(file.name);
+    var fileName = file.name;
+    var targetSlide = activeSlide;
     var reader = new FileReader();
     reader.onload = function(ev) {
       var img = new Image();
-      img.onload = function() { setProfileImg(img); setIsCustomProfilePic(true); };
+      img.onload = function() {
+        setSeriesSlides(function(prev) {
+          return prev.map(function(s, i) {
+            if (i !== targetSlide) return s;
+            return Object.assign({}, s, { profileImg: img, profilePicName: fileName });
+          });
+        });
+      };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
@@ -1167,9 +1172,12 @@ function useSlideManagement(deps) {
 
   var removeProfilePic = function() {
     if (profilePicInputRef.current) { profilePicInputRef.current.value = ""; }
-    setIsCustomProfilePic(false);
-    setProfilePicName(null);
-    setProfileImg(null);
+    setSeriesSlides(function(prev) {
+      return prev.map(function(s, i) {
+        if (i !== activeSlide) return s;
+        return Object.assign({}, s, { profileImg: null, profilePicName: null });
+      });
+    });
   };
 
   var removeCustomBg = function() {
@@ -1210,10 +1218,11 @@ function useSlideManagement(deps) {
 
   var syncBgToAll = function() {
     deps.setConfirmDialog({
-      message: "Apply Slide " + (activeSlide + 1) + "\u2019s background settings to all slides?",
+      message: "Apply Slide " + (activeSlide + 1) + "\u2019s background, profile, and screenshot settings to all slides?",
       onConfirm: function() {
         deps.pushUndo();
         var src = seriesSlides[activeSlide];
+        var srcAsset = slideAssets[activeSlide] || null;
         setSeriesSlides(function(prev) {
           return prev.map(function(s) {
             return Object.assign({}, s, {
@@ -1227,9 +1236,22 @@ function useSlideManagement(deps) {
               accentColor: src.accentColor,
               borderColor: src.borderColor,
               borderOpacity: src.borderOpacity,
-              footerBg: src.footerBg
+              footerBg: src.footerBg,
+              profileImg: src.profileImg,
+              profilePicName: src.profilePicName,
+              showScreenshot: src.showScreenshot,
+              expandScreenshot: src.expandScreenshot
             });
           });
+        });
+        setSlideAssets(function(prev) {
+          var next = {};
+          for (var i = 0; i < seriesSlides.length; i++) {
+            if (srcAsset) {
+              next[i] = Object.assign({}, srcAsset);
+            }
+          }
+          return next;
         });
       }
     });
@@ -1237,7 +1259,7 @@ function useSlideManagement(deps) {
 
   var resetBgToDefault = function() {
     deps.setConfirmDialog({
-      message: "Reset Slide " + (activeSlide + 1) + "\u2019s background to defaults?",
+      message: "Reset Slide " + (activeSlide + 1) + "\u2019s background, profile, and screenshot to defaults?",
       onConfirm: function() {
         deps.pushUndo();
         setSeriesSlides(function(prev) {
@@ -1254,9 +1276,18 @@ function useSlideManagement(deps) {
               accentColor: "#a5b4fc",
               borderColor: "#ffffff",
               borderOpacity: 25,
-              footerBg: "#ffffff"
+              footerBg: "#ffffff",
+              profileImg: null,
+              profilePicName: null,
+              showScreenshot: false,
+              expandScreenshot: false
             });
           });
+        });
+        setSlideAssets(function(prev) {
+          var next = Object.assign({}, prev);
+          delete next[activeSlide];
+          return next;
         });
       }
     });
@@ -1443,9 +1474,6 @@ function useSlideManagement(deps) {
     profilePicInputRef: profilePicInputRef,
     screenshotInputRef: screenshotInputRef,
     customBgInputRef: customBgInputRef,
-    profileImg: profileImg, setProfileImg: setProfileImg,
-    profilePicName: profilePicName, setProfilePicName: setProfilePicName,
-    isCustomProfilePic: isCustomProfilePic, setIsCustomProfilePic: setIsCustomProfilePic,
     updateSlide: updateSlide, updateBgField: updateBgField,
     syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault,
     addSlide: addSlide, duplicateSlide: duplicateSlide,
@@ -1464,15 +1492,15 @@ function useSlideManagement(deps) {
 // useCanvasRenderer Hook
 // ===================================================
 // Manages canvas rendering with 40ms debounce.
-// Params: canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide
+// Params: canvasRef, seriesSlides, slideAssets, sizes, activeSlide
 // Returns: { renderSlide }
 
-function useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide) {
+function useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, activeSlide) {
   var renderTimerRef = useRef(null);
 
   var renderSlide = useCallback(function(ctx, slideIndex) {
-    renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, profileImg);
-  }, [sizes, profileImg, seriesSlides, slideAssets]);
+    renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes);
+  }, [sizes, seriesSlides, slideAssets]);
 
   var render = useCallback(function() {
     var canvas = canvasRef.current;
@@ -1594,9 +1622,8 @@ function usePdfExport(canvasRef, renderSlide, seriesSlides, activeSlide, exportP
 // usePresets Hook
 // ===================================================
 // Manages preset serialize/deserialize, export/import, and stale-load guard.
-// Params: deps object { seriesSlides, slideAssets, sizes, setSizes, profileImg,
-//   setProfileImg, profilePicName, setProfilePicName, isCustomProfilePic,
-//   setIsCustomProfilePic, exportPrefix, setExportPrefix, setSeriesSlides,
+// Params: deps object { seriesSlides, slideAssets, sizes, setSizes,
+//   exportPrefix, setExportPrefix, setSeriesSlides,
 //   setSlideAssets, setActiveSlide, clearPdfDownload, setPdfError, pushUndo,
 //   setConfirmDialog }
 // Returns: { presetInputRef, presetDownload, presetDialog, setPresetDialog,
@@ -1618,7 +1645,8 @@ var PRESET_SLIDE_KEYS = [
   "showBottomCorner", "bottomCornerText", "bottomCornerColor",
   "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
   "solidColor", "bgType", "geoEnabled", "geoLines",
-  "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg"
+  "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg",
+  "profilePicName"
 ];
 
 var LEGACY_GEORGIA_FONT = "Georgia, serif";
@@ -1657,13 +1685,6 @@ function usePresets(deps) {
   var serializePreset = function(name, includeImages) {
     var images = {};
 
-    if (deps.profileImg && deps.profileImg.src) {
-      images["profile"] = {
-        name: deps.profilePicName || "profile.jpg",
-        dataUrl: includeImages ? deps.profileImg.src : null
-      };
-    }
-
     var serializedSlides = deps.seriesSlides.map(function(s, i) {
       var slide = {};
       for (var k = 0; k < PRESET_SLIDE_KEYS.length; k++) {
@@ -1673,6 +1694,16 @@ function usePresets(deps) {
         } else {
           slide[key] = s[key];
         }
+      }
+
+      slide.profileRef = null;
+      if (s.profileImg && s.profileImg.src) {
+        var profRef = "prof-" + i;
+        slide.profileRef = profRef;
+        images[profRef] = {
+          name: s.profilePicName || ("profile-" + i + ".jpg"),
+          dataUrl: includeImages ? s.profileImg.src : null
+        };
       }
 
       slide.customBgRef = null;
@@ -1708,7 +1739,6 @@ function usePresets(deps) {
       exportPrefix: deps.exportPrefix,
       sizes: Object.assign({}, deps.sizes),
       slides: serializedSlides,
-      profilePicRef: (deps.profileImg && deps.profileImg.src) ? "profile" : null,
       images: images
     };
   };
@@ -1728,26 +1758,9 @@ function usePresets(deps) {
       deps.setExportPrefix(data.exportPrefix);
     }
 
-    var profileRef = data.profilePicRef;
-    var profileEntry = profileRef && data.images && data.images[profileRef];
-    if (profileEntry && profileEntry.dataUrl) {
-      var pImg = new Image();
-      pImg.onload = function() {
-        if (presetLoadTokenRef.current !== loadToken) return;
-        deps.setProfileImg(pImg);
-        deps.setIsCustomProfilePic(true);
-      };
-      pImg.onerror = function() {
-        if (presetLoadTokenRef.current !== loadToken) return;
-        setPresetError("Failed to load profile image from preset.");
-      };
-      pImg.src = profileEntry.dataUrl;
-      deps.setProfilePicName(profileEntry.name || null);
-    } else {
-      deps.setProfileImg(null);
-      deps.setIsCustomProfilePic(false);
-      deps.setProfilePicName(profileEntry ? profileEntry.name : null);
-    }
+    // Legacy backward compat: old presets stored profile globally as profilePicRef
+    var legacyProfileRef = data.profilePicRef;
+    var legacyProfileEntry = legacyProfileRef && data.images && data.images[legacyProfileRef];
 
     var newAssets = {};
 
@@ -1763,6 +1776,55 @@ function usePresets(deps) {
           } else {
             slide[key] = sd[key];
           }
+        }
+      }
+
+      // Per-slide profile image
+      slide.profileImg = null;
+      var profRef = sd.profileRef;
+      var profEntry = profRef && data.images && data.images[profRef];
+      if (profEntry) {
+        slide.profilePicName = profEntry.name || null;
+        if (profEntry.dataUrl) {
+          (function(idx) {
+            var profImg = new Image();
+            profImg.onload = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              deps.setSeriesSlides(function(prev) {
+                return prev.map(function(s, si) {
+                  if (si !== idx) return s;
+                  return Object.assign({}, s, { profileImg: profImg });
+                });
+              });
+            };
+            profImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load profile image for slide " + (idx + 1) + ".");
+            };
+            profImg.src = profEntry.dataUrl;
+          })(i);
+        }
+      } else if (legacyProfileEntry && legacyProfileEntry.dataUrl) {
+        // Legacy: apply global profile to first slide only
+        if (i === 0) {
+          slide.profilePicName = legacyProfileEntry.name || null;
+          (function(idx) {
+            var legImg = new Image();
+            legImg.onload = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              deps.setSeriesSlides(function(prev) {
+                return prev.map(function(s, si) {
+                  if (si !== idx) return s;
+                  return Object.assign({}, s, { profileImg: legImg });
+                });
+              });
+            };
+            legImg.onerror = function() {
+              if (presetLoadTokenRef.current !== loadToken) return;
+              setPresetError("Failed to load profile image from preset.");
+            };
+            legImg.src = legacyProfileEntry.dataUrl;
+          })(i);
         }
       }
 
@@ -1875,12 +1937,12 @@ function usePresets(deps) {
 
         var imageMap = (data.images && typeof data.images === "object") ? data.images : {};
         var missingCount = 0;
-        if (data.profilePicRef) {
-          var profileEntryCheck = imageMap[data.profilePicRef];
-          if (!profileEntryCheck || !profileEntryCheck.dataUrl) missingCount++;
-        }
         for (var i = 0; i < data.slides.length; i++) {
           var sd = data.slides[i];
+          if (sd.profileRef) {
+            var profEntryCheck = imageMap[sd.profileRef];
+            if (!profEntryCheck || !profEntryCheck.dataUrl) missingCount++;
+          }
           if (sd.customBgRef) {
             var bgEntryCheck = imageMap[sd.customBgRef];
             if (!bgEntryCheck || !bgEntryCheck.dataUrl) missingCount++;
@@ -1889,6 +1951,11 @@ function usePresets(deps) {
             var ssEntryCheck = imageMap[sd.screenshotRef];
             if (!ssEntryCheck || !ssEntryCheck.dataUrl) missingCount++;
           }
+        }
+        // Legacy compat: check global profilePicRef from old presets
+        if (data.profilePicRef && !data.slides.some(function(s) { return s.profileRef; })) {
+          var legacyProfCheck = imageMap[data.profilePicRef];
+          if (!legacyProfCheck || !legacyProfCheck.dataUrl) missingCount++;
         }
 
         var msg = "Load preset \u201c" + (data.name || "Untitled") + "\u201d? This replaces all current slides and settings.";
@@ -2009,13 +2076,6 @@ export default function App() {
   var setSlideAssets = slideMgmt.setSlideAssets;
   var getAsset = slideMgmt.getAsset;
   var setScale = slideMgmt.setScale;
-  var profileImg = slideMgmt.profileImg;
-  var setProfileImg = slideMgmt.setProfileImg;
-  var profilePicName = slideMgmt.profilePicName;
-  var setProfilePicName = slideMgmt.setProfilePicName;
-  var isCustomProfilePic = slideMgmt.isCustomProfilePic;
-  var setIsCustomProfilePic = slideMgmt.setIsCustomProfilePic;
-
   // --- Undo/redo snapshot helpers ---
 
   var captureSnapshot = function() {
@@ -2029,10 +2089,7 @@ export default function App() {
       }, {}),
       sizes: Object.assign({}, sizes),
       activeSlide: activeSlide,
-      exportPrefix: exportPrefix,
-      profileImg: profileImg,
-      isCustomProfilePic: isCustomProfilePic,
-      profilePicName: profilePicName
+      exportPrefix: exportPrefix
     };
   };
 
@@ -2042,9 +2099,6 @@ export default function App() {
     setSizes(snap.sizes);
     setActiveSlide(snap.activeSlide);
     setExportPrefix(snap.exportPrefix);
-    setProfileImg(snap.profileImg);
-    setIsCustomProfilePic(snap.isCustomProfilePic);
-    setProfilePicName(snap.profilePicName);
   };
 
   // Keep pushUndoRef current so hooks always call the latest captureSnapshot
@@ -2132,7 +2186,7 @@ export default function App() {
   }, []);
 
   // --- Canvas rendering hook ---
-  var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
+  var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, activeSlide);
   var renderSlide = canvasRenderer.renderSlide;
 
   // --- PDF export hook ---
@@ -2147,9 +2201,7 @@ export default function App() {
   // --- Presets hook ---
   var presets = usePresets({
     seriesSlides: seriesSlides, slideAssets: slideAssets, sizes: sizes,
-    setSizes: setSizes, profileImg: profileImg, setProfileImg: setProfileImg,
-    profilePicName: profilePicName, setProfilePicName: setProfilePicName,
-    isCustomProfilePic: isCustomProfilePic, setIsCustomProfilePic: setIsCustomProfilePic,
+    setSizes: setSizes,
     exportPrefix: exportPrefix, setExportPrefix: setExportPrefix,
     setSeriesSlides: setSeriesSlides, setSlideAssets: setSlideAssets,
     setActiveSlide: setActiveSlide, clearPdfDownload: clearPdfDownload,
@@ -2368,7 +2420,7 @@ export default function App() {
               <div style={{ position: "absolute", top: 0, right: 0, width: 126, paddingLeft: 6, borderLeft: "1px solid #333", display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6 }}>
                 {/* Profile card */}
                 <div style={{ background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 6px 5px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative" }}>
-                  {profileImg && isCustomProfilePic && (
+                  {currentSlide.profileImg && (
                     <button onClick={slideMgmt.removeProfilePic}
                       title="Remove profile image"
                       style={{ position: "absolute", top: 4, right: 5, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0, lineHeight: 1 }}>
@@ -2385,8 +2437,8 @@ export default function App() {
                     Choose
                   </button>
                   <div style={{ width: 48, height: 48, borderRadius: "50%", overflow: "hidden", border: "2px solid #444", background: "#111119", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {profileImg ? (
-                      <img src={profileImg.src} alt="Profile pic" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {currentSlide.profileImg ? (
+                      <img src={currentSlide.profileImg.src} alt="Profile pic" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <span style={{ fontSize: 9, color: "#555" }}>None</span>
                     )}
