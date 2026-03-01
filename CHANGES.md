@@ -2,6 +2,19 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Harden CLAUDE.md: architecture, source manifest, zero-dep and ORDER guardrails
+- What changed: Added missing architectural context and guardrails to CLAUDE.md to prevent silent build failures and constraint violations.
+  - **Architecture section**: Documents what the app is (LinkedIn carousel designer, canvas-based React), runtime model (React 18.2.0 UMD + Babel Standalone 7.26.10), version pins and why they're pinned (Claude.ai sandbox parity), and the zero-dependency constraint with its rationale.
+  - **Source Manifest section**: Points at `build.js ORDER` as the single source of truth for what ships. Includes a layer-overview table (Constants → Canvas → Data → UI → Hooks → App) for orientation without duplicating the exact file list.
+  - **New-file workflow**: Added guidance under the Write step and AI Assistant Context for adding new source files to `ORDER` in `build.js`. Calls out the asymmetric failure mode: build throws on a missing file, but silently excludes an orphan file not in `ORDER`.
+  - **Project Files table**: Replaced "Lean Doc Set" with split tables for docs (CLAUDE.md, CHANGES.md) and code artifacts (build.js, preview.html, linkedin-carousel.jsx). Correctly classifies preview.html as code.
+  - **Commit message style**: Added to Git Policy — imperative mood, sentence case, ~72 chars.
+  - **Hard Guardrails**: Added zero-dep constraint (no package.json/node_modules/npm) and ORDER requirement for new files.
+- Why: An AI assistant or new contributor had no documented context about the app's architecture, the zero-dep constraint, the React version pin, or the build ORDER requirement. Each gap could cause silent build failures or constraint violations.
+- Files: `CLAUDE.md` (updated), `CHANGES.md` (updated).
+- Validation: All file paths, version numbers, and commands in the updated CLAUDE.md match the actual repo. No build needed (docs-only change).
+- Notes/Risks: CLAUDE.md grew from 75 to ~115 lines. Source manifest table references layer names, not individual files, to avoid drift from `build.js ORDER`.
+
 ## 2026-03-01 - Workflow simplification: preview.html + lean doc set
 - What changed: Replaced 4-step orchestrated workflow (Claude Code → Codex → browser smoke) with simplified Write → Build → See → Push flow.
   - **Added `preview.html`**: Single HTML file that loads the built `linkedin-carousel.jsx` artifact in a local browser via Babel Standalone (JSX transform) and React 18.2.0 UMD from unpkg CDN. Rewrites bare ESM imports (`import { useState } from "react"`) into destructured globals (`var { useState } = React;`). Requires a local server (`npx serve . --listen 5173`). Zero npm dependencies.
