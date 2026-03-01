@@ -18,9 +18,10 @@ Own Step 3 only: review Claude's commit, patch/recommit until clean, finalize sm
    - re-review latest commit
 3. Repeat until no material findings remain.
 4. If patches changed behavior, add a `CHANGES.md` entry.
-5. Run `node scripts/prepare-smoke-handoff.js`.
-6. Print the full contents of `SMOKE_TEST.md` in chat output (see Required Output below).
-7. Return finalized handoff package and stop.
+5. If `SMOKE_TEST.md` content is updated during patching, keep it current-feature only (no stale scenarios from prior feature sessions).
+6. Run `node scripts/prepare-smoke-handoff.js`.
+7. Print the full contents of `SMOKE_TEST.md` in chat output (see Required Output below).
+8. Return finalized handoff package and stop.
 
 ## Required Output
 All of the following must appear in chat output:

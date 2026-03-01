@@ -4,14 +4,14 @@ Copy-paste these commands step-by-step. Each step's output tells you exactly wha
 
 **Step 1 — Feature Prep (Browser Claude UI):**
 ```
-FEATURE_PREP: Draft/update FEATURE_CARD.md to implementation-ready quality (goal, scope, out-of-scope, constraints, acceptance, risks). Return final markdown only.
+FEATURE_PREP: Replace FEATURE_CARD.md with a fresh card for the current feature only (goal, scope, out-of-scope, constraints, acceptance, risks). Return final markdown only.
 ```
 
 **Step 2 — Claude Code Implement:**
 ```
 CLAUDE_PHASE: Use agents/claude-feature-implementer.md with FEATURE_CARD.md.
 ```
-Gate: output includes commit hash + `HANDOFF_TO_CODEX` + ready-to-paste Codex command.
+Gate: output includes commit hash + SMOKE reset confirmation + `HANDOFF_TO_CODEX` + ready-to-paste Codex command.
 
 **Step 3 — Codex Review/Patch:**
 Paste the Codex command from Step 2 output (it has the commit hash baked in).
@@ -54,23 +54,28 @@ Use only this minimal set for the default workflow:
 
 ## Feature Session Protocol (Default, Prescriptive, 4-Step)
 Steps must run in this exact order with no skipping:
-1. Step 1 (Browser Claude UI): draft/refine `FEATURE_CARD.md`.
+1. Step 1 (Browser Claude UI): replace/draft `FEATURE_CARD.md` for current feature only.
 2. Step 2 (Claude Code): implement + validate + commit + output Codex kickoff command.
 3. Step 3 (Codex): review Claude commit + patch/recommit loop + output full SMOKE_TEST.md for copy/paste.
 4. Step 4 (Browser Claude Extension): smoke test from pasted SMOKE_TEST.md contents.
 
 If Step 4 fails: paste browser output back into Step 3 Codex thread for patch cycle, then re-run Step 4.
+Session reset policy (required before writing new session content):
+- `FEATURE_CARD.md` must be replaced for the current feature; do not append onto a prior feature card.
+- `SMOKE_TEST.md` must be replaced for the current feature; do not accumulate prior feature-specific scenarios.
+- `scripts/prepare-smoke-handoff.js` updates metadata only (commit/date) and does not replace stale scope/scenarios.
 
 ## Step Output Contracts (Required)
 
 ### Step 1 (`FEATURE_PREP`) output:
-- Updated `FEATURE_CARD.md` content (final markdown)
+- Replaced `FEATURE_CARD.md` content (final markdown for current feature only)
 
 ### Step 2 (`CLAUDE_PHASE`) output — not complete until ALL are returned:
 - Commit hash (`git rev-parse --short HEAD`)
 - Files changed summary
 - Validation summary (including `node build.js`)
 - `CHANGES.md` entry (added during implementation)
+- Confirmation that `SMOKE_TEST.md` was reset to current-feature scope/scenarios before adding new test cases
 - Known risk notes for Codex reviewer
 - Exact gate line: `HANDOFF_TO_CODEX`
 - **Ready-to-paste Codex command** (with hash baked in):
@@ -136,10 +141,10 @@ Smoke signoff gate:
 Use `SMOKE_TEST.md` as the standard handoff card.
 
 ## Human Execution Checklist
-1. Prepare `FEATURE_CARD.md` (Step 1 in browser Claude UI).
+1. Prepare `FEATURE_CARD.md` (Step 1 in browser Claude UI) by replacing old feature content (no append).
 2. Run Claude Code phase:
    - `CLAUDE_PHASE: Use agents/claude-feature-implementer.md with FEATURE_CARD.md.`
-3. Confirm Claude output includes commit hash + `HANDOFF_TO_CODEX` + ready-to-paste Codex command.
+3. Confirm Claude output includes commit hash + SMOKE reset confirmation + `HANDOFF_TO_CODEX` + ready-to-paste Codex command.
 4. Paste the Codex command from Step 2 output into Codex.
 5. Confirm Codex output includes `DO NOT PUSH YET` + full SMOKE_TEST.md contents in chat.
 6. Copy the SMOKE_TEST.md block from Step 3 output and paste into a new browser Claude extension thread. DO NOT CLOSE OUT THE BROWSER.
@@ -201,3 +206,5 @@ All of the following must be true:
 - Do not push without smoke-check + diff review.
 - Do not skip pause/resume tokens in browser smoke sessions.
 - Every step must output prescriptive text for the next step (no dead-end outputs).
+
+
