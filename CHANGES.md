@@ -2,6 +2,26 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - 4-step prescriptive workflow with hardened agent outputs
+- What changed: Redesigned the workflow from 3 phases to 4 explicit steps, hardened every agent to output prescriptive next-step text, and consolidated human-facing docs.
+  - Merged `WORKFLOW_QUICKSTART.txt` into the top of `CLAUDE.md` as a human-facing quickstart section; deleted the standalone file.
+  - Deleted `SMOKE_TEST_HANDOFF_TEMPLATE.md` (legacy compatibility pointer); `SMOKE_TEST.md` is now the only handoff file.
+  - Reframed workflow as 4 steps:
+    1. Step 1 (Browser Claude UI): draft `FEATURE_CARD.md`
+    2. Step 2 (Claude Code): implement + commit + output ready-to-paste Codex command with hash
+    3. Step 3 (Codex): review/patch + output full SMOKE_TEST.md contents in chat for copy/paste
+    4. Step 4 (Browser Extension): smoke test + output prescriptive feedback block on failure
+  - Added smoke failure feedback loop: Step 4 outputs a `SMOKE_FEEDBACK:` block that gets pasted back into Step 3 Codex thread for patching.
+  - Updated all agent specs (`claude-feature-implementer.md`, `codex-commit-review-patcher.md`, `browser-smoke-tester.md`) with explicit required output sections including prescriptive next-step text.
+  - Codex agent now includes `Handling Smoke Feedback` section for processing pasted failure blocks.
+  - `CHANGES.md` ownership clarified: Step 2 (Claude Code) owns entries; Step 3 (Codex) only adds entries if patches change behavior.
+  - Removed legacy fallback from `scripts/prepare-smoke-handoff.js` (no longer searches for `SMOKE_TEST_HANDOFF_TEMPLATE.md`).
+  - Added hard guardrail: "Every step must output prescriptive text for the next step (no dead-end outputs)."
+- Why: Eliminate dead-end agent outputs that leave the human guessing what to do next. Every step now tells you exactly what to copy/paste for the next step.
+- Files: `CLAUDE.md` (rewritten), `WORKFLOW_QUICKSTART.txt` (deleted), `SMOKE_TEST_HANDOFF_TEMPLATE.md` (deleted), `agents/claude-feature-implementer.md` (updated), `agents/codex-commit-review-patcher.md` (updated), `agents/browser-smoke-tester.md` (updated), `agents/README.md` (updated), `scripts/prepare-smoke-handoff.js` (updated), `CHANGES.md` (updated).
+- Validation: `node scripts/prepare-smoke-handoff.js` succeeds with `SMOKE_TEST.md` only. No remaining references to deleted files in active workflow docs.
+- Notes/Risks: Historical CHANGES.md entries still reference `SMOKE_TEST_HANDOFF_TEMPLATE.md` and `WORKFLOW_QUICKSTART.txt` — this is expected (changelog history).
+
 ## 2026-02-28 - Smoke handoff rename and paste-only browser kickoff
 - What changed: Standardized smoke handoff naming and browser execution instructions.
   - Added `SMOKE_TEST.md` as the canonical smoke handoff card.

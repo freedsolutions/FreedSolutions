@@ -1,10 +1,10 @@
-# Browser Smoke Tester Agent
+# Browser Smoke Tester Agent (Step 4)
 
 ## Role
 Run browser smoke tests only. Do not propose or perform code edits in this role.
 
 ## Input
-Expect a pasted `Smoke Test Handoff Card` from the terminal workflow (`SMOKE_TEST.md`). If any required field is missing, request it before testing.
+Expect a pasted `Smoke Test Handoff Card` from Step 3 (Codex) output. If any required field is missing, request it before testing.
 
 Required fields in the handoff card:
 - Commit hash under test
@@ -56,7 +56,7 @@ Required fields in the handoff card:
    - Screenshot image
 
 ## Output Format (Required)
-At completion, return all sections below:
+At completion, return ALL sections below:
 
 1. `RESULT: PASS|FAIL`
 2. `SCENARIO_MATRIX` as a table with columns:
@@ -69,3 +69,17 @@ At completion, return all sections below:
 4. `FOLLOW_UP_FIXES`
    - If `RESULT: FAIL`, provide minimal reproducible steps per issue
    - If `RESULT: PASS`, state `None`
+
+### If RESULT is FAIL, also output this prescriptive feedback block:
+The human will copy this block and paste it into the Codex thread (Step 3) to trigger a patch cycle.
+
+```
+SMOKE_FEEDBACK: The following failures were found during browser smoke testing of commit <hash>.
+Patch the issues below, rebuild, recommit, and re-output the full SMOKE_TEST.md contents for another smoke cycle.
+
+FAILURES:
+<numbered list of each failure with reproduction steps from FOLLOW_UP_FIXES>
+
+BLOCKERS:
+<blockers list, or "None">
+```

@@ -4,7 +4,6 @@
  * Sync smoke handoff metadata with current repo state.
  * Intended to run after a successful build and commit.
  * Canonical file: SMOKE_TEST.md
- * One-cycle fallback: SMOKE_TEST_HANDOFF_TEMPLATE.md
  */
 
 var fs = require("fs");
@@ -12,10 +11,7 @@ var path = require("path");
 var cp = require("child_process");
 
 var ROOT = path.join(__dirname, "..");
-var HANDOFF_CANDIDATES = [
-  "SMOKE_TEST.md",
-  "SMOKE_TEST_HANDOFF_TEMPLATE.md"
-];
+var HANDOFF_FILE = "SMOKE_TEST.md";
 
 function run(cmd) {
   return cp.execSync(cmd, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] }).toString().trim();
@@ -29,16 +25,11 @@ function todayIsoDate() {
   return y + "-" + m + "-" + day;
 }
 
-function resolveHandoffPath() {
-  for (var i = 0; i < HANDOFF_CANDIDATES.length; i++) {
-    var candidatePath = path.join(ROOT, HANDOFF_CANDIDATES[i]);
-    if (fs.existsSync(candidatePath)) return candidatePath;
-  }
-  throw new Error("Missing smoke handoff file. Expected one of: " + HANDOFF_CANDIDATES.join(", "));
+var handoffPath = path.join(ROOT, HANDOFF_FILE);
+if (!fs.existsSync(handoffPath)) {
+  throw new Error("Missing smoke handoff file: " + HANDOFF_FILE);
 }
-
-var handoffPath = resolveHandoffPath();
-var handoffName = path.basename(handoffPath);
+var handoffName = HANDOFF_FILE;
 
 var hash = run("git rev-parse --short HEAD");
 if (!hash) {
