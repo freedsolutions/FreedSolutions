@@ -599,7 +599,7 @@ export default function App() {
               </div>
 
               {/* Decorator toggle + Color swatch row */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 16, marginTop: 6, marginBottom: 6, alignItems: "center" }}>
                 {/* Decorator toggle: accent bar (Body mode) or checkmark (Cards mode) */}
                 {!currentSlide.showCards ? (
                   <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true); }}
