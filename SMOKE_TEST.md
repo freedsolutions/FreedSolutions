@@ -3,28 +3,24 @@
 Paste this full card into a new browser Claude extension thread to run smoke tests.
 
 ## Metadata
-- Commit hash under test: `PENDING`
+- Commit hash under test: `234b2c0`
 - Branch: `main`
 - Build confirmation: `node build.js` succeeded (yes, 2026-02-28)
 - Artifact loaded confirmation: `linkedin-carousel.jsx` loaded in browser (`yes/no`)
 
 ## Scope
 - In scope:
-  - Live slide thumbnail navigation in the slide selector
-  - Offscreen canvas thumbnail rendering for all slides
-  - Thumbnail mini-previews (72×90 px) replacing numbered square buttons
-  - Active slide accent border, inactive slide subtle border
-  - Index badge overlay on each thumbnail
-  - Fallback numbered squares when thumbnails not yet rendered
-  - Thumbnail updates on slide property/asset changes
-  - Thumbnail array sync on add/duplicate/remove/reorder
-  - Drag-to-reorder with thumbnail elements
+  - Auto-expanding textareas for all Column 2 text fields
+  - Canvas text wrapping for Heading, Body, and Card text
+  - Multi-line card input and rendering
+  - Separate decorator toggles: accent bar (Body mode) and checkmark (Cards mode)
+  - Default accent color changed to `#a5b4fc` (soft indigo)
+  - Horizontal separator above Screenshot section in Column 1
 - Out of scope:
-  - Main preview canvas rendering logic (unchanged)
   - PDF export logic changes
-  - Preset serialization format changes
-  - Undo/redo logic changes
-  - Column 1 / Column 2 layout changes (beyond slide selector)
+  - Preset serialization format changes (backward-compatible)
+  - Background controls, canvas background rendering, drag-to-reorder behavior
+  - Label and Brand Name canvas wrapping (remain single-line on canvas)
 
 ## Required Upload Checkpoints
 - Profile image upload: `not-required`
@@ -51,32 +47,32 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
    - Screenshot image
 
 ## Feature-Specific Scenarios (Required)
-- On initial load, slide selector shows thumbnail(s) instead of plain numbered squares -> Expected: at least slide 1 displays a rendered mini-preview within ~200ms
-- Each thumbnail is approximately 72×90 px (4:5 aspect ratio) -> Expected: thumbnails are noticeably taller than wide, matching canvas proportions
-- Active slide thumbnail has a green accent border (`#22c55e`) -> Expected: active slide has a visible 2px solid green border
-- Inactive slide thumbnails have a subtle 1px solid `#555` border -> Expected: non-active slides have thin gray borders
-- Each thumbnail has a small index badge at top-left -> Expected: a small dark circle with white number (1, 2, 3...) overlays top-left of each thumbnail
-- Edit heading text on active slide -> Expected: that slide's thumbnail updates to reflect the new heading within ~200ms
-- Change background color on active slide -> Expected: thumbnail updates to show new background color
-- Change accent color on active slide -> Expected: thumbnail updates to show new accent color
-- Add a new slide -> Expected: a new thumbnail appears (initially may show numbered fallback, then renders within ~200ms)
-- Duplicate a slide -> Expected: new thumbnail appears at the correct position showing the duplicated slide content
-- Remove a slide -> Expected: thumbnail disappears, remaining thumbnails shift correctly with no stale images
-- Drag-reorder slides -> Expected: thumbnails reorder correctly, each still showing its own content, no stale/mismatched images
-- Upload a screenshot image on a slide -> Expected: that slide's thumbnail updates to show the screenshot
-- Change to Cards mode and edit card text -> Expected: thumbnail updates to reflect card content
-- With 3+ slides, rapidly edit text on active slide -> Expected: no visible jank or freezing; thumbnails update smoothly
-- If a thumbnail fails to render (edge case) -> Expected: numbered fallback square appears instead
-- Click on an inactive slide's thumbnail -> Expected: that slide becomes active; its border changes to green accent
-- Main canvas preview still renders correctly alongside thumbnails -> Expected: no visual regression in the large preview panel
-- The `+ Add` button is still present and correctly sized to match thumbnail height (90px) -> Expected: `+` button visible next to thumbnails
+- Type long text in Brand Name field -> Expected: textarea auto-expands line-by-line, no internal scrollbar until ~50vh
+- Type long text in Top Corner field -> Expected: textarea auto-expands
+- Type long text in Bottom Corner field -> Expected: textarea auto-expands
+- Type long text in Heading field -> Expected: textarea auto-expands; canvas preview wraps heading text within bounding box
+- Type multi-line text in Heading (press Enter) -> Expected: textarea grows; canvas renders each line with word-wrap
+- Type long text in Body field -> Expected: textarea auto-expands (no fixed 2-row limit); canvas wraps body text
+- Type multi-line text in Body (press Enter) -> Expected: canvas renders each line correctly
+- Switch to Cards mode and type long text in a Card input -> Expected: textarea auto-expands; canvas wraps card text
+- Type multi-line text in Card input (press Enter) -> Expected: textarea grows; canvas renders multi-line card text
+- In Body mode, locate the accent bar toggle next to BODY|CARDS -> Expected: toggle is visible, defaults to ON
+- Toggle accent bar OFF in Body mode -> Expected: canvas accent bar under heading disappears
+- Switch to Cards mode -> Expected: accent bar toggle disappears, checkmark toggle appears (defaults to ON)
+- Toggle checkmark OFF in Cards mode -> Expected: canvas card checkmark circles disappear, card text remains
+- Toggle checkmark ON again -> Expected: checkmark circles reappear
+- Switch back to Body mode -> Expected: checkmark toggle disappears, accent bar toggle reappears with its last state
+- Create a new slide -> Expected: default accent color on canvas is soft indigo (`#a5b4fc`), not green
+- Verify Body text default color is indigo on new slide -> Expected: `#a5b4fc`
+- Locate Column 1 Screenshot section -> Expected: horizontal line divider appears above it
+- Save preset with showCardChecks OFF, reload -> Expected: checkmark toggle restores to OFF state
+- Ctrl+Z after toggling decorator -> Expected: undo still works (no regression)
 
 ## Known Risk Focus
-- Memory pressure from data URLs: 10 slides × ~30-50 KB JPEG each ≈ 300-500 KB; watch for accumulation on rapid preset switching
-- Canvas taint from cross-origin images: try/catch guards thumbnail capture; fallback to numbered square on failure
-- Drag ghost image: browser generates ghost from the thumbnail `<img>` element; verify it looks acceptable
-- Initial render flash: all thumbnails start as `null`; numbered fallback squares appear briefly until first render cycle completes (< 100ms acceptable)
-- Offscreen `toDataURL` on detached canvas: verified behavior in modern browsers
+- Auto-expanding textarea `ref` callback may not re-fire on React re-renders for card list items (key stability)
+- `showCardChecks` backward-compat: old presets without the property should still show checkmarks (via `!== false` guard)
+- Heading newline splitting must not break accent marker highlighting across lines
+- Card newline splitting must not break accent marker highlighting within cards
 
 ## Pass Criteria
 - No functional breakage visible to end users.

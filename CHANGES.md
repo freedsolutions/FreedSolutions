@@ -2,24 +2,6 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
-## 2026-02-28 - Live slide thumbnail navigation in slide selector
-- What changed: Replaced numbered square buttons in the slide selector with real-time rendered mini-preview thumbnails.
-  - Added offscreen canvas thumbnail generation to `useCanvasRenderer` hook: creates a shared detached `<canvas>` (via `useRef`), renders each slide after the active slide render, captures JPEG data URLs at quality 0.5.
-  - Memoizes thumbnails by fingerprinting each slide's state + assets; only re-renders thumbnails whose fingerprint changed.
-  - Queues thumbnail generation (one pass at a time) to avoid stacking renders.
-  - `thumbUrls` state array length is always kept in sync with `seriesSlides.length`.
-  - Overhauled `SlideSelector.jsx`: each slide now displays a 72×90 px `<img>` thumbnail (4:5 aspect ratio matching 800×1000 canvas).
-  - Active slide thumbnail gets 2px solid green border; inactive slides get 1px solid `#555` border.
-  - Small index badge (14px dark circle, white number) overlaid at top-left of each thumbnail.
-  - Fallback: if `thumbUrls[i]` is `null` (first paint or error), the existing numbered square renders as placeholder.
-  - Drag-to-reorder, remove, add, and duplicate controls carry over unchanged on the new thumbnail elements.
-  - `App.jsx` passes `thumbUrls` from `useCanvasRenderer` return value to `SlideSelector`.
-  - Try/catch around `toDataURL` guards against canvas taint from cross-origin images; falls back to `null` (numbered placeholder).
-- Why: Transform the editing experience from clicking blind numbered squares to visually scanning the entire carousel at a glance.
-- Files: `src/useCanvasRenderer.js` (expanded), `src/SlideSelector.jsx` (overhauled), `src/App.jsx` (wiring), `linkedin-carousel.jsx` (regenerated), `SMOKE_TEST.md` (updated), `FEATURE_CARD.md`, `CHANGES.md`.
-- Validation: `node build.js` succeeds. Thumbnails use same `renderSlideToCanvas()` function as main preview — no separate rendering codepath. `thumbUrls` array length guarded to match `seriesSlides.length`. `pushUndo()` not called during thumbnail rendering.
-- Notes/Risks: Memory pressure: 10 JPEG data URLs at ~30-50 KB each ≈ 300-500 KB. Stale URLs overwritten on each regeneration cycle. Initial render flash (all nulls → thumbnails) expected to be < 100ms. Performance degrades gracefully via queuing if generation exceeds frame budget.
-
 ## 2026-02-28 - 4-step prescriptive workflow with hardened agent outputs
 - What changed: Redesigned the workflow from 3 phases to 4 explicit steps, hardened every agent to output prescriptive next-step text, and consolidated human-facing docs.
   - Merged `WORKFLOW_QUICKSTART.txt` into the top of `CLAUDE.md` as a human-facing quickstart section; deleted the standalone file.

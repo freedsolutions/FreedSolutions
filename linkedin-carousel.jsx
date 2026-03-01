@@ -892,14 +892,9 @@ function SizeControl(props) {
 // ===================================================
 // SlideSelector Component
 // ===================================================
-// Renders slide thumbnails (or numbered fallback squares) with drag-to-reorder,
-// remove overlay, and add/duplicate controls.
+// Renders numbered slide buttons with drag-to-reorder, remove overlay, and add/duplicate controls.
 // Props: seriesSlides, activeSlide, setActiveSlide, dragFrom, setDragFrom,
-//        dragOver, setDragOver, reorderSlide, addSlide, duplicateSlide, removeSlide,
-//        thumbUrls
-
-var THUMB_W = 72;
-var THUMB_H = 90;
+//        dragOver, setDragOver, reorderSlide, addSlide, duplicateSlide, removeSlide
 
 function SlideSelector(props) {
   var seriesSlides = props.seriesSlides;
@@ -913,7 +908,6 @@ function SlideSelector(props) {
   var addSlide = props.addSlide;
   var duplicateSlide = props.duplicateSlide;
   var removeSlide = props.removeSlide;
-  var thumbUrls = props.thumbUrls || [];
 
   var canRemove = seriesSlides.length > 1;
 
@@ -936,21 +930,15 @@ function SlideSelector(props) {
           Duplicate
         </button>
       </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 0, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 0, flexWrap: "wrap" }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
           var isDragSource = dragFrom === i;
           var isDragTarget = dragOver === i && dragFrom !== i;
-          var thumbUrl = thumbUrls[i] || null;
           var label = (i + 1).toString();
-
-          var borderStyle = isDragTarget
-            ? "2px dashed #6366f1"
-            : (isActive ? "2px solid " + GREEN : "1px solid #555");
-
           return (
             <div key={i} style={{ position: "relative" }}>
-              <div
+              <button
                 draggable
                 onClick={function() { setActiveSlide(i); }}
                 onDragStart={function(e) { setDragFrom(i); e.dataTransfer.effectAllowed = "move"; }}
@@ -958,67 +946,9 @@ function SlideSelector(props) {
                 onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
                 onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
                 onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-                style={{
-                  width: THUMB_W,
-                  height: THUMB_H,
-                  borderRadius: 6,
-                  border: borderStyle,
-                  background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.10)" : "#1a1a30"),
-                  cursor: isDragSource ? "grabbing" : "grab",
-                  opacity: isDragSource ? 0.4 : 1,
-                  transition: "opacity 0.15s, border 0.15s, background 0.15s",
-                  overflow: "hidden",
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxSizing: "border-box"
-                }}>
-                {thumbUrl ? (
-                  <img
-                    src={thumbUrl}
-                    width={THUMB_W}
-                    height={THUMB_H}
-                    draggable={false}
-                    style={{
-                      display: "block",
-                      width: THUMB_W,
-                      height: THUMB_H,
-                      objectFit: "cover",
-                      borderRadius: 4,
-                      pointerEvents: "none"
-                    }}
-                  />
-                ) : (
-                  <span style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: isActive ? GREEN : "#aaa"
-                  }}>
-                    {label}
-                  </span>
-                )}
-                {/* Index badge */}
-                <span style={{
-                  position: "absolute",
-                  top: 2,
-                  left: 2,
-                  width: 14,
-                  height: 14,
-                  borderRadius: 7,
-                  background: "rgba(0,0,0,0.6)",
-                  color: "#fff",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  lineHeight: 1,
-                  pointerEvents: "none"
-                }}>
-                  {label}
-                </span>
-              </div>
+                style={{ width: 56, height: 56, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 16, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
+                {label}
+              </button>
               {canRemove && (
                 <button
                   onClick={function(e) { e.stopPropagation(); removeSlide(i); }}
@@ -1030,7 +960,7 @@ function SlideSelector(props) {
         })}
         {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
-            style={{ width: THUMB_W, height: THUMB_H, borderRadius: 6, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            style={{ width: 56, height: 56, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
       </div>
     </div>
@@ -1434,22 +1364,11 @@ function useSlideManagement(deps) {
 // useCanvasRenderer Hook
 // ===================================================
 // Manages canvas rendering with 40ms debounce.
-// Also generates offscreen thumbnail data URLs for each slide.
 // Params: canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide
-// Returns: { renderSlide, thumbUrls }
+// Returns: { renderSlide }
 
 function useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide) {
   var renderTimerRef = useRef(null);
-  var thumbCanvasRef = useRef(null);
-  var thumbRenderingRef = useRef(false);
-  var thumbQueuedRef = useRef(false);
-  var thumbHashesRef = useRef([]);
-  var thumbUrlsRef = useRef(null);
-  var [thumbUrls, setThumbUrls] = useState(function() {
-    var init = seriesSlides.map(function() { return null; });
-    thumbUrlsRef.current = init;
-    return init;
-  });
 
   var renderSlide = useCallback(function(ctx, slideIndex) {
     renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes, profileImg);
@@ -1462,110 +1381,17 @@ function useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileI
     renderSlide(ctx, activeSlide);
   }, [renderSlide, activeSlide]);
 
-  // Build a lightweight fingerprint for a slide to detect changes
-  var buildSlideHash = useCallback(function(slide, asset) {
-    var parts = [];
-    var keys = Object.keys(slide);
-    for (var k = 0; k < keys.length; k++) {
-      var key = keys[k];
-      var val = slide[key];
-      if (key === "customBgImage") {
-        parts.push(key + ":" + (val ? (val.src ? val.src.length : "img") : "null"));
-      } else if (key === "cards") {
-        parts.push(key + ":" + (val ? val.join("|") : ""));
-      } else {
-        parts.push(key + ":" + String(val));
-      }
-    }
-    if (asset && asset.image) {
-      parts.push("asset:" + (asset.image.src ? asset.image.src.length : "img") + ":" + (asset.scale || 1));
-    }
-    if (profileImg) {
-      parts.push("profile:" + (profileImg.src ? profileImg.src.length : "img"));
-    }
-    parts.push("sizes:" + JSON.stringify(sizes));
-    return parts.join(";");
-  }, [profileImg, sizes]);
-
-  // Generate thumbnails for all slides on the offscreen canvas
-  var generateThumbnails = useCallback(function() {
-    if (thumbRenderingRef.current) {
-      thumbQueuedRef.current = true;
-      return;
-    }
-    thumbRenderingRef.current = true;
-
-    if (!thumbCanvasRef.current) {
-      thumbCanvasRef.current = document.createElement("canvas");
-      thumbCanvasRef.current.width = W;
-      thumbCanvasRef.current.height = H;
-    }
-    var offCanvas = thumbCanvasRef.current;
-    var offCtx = offCanvas.getContext("2d");
-
-    var newUrls = [];
-    var newHashes = [];
-    var oldHashes = thumbHashesRef.current;
-    var oldUrls = thumbUrlsRef.current || [];
-    var changed = seriesSlides.length !== oldUrls.length;
-
-    for (var i = 0; i < seriesSlides.length; i++) {
-      var slide = seriesSlides[i];
-      var asset = slideAssets[i] || { image: null, name: null, scale: 1 };
-      var hash = buildSlideHash(slide, asset);
-      newHashes.push(hash);
-
-      if (!changed && i < oldHashes.length && oldHashes[i] === hash && oldUrls[i]) {
-        newUrls.push(oldUrls[i]);
-      } else {
-        changed = true;
-        try {
-          renderSlideToCanvas(offCtx, i, seriesSlides, slideAssets, sizes, profileImg);
-          newUrls.push(offCanvas.toDataURL("image/jpeg", 0.5));
-        } catch (e) {
-          newUrls.push(null);
-        }
-      }
-    }
-
-    thumbHashesRef.current = newHashes;
-    if (changed) {
-      thumbUrlsRef.current = newUrls;
-      setThumbUrls(newUrls);
-    }
-
-    thumbRenderingRef.current = false;
-    if (thumbQueuedRef.current) {
-      thumbQueuedRef.current = false;
-      setTimeout(generateThumbnails, 0);
-    }
-  }, [seriesSlides, slideAssets, sizes, profileImg, buildSlideHash]);
-
   useEffect(function() {
     if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
     renderTimerRef.current = setTimeout(function() {
       render();
-      generateThumbnails();
     }, 40);
     return function() {
       if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
     };
-  }, [render, generateThumbnails]);
+  }, [render]);
 
-  // Keep thumbUrls array length in sync with seriesSlides length
-  useEffect(function() {
-    setThumbUrls(function(prev) {
-      if (prev.length === seriesSlides.length) return prev;
-      var next = [];
-      for (var i = 0; i < seriesSlides.length; i++) {
-        next.push(i < prev.length ? prev[i] : null);
-      }
-      thumbUrlsRef.current = next;
-      return next;
-    });
-  }, [seriesSlides.length]);
-
-  return { renderSlide: renderSlide, thumbUrls: thumbUrls };
+  return { renderSlide: renderSlide };
 }
 
 // ===================================================
@@ -2135,7 +1961,6 @@ export default function App() {
 
   // --- Canvas rendering hook ---
   var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
-  var thumbUrls = canvasRenderer.thumbUrls;
   var renderSlide = canvasRenderer.renderSlide;
 
   // --- PDF export hook ---
@@ -2403,7 +2228,7 @@ export default function App() {
           <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
             dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
             reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
-            removeSlide={slideMgmt.removeSlide} thumbUrls={thumbUrls} />
+            removeSlide={slideMgmt.removeSlide} />
 
           {/* -- Divider: Above Screenshot -- */}
           <div style={{ borderTop: "1px solid #333", marginTop: 10, marginBottom: 10 }} />
