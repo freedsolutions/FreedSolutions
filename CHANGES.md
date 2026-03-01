@@ -2,16 +2,6 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
-## 2026-02-28 - Fix thumbnail memoization collisions for image updates
-- What changed: Hardened thumbnail fingerprinting in `useCanvasRenderer` so image changes always invalidate cached thumbnails.
-  - Replaced fragile image hash inputs based on `.src.length` with stable per-image fingerprints (WeakMap-backed image IDs with width/height metadata).
-  - Sorted slide keys before hash composition to keep memoization deterministic across object construction order.
-  - Continued hashing `asset.scale`, `profileImg`, and `sizes` so all render-impacting inputs invalidate correctly.
-- Why: The previous hash strategy could miss thumbnail refreshes when two different images had the same source-string length, causing stale previews after asset/profile/background swaps.
-- Files: `src/useCanvasRenderer.js`, `linkedin-carousel.jsx`, `CHANGES.md`.
-- Validation: `node build.js` succeeds; thumbnail refresh now invalidates on actual image identity changes instead of string-length heuristics.
-- Notes/Risks: WeakMap is available in all target browsers; a string fallback remains for environments without WeakMap.
-
 ## 2026-02-28 - Live slide thumbnail navigation in slide selector
 - What changed: Replaced numbered square buttons in the slide selector with real-time rendered mini-preview thumbnails.
   - Added offscreen canvas thumbnail generation to `useCanvasRenderer` hook: creates a shared detached `<canvas>` (via `useRef`), renders each slide after the active slide render, captures JPEG data URLs at quality 0.5.

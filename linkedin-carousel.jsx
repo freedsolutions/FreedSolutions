@@ -1445,8 +1445,6 @@ function useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileI
   var thumbQueuedRef = useRef(false);
   var thumbHashesRef = useRef([]);
   var thumbUrlsRef = useRef(null);
-  var imageIdsRef = useRef(typeof WeakMap !== "undefined" ? new WeakMap() : null);
-  var imageIdCounterRef = useRef(1);
   var [thumbUrls, setThumbUrls] = useState(function() {
     var init = seriesSlides.map(function() { return null; });
     thumbUrlsRef.current = init;
@@ -1464,41 +1462,30 @@ function useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileI
     renderSlide(ctx, activeSlide);
   }, [renderSlide, activeSlide]);
 
-  var getImageFingerprint = useCallback(function(img) {
-    if (!img) return "none";
-    var map = imageIdsRef.current;
-    if (map) {
-      var id = map.get(img);
-      if (!id) {
-        id = imageIdCounterRef.current++;
-        map.set(img, id);
-      }
-      return "id:" + id + ":" + (img.width || 0) + "x" + (img.height || 0);
-    }
-    var src = img.src || "";
-    return "src:" + src + ":" + (img.width || 0) + "x" + (img.height || 0);
-  }, []);
-
   // Build a lightweight fingerprint for a slide to detect changes
   var buildSlideHash = useCallback(function(slide, asset) {
     var parts = [];
-    var keys = Object.keys(slide).sort();
+    var keys = Object.keys(slide);
     for (var k = 0; k < keys.length; k++) {
       var key = keys[k];
       var val = slide[key];
       if (key === "customBgImage") {
-        parts.push(key + ":" + getImageFingerprint(val));
+        parts.push(key + ":" + (val ? (val.src ? val.src.length : "img") : "null"));
       } else if (key === "cards") {
         parts.push(key + ":" + (val ? val.join("|") : ""));
       } else {
         parts.push(key + ":" + String(val));
       }
     }
-    parts.push("asset:" + getImageFingerprint(asset && asset.image) + ":" + (asset && asset.scale != null ? asset.scale : 1));
-    parts.push("profile:" + getImageFingerprint(profileImg));
+    if (asset && asset.image) {
+      parts.push("asset:" + (asset.image.src ? asset.image.src.length : "img") + ":" + (asset.scale || 1));
+    }
+    if (profileImg) {
+      parts.push("profile:" + (profileImg.src ? profileImg.src.length : "img"));
+    }
     parts.push("sizes:" + JSON.stringify(sizes));
     return parts.join(";");
-  }, [profileImg, sizes, getImageFingerprint]);
+  }, [profileImg, sizes]);
 
   // Generate thumbnails for all slides on the offscreen canvas
   var generateThumbnails = useCallback(function() {
