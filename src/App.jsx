@@ -354,8 +354,8 @@ export default function App() {
 
               </div>
 
-              {/* Right zone: upload + thumbnail + status */}
-              <div style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {/* Middle zone: upload + thumbnail + status */}
+              <div style={{ flex: "0 0 auto", width: 110, position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
 
                 {/* Photo upload - above thumbnail; visible only in Photo mode */}
                 <div style={{ width: "100%", marginBottom: 2, visibility: isCustomBg ? "visible" : "hidden" }}>
@@ -404,50 +404,28 @@ export default function App() {
                 </div>
               </div>
 
-            </div>
-          </div>
-
-          {/* -- Divider: Above Profile Pic -- */}
-          <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
-
-          {/* --- PROFILE PIC --- */}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              {/* Left zone: label + file input + filename + status */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PROFILE PIC</label>
-                  <span style={{ fontSize: 10, color: "#555", fontWeight: 400 }}>(84 {"\u00d7"} 84px)</span>
-                </div>
-                <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
-                <button onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}
-                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 10, fontWeight: 600, marginBottom: 2 }}>
-                  Choose File
-                </button>
-                {/* Filename - always reserves space */}
-                <p style={{ fontSize: 10, color: "#666", margin: "2px 0 2px 0", wordBreak: "break-all", lineHeight: 1.3, maxWidth: 150, minHeight: 13 }}>{profilePicName || "\u00a0"}</p>
-                {/* Status - always reserves space */}
-                <div style={{ marginTop: 2, minHeight: 16 }}>
-                  {profileImg && isCustomProfilePic ? (
-                    <>
-                      <span style={{ fontSize: 11, color: GREEN }}>{"\u2713"} Uploaded</span>
-                      <button onClick={slideMgmt.removeProfilePic} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, marginLeft: 8 }}>{"\u00d7"} Remove</button>
-                    </>
-                  ) : (
-                    <span style={{ fontSize: 11, color: "#555" }}>No image</span>
-                  )}
-                </div>
-              </div>
-              {/* Right zone: circular preview */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div style={{ width: 64, height: 64, borderRadius: "50%", overflow: "hidden", border: "2px solid #444", background: "#111119", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {/* Right zone: Profile Pic (compact) */}
+              <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", alignItems: "center", paddingLeft: 10, borderLeft: "1px solid #333" }}>
+                <label style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, letterSpacing: 0.5 }}>PROFILE</label>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", border: "2px solid #444", background: "#111119", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 4 }}>
                   {profileImg ? (
                     <img src={profileImg.src} alt="Profile pic" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
                     <span style={{ fontSize: 9, color: "#555" }}>None</span>
                   )}
                 </div>
+                <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
+                <button onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}
+                  style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600, marginBottom: 2 }}>
+                  Choose
+                </button>
+                {profileImg && isCustomProfilePic ? (
+                  <button onClick={slideMgmt.removeProfilePic} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 9, padding: 0 }}>{"\u00d7"} Remove</button>
+                ) : (
+                  <span style={{ fontSize: 9, color: "#555" }}>84{"\u00d7"}84</span>
+                )}
               </div>
+
             </div>
           </div>
 
@@ -726,7 +704,7 @@ export default function App() {
         </div>
 
           {/* -- RIGHT PANE: Preview -- */}
-          <div style={{ flex: "1 1 50%", minWidth: 360, position: "sticky", top: 24, alignSelf: "flex-start" }}>
+          <div style={{ flex: "1 1 50%", minWidth: 360, maxWidth: 520, position: "sticky", top: 24, alignSelf: "flex-start" }}>
             <p style={{ fontSize: 13, color: "#666", marginBottom: 8, fontWeight: 600, letterSpacing: 1 }}>PREVIEW</p>
             <canvas ref={canvasRef} width={W} height={H}
               style={{ width: "100%", height: "auto", borderRadius: 12, border: "1px solid #222", display: "block" }} />
