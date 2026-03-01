@@ -17,6 +17,8 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
   - Preset save/load round-trip for new typography properties
   - Undo support for typography mutations (automatic via existing snapshot system)
   - Decorator toggle relocation: accent bar / checkmark moved from Body/Cards toggle row to immediately before Text/Base color swatches
+  - **Screenshot bounds frame removed**: solid border around uploaded screenshots on canvas is removed; clip-to-rounded-rect and image placement unchanged
+  - **Paste screenshot support**: `Ctrl+V` / `Cmd+V` pastes a clipboard image as the active slide screenshot; auto-enables screenshot if OFF; skips when focus is in text inputs
 - Out of scope:
   - Rich text within a single field (no per-word bold/italic)
   - Underline, text shadow, letter spacing
@@ -27,7 +29,7 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
 ## Required Upload Checkpoints
 - Profile image upload: `not-required`
 - Custom background image upload: `not-required`
-- Screenshot image upload: `not-required`
+- Screenshot image upload: `required` (test both file upload and clipboard paste)
 
 ## Scenario Checklist
 1. Slide operations
@@ -107,11 +109,27 @@ Paste this full card into a new browser Claude extension thread to run smoke tes
 - Open any typography popover -> Expected: popover does not overflow or clip at typical viewport sizes
 - Font dropdown, B/I toggles, swatches, hex input all visible and usable without scrolling
 
+### Screenshot Bounds Frame Removed
+- Upload a screenshot image via Choose File -> Expected: screenshot appears on canvas with NO visible border/frame stroke around it; image is clipped to rounded rectangle area
+- Compare with empty screenshot placeholder (toggle ON, no upload) -> Expected: dashed placeholder outline still visible (this is the empty-state hint, not the bounds frame)
+
+### Paste Screenshot Support
+- Copy an image to clipboard (e.g., take a screenshot with Snipping Tool or copy an image from browser) -> click on the canvas area or anywhere outside text inputs -> press `Ctrl+V` -> Expected: image appears as the active slide screenshot; filename shows "pasted-image.png"; scale slider and "Uploaded" status appear
+- Screenshot is OFF for the active slide -> paste an image -> Expected: screenshot auto-enables (turns ON) and the pasted image appears on canvas
+- Screenshot is already ON with an existing upload -> paste a new image -> Expected: new pasted image replaces the previous one
+- Focus in a textarea (e.g., Heading text field) -> paste text -> Expected: normal text paste works; no screenshot interference
+- Focus in a text input -> paste text -> Expected: normal text paste works; no screenshot triggered
+- Copy non-image content to clipboard -> click outside inputs -> press `Ctrl+V` -> Expected: nothing happens; no errors, no UI breakage
+- Paste screenshot on Slide 1 -> switch to Slide 2 -> Expected: Slide 2 does not have the pasted screenshot (per-slide state)
+- Switch back to Slide 1 -> Expected: pasted screenshot is still there
+
 ## Known Risk Focus
 - Font metrics vary across families: wrapping and layout must re-measure with the active font
 - `composeFont()` string syntax: style before weight before size before family
 - Preset backward compatibility: 15 new per-slide properties default gracefully via `makeDefaultSlide()`
 - Popover sizing: typography controls add ~35-40px of height to the popover
+- Paste handler must not intercept text paste in focused input/textarea/select elements
+- Clipboard API availability: `clipboardData.items` may not be present in all browsers; handler exits gracefully if absent
 
 ## Pass Criteria
 - No functional breakage visible to end users.

@@ -38,10 +38,4 @@ function drawScreenshot(ctx, screenshot, x, y, w, h, scale) {
   ctx.clip();
   ctx.drawImage(screenshot, dx, dy, dw, dh);
   ctx.restore();
-
-  ctx.strokeStyle = "rgba(255,255,255,0.1)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 12);
-  ctx.stroke();
 }

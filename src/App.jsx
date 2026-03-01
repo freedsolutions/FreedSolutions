@@ -134,6 +134,57 @@ export default function App() {
     return function() { document.removeEventListener("keydown", handler); };
   }, []);
 
+  // Stable refs for paste handler (registered once)
+  var activeSlideRef = useRef(activeSlide);
+  activeSlideRef.current = activeSlide;
+  var seriesSlidesRef = useRef(seriesSlides);
+  seriesSlidesRef.current = seriesSlides;
+  var slideMgmtRef = useRef(slideMgmt);
+  slideMgmtRef.current = slideMgmt;
+
+  // Global paste handler for screenshot images (registered once)
+  useEffect(function() {
+    var handler = function(e) {
+      // Skip if focus is in an input, textarea, or select (preserve normal text paste)
+      var tag = e.target && e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      // Check for image data in clipboard
+      var items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      var imageItem = null;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image/") === 0) {
+          imageItem = items[i];
+          break;
+        }
+      }
+      if (!imageItem) return;
+
+      e.preventDefault();
+      var blob = imageItem.getAsFile();
+      if (!blob) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var img = new Image();
+        img.onload = function() {
+          var idx = activeSlideRef.current;
+          var mgmt = slideMgmtRef.current;
+          var slides = seriesSlidesRef.current;
+          // Auto-enable screenshot if not already on
+          if (slides[idx] && !slides[idx].showScreenshot) {
+            mgmt.updateSlide(idx, "showScreenshot", true);
+          }
+          mgmt.setAsset(idx, { name: "pasted-image.png", image: img });
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(blob);
+    };
+    document.addEventListener("paste", handler);
+    return function() { document.removeEventListener("paste", handler); };
+  }, []);
+
   // --- Canvas rendering hook ---
   var canvasRenderer = useCanvasRenderer(canvasRef, seriesSlides, slideAssets, sizes, profileImg, activeSlide);
   var renderSlide = canvasRenderer.renderSlide;

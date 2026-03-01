@@ -95,3 +95,24 @@ Give each text element per-slide typographic control — font family, bold, and 
 - Popover remains visually clean and does not overflow at typical viewport sizes.
 - Decorator toggle (`—` / `✓`) appears directly before the Text/Base color swatches in the Body/Cards section, not above the font-size stepper.
 - `node build.js` succeeds with no regressions in existing behavior.
+
+---
+
+## Update Addendum (Requested)
+
+### A. Remove screenshot bounds frame
+- Remove the outside thin frame that represents screenshot bounds on the slide.
+- Keep screenshot placement and scale behavior unchanged unless a small adjustment is required to remove frame artifacts.
+- Do not remove unrelated global slide frame controls; this applies only to the screenshot bounds frame visualization.
+
+### B. Add paste screenshot support (in addition to upload)
+- Add support for pasting a screenshot image from clipboard into the active slide (`Ctrl+V` / `Cmd+V`) when the app is focused.
+- Keep the existing file-upload screenshot flow fully supported.
+- Pasted images should populate the same state shape used by uploads (active slide screenshot image, filename fallback, default scale).
+- If clipboard content does not include an image, fail gracefully with no UI breakage.
+- Do not intercept normal text paste inside focused input/textarea/select elements.
+
+### Addendum acceptance
+- Screenshot bounds frame is no longer visible on-canvas.
+- Users can paste an image and immediately see it as the active slide screenshot, same as upload behavior.
+- Pasting non-image content causes no errors and does not interfere with normal text entry paste.

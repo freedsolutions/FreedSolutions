@@ -2,6 +2,15 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-02-28 - Remove screenshot bounds frame and add paste screenshot support
+- What changed: Two addendum improvements to the screenshot feature.
+  - **Screenshot bounds frame removed**: Removed the solid 1px `rgba(255,255,255,0.1)` border stroke drawn around uploaded screenshots on canvas in `drawScreenshot()`. The rounded-rect clip path and image placement are unchanged; only the visible border is removed.
+  - **Paste screenshot support**: Added a global `paste` event listener in `App.jsx` that detects image data in the clipboard and loads it as the active slide screenshot. Uses the same `setAsset()` flow as file uploads. Auto-enables `showScreenshot` if it is currently OFF. Skips when focus is in `INPUT`, `TEXTAREA`, or `SELECT` elements to preserve normal text paste. Uses ref-based indirection (`activeSlideRef`, `seriesSlidesRef`, `slideMgmtRef`) so the listener registers once.
+- Why: Remove visual clutter from screenshot rendering; let users paste screenshots from clipboard (Snipping Tool, browser copy, etc.) without needing the file picker.
+- Files: `src/canvas/screenshot.js`, `src/App.jsx`, `linkedin-carousel.jsx` (regenerated), `SMOKE_TEST.md`, `FEATURE_CARD.md`, `CHANGES.md`.
+- Validation: `node build.js` succeeds with 19 source files. Artifact confirms: no `ctx.stroke()` after `drawImage` in `drawScreenshot()`; paste handler registered with `addEventListener("paste")`; pasted images set via `setAsset()` with `"pasted-image.png"` filename.
+- Notes/Risks: Paste handler depends on `clipboardData.items` API — exits gracefully if absent. The empty-state dashed placeholder outline (no screenshot uploaded) is preserved as a visual hint.
+
 ## 2026-02-28 - Relocate decorator toggles before color swatches
 - What changed: Moved the accent bar (`—`) and checkmark (`✓`) decorator toggles from the Body/Cards toggle row to immediately before the Text/Base color swatches.
   - Previous layout: `Body/Cards toggle → decorator toggle → font size → color swatches → textarea`
