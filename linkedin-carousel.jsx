@@ -1080,7 +1080,7 @@ function SlideSelector(props) {
 //   slideAssets, setSlideAssets, getAsset, setAsset, setScale,
 //   dragFrom, setDragFrom, dragOver, setDragOver,
 //   profilePicInputRef, screenshotInputRef, customBgInputRef,
-//   updateSlide, updateBgField, syncBgToAll, resetBgToDefault,
+//   updateSlide, updateBgField, syncBgToAll, resetBgToDefault, resetAllBgToDefault,
 //   addSlide, duplicateSlide, removeSlide, reorderSlide,
 //   updateSlideCard, addSlideCard, removeSlideCard,
 //   handleCustomUpload, handleScreenshotUpload, handleProfilePicUpload,
@@ -1308,6 +1308,38 @@ function useSlideManagement(deps) {
     });
   };
 
+  var resetAllBgToDefault = function() {
+    deps.setConfirmDialog({
+      message: "Reset ALL slides\u2019 backgrounds, profiles, and screenshots to defaults?",
+      onConfirm: function() {
+        deps.pushUndo();
+        setSeriesSlides(function(prev) {
+          return prev.map(function(s) {
+            return Object.assign({}, s, {
+              solidColor: "#1e1e2e",
+              bgType: "solid",
+              customBgImage: null,
+              customBgName: null,
+              geoEnabled: true,
+              geoLines: "#a0a0af",
+              frameEnabled: true,
+              accentColor: "#a5b4fc",
+              borderColor: "#ffffff",
+              borderOpacity: 25,
+              profileImg: null,
+              profilePicName: null,
+              showScreenshot: false,
+              expandScreenshot: false
+            });
+          });
+        });
+        setSlideAssets(function() {
+          return {};
+        });
+      }
+    });
+  };
+
   var addSlide = function() {
     setSeriesSlides(function(prev) {
       if (prev.length >= MAX_SLIDES) return prev;
@@ -1490,7 +1522,7 @@ function useSlideManagement(deps) {
     screenshotInputRef: screenshotInputRef,
     customBgInputRef: customBgInputRef,
     updateSlide: updateSlide, updateBgField: updateBgField,
-    syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault,
+    syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault, resetAllBgToDefault: resetAllBgToDefault,
     addSlide: addSlide, duplicateSlide: duplicateSlide,
     removeSlide: removeSlide, resetSlide: resetSlide, reorderSlide: reorderSlide,
     updateSlideCard: updateSlideCard, addSlideCard: addSlideCard, removeSlideCard: removeSlideCard,
@@ -2280,15 +2312,21 @@ export default function App() {
             <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
 
             {/* --- BACKGROUND --- */}
-            <label style={Object.assign({}, labelStyle, { marginBottom: 8 })}>BACKGROUND</label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
+              <button onClick={slideMgmt.resetBgToDefault}
+                style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                Reset
+              </button>
+            </div>
             <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
               <button onClick={slideMgmt.syncBgToAll}
                 style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
                 Sync All
               </button>
-              <button onClick={slideMgmt.resetBgToDefault}
+              <button onClick={slideMgmt.resetAllBgToDefault}
                 style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-                Reset
+                Reset All
               </button>
             </div>
             {/* Toggles + BG upload side by side */}

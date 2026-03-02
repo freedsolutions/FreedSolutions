@@ -7,7 +7,7 @@
 //   slideAssets, setSlideAssets, getAsset, setAsset, setScale,
 //   dragFrom, setDragFrom, dragOver, setDragOver,
 //   profilePicInputRef, screenshotInputRef, customBgInputRef,
-//   updateSlide, updateBgField, syncBgToAll, resetBgToDefault,
+//   updateSlide, updateBgField, syncBgToAll, resetBgToDefault, resetAllBgToDefault,
 //   addSlide, duplicateSlide, removeSlide, reorderSlide,
 //   updateSlideCard, addSlideCard, removeSlideCard,
 //   handleCustomUpload, handleScreenshotUpload, handleProfilePicUpload,
@@ -235,6 +235,38 @@ function useSlideManagement(deps) {
     });
   };
 
+  var resetAllBgToDefault = function() {
+    deps.setConfirmDialog({
+      message: "Reset ALL slides\u2019 backgrounds, profiles, and screenshots to defaults?",
+      onConfirm: function() {
+        deps.pushUndo();
+        setSeriesSlides(function(prev) {
+          return prev.map(function(s) {
+            return Object.assign({}, s, {
+              solidColor: "#1e1e2e",
+              bgType: "solid",
+              customBgImage: null,
+              customBgName: null,
+              geoEnabled: true,
+              geoLines: "#a0a0af",
+              frameEnabled: true,
+              accentColor: "#a5b4fc",
+              borderColor: "#ffffff",
+              borderOpacity: 25,
+              profileImg: null,
+              profilePicName: null,
+              showScreenshot: false,
+              expandScreenshot: false
+            });
+          });
+        });
+        setSlideAssets(function() {
+          return {};
+        });
+      }
+    });
+  };
+
   var addSlide = function() {
     setSeriesSlides(function(prev) {
       if (prev.length >= MAX_SLIDES) return prev;
@@ -417,7 +449,7 @@ function useSlideManagement(deps) {
     screenshotInputRef: screenshotInputRef,
     customBgInputRef: customBgInputRef,
     updateSlide: updateSlide, updateBgField: updateBgField,
-    syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault,
+    syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault, resetAllBgToDefault: resetAllBgToDefault,
     addSlide: addSlide, duplicateSlide: duplicateSlide,
     removeSlide: removeSlide, resetSlide: resetSlide, reorderSlide: reorderSlide,
     updateSlideCard: updateSlideCard, addSlideCard: addSlideCard, removeSlideCard: removeSlideCard,
