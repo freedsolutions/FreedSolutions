@@ -302,7 +302,7 @@ export default function App() {
                 </div>
               </div>
               {/* Right: BACKGROUND upload */}
-              <div style={{ flex: "0 0 93px", height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 6px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box" }}>
+              <div style={{ flex: "0 0 107px", height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 6px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box" }}>
                 <label style={{ fontSize: 9, color: "#bbb", fontWeight: 600, marginBottom: 1 }}>BACKGROUND</label>
                 <span style={{ fontSize: 9, color: "#555", marginBottom: 3 }}>800×1000px</span>
                 <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
