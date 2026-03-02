@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Rename header + align top row across all panes
+- What changed: Renamed "LinkedIn Carousel Generator" → "Carousel Generator". Moved the header from a full-width row above all panes into the top of the left column. Increased outer container top padding so all three panes (left, center, right) start at the same vertical position. Updated browser tab title to "Carousel Generator".
+- Why: Even out the UI — the center and right panes previously started lower than the header row, wasting vertical space.
+- Files: `src/App.jsx`, `preview.html`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-01 - Fix upload frame layout jumps: fixed-height Background/Profile/Screenshot frames
 - What changed: All three upload frames (Background, Profile, Screenshot) now have a uniform fixed height of 88px with `box-sizing: border-box`. The Screenshot frame's scale slider fits within this reserved height instead of expanding the frame when an image is uploaded.
 - Why: Uploading a screenshot caused the slider to appear, growing the Screenshot frame and pushing everything below it (Duplicate Slide, slide list) downward. The UI would jump whenever toggling uploads.

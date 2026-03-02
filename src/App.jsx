@@ -205,9 +205,8 @@ export default function App() {
   var isCustomBg = currentSlide.bgType === "custom";
 
   return (
-    <div style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', background: "#000000", height: "100vh", overflow: "hidden", color: "#e0e0e0", padding: "16px 48px", boxSizing: "border-box" }}>
+    <div style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', background: "#000000", height: "100vh", overflow: "hidden", color: "#e0e0e0", padding: "28px 48px", boxSizing: "border-box" }}>
       <div style={{ margin: "0 auto", height: "100%", display: "flex", flexDirection: "column" }}>
-        <h2 style={{ color: "#fff", marginBottom: 10, fontSize: 18, flexShrink: 0 }}>LinkedIn Carousel Generator</h2>
 
         <div style={{ display: "flex", gap: 48, flex: 1, minHeight: 0, alignItems: "stretch" }}>
 
@@ -215,6 +214,7 @@ export default function App() {
         <div style={{ flex: "0 0 220px", minWidth: 220, maxWidth: 220, display: "flex", flexDirection: "column" }}>
           {/* Frozen top: Presets */}
           <div style={{ flexShrink: 0 }}>
+            <h2 style={{ color: "#fff", margin: "0 0 10px 0", fontSize: 18 }}>Carousel Generator</h2>
             {/* --- PRESETS --- */}
             <div style={{ marginBottom: 6 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 6 })}>PRESETS</label>
