@@ -19,7 +19,14 @@ function ColorPickerInline(props) {
   var italic = props.italic;
   var onItalicChange = props.onItalicChange;
 
+  // Layer props (optional — used by Base picker to embed layer controls)
+  var layerColor = props.layerColor;
+  var onLayerChange = props.onLayerChange;
+  var layerEnabled = props.layerEnabled;
+  var onLayerToggle = props.onLayerToggle;
+
   var hasTypography = !!onFontFamilyChange;
+  var hasLayer = !!onLayerChange;
   var isOpen = openPicker === pickerKey && !disabled;
 
   return (
@@ -94,6 +101,57 @@ function ColorPickerInline(props) {
               <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
                 {(opacityVal != null ? opacityVal : 100) + "%"}
               </span>
+            </div>
+          )}
+          {hasLayer && (
+            <div style={{ marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: SPACE[3] }}>
+                <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Layer</span>
+                <button onClick={function() { onLayerToggle(!layerEnabled); }}
+                  style={toggleBtn(layerEnabled, { minWidth: SIZE.toggleSm, padding: "1px 5px", fontSize: 8 })}>
+                  {layerEnabled ? "ON" : "OFF"}
+                </button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
+                <button onClick={function() { onLayerToggle(false); }}
+                  title="None (transparent)"
+                  style={{
+                    width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                    border: !layerEnabled ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+                    background: "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
+                    backgroundSize: "8px 8px",
+                    backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
+                    cursor: "pointer", padding: 0,
+                    boxShadow: !layerEnabled ? "0 0 0 1px " + CLR.primary : "none"
+                  }}
+                />
+                {LAYER_SWATCHES.map(function(c) {
+                  var active = layerEnabled && layerColor === c;
+                  return (
+                    <button key={c} onClick={function() { onLayerChange(c); }}
+                      style={{
+                        width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                        border: active ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+                        background: c, cursor: "pointer", padding: 0,
+                        boxShadow: active ? "0 0 0 1px " + CLR.primary : "none"
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: SPACE[3], alignItems: "center", opacity: layerEnabled ? 1 : 0.4 }}>
+                <input type="color"
+                  value={layerColor && layerColor.charAt(0) === "#" ? layerColor : "#a0a0af"}
+                  onChange={function(e) { onLayerChange(e.target.value); }}
+                  disabled={!layerEnabled}
+                  style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: layerEnabled ? "pointer" : "default", background: "none", padding: 0 }}
+                />
+                <input value={layerEnabled ? layerColor : "none"}
+                  onChange={function(e) { if (layerEnabled) onLayerChange(e.target.value); }}
+                  disabled={!layerEnabled}
+                  style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
+                />
+              </div>
             </div>
           )}
         </div>

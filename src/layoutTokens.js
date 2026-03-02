@@ -117,7 +117,7 @@ function toggleBtn(isOn, overrides) {
 
 function uploadFrameStyle(overrides) {
   var base = {
-    height: SIZE.uploadFrame,
+    minHeight: SIZE.uploadFrame,
     background: SURFACE.uploadBg,
     border: "1px solid " + SURFACE.uploadBorder,
     borderRadius: RADIUS.lg,
@@ -142,7 +142,7 @@ function uploadBtnStyle(hasFile) {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    gap: SPACE[7],
+    gap: SPACE[4],
   };
 }
 

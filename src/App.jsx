@@ -6,6 +6,7 @@
 var inputStyle = { width: "100%", padding: SPACE[4] + "px " + SPACE[6] + "px", borderRadius: RADIUS.lg, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.white, fontSize: 14, boxSizing: "border-box" };
 var labelStyle = { display: "block", marginBottom: SPACE[3], fontWeight: 600, fontSize: 13, color: SURFACE.label, letterSpacing: 0.5 };
 var INLINE_SWATCHES = ["#ffffff", "#1a1a2e", "#333333", "#22c55e", "#a5b4fc", "#f59e0b", "#fb7185", "#22d3ee", "#a78bfa", "#38bdf8", "#d97706", "#fef3c7", "#e0f2fe", "#e0e7ff", "#f0fdf4", "#9ca3af"];
+var LAYER_SWATCHES = ["#a0a0af", "#6366f1", "#a5b4fc", "#22c55e", "#22d3ee", "#f59e0b", "#fb7185"];
 var smallBtnStyle = { padding: SPACE[1] + "px " + SPACE[4] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, cursor: "pointer", fontSize: 9, fontWeight: 600 };
 var pickerDropdownStyle = { position: "absolute", top: "100%", left: 0, zIndex: Z.dropdown, marginTop: SPACE[2], background: SURFACE.panel, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.xl, padding: SPACE[5], width: SIZE.pickerWidth, boxShadow: CLR.shadow };
 
@@ -311,35 +312,25 @@ export default function App() {
             <div style={{ marginBottom: SPACE[7] }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[4] })}>BACKGROUND</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: SPACE[2] }}>
-                <button onClick={slideMgmt.resetBgToDefault} style={panelBtn()}>Reset</button>
                 <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
+                <button onClick={slideMgmt.resetBgToDefault} style={panelBtn()}>Reset</button>
                 <button onClick={slideMgmt.resetAllBgToDefault} style={panelBtn()}>Reset All</button>
               </div>
             </div>
             {/* Toggles + BG upload side by side */}
             <div style={{ display: "flex", gap: SPACE[4], marginBottom: SPACE[5] }}>
               {/* Left: toggle rows */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-evenly", height: SIZE.uploadFrame, marginLeft: SPACE[5] }}>
                 {/* Accent */}
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5], marginBottom: SPACE[6] }}>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5] }}>
                   <label style={{ fontSize: 14, color: SURFACE.subtle, fontWeight: 600, width: 50 }}>Accent</label>
                   <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                 </div>
-                {/* Base */}
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5], marginBottom: SPACE[6], opacity: isCustomBg ? 0.35 : 1 }}>
+                {/* Base (with Layer controls in picker footer) */}
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5], opacity: isCustomBg ? 0.35 : 1 }}>
                   <label style={{ fontSize: 14, color: SURFACE.subtle, fontWeight: 600, width: 50 }}>Base</label>
-                  <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
-                </div>
-                {/* Layer */}
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5], marginBottom: SPACE[2], opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 14, color: SURFACE.subtle, fontWeight: 600, width: 50 }}>Layer</label>
-                  <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
-                    style={toggleBtn(!isCustomBg && currentSlide.geoEnabled, { minWidth: SIZE.toggleSm, padding: "1px 5px", fontSize: 8, cursor: isCustomBg ? "default" : "pointer" })}>
-                    {(!isCustomBg && currentSlide.geoEnabled) ? "ON" : "OFF"}
-                  </button>
-                  <div style={{ opacity: (isCustomBg || !currentSlide.geoEnabled) ? 0.5 : 1 }}>
-                    <ColorPickerInline pickerKey="geoLines" value={currentSlide.geoLines} onChange={function(c) { updateBgField("geoLines", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg || !currentSlide.geoEnabled} />
-                  </div>
+                  <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg}
+                    layerColor={currentSlide.geoLines} onLayerChange={function(c) { updateBgField("geoLines", c); updateBgField("geoEnabled", true); }} layerEnabled={!isCustomBg && currentSlide.geoEnabled} onLayerToggle={function(on) { updateBgField("geoEnabled", on); }} />
                 </div>
               </div>
               {/* Right: BACKGROUND upload */}
@@ -369,7 +360,7 @@ export default function App() {
             <div style={{ display: "flex", gap: SPACE[3], marginBottom: SPACE[5] }}>
               {/* PROFILE */}
               <div style={uploadFrameStyle({ flex: 1, minWidth: 0 })}>
-                <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>PROFILE</label>
+                <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>FOOTER</label>
                 <span style={{ fontSize: 11, color: SURFACE.muted, marginBottom: SPACE[2] }}>84×84px</span>
                 <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
                 <div style={uploadBtnStyle(currentSlide.profileImg)}
@@ -393,23 +384,19 @@ export default function App() {
                 <div style={uploadFrameStyle({ flex: 1, minWidth: 0 })}>
                   <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>SCREENSHOT</label>
                   <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
-                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
-                    <div style={Object.assign({}, uploadBtnStyle(getAsset(activeSlide).image), { flex: 1, minWidth: 0 })}
-                      onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
-                      {getAsset(activeSlide).image ? (
-                        <>
-                          <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
-                          <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeScreenshot(activeSlide); }}
-                            style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
-                        </>
-                      ) : (
-                        <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
-                      )}
-                    </div>
-                    {getAsset(activeSlide).image && (
-                      <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
-                        title={currentSlide.expandScreenshot ? "Contract screenshot area" : "Expand screenshot area"}
-                        style={{ background: "none", border: "none", color: CLR.primary, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700, flexShrink: 0 }}>{currentSlide.expandScreenshot ? "\u2921" : "\u2922"}</button>
+                  <div style={uploadBtnStyle(getAsset(activeSlide).image)}
+                    onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
+                    {getAsset(activeSlide).image ? (
+                      <>
+                        <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
+                        <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeScreenshot(activeSlide); }}
+                          style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
+                        <button onClick={function(e) { e.stopPropagation(); updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
+                          title={currentSlide.expandScreenshot ? "Contract screenshot area" : "Expand screenshot area"}
+                          style={{ background: "none", border: "none", color: CLR.primary, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{currentSlide.expandScreenshot ? "\u2921" : "\u2922"}</button>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
                     )}
                   </div>
                   {getAsset(activeSlide).name && (
@@ -428,7 +415,7 @@ export default function App() {
 
             <div style={{ borderTop: "1px solid " + SURFACE.border, marginTop: SPACE[5], marginBottom: SPACE[5] }} />
           </div>
-          {/* Scrollable bottom: Slides list */}
+          {/* Slides list */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
             <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[6] }}>
               <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
@@ -660,7 +647,7 @@ export default function App() {
                 </div>
               )}
               {/* Accent color hint */}
-              <div style={{ marginTop: SPACE[7], marginBottom: SPACE[3], textAlign: "center" }}>
+              <div style={{ marginTop: SPACE[4], textAlign: "center" }}>
                 <span style={{ fontSize: 14, color: SURFACE.muted }}>**word** = accent color</span>
               </div>
             </div>
