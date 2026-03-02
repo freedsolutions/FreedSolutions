@@ -1,48 +1,40 @@
 # FEATURE CARD
 
 ## What
-Relocate the Background section (currently at the top of the center pane) into the left-hand pane and reorganize the left pane layout so it contains all global controls at the top and slides at the bottom.
+Fix the Screenshot upload frame in the left pane so the scale slider fits within a fixed frame height, preventing layout jumps when toggling features or uploading images.
 
 ## Why
-The center pane's top area is cluttered with background/profile/screenshot controls that aren't per-slide editing. Moving them to the left pane groups all global/background controls together, frees the center pane to start directly with the Slide Editor, and gives the slide editor more vertical space.
+Currently the Profile and Screenshot frames sit side-by-side with `flex: 1`. When a screenshot is uploaded, a scale slider appears (lines 371-377 in App.jsx), growing the Screenshot frame's height. This pushes down everything below (Duplicate Slide button, slide list) and can visually squeeze the Profile frame. The UI "jumps" whenever the slider appears/disappears, which feels janky.
 
 ## Scope
 
-### Left pane restructure (widen from 136px to ~220px)
-New top-to-bottom order:
-1. **PRESETS** label + Save | Load buttons (existing, stays)
-2. Horizontal divider
-3. **BACKGROUND** label
-4. **Sync All | Reset** buttons (moved from center pane)
-5. **Accent** color picker + **Upload** button (side by side on same row)
-6. **Base** color picker
-7. **Layer** toggle + color picker
-8. **Frame** toggle + color picker + opacity
-9. **Profile** section | **Screenshot** section (side by side, moved from center pane)
-10. Horizontal divider
-11. **Duplicate Slide** button — single row of text (shorten from two-line "Duplicate\nSlide" to one-line "Duplicate Slide"), narrower width
-12. **Slides** label + slide thumbnails
-13. Numbered slide buttons (1, 2, ...) + Add (+) button
-14. Space for additional slides with vertical scroll
+### Uniform fixed-height upload frames (Background, Profile, Screenshot)
+- All three upload frames (Background Tile, Profile, Screenshot) must share the same fixed height
+- The height should account for the tallest possible state (upload button + filename + slider in the Screenshot frame)
+- The slider, filename, and upload button should all fit within this reserved height — no conditional height growth
+- All three frames should always be the same height regardless of their individual content state (empty, uploaded, uploaded+slider)
+- Currently the Background tile sits in a separate row above Profile + Screenshot — the height must still match across both rows visually
 
-### Center pane restructure
-- Remove the frozen top section (Background + Profile + Screenshot boxes + divider)
-- The Slide Editor ("SLIDE 1" panel) moves up to be the first/top element
-- No other changes to the slide editor content
+### Layout stability
+- The elements below the Profile/Screenshot row (divider, Duplicate Slide button, slide list) must not shift vertically when:
+  - A screenshot is uploaded (slider appears)
+  - A screenshot is removed (slider disappears)
+  - A profile image is uploaded/removed
+  - A background image is uploaded/removed
+- Use `minHeight` or fixed `height` on each frame to reserve space
+- The Background Tile frame must also remain stable and match the same height
 
-### Specific adjustments
-- Left pane `flex-basis` increases from 136px to ~220px
-- "Duplicate Slide" button: single line of text, not two-line "Duplicate\nSlide"
-- Slide list area remains scrollable
-- All existing functionality preserved — just relocated
+### No functional changes
+- The slider still appears only when a screenshot image is present
+- Slider range (50–200%) and behavior unchanged
+- Upload, remove, and filename display behavior unchanged
 
 ## Out of Scope
 - No changes to the right pane (Preview + Download + Canvas)
-- No changes to slide editor fields (heading, body, cards, corners, footer)
-- No new features — purely a layout reorganization
-- No changes to canvas rendering or data model
+- No changes to canvas rendering or slide data model
+- No changes to the center pane (Slide Editor)
+- No new features — purely a layout stability fix
 
 ## Risks
-- The wider left pane reduces horizontal space for the center and right panes — may need to verify canvas preview doesn't get too squeezed
-- Background color pickers need to fit in the narrower left pane width vs the old horizontal center-pane layout — may need to stack vertically
-- Profile and Screenshot upload boxes side-by-side in ~220px might be tight — may need compact styling
+- Choosing a fixed height that's too small could clip content; too large wastes space — needs visual verification
+- The reserved space when no screenshot is uploaded will show empty area in the Screenshot frame, which is acceptable for layout stability

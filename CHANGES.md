@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Fix upload frame layout jumps: fixed-height Background/Profile/Screenshot frames
+- What changed: All three upload frames (Background, Profile, Screenshot) now have a uniform fixed height of 88px with `box-sizing: border-box`. The Screenshot frame's scale slider fits within this reserved height instead of expanding the frame when an image is uploaded.
+- Why: Uploading a screenshot caused the slider to appear, growing the Screenshot frame and pushing everything below it (Duplicate Slide, slide list) downward. The UI would jump whenever toggling uploads.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-01 - Layout polish: pane balance, upload button, margins, 2-col slides
 - What changed: Four layout tweaks to the left-pane reorganization.
   - **(i) Pane balance**: Center pane (Slide Editor) now uses `flex: 1`; right pane (Preview) capped at `maxWidth: 480` so they share space more evenly.

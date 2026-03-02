@@ -1,8 +1,8 @@
 # FreedSolutions — Workflow Contract
 
 // Adam's Notes...
+// Fill out `FEATURE_CARD.md` with the current feature using any agent/model. Replace the entire file — never append to prior cards.
 // SHIP: Read CLAUDE.md and FEATURE_CARD.md, then implement the feature.
-// Use Playwright MCP to open http://localhost:5173/preview.html.
 
 ## Repo Truth
 - `src/` is the editable source of behavior.
