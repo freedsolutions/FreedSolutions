@@ -1034,7 +1034,7 @@ function SlideSelector(props) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
       </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 0, flexDirection: "column" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 0 }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
           var isDragSource = dragFrom === i;
@@ -1050,7 +1050,7 @@ function SlideSelector(props) {
                 onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
                 onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
                 onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-                style={{ width: "100%", height: 64, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 22, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
+                style={{ width: "100%", height: 44, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
                 {label}
               </button>
               {canRemove && (
@@ -1064,7 +1064,7 @@ function SlideSelector(props) {
         })}
         {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
-            style={{ width: "100%", height: 64, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 24, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            style={{ width: "100%", height: 44, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 20, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
       </div>
     </div>
@@ -2277,10 +2277,10 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div style={{ borderTop: "1px solid #444", marginTop: 6, marginBottom: 6 }} />
+            <div style={{ borderTop: "1px solid #444", marginTop: 8, marginBottom: 8 }} />
 
             {/* --- BACKGROUND --- */}
-            <label style={Object.assign({}, labelStyle, { marginBottom: 4, fontSize: 11 })}>BACKGROUND</label>
+            <label style={Object.assign({}, labelStyle, { marginBottom: 6 })}>BACKGROUND</label>
             <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
               <button onClick={slideMgmt.syncBgToAll}
                 style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
@@ -2291,33 +2291,18 @@ export default function App() {
                 Reset
               </button>
             </div>
-            {/* Accent + Upload side by side */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            {/* Accent */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
               <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Accent</label>
               <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
-              <div style={{ marginLeft: "auto" }}>
-                <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
-                <div style={{ width: 48, height: 48, borderRadius: 6, border: "1px solid " + (currentSlide.customBgImage ? GREEN : "#444"), background: "#111119", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}
-                  onClick={function() { if (!isCustomBg) updateBgField("bgType", "custom"); if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}>
-                  {currentSlide.customBgImage ? (
-                    <>
-                      <span style={{ fontSize: 11, color: GREEN, lineHeight: 1 }}>{"\u2713"}</span>
-                      <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeCustomBg(); }}
-                        style={{ position: "absolute", top: 1, right: 1, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 10, padding: 0, lineHeight: 1 }}>{"\u00d7"}</button>
-                    </>
-                  ) : (
-                    <span style={{ fontSize: 8, color: "#ccc", fontWeight: 600 }}>Upload</span>
-                  )}
-                </div>
-              </div>
             </div>
             {/* Base */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, opacity: isCustomBg ? 0.35 : 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, opacity: isCustomBg ? 0.35 : 1 }}>
               <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Base</label>
               <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
             </div>
             {/* Layer */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, opacity: isCustomBg ? 0.35 : 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, opacity: isCustomBg ? 0.35 : 1 }}>
               <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Layer</label>
               <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
                 style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: (!isCustomBg && currentSlide.geoEnabled) ? GREEN : "#555", color: "#fff", cursor: isCustomBg ? "default" : "pointer", fontSize: 8, fontWeight: 600 }}>
@@ -2328,7 +2313,7 @@ export default function App() {
               </div>
             </div>
             {/* Frame */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
               <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Frame</label>
               <button onClick={function() { updateBgField("frameEnabled", !currentSlide.frameEnabled); }}
                 style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: currentSlide.frameEnabled ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 8, fontWeight: 600 }}>
@@ -2336,6 +2321,22 @@ export default function App() {
               </button>
               <div style={{ opacity: currentSlide.frameEnabled ? 1 : 0.35 }}>
                 <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.frameEnabled} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
+              </div>
+            </div>
+            {/* Upload background image — full width */}
+            <div style={{ marginBottom: 6 }}>
+              <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
+              <div style={{ width: "100%", height: 44, borderRadius: 6, border: "1px solid " + (currentSlide.customBgImage ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}
+                onClick={function() { if (!isCustomBg) updateBgField("bgType", "custom"); if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}>
+                {currentSlide.customBgImage ? (
+                  <>
+                    <span style={{ fontSize: 10, color: GREEN }}>{"\u2713 Uploaded"}</span>
+                    <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeCustomBg(); }}
+                      style={{ position: "absolute", top: 2, right: 4, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>{"\u00d7"}</button>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload Background</span>
+                )}
               </div>
             </div>
 
@@ -2407,7 +2408,7 @@ export default function App() {
         </div>
 
         {/* -- CENTER PANE: Slide Editor -- */}
-        <div style={{ flex: "0 1 auto", display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
           {/* Scrollable: Slide Editor */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
@@ -2634,7 +2635,7 @@ export default function App() {
         </div>
 
           {/* -- RIGHT PANE: Preview header row + filename + canvas -- */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, maxWidth: 480 }}>
             {/* PREVIEW label */}
             <label style={Object.assign({}, labelStyle, { marginBottom: 2, whiteSpace: "nowrap", flexShrink: 0 })}>PREVIEW</label>
             {/* Download buttons row */}

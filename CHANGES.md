@@ -2,6 +2,15 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Layout polish: pane balance, upload button, margins, 2-col slides
+- What changed: Four layout tweaks to the left-pane reorganization.
+  - **(i) Pane balance**: Center pane (Slide Editor) now uses `flex: 1`; right pane (Preview) capped at `maxWidth: 480` so they share space more evenly.
+  - **(ii) Upload button**: Background upload moved from a 48px square beside Accent to a full-width 44px-tall bar below Frame, labeled "Upload Background".
+  - **(iii) Margins**: BACKGROUND label now uses full `labelStyle` (13px, matching PRESETS/PREVIEW). Separator above BACKGROUND uses 8px margins. Accent/Base/Layer/Frame rows tightened to 2px gap.
+  - **(iv) 2-col slides**: SlideSelector changed from vertical stack to `grid-template-columns: 1fr 1fr`, with buttons reduced to 44px height and 18px font. Fits 10 slides compactly.
+- Why: User feedback — Preview was too large, Slide Editor too small, upload button was accidentally shrunk, and slides needed to fit 10 in the new narrower pane.
+- Files: `src/App.jsx`, `src/SlideSelector.jsx`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-01 - Relocate Background/Profile/Screenshot to left pane
 - What changed: Background controls, Profile upload, and Screenshot upload moved from the center pane's frozen top section into the left pane. Left pane widened from 136px to 220px. Center pane now starts directly with the Slide Editor.
   - **(i) Left pane layout**: Top-to-bottom: Presets > divider > Background label + Sync All/Reset buttons + Accent (with Upload beside it) + Base + Layer + Frame > Profile/Screenshot side-by-side > divider > Duplicate Slide button > Slides list.
