@@ -256,7 +256,7 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
               <button onClick={slideMgmt.syncBgToAll}
-                style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                style={{ marginLeft: "auto", padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
                 Sync All
               </button>
             </div>
