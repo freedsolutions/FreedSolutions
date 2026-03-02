@@ -253,17 +253,18 @@ export default function App() {
             <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
 
             {/* --- BACKGROUND --- */}
-            <label style={Object.assign({}, labelStyle, { marginBottom: 8 })}>BACKGROUND</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
               <button onClick={slideMgmt.syncBgToAll}
-                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
                 Sync All
               </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
               <button onClick={slideMgmt.resetBgToDefault}
                 style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
                 Reset
               </button>
-              <div />
               <button onClick={slideMgmt.resetAllBgToDefault}
                 style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
                 Reset All
@@ -373,12 +374,6 @@ export default function App() {
             </div>
 
             <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
-            <div style={{ marginBottom: 10 }}>
-              <button onClick={slideMgmt.duplicateSlide}
-                style={{ width: "100%", padding: "6px 8px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1, textAlign: "center" }}>
-                Duplicate Slide
-              </button>
-            </div>
           </div>
           {/* Scrollable bottom: Slides list */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>

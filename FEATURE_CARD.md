@@ -1,28 +1,18 @@
-# Feature: Add "Reset All" button + move BG Reset to header row
+# Feature: Left Pane UI Cleanup — Slides + Background
 
-## What
-1. **Move the existing Background "Reset" button** up so it sits on the same row as the "BACKGROUND" header label (currently it's in the `[Sync All] [Reset]` row below the header).
-2. **Add a new "Reset All" button** in the spot the old Reset occupied — the row becomes `[Sync All] [Reset All]`.
-3. **"Reset All" resets background/styling settings across ALL slides** to defaults (same fields as the current per-slide `resetBgToDefault`), but does NOT touch slide content (text, headings, etc.).
+## Slides Section
+- Move "Duplicate Slide" button **inside** the Slides frame (the bordered `#10101a` container)
+- Place it on the same row as the "SLIDES" header label, right-aligned with standard margin
+- Shorten button text to "Duplicate"
+- Remove the old standalone Duplicate button container above the Slides frame
+- Keep the separator line; Slides frame moves up to normal margin spacing after separator
 
-## Behavior
-- "Reset" (now on the header row): unchanged behavior — resets the **active slide's** background, profile, and screenshot to defaults.
-- "Reset All" (new, in the Sync All row): resets **every slide's** background, profile, and screenshot to defaults. Same confirmation dialog pattern. Does not touch text/content.
+## Background Section
+- Move "Sync All" button to the **right side** of the "BACKGROUND" header row (same line)
+- "Sync All" should be visually stacked above "Reset All" (right-aligned in header)
+- Remaining buttons become a single row: `[Reset]  [Reset All]`
+- Goal: eliminate dead space from the old 2×2 grid with an empty cell
 
-## Layout change
-Before:
-```
-BACKGROUND
-[Sync All] [Reset]
-```
-
-After:
-```
-BACKGROUND                [Reset]
-[Sync All] [Reset All]
-```
-
-## Constraints
-- Reuse existing `resetBgToDefault` logic, extended to loop all slides.
-- Same confirmation dialog UX for Reset All.
-- No content/text fields are touched by Reset All.
+## Out of Scope
+- No functional changes to any button behavior
+- No changes to color pickers, upload boxes, or other sections

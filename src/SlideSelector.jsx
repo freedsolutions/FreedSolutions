@@ -24,6 +24,11 @@ function SlideSelector(props) {
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
+        <button onClick={duplicateSlide}
+          disabled={seriesSlides.length >= MAX_SLIDES}
+          style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>
+          Duplicate
+        </button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 0 }}>
         {seriesSlides.map(function(s, i) {
