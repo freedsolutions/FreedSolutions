@@ -205,18 +205,18 @@ export default function App() {
   var isCustomBg = currentSlide.bgType === "custom";
 
   return (
-    <div style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', background: "#000000", height: "100vh", overflow: "hidden", color: "#e0e0e0", padding: 16, boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 1520, margin: "0 auto", height: "100%", display: "flex", flexDirection: "column" }}>
-        <h2 style={{ color: "#fff", marginBottom: 16, fontSize: 20, flexShrink: 0 }}>LinkedIn Carousel Generator</h2>
+    <div style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', background: "#000000", height: "100vh", overflow: "hidden", color: "#e0e0e0", padding: "16px 48px", boxSizing: "border-box" }}>
+      <div style={{ margin: "0 auto", height: "100%", display: "flex", flexDirection: "column" }}>
+        <h2 style={{ color: "#fff", marginBottom: 10, fontSize: 18, flexShrink: 0 }}>LinkedIn Carousel Generator</h2>
 
-        <div style={{ display: "flex", gap: 20, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+        <div style={{ display: "flex", gap: 48, flex: 1, minHeight: 0, alignItems: "stretch" }}>
 
         {/* -- LEFT COLUMN: Presets + Slides -- */}
         <div style={{ flex: "0 0 136px", minWidth: 136, maxWidth: 136, display: "flex", flexDirection: "column" }}>
           {/* Frozen top: Presets + Duplicate */}
           <div style={{ flexShrink: 0 }}>
             {/* --- PRESETS --- */}
-            <div style={{ marginBottom: 0 }}>
+            <div style={{ marginBottom: 6 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 6 })}>PRESETS</label>
               <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
                 <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
@@ -251,10 +251,10 @@ export default function App() {
               )}
             </div>
             <div style={{ borderTop: "1px solid #444", marginTop: 6, marginBottom: 6 }} />
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: 6 }}>
               <button onClick={slideMgmt.duplicateSlide}
-                style={{ width: "100%", padding: "6px 8px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>
-                Duplicate
+                style={{ width: "100%", padding: "6px 8px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1, whiteSpace: "pre-line", textAlign: "center", lineHeight: 1.3 }}>
+                {"Duplicate\nSlide"}
               </button>
             </div>
           </div>
@@ -270,214 +270,146 @@ export default function App() {
         </div>
 
         {/* -- CENTER PANE: Settings + Slide Editor -- */}
-        <div style={{ flex: "1 1 0", minWidth: 420, display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: "0 1 auto", display: "flex", flexDirection: "column" }}>
 
-        {/* Frozen top: Background section */}
+        {/* Frozen top: Background + Profile + Screenshot — framed boxes */}
         <div style={{ flexShrink: 0 }}>
-        {/* --- BACKGROUND --- */}
-          <div style={{ marginBottom: 14, position: "relative", paddingRight: 158 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
-              <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #444" }}>
-                <button onClick={function() { if (isCustomBg) updateBgField("bgType", "solid"); }}
-                  style={{ flex: 1, padding: "2px 8px", border: "none", background: !isCustomBg ? "#6366f1" : "#28283e", color: !isCustomBg ? "#fff" : "#999", cursor: "pointer", fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textAlign: "center" }}>
-                  Solid
-                </button>
-                <button onClick={function() { if (!isCustomBg) updateBgField("bgType", "custom"); }}
-                  style={{ flex: 1, padding: "2px 8px", border: "none", borderLeft: "1px solid #444", background: isCustomBg ? "#6366f1" : "#28283e", color: isCustomBg ? "#fff" : "#999", cursor: "pointer", fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textAlign: "center" }}>
-                  Photo
-                </button>
-              </div>
-              <button onClick={slideMgmt.syncBgToAll} style={smallBtnStyle}>
+          <div style={{ display: "flex", gap: 10, alignItems: "stretch", minHeight: 90 }}>
+
+            {/* Sync All / Reset — same size as Save/Load */}
+            <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", gap: 4, justifyContent: "center" }}>
+              <button onClick={slideMgmt.syncBgToAll}
+                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
                 Sync All
               </button>
-              <button onClick={slideMgmt.resetBgToDefault} style={smallBtnStyle}>
+              <button onClick={slideMgmt.resetBgToDefault}
+                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
                 Reset
               </button>
             </div>
 
-            {/* Background controls row */}
-            <div style={{ display: "flex", gap: 14, alignItems: "stretch" }}>
-
-              {/* Left zone: Solid/Photo pill + Accent / Base / Layer / Frame */}
-              <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column" }}>
-
-                {/* Accent + Base (single row) */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <label style={{ fontSize: 13, color: "#999", fontWeight: 600 }}>Accent</label>
-                  <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
-                  <label style={{ fontSize: 13, color: "#999", fontWeight: 600, marginLeft: 6, opacity: isCustomBg ? 0.35 : 1 }}>Base</label>
-                  <div style={{ opacity: isCustomBg ? 0.35 : 1 }}>
+            {/* BACKGROUND box */}
+            <div style={{ flex: "0 0 auto", background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 8px" }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: 4, fontSize: 11 })}>BACKGROUND</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {/* Col 1: Accent + Base + Layer + Frame stacked */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Accent</label>
+                    <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: isCustomBg ? 0.35 : 1 }}>
+                    <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Base</label>
                     <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                   </div>
-                </div>
-
-                {/* Spacer between groups */}
-                <div style={{ height: 14 }} />
-
-                {/* Group 2: Layer + Frame */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {/* Layer row */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 13, color: "#999", fontWeight: 600, width: 46 }}>Layer</label>
-                  <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
-                    style={{ minWidth: 44, padding: "3px 8px", borderRadius: 20, border: "none", background: (!isCustomBg && currentSlide.geoEnabled) ? GREEN : "#555", color: "#fff", cursor: isCustomBg ? "default" : "pointer", fontSize: 11, fontWeight: 600 }}>
-                    {(!isCustomBg && currentSlide.geoEnabled) ? "ON" : "OFF"}
-                  </button>
-                  <div style={{ opacity: (isCustomBg || !currentSlide.geoEnabled) ? 0.5 : 1 }}>
-                    <ColorPickerInline pickerKey="geoLines" value={currentSlide.geoLines} onChange={function(c) { updateBgField("geoLines", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg || !currentSlide.geoEnabled} />
-                  </div>
-                </div>
-
-                {/* Frame row */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <label style={{ fontSize: 13, color: "#999", fontWeight: 600, width: 46 }}>Frame</label>
-                  <button onClick={function() { updateBgField("frameEnabled", !currentSlide.frameEnabled); }}
-                    style={{ minWidth: 44, padding: "3px 8px", borderRadius: 20, border: "none", background: currentSlide.frameEnabled ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                    {currentSlide.frameEnabled ? "ON" : "OFF"}
-                  </button>
-                  <div style={{ opacity: currentSlide.frameEnabled ? 1 : 0.35 }}>
-                    <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.frameEnabled} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
-                  </div>
-                </div>
-                </div>
-
-              </div>
-
-              {/* Middle zone: upload + thumbnail + status */}
-              <div style={{ flex: "0 1 180px", minWidth: 130, position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
-
-                {/* Photo upload - above thumbnail; visible only in Photo mode */}
-                <div style={{ width: "100%", marginBottom: 2, visibility: isCustomBg ? "visible" : "hidden" }}>
-                  <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
-                  <button onClick={function() { if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}
-                    style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 10, fontWeight: 600 }}>
-                    Choose File
-                  </button>
-                  <p style={{ fontSize: 9, color: "#666", margin: "2px 0 0 0", wordBreak: "break-all", lineHeight: 1.3, minHeight: 10 }}>{currentSlide.customBgName || "\u00a0"}</p>
-                </div>
-
-                {/* Thumbnail preview */}
-                <div style={{ width: "100%", maxWidth: 110, aspectRatio: "4/5", borderRadius: 6, overflow: "hidden", border: "2px solid #444", background: "#111119", position: "relative" }}>
-                  {currentSlide.bgType === "solid" && (
-                    <div style={{ width: "100%", height: "100%", background: currentSlide.solidColor || "#111119" }} />
-                  )}
-                  {currentSlide.bgType === "custom" && currentSlide.customBgImage && (
-                    <img src={currentSlide.customBgImage.src} alt="Custom background"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  )}
-                  {currentSlide.bgType === "custom" && !currentSlide.customBgImage && (
-                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#666" }}>No photo</div>
-                  )}
-                  {/* Layer overlay */}
-                  {currentSlide.geoEnabled && !isCustomBg && (
-                    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", borderRadius: 4, background: "radial-gradient(circle at 0% 22%, " + hexToRgba(currentSlide.geoLines, 12) + " 0%, transparent 40%), radial-gradient(circle at 0% 80%, " + hexToRgba(currentSlide.geoLines, 10) + " 0%, transparent 35%), radial-gradient(circle at 92% 13%, " + hexToRgba(currentSlide.geoLines, 8) + " 0%, transparent 30%), radial-gradient(circle at 88% 83%, " + hexToRgba(currentSlide.geoLines, 9) + " 0%, transparent 32%), repeating-linear-gradient(0deg, transparent, transparent 10px, " + hexToRgba(currentSlide.geoLines, 12) + " 10px, " + hexToRgba(currentSlide.geoLines, 12) + " 11px), repeating-linear-gradient(90deg, transparent, transparent 10px, " + hexToRgba(currentSlide.geoLines, 12) + " 10px, " + hexToRgba(currentSlide.geoLines, 12) + " 11px), linear-gradient(32deg, transparent 40%, " + hexToRgba(currentSlide.geoLines, 6) + " 50%, transparent 60%), linear-gradient(148deg, transparent 40%, " + hexToRgba(currentSlide.geoLines, 6) + " 50%, transparent 60%)" }} />
-                  )}
-                  {/* Frame overlay */}
-                  {currentSlide.frameEnabled && (
-                    <div style={{ position: "absolute", top: 15, left: 15, right: 15, bottom: 15, pointerEvents: "none", borderRadius: 3, border: "2px solid " + hexToRgba(currentSlide.borderColor, currentSlide.borderOpacity) }} />
-                  )}
-                </div>
-
-                {/* Status - below thumbnail; visible only in Photo mode */}
-                <div style={{ width: "100%", marginTop: 4, visibility: isCustomBg ? "visible" : "hidden" }}>
-                  <div style={{ minHeight: 14 }}>
-                    {currentSlide.customBgImage ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 9, color: GREEN }}>{"\u2713"} Uploaded</span>
-                        <button onClick={slideMgmt.removeCustomBg} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 9, padding: 0 }}>{"\u00d7"} Remove</button>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: 9, color: "#555" }}>No image</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right zone: Profile Pic + Screenshot (stacked) — absolutely positioned */}
-              <div style={{ position: "absolute", top: 0, right: 0, width: 144, paddingLeft: 6, borderLeft: "1px solid #333", display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6 }}>
-                {/* Profile card */}
-                <div style={{ background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 6px 5px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
-                    <label style={{ fontSize: 10, color: "#888", fontWeight: 600, letterSpacing: 0.5, marginBottom: 0 }}>PROFILE</label>
-                    <span style={{ fontSize: 9, color: "#555" }}>84{"\u00d7"}84</span>
-                  </div>
-                  <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
-                  <div style={{ width: 64, height: 64, borderRadius: "50%", overflow: "hidden", border: "2px solid #444", background: "#111119", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {currentSlide.profileImg ? (
-                      <img src={currentSlide.profileImg.src} alt="Profile pic" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      <span style={{ fontSize: 9, color: "#555" }}>None</span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 4, marginTop: 4, width: "100%" }}>
-                    <button onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}
-                      style={{ flex: 1, padding: "3px 4px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
-                      Upload
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: isCustomBg ? 0.35 : 1 }}>
+                    <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Layer</label>
+                    <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
+                      style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: (!isCustomBg && currentSlide.geoEnabled) ? GREEN : "#555", color: "#fff", cursor: isCustomBg ? "default" : "pointer", fontSize: 8, fontWeight: 600 }}>
+                      {(!isCustomBg && currentSlide.geoEnabled) ? "ON" : "OFF"}
                     </button>
-                    {currentSlide.profileImg && (
-                      <button onClick={slideMgmt.removeProfilePic}
-                        style={{ flex: 1, padding: "3px 4px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#f87171", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
-                        {"\u2715 Remove"}
-                      </button>
-                    )}
+                    <div style={{ opacity: (isCustomBg || !currentSlide.geoEnabled) ? 0.5 : 1 }}>
+                      <ColorPickerInline pickerKey="geoLines" value={currentSlide.geoLines} onChange={function(c) { updateBgField("geoLines", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg || !currentSlide.geoEnabled} />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Frame</label>
+                    <button onClick={function() { updateBgField("frameEnabled", !currentSlide.frameEnabled); }}
+                      style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: currentSlide.frameEnabled ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 8, fontWeight: 600 }}>
+                      {currentSlide.frameEnabled ? "ON" : "OFF"}
+                    </button>
+                    <div style={{ opacity: currentSlide.frameEnabled ? 1 : 0.35 }}>
+                      <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.frameEnabled} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
+                    </div>
                   </div>
                 </div>
-
-                {/* Screenshot card */}
-                {currentSlide && (
-                  <div style={{ background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 6px", display: "flex", flexDirection: "column", position: "relative" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 5, justifyContent: "space-between" }}>
-                      <div>
-                        <label style={{ fontSize: 9, color: "#888", fontWeight: 600, letterSpacing: 0.5, marginBottom: 0, display: "block" }}>SCREENSHOT</label>
-                        <span style={{ fontSize: 9, color: "#555" }}>{"800\u00d71000px"}</span>
-                      </div>
-                      <button onClick={function() { var next = !currentSlide.showScreenshot; updateSlide(activeSlide, "showScreenshot", next); if (!next) { slideMgmt.removeScreenshot(activeSlide); } }}
-                        style={{ minWidth: 40, padding: "2px 8px", borderRadius: 20, border: "none", background: currentSlide.showScreenshot ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
-                        {currentSlide.showScreenshot ? "ON" : "OFF"}
-                      </button>
-                    </div>
-                    {currentSlide.showScreenshot ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
-                        <button onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}
-                          style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 }}>
-                          Choose File
-                        </button>
-                        {getAsset(activeSlide).name && (
-                          <p style={{ fontSize: 9, color: "#666", margin: "0", wordBreak: "break-all", lineHeight: 1.25 }}>{getAsset(activeSlide).name}</p>
-                        )}
-                        {getAsset(activeSlide).image ? (
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <span style={{ fontSize: 9, color: GREEN }}>{"\u2713"} Uploaded</span>
-                              <button onClick={function() { slideMgmt.removeScreenshot(activeSlide); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 9, padding: 0 }}>{"\u00d7"} Remove</button>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, overflow: "hidden" }}>
-                              <span style={{ fontSize: 9, color: "#666" }}>Scale</span>
-                              <input type="range" min={50} max={200} value={Math.round(getAsset(activeSlide).scale * 100)} onChange={function(e) { setScale(activeSlide, Number(e.target.value) / 100); }}
-                                style={{ flex: 1, minWidth: 0 }} />
-                              <span style={{ fontSize: 9, color: "#777", width: 32, textAlign: "right" }}>{Math.round(getAsset(activeSlide).scale * 100) + "%"}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <p style={{ fontSize: 9, color: "#555", margin: "0" }}>No image</p>
-                        )}
-                      </div>
+                {/* Col 2: Upload frame */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", flex: "0 0 auto" }}>
+                  <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
+                  <div style={{ width: 72, height: 72, borderRadius: 6, border: "1px solid " + (currentSlide.customBgImage ? GREEN : "#444"), background: "#111119", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}
+                    onClick={function() { if (!isCustomBg) updateBgField("bgType", "custom"); if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}>
+                    {currentSlide.customBgImage ? (
+                      <>
+                        <span style={{ fontSize: 11, color: GREEN, lineHeight: 1 }}>{"\u2713"}</span>
+                        <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeCustomBg(); }}
+                          style={{ position: "absolute", top: 2, right: 2, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>{"\u00d7"}</button>
+                      </>
                     ) : (
-                      <div style={{ minHeight: 48, border: "1px dashed #333", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontSize: 9, color: "#555" }}>Enable to add image</span>
-                      </div>
+                      <>
+                        <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                        <span style={{ fontSize: 8, color: "#777" }}>{"(800\u00d71000px)"}</span>
+                      </>
                     )}
+                  </div>
+                  {currentSlide.customBgName && (
+                    <span style={{ fontSize: 7, color: "#666", marginTop: 2, maxWidth: 72, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center", display: "block" }}>{currentSlide.customBgName}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* PROFILE box */}
+            <div style={{ flex: "0 0 auto", background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 12px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: 4, fontSize: 11 })}>PROFILE</label>
+              <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
+              <div style={{ width: 64, height: 64, borderRadius: 6, border: "1px solid " + (currentSlide.profileImg ? GREEN : "#444"), background: "#111119", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}
+                onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}>
+                {currentSlide.profileImg ? (
+                  <>
+                    <span style={{ fontSize: 11, color: GREEN, lineHeight: 1 }}>{"\u2713"}</span>
+                    <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeProfilePic(); }}
+                      style={{ position: "absolute", top: 2, right: 2, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>{"\u00d7"}</button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                    <span style={{ fontSize: 8, color: "#777" }}>{"(84\u00d784px)"}</span>
+                  </>
+                )}
+              </div>
+              {currentSlide.profilePicName && (
+                <span style={{ fontSize: 7, color: "#666", marginTop: 2, maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center", display: "block" }}>{currentSlide.profilePicName}</span>
+              )}
+            </div>
+
+            {/* SCREENSHOT box */}
+            {currentSlide && (
+              <div style={{ flex: "0 0 auto", background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "6px 12px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <label style={Object.assign({}, labelStyle, { marginBottom: 4, fontSize: 11 })}>SCREENSHOT</label>
+                <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
+                <div style={{ width: 64, height: 64, borderRadius: 6, border: "1px solid " + (getAsset(activeSlide).image ? GREEN : "#444"), background: "#111119", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}
+                  onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
+                  {getAsset(activeSlide).image ? (
+                    <>
+                      <span style={{ fontSize: 11, color: GREEN, lineHeight: 1 }}>{"\u2713"}</span>
+                      <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeScreenshot(activeSlide); }}
+                        style={{ position: "absolute", top: 2, right: 2, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}>{"\u00d7"}</button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                      <span style={{ fontSize: 8, color: "#777" }}>{"(800\u00d71000px)"}</span>
+                    </>
+                  )}
+                </div>
+                {getAsset(activeSlide).name && (
+                  <span style={{ fontSize: 7, color: "#666", marginTop: 2, maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center", display: "block" }}>{getAsset(activeSlide).name}</span>
+                )}
+                {getAsset(activeSlide).image && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 3 }}>
+                    <span style={{ fontSize: 8, color: "#666" }}>Scale</span>
+                    <input type="range" min={50} max={200} value={Math.round(getAsset(activeSlide).scale * 100)} onChange={function(e) { setScale(activeSlide, Number(e.target.value) / 100); }}
+                      style={{ width: 50, minWidth: 40 }} />
+                    <span style={{ fontSize: 8, color: "#777", minWidth: 24, textAlign: "right" }}>{Math.round(getAsset(activeSlide).scale * 100) + "%"}</span>
                   </div>
                 )}
               </div>
+            )}
 
-            </div>
           </div>
 
           {/* -- Divider before Slide Editor -- */}
-          <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
+          <div style={{ borderTop: "1px solid #444", marginTop: 8, marginBottom: 8 }} />
         </div>
 
           {/* Scrollable bottom: Slide Editor */}
@@ -534,6 +466,7 @@ export default function App() {
               )}
 
               {/* -- Top Corner toggle (per-slide) -- */}
+              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>TOP CORNER</label>
                 <button onClick={function() { updateSlide(activeSlide, "showTopCorner", !currentSlide.showTopCorner); }}
@@ -559,6 +492,7 @@ export default function App() {
               )}
 
               {/* -- Bottom Corner toggle (per-slide) -- */}
+              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BOTTOM CORNER</label>
                 <button onClick={function() { updateSlide(activeSlide, "showBottomCorner", !currentSlide.showBottomCorner); }}
@@ -584,6 +518,7 @@ export default function App() {
               )}
 
               {/* -- Heading toggle (per-slide) -- */}
+              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>HEADING</label>
                 <button onClick={function() { updateSlide(activeSlide, "showHeading", !currentSlide.showHeading); }}
@@ -624,7 +559,8 @@ export default function App() {
               )}
 
               {/* Body | Cards toggle */}
-              <div style={{ display: "flex", alignItems: "center", marginTop: 12, marginBottom: 6, gap: 4 }}>
+              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
+              <div style={{ display: "flex", alignItems: "center", marginTop: 4, marginBottom: 6, gap: 4 }}>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", false); }}
                   style={{ fontWeight: 600, fontSize: 13, color: !currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>BODY</span>
                 <span style={{ color: "#2a2a3e", margin: "0 4px", fontSize: 14 }}>|</span>
@@ -666,7 +602,7 @@ export default function App() {
               {/* Body content */}
               {!currentSlide.showCards && (
                 <div>
-                  <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} rows={1}
+                  <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} rows={3}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
                     style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 13, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
                   <p style={{ fontSize: 11, color: "#555", marginTop: 2, marginBottom: 8 }}>**word** = accent color.</p>
@@ -700,52 +636,46 @@ export default function App() {
           </div>
         </div>
 
-          {/* -- RIGHT PANE: Preview -- */}
-          <div style={{ flex: "1 1 0", minWidth: 360, display: "flex", flexDirection: "column" }}>
-            {/* Frozen top: Preview header + download tiles */}
-            <div style={{ flexShrink: 0 }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: 4 })}>PREVIEW</label>
-              <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "stretch" }}>
-                <div style={{ flex: "1 1 50%" }}>
-                  <label style={{ fontSize: 10, color: "#666", display: "block", marginBottom: 2 }}>Filename prefix</label>
-                  <input value={exportPrefix}
-                    onChange={function(e) { setExportPrefix(e.target.value); }}
-                    placeholder="linkedin-slide"
-                    style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", fontSize: 11, boxSizing: "border-box", fontFamily: "monospace" }} />
-                </div>
-                <button onClick={downloadCurrentPDF}
-                  style={{ flex: "0 0 25%", padding: "6px 4px", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", lineHeight: 1.3, textAlign: "center", whiteSpace: "pre-line" }}>
-                  {"Download\nCurrent"}
-                </button>
-                <button onClick={downloadAllPDF}
-                  disabled={seriesSlides.length <= 1}
-                  style={{ flex: "0 0 25%", padding: "6px 4px", borderRadius: 8, border: "2px solid " + GREEN, background: "transparent", color: GREEN, fontSize: 10, fontWeight: 700, cursor: seriesSlides.length > 1 ? "pointer" : "default", opacity: seriesSlides.length > 1 ? 1 : 0.4, lineHeight: 1.3, textAlign: "center", whiteSpace: "pre-line" }}>
-                  {"Download\nAll " + seriesSlides.length}
-                </button>
-              </div>
+          {/* -- RIGHT PANE: Preview header row + filename + canvas -- */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
+            {/* PREVIEW label */}
+            <label style={Object.assign({}, labelStyle, { marginBottom: 2, whiteSpace: "nowrap", flexShrink: 0 })}>PREVIEW</label>
+            {/* Download buttons row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexShrink: 0 }}>
+              <button onClick={downloadCurrentPDF}
+                style={{ flex: 1, padding: "5px 10px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", lineHeight: 1.3 }}>
+                {"Download Current Slide (pdf)"}
+              </button>
+              <button onClick={downloadAllPDF}
+                disabled={seriesSlides.length <= 1}
+                style={{ flex: 1, padding: "5px 10px", borderRadius: 6, border: "2px solid " + GREEN, background: "transparent", color: GREEN, fontSize: 11, fontWeight: 700, cursor: seriesSlides.length > 1 ? "pointer" : "default", opacity: seriesSlides.length > 1 ? 1 : 0.4, whiteSpace: "nowrap", lineHeight: 1.3 }}>
+                {"Download All Slides (pdf)"}
+              </button>
               {pdfDownload && (
-                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <a href={pdfDownload.url} download={pdfDownload.name}
                     onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                    style={{ fontSize: 11, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
-                    {"Save " + pdfDownload.name}
+                    style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline" }}>
+                    {"Save"}
                   </a>
                   <button onClick={clearPdfDownload}
-                    style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1 }}>
+                    style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}>
                     {"\u00d7"}
                   </button>
                 </div>
               )}
               {pdfError && (
-                <p style={{ fontSize: 10, color: "#ef4444", marginTop: 4, margin: "4px 0 0 0" }}>{pdfError}</p>
+                <span style={{ fontSize: 10, color: "#ef4444" }}>{pdfError}</span>
               )}
             </div>
-            {/* Scrollable bottom: Canvas */}
-            <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-              <canvas ref={canvasRef} width={W} height={H}
-                style={{ width: "100%", height: "auto", borderRadius: 12, border: "1px solid #222", display: "block", marginTop: 10 }} />
-              <p style={{ fontSize: 9, color: "#888", marginTop: 2, textAlign: "center" }}>Generated locally in browser; no upload.</p>
-            </div>
+            {/* Filename input */}
+            <input value={exportPrefix}
+              onChange={function(e) { setExportPrefix(e.target.value); }}
+              placeholder="linkedin-slide"
+              style={{ width: "100%", padding: "5px 10px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", fontSize: 11, boxSizing: "border-box", fontFamily: "monospace", marginBottom: 4, flexShrink: 0 }} />
+            {/* Canvas */}
+            <canvas ref={canvasRef} width={W} height={H}
+              style={{ maxWidth: "100%", minHeight: 0, flex: "0 1 auto", borderRadius: 12, border: "1px solid #222", display: "block", objectFit: "contain", aspectRatio: W + "/" + H }} />
           </div>
         </div>
       </div>

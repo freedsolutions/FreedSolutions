@@ -72,6 +72,14 @@ function useSlideManagement(deps) {
       var img = new Image();
       img.onload = function() {
         setAsset(key, { name: fileName, image: img });
+        // Auto-enable showScreenshot when image is uploaded
+        setSeriesSlides(function(prev) {
+          return prev.map(function(s, i) {
+            if (i !== key) return s;
+            if (s.showScreenshot) return s;
+            return Object.assign({}, s, { showScreenshot: true });
+          });
+        });
       };
       img.src = ev.target.result;
     };
@@ -125,6 +133,13 @@ function useSlideManagement(deps) {
       var next = Object.assign({}, prev);
       delete next[key];
       return next;
+    });
+    setSeriesSlides(function(prev) {
+      return prev.map(function(s, i) {
+        if (i !== key) return s;
+        if (!s.showScreenshot) return s;
+        return Object.assign({}, s, { showScreenshot: false });
+      });
     });
   };
 

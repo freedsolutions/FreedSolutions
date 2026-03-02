@@ -1,5 +1,7 @@
 # FreedSolutions — Workflow Contract
 
+// Use Playwright MCP to open http://localhost:5173/preview.html
+
 ## Repo Truth
 - `src/` is the editable source of behavior.
 - `linkedin-carousel.jsx` is the generated artifact (never edit manually).

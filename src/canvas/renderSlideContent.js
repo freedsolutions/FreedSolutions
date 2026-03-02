@@ -156,7 +156,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     ty = bodyY + 10;
   }
 
-  if (slide.showScreenshot) {
+  if (slide.showScreenshot || screenshot) {
     var bottomBound = frameBottom ? frameBottom - 20 : H - 80;
     var hasHeading = slide.showHeading !== false;
     var ssFloor = expand ? (hasHeading ? 300 : 180) : (hasHeading ? 420 : 200);
