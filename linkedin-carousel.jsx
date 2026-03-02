@@ -2243,7 +2243,7 @@ export default function App() {
           <div style={{ flexShrink: 0 }}>
             <h2 style={{ color: "#fff", margin: "0 0 10px 0", fontSize: 18 }}>Carousel Generator</h2>
             {/* --- PRESETS --- */}
-            <div style={{ marginBottom: 6 }}>
+            <div style={{ marginBottom: 6, minHeight: 66 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 6 })}>PRESETS</label>
               <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
                 <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
@@ -2554,9 +2554,9 @@ export default function App() {
                   {currentSlide.showHeading ? "ON" : "OFF"}
                 </button>
                 {!currentSlide.showCards ? (
-                  <button onClick={function() { updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true); }}
+                  <button onClick={function() { if (currentSlide.showHeading) updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true); }}
                     title="Accent bar"
-                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showAccentBar !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showAccentBar !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? "#a5b4fc" : "#666", cursor: currentSlide.showHeading ? "pointer" : "default", fontSize: 9, fontWeight: 700, lineHeight: "14px", opacity: currentSlide.showHeading ? 1 : 0.35 }}>
                     {"\u2501"}
                   </button>
                 ) : (
@@ -2651,7 +2651,7 @@ export default function App() {
             {/* PREVIEW label */}
             <label style={Object.assign({}, labelStyle, { marginBottom: 6, whiteSpace: "nowrap", flexShrink: 0 })}>PREVIEW</label>
             {/* Download buttons row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <button onClick={downloadCurrentPDF}
                 style={{ flex: 1, padding: "5px 10px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", lineHeight: 1.3 }}>
                 {"Download Current Slide (pdf)"}
@@ -2661,22 +2661,42 @@ export default function App() {
                 style={{ flex: 1, padding: "5px 10px", borderRadius: 6, border: "2px solid " + GREEN, background: "transparent", color: GREEN, fontSize: 11, fontWeight: 700, cursor: seriesSlides.length > 1 ? "pointer" : "default", opacity: seriesSlides.length > 1 ? 1 : 0.4, whiteSpace: "nowrap", lineHeight: 1.3 }}>
                 {"Download All Slides (pdf)"}
               </button>
-              {pdfDownload && (
-                <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <a href={pdfDownload.url} download={pdfDownload.name}
-                    onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                    style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline" }}>
-                    {"Save"}
-                  </a>
-                  <button onClick={clearPdfDownload}
-                    style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 12, padding: "0 2px", lineHeight: 1 }}>
-                    {"\u00d7"}
-                  </button>
-                </div>
-              )}
-              {pdfError && (
-                <span style={{ fontSize: 10, color: "#ef4444" }}>{pdfError}</span>
-              )}
+            </div>
+            {/* Download link + error row (below buttons, positioned under the pressed button) */}
+            <div style={{ display: "flex", gap: 8, minHeight: 18, marginBottom: 8, flexShrink: 0 }}>
+              <div style={{ flex: 1 }}>
+                {pdfDownload && !pdfDownload.name.includes("-all.") && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <a href={pdfDownload.url} download={pdfDownload.name}
+                      onClick={function() { setTimeout(clearPdfDownload, 1500); }}
+                      style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                      {"Save " + pdfDownload.name}
+                    </a>
+                    <button onClick={clearPdfDownload}
+                      style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>
+                      {"\u00d7"}
+                    </button>
+                  </div>
+                )}
+                {pdfError && !pdfDownload && (
+                  <span style={{ fontSize: 10, color: "#ef4444", marginTop: 2, display: "block" }}>{pdfError}</span>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                {pdfDownload && pdfDownload.name.includes("-all.") && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <a href={pdfDownload.url} download={pdfDownload.name}
+                      onClick={function() { setTimeout(clearPdfDownload, 1500); }}
+                      style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                      {"Save " + pdfDownload.name}
+                    </a>
+                    <button onClick={clearPdfDownload}
+                      style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>
+                      {"\u00d7"}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             {/* Filename input */}
             <input value={exportPrefix}
