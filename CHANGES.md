@@ -2,6 +2,15 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Relocate Background/Profile/Screenshot to left pane
+- What changed: Background controls, Profile upload, and Screenshot upload moved from the center pane's frozen top section into the left pane. Left pane widened from 136px to 220px. Center pane now starts directly with the Slide Editor.
+  - **(i) Left pane layout**: Top-to-bottom: Presets > divider > Background label + Sync All/Reset buttons + Accent (with Upload beside it) + Base + Layer + Frame > Profile/Screenshot side-by-side > divider > Duplicate Slide button > Slides list.
+  - **(ii) Duplicate Slide**: Changed from two-line "Duplicate\nSlide" to single-line "Duplicate Slide".
+  - **(iii) Center pane**: Removed entire frozen top section (Background/Profile/Screenshot boxes + divider). Slide Editor is now the first and only element.
+  - **(iv) Compact uploads**: Profile and Screenshot boxes reduced to 44x44px and placed side-by-side. Background upload reduced to 48x48px.
+- Why: Groups all global/background controls in the left pane, frees vertical space in the center pane for the slide editor.
+- Files: `src/App.jsx` (layout restructure).
+
 ## 2026-03-01 - Framed-box header + Preview pane tightening
 - What changed: Header sections are now framed boxes with consistent UI patterns. Preview pane restructured.
   - **(i) Framed boxes**: Background, Profile, and Screenshot are each wrapped in `#0f0f1a` bordered boxes with `8px` border-radius, giving consistent visual framing.
