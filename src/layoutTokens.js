@@ -19,7 +19,7 @@ var SIZE = {
   colorInput: 24,
   stepper: 28,
   stepperInput: 30,
-  slideBtn: 44,
+  slideBtn: 35,
   toggleSm: 32,
   toggleMd: 44,
   removeBadge: 16,

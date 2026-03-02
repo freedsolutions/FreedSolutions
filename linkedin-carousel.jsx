@@ -58,7 +58,7 @@ var SIZE = {
   colorInput: 24,
   stepper: 28,
   stepperInput: 30,
-  slideBtn: 44,
+  slideBtn: 35,
   toggleSm: 32,
   toggleMd: 44,
   removeBadge: 16,
@@ -2464,6 +2464,61 @@ export default function App() {
           {/* Frozen top: Presets */}
           <div style={{ flexShrink: 0 }}>
             <h2 style={{ color: SURFACE.white, margin: "0 0 " + SPACE[5] + "px 0", fontSize: 18 }}>Carousel Generator</h2>
+            {/* --- DOWNLOAD --- */}
+            <div style={{ marginBottom: SPACE[3] }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[3], whiteSpace: "nowrap" })}>DOWNLOAD</label>
+              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4] }}>
+                <button onClick={downloadCurrentPDF}
+                  style={{ flex: 1, padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "none", background: CLR.primary, color: SURFACE.white, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", lineHeight: 1.3 }}>
+                  {"Current Slide"}
+                </button>
+                <button onClick={downloadAllPDF}
+                  disabled={seriesSlides.length <= 1}
+                  style={{ flex: 1, padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "2px solid " + GREEN, background: "transparent", color: GREEN, fontSize: 11, fontWeight: 700, cursor: seriesSlides.length > 1 ? "pointer" : "default", opacity: seriesSlides.length > 1 ? 1 : 0.4, whiteSpace: "nowrap", lineHeight: 1.3 }}>
+                  {"All Slides"}
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: SPACE[4], minHeight: 18 }}>
+                <div style={{ flex: 1 }}>
+                  {pdfDownload && !pdfDownload.name.includes("-all.") && (
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
+                      <a href={pdfDownload.url} download={pdfDownload.name}
+                        onClick={function() { setTimeout(clearPdfDownload, 1500); }}
+                        style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                        {"Save " + pdfDownload.name}
+                      </a>
+                      <button onClick={clearPdfDownload}
+                        style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
+                        {"\u00d7"}
+                      </button>
+                    </div>
+                  )}
+                  {pdfError && !pdfDownload && (
+                    <span style={{ fontSize: 10, color: CLR.error, marginTop: SPACE[1], display: "block" }}>{pdfError}</span>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  {pdfDownload && pdfDownload.name.includes("-all.") && (
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
+                      <a href={pdfDownload.url} download={pdfDownload.name}
+                        onClick={function() { setTimeout(clearPdfDownload, 1500); }}
+                        style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                        {"Save " + pdfDownload.name}
+                      </a>
+                      <button onClick={clearPdfDownload}
+                        style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
+                        {"\u00d7"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <input value={exportPrefix}
+                onChange={function(e) { setExportPrefix(e.target.value); }}
+                placeholder="linkedin-slide"
+                style={{ width: "100%", padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, fontSize: 11, boxSizing: "border-box", fontFamily: "monospace" }} />
+            </div>
+            <div style={dividerStyle()} />
             {/* --- PRESETS --- */}
             <div style={{ marginBottom: SPACE[3], minHeight: 36 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: SPACE[2], alignItems: "center", marginBottom: SPACE[2] }}>
@@ -2503,7 +2558,7 @@ export default function App() {
 
             {/* --- BACKGROUND --- */}
             <div style={{ marginBottom: SPACE[7] }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[1] })}>BACKGROUND</label>
+              <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[4] })}>BACKGROUND</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: SPACE[2] }}>
                 <button onClick={slideMgmt.resetBgToDefault} style={panelBtn()}>Reset</button>
                 <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
@@ -2587,16 +2642,23 @@ export default function App() {
                 <div style={uploadFrameStyle({ flex: 1, minWidth: 0 })}>
                   <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>SCREENSHOT</label>
                   <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
-                  <div style={uploadBtnStyle(getAsset(activeSlide).image)}
-                    onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
-                    {getAsset(activeSlide).image ? (
-                      <>
-                        <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
-                        <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeScreenshot(activeSlide); }}
-                          style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
-                      </>
-                    ) : (
-                      <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                    <div style={Object.assign({}, uploadBtnStyle(getAsset(activeSlide).image), { flex: 1, minWidth: 0 })}
+                      onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
+                      {getAsset(activeSlide).image ? (
+                        <>
+                          <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
+                          <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeScreenshot(activeSlide); }}
+                            style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
+                      )}
+                    </div>
+                    {getAsset(activeSlide).image && (
+                      <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
+                        title={currentSlide.expandScreenshot ? "Contract screenshot area" : "Expand screenshot area"}
+                        style={{ background: "none", border: "none", color: CLR.primary, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700, flexShrink: 0 }}>{currentSlide.expandScreenshot ? "\u2921" : "\u2922"}</button>
                     )}
                   </div>
                   {getAsset(activeSlide).name && (
@@ -2639,13 +2701,6 @@ export default function App() {
                 <span style={{ color: SURFACE.tertiary, fontSize: 14, fontWeight: 700 }}>
                   {"SLIDE " + (activeSlide + 1)}
                 </span>
-                <span style={{ fontSize: 10, color: SURFACE.dimmed, marginLeft: SPACE[7], marginRight: SPACE[2] }}>Expand</span>
-                <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
-                  title="Expand screenshot area"
-                  style={Object.assign({}, smallBtnStyle, { padding: "3px " + SPACE[4] + "px", background: currentSlide.expandScreenshot ? CLR.activeOverlay2 : SURFACE.input, color: currentSlide.expandScreenshot ? CLR.primaryLight : SURFACE.dimmed, lineHeight: "16px", fontSize: 11, fontWeight: 700 })}>
-                  {"\u2922"}
-                </button>
-                <span style={{ fontSize: 10, color: SURFACE.muted, marginLeft: SPACE[6] }}>**word** = accent color</span>
                 <div style={{ flex: 1 }} />
                 <div style={{ display: "flex", gap: SPACE[3] }}>
                   <button onClick={slideMgmt.duplicateSlide}
@@ -2853,70 +2908,18 @@ export default function App() {
                   )}
                 </div>
               )}
+              {/* Accent color hint */}
+              <div style={{ marginTop: SPACE[7], marginBottom: SPACE[3], textAlign: "center" }}>
+                <span style={{ fontSize: 14, color: SURFACE.muted }}>**word** = accent color</span>
+              </div>
             </div>
           )}
 
           </div>
         </div>
 
-          {/* -- RIGHT PANE: Preview header row + filename + canvas -- */}
+          {/* -- RIGHT PANE: Canvas preview -- */}
           <div style={{ gridArea: "preview", display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
-            {/* PREVIEW label */}
-            <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[3], whiteSpace: "nowrap", flexShrink: 0 })}>PREVIEW</label>
-            {/* Download buttons row */}
-            <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], flexShrink: 0 }}>
-              <button onClick={downloadCurrentPDF}
-                style={{ flex: 1, padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "none", background: CLR.primary, color: SURFACE.white, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", lineHeight: 1.3 }}>
-                {"Download Current Slide (pdf)"}
-              </button>
-              <button onClick={downloadAllPDF}
-                disabled={seriesSlides.length <= 1}
-                style={{ flex: 1, padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "2px solid " + GREEN, background: "transparent", color: GREEN, fontSize: 11, fontWeight: 700, cursor: seriesSlides.length > 1 ? "pointer" : "default", opacity: seriesSlides.length > 1 ? 1 : 0.4, whiteSpace: "nowrap", lineHeight: 1.3 }}>
-                {"Download All Slides (pdf)"}
-              </button>
-            </div>
-            {/* Download link + error row (below buttons, positioned under the pressed button) */}
-            <div style={{ display: "flex", gap: SPACE[4], minHeight: 18, marginBottom: SPACE[4], flexShrink: 0 }}>
-              <div style={{ flex: 1 }}>
-                {pdfDownload && !pdfDownload.name.includes("-all.") && (
-                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
-                    <a href={pdfDownload.url} download={pdfDownload.name}
-                      onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                      style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
-                      {"Save " + pdfDownload.name}
-                    </a>
-                    <button onClick={clearPdfDownload}
-                      style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
-                      {"\u00d7"}
-                    </button>
-                  </div>
-                )}
-                {pdfError && !pdfDownload && (
-                  <span style={{ fontSize: 10, color: CLR.error, marginTop: SPACE[1], display: "block" }}>{pdfError}</span>
-                )}
-              </div>
-              <div style={{ flex: 1 }}>
-                {pdfDownload && pdfDownload.name.includes("-all.") && (
-                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
-                    <a href={pdfDownload.url} download={pdfDownload.name}
-                      onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                      style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
-                      {"Save " + pdfDownload.name}
-                    </a>
-                    <button onClick={clearPdfDownload}
-                      style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
-                      {"\u00d7"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Filename input */}
-            <input value={exportPrefix}
-              onChange={function(e) { setExportPrefix(e.target.value); }}
-              placeholder="linkedin-slide"
-              style={{ width: "100%", padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, fontSize: 11, boxSizing: "border-box", fontFamily: "monospace", marginBottom: SPACE[4], flexShrink: 0 }} />
-            {/* Canvas */}
             <canvas ref={canvasRef} width={W} height={H}
               style={{ maxWidth: "100%", minHeight: 0, flex: "0 1 auto", borderRadius: RADIUS.xxl, border: "1px solid " + SURFACE.canvasBorder, display: "block", objectFit: "contain", aspectRatio: W + "/" + H }} />
           </div>
