@@ -269,18 +269,18 @@ export default function App() {
               {/* Left: toggle rows */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Accent */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                  <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Accent</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                  <label style={{ fontSize: 11, color: "#999", fontWeight: 600, width: 38 }}>Accent</label>
                   <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                 </div>
                 {/* Base */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Base</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, opacity: isCustomBg ? 0.35 : 1 }}>
+                  <label style={{ fontSize: 11, color: "#999", fontWeight: 600, width: 38 }}>Base</label>
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                 </div>
                 {/* Layer */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 0, opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Layer</label>
+                  <label style={{ fontSize: 11, color: "#999", fontWeight: 600, width: 38 }}>Layer</label>
                   <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
                     style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: (!isCustomBg && currentSlide.geoEnabled) ? GREEN : "#555", color: "#fff", cursor: isCustomBg ? "default" : "pointer", fontSize: 8, fontWeight: 600 }}>
                     {(!isCustomBg && currentSlide.geoEnabled) ? "ON" : "OFF"}
