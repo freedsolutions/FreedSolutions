@@ -55,7 +55,7 @@ function makeDefaultSlide(title, body) {
     frameEnabled: true,
     accentColor: "#a5b4fc",
     borderColor: "#ffffff",
-    borderOpacity: 25,
+    borderOpacity: 100,
     footerBg: "#ffffff",
     profileImg: null,
     profilePicName: null

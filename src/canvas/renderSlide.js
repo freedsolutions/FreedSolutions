@@ -17,7 +17,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes) 
     body: slide.bodyColor || "#ffffff",
     text: slide.titleColor || "#ffffff",
     accent: slide.accentColor || "#22c55e",
-    border: hexToRgba(slide.borderColor || "#ffffff", slide.borderOpacity != null ? slide.borderOpacity : 25),
+    border: hexToRgba(slide.borderColor || "#ffffff", slide.borderOpacity != null ? slide.borderOpacity : 100),
     cardBg: slide.cardBgColor || "#ffffff",
     cardText: slide.cardTextColor || "#333333",
   };

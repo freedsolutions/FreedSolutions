@@ -253,20 +253,19 @@ export default function App() {
             <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
 
             {/* --- BACKGROUND --- */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
-              <button onClick={slideMgmt.resetBgToDefault}
-                style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-                Reset
-              </button>
-            </div>
-            <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+            <label style={Object.assign({}, labelStyle, { marginBottom: 8 })}>BACKGROUND</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
               <button onClick={slideMgmt.syncBgToAll}
-                style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
                 Sync All
               </button>
+              <button onClick={slideMgmt.resetBgToDefault}
+                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                Reset
+              </button>
+              <div />
               <button onClick={slideMgmt.resetAllBgToDefault}
-                style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
                 Reset All
               </button>
             </div>
