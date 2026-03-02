@@ -253,7 +253,7 @@ export default function App() {
             <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
 
             {/* --- BACKGROUND --- */}
-            <label style={Object.assign({}, labelStyle, { marginBottom: 8 })}>BACKGROUND</label>
+            <label style={Object.assign({}, labelStyle, { marginBottom: 2 })}>BACKGROUND</label>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
               <button onClick={slideMgmt.syncBgToAll}
                 style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
