@@ -212,9 +212,9 @@ export default function App() {
         <div style={{ display: "grid", gridTemplateColumns: SIZE.leftPane + "px 1fr minmax(0," + SIZE.rightPaneMax + "px)", gridTemplateAreas: '"sidebar editor preview"', gap: SIZE.columnGap, flex: 1, minHeight: 0 }}>
 
         {/* -- LEFT COLUMN: Presets + Background + Slides -- */}
-        <div style={{ gridArea: "sidebar", display: "flex", flexDirection: "column" }}>
-          {/* Frozen top: Presets */}
-          <div style={{ flexShrink: 0 }}>
+        <div style={{ gridArea: "sidebar", overflowY: "auto", minHeight: 0 }}>
+          {/* Presets */}
+          <div>
             <h2 style={{ color: SURFACE.white, margin: "0 0 " + SPACE[5] + "px 0", fontSize: 18 }}>Carousel Generator</h2>
             {/* --- DOWNLOAD --- */}
             <div style={{ marginBottom: SPACE[3] }}>
@@ -416,7 +416,7 @@ export default function App() {
             <div style={{ borderTop: "1px solid " + SURFACE.border, marginTop: SPACE[5], marginBottom: SPACE[5] }} />
           </div>
           {/* Slides list */}
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          <div>
             <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[6] }}>
               <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
                 dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
@@ -427,7 +427,7 @@ export default function App() {
         </div>
 
         {/* -- CENTER PANE: Slide Editor -- */}
-        <div style={{ gridArea: "editor", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ gridArea: "editor", display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
 
           {/* Scrollable: Slide Editor */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
