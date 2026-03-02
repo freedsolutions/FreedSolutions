@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-02 - Layout grid + design tokens
+- What changed: Introduced `src/layoutTokens.js` with a shared design token system (SPACE, RADIUS, Z, SIZE, SURFACE, CLR) and style helper functions (panelBtn, toggleBtn, uploadFrameStyle, uploadBtnStyle, dividerStyle, dialogOverlay, dialogBox, dialogBtn). Replaced all ad-hoc magic numbers across App.jsx, ColorPickerInline.jsx, SizeControl.jsx, and SlideSelector.jsx with token references. Converted the three-column flex layout to CSS Grid with named grid areas (sidebar, editor, preview). Restructured BACKGROUND buttons from 2-column to label + 3-column equal-width grid.
+- Why: Layout tweaks were finicky because every gap, margin, padding, color, and size was a standalone magic number. Changing one value required hunting across files. Now all spacing/sizing/color decisions flow from shared constants — changing `SPACE[4]` from 8 to 10 updates every standard gap at once.
+- Files: `src/layoutTokens.js` (new), `build.js` (ORDER updated), `src/App.jsx`, `src/ColorPickerInline.jsx`, `src/SizeControl.jsx`, `src/SlideSelector.jsx`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-01 - Upload frame spacing + filename overflow fix
 - What changed: Increased margins between stacked elements (label, spec text, upload button, filename) in all three upload frames from 1-2px to 3-4px. Added `overflow: hidden` and `minWidth: 0` to prevent long filenames from widening the Profile and Screenshot frames.
 - Why: Elements were too tightly packed; long filenames could push flex containers wider than intended.

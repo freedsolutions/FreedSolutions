@@ -37,6 +37,191 @@ function composeFont(family, size, weight, italic) {
   return parts.join(" ");
 }
 
+// ===================================================
+// Layout Tokens — design system constants
+// ===================================================
+
+// --- Spacing scale ---
+// Every gap, margin, and padding should use one of these values.
+var SPACE = { 0: 0, 1: 2, 2: 4, 3: 6, 4: 8, 5: 10, 6: 12, 7: 16, 8: 24, 9: 48 };
+
+// --- Border radius scale ---
+var RADIUS = { sm: 4, md: 6, lg: 8, xl: 10, xxl: 12, pill: 20 };
+
+// --- Z-index layers ---
+var Z = { dropdown: 60, modal: 9999 };
+
+// --- Component sizes ---
+var SIZE = {
+  swatchBtn: 18,
+  swatch: 20,
+  colorInput: 24,
+  stepper: 28,
+  stepperInput: 30,
+  slideBtn: 44,
+  toggleSm: 32,
+  toggleMd: 44,
+  removeBadge: 16,
+  uploadFrame: 88,
+  uploadBtn: 24,
+  uploadBgWidth: 107,
+  leftPane: 220,
+  rightPaneMax: 480,
+  pagePadH: 48,
+  pagePadV: 28,
+  columnGap: 48,
+  pickerWidth: 200,
+  dialogSm: 320,
+  dialogMd: 360,
+};
+
+// --- UI surface colors (dark to light) ---
+var SURFACE = {
+  page: "#000000",
+  inputDeep: "#0e0e1a",
+  uploadBg: "#0f0f1a",
+  panelDeep: "#10101a",
+  uploadBtn: "#111119",
+  panel: "#1a1a30",
+  canvasBorder: "#222",
+  input: "#28283e",
+  pipeSep: "#2a2a3e",
+  divider: "#2a2a40",
+  uploadBorder: "#343447",
+  panelBorder: "#3a3a50",
+  border: "#444",
+  muted: "#555",
+  dimmed: "#666",
+  secondary: "#777",
+  tertiary: "#888",
+  subtle: "#999",
+  inactive: "#aaa",
+  label: "#bbb",
+  text: "#ccc",
+  body: "#e0e0e0",
+  white: "#fff",
+};
+
+// --- Semantic colors ---
+var CLR = {
+  primary: "#6366f1",
+  primaryLight: "#a5b4fc",
+  danger: "#f87171",
+  dangerBorder: "#f8717133",
+  error: "#ef4444",
+  errorLight: "#fca5a5",
+  errorBg: "#3a1a1a",
+  errorBorder: "#7f1d1d",
+  activeOverlay: "rgba(165,180,252,0.25)",
+  activeOverlay2: "rgba(165,180,252,0.2)",
+  dragTarget: "rgba(99,102,241,0.10)",
+  activeSlide: "rgba(34,197,94,0.15)",
+  removeBadgeBg: "rgba(100,100,100,0.7)",
+  modalOverlay: "rgba(0,0,0,0.5)",
+  shadow: "0 8px 24px rgba(0,0,0,0.6)",
+  shadowLg: "0 8px 32px rgba(0,0,0,0.6)",
+};
+
+// --- Style helpers ---
+// Compose common inline style objects from tokens.
+
+function panelBtn(overrides) {
+  var base = {
+    padding: SPACE[3] + "px " + SPACE[6] + "px",
+    borderRadius: RADIUS.md,
+    border: "1px solid " + SURFACE.border,
+    background: SURFACE.input,
+    color: SURFACE.text,
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: 700,
+  };
+  return overrides ? Object.assign({}, base, overrides) : base;
+}
+
+function toggleBtn(isOn, overrides) {
+  var base = {
+    minWidth: SIZE.toggleMd,
+    padding: "3px " + SPACE[6] + "px",
+    borderRadius: RADIUS.pill,
+    border: "none",
+    background: isOn ? GREEN : SURFACE.muted,
+    color: SURFACE.white,
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: 600,
+  };
+  return overrides ? Object.assign({}, base, overrides) : base;
+}
+
+function uploadFrameStyle(overrides) {
+  var base = {
+    height: SIZE.uploadFrame,
+    background: SURFACE.uploadBg,
+    border: "1px solid " + SURFACE.uploadBorder,
+    borderRadius: RADIUS.lg,
+    padding: SPACE[2] + "px " + SPACE[4] + "px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    boxSizing: "border-box",
+    overflow: "hidden",
+  };
+  return overrides ? Object.assign({}, base, overrides) : base;
+}
+
+function uploadBtnStyle(hasFile) {
+  return {
+    width: "100%",
+    height: SIZE.uploadBtn,
+    borderRadius: 5,
+    border: "1px solid " + (hasFile ? GREEN : SURFACE.border),
+    background: SURFACE.uploadBtn,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    gap: SPACE[7],
+  };
+}
+
+function dividerStyle() {
+  return { borderTop: "1px solid " + SURFACE.divider, marginTop: SPACE[4], marginBottom: SPACE[4] };
+}
+
+function dialogOverlay() {
+  return {
+    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+    background: CLR.modalOverlay,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    zIndex: Z.modal,
+  };
+}
+
+function dialogBox(maxWidth) {
+  return {
+    background: SURFACE.panel,
+    border: "1px solid " + SURFACE.border,
+    borderRadius: RADIUS.xl,
+    padding: SPACE[8] + "px",
+    maxWidth: maxWidth || SIZE.dialogSm,
+    boxShadow: CLR.shadowLg,
+  };
+}
+
+function dialogBtn(isPrimary) {
+  return {
+    padding: SPACE[3] + "px " + SPACE[7] + "px",
+    borderRadius: RADIUS.md,
+    border: isPrimary ? "none" : "1px solid " + SURFACE.border,
+    background: isPrimary ? CLR.primary : SURFACE.input,
+    color: isPrimary ? SURFACE.white : SURFACE.subtle,
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+  };
+}
+
 // ---------------------------------------
 // hexToRgba
 // ---------------------------------------
@@ -832,8 +1017,8 @@ function ColorPickerInline(props) {
           setOpenPicker(isOpen ? null : pickerKey);
         }}
         style={{
-          width: 18, height: 18, borderRadius: 4,
-          border: isOpen ? "2px solid #6366f1" : "1px solid #444",
+          width: SIZE.swatchBtn, height: SIZE.swatchBtn, borderRadius: RADIUS.sm,
+          border: isOpen ? "2px solid " + CLR.primary : "1px solid " + SURFACE.border,
           background: value,
           cursor: disabled ? "default" : "pointer",
           padding: 0, display: "block"
@@ -842,57 +1027,57 @@ function ColorPickerInline(props) {
       {isOpen && (
         <div style={pickerDropdownStyle}>
           {hasTypography && (
-            <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #3a3a50" }}>
+            <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
               <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { onFontFamilyChange(e.target.value); }}
-                style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, marginBottom: 6, cursor: "pointer" }}>
+                style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
                 {FONT_OPTIONS.map(function(f) {
                   return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
                 })}
               </select>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", gap: SPACE[2] }}>
                 <button onClick={function() { onBoldChange(!bold); }}
                   title="Bold"
-                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: bold ? "rgba(165,180,252,0.25)" : "#28283e", color: bold ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+                  style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: bold ? CLR.activeOverlay : SURFACE.input, color: bold ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
                 <button onClick={function() { onItalicChange(!italic); }}
                   title="Italic"
-                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: italic ? "rgba(165,180,252,0.25)" : "#28283e", color: italic ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+                  style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italic ? CLR.activeOverlay : SURFACE.input, color: italic ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
               </div>
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
             {INLINE_SWATCHES.map(function(c) {
               return (
                 <button key={c} onClick={function() { onChange(c); }}
                   style={{
-                    width: 20, height: 20, borderRadius: 4,
-                    border: value === c ? "2px solid #fff" : "1px solid #444",
+                    width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                    border: value === c ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
                     background: c, cursor: "pointer", padding: 0,
-                    boxShadow: value === c ? "0 0 0 1px #6366f1" : "none"
+                    boxShadow: value === c ? "0 0 0 1px " + CLR.primary : "none"
                   }}
                 />
               );
             })}
           </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
             <input type="color"
               value={value && value.charAt(0) === "#" ? value : "#ffffff"}
               onChange={function(e) { onChange(e.target.value); }}
-              style={{ width: 24, height: 24, border: "1px solid #444", borderRadius: 4, cursor: "pointer", background: "none", padding: 0 }}
+              style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }}
             />
             <input value={value}
               onChange={function(e) { onChange(e.target.value); }}
-              style={{ flex: 1, padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, fontFamily: "monospace" }}
+              style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
             />
           </div>
           {onOpacityChange && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, paddingTop: 8, borderTop: "1px solid #3a3a50" }}>
-              <span style={{ fontSize: 10, color: "#666", whiteSpace: "nowrap" }}>Opacity</span>
+            <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+              <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
               <input type="range" min={0} max={100}
                 value={opacityVal != null ? opacityVal : 100}
                 onChange={function(e) { onOpacityChange(Number(e.target.value)); }}
                 style={{ flex: 1 }}
               />
-              <span style={{ fontSize: 10, color: "#555", width: 28, textAlign: "right" }}>
+              <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
                 {(opacityVal != null ? opacityVal : 100) + "%"}
               </span>
             </div>
@@ -940,67 +1125,67 @@ function SizeControl(props) {
 
   var cpOpen = colorPickerKey && openPicker === colorPickerKey;
   return (
-    <div style={{ display: "flex", alignItems: "center", marginBottom: text ? 6 : 0, gap: text ? 0 : 6 }}>
-      {text && <span style={{ fontWeight: 600, fontSize: 13, color: "#bbb", letterSpacing: 0.5, flex: 1 }}>{text}{extra ? " " : ""}{extra}</span>}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div style={{ display: "flex", alignItems: "center", marginBottom: text ? SPACE[3] : 0, gap: text ? 0 : SPACE[3] }}>
+      {text && <span style={{ fontWeight: 600, fontSize: 13, color: SURFACE.label, letterSpacing: 0.5, flex: 1 }}>{text}{extra ? " " : ""}{extra}</span>}
+      <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
         {colorPickerKey && (
           <div style={{ position: "relative" }} data-picker={colorPickerKey}>
             <button onClick={function(e) { e.stopPropagation(); setOpenPicker(cpOpen ? null : colorPickerKey); }}
-              style={{ width: 18, height: 18, borderRadius: 4, border: cpOpen ? "2px solid #6366f1" : "1px solid #444", background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
+              style={{ width: SIZE.swatchBtn, height: SIZE.swatchBtn, borderRadius: RADIUS.sm, border: cpOpen ? "2px solid " + CLR.primary : "1px solid " + SURFACE.border, background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
             {cpOpen && (
               <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
                 {hasTypography && (
-                  <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #3a3a50" }}>
+                  <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
                     <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { fontFamilySet(e.target.value); }}
-                      style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, marginBottom: 6, cursor: "pointer" }}>
+                      style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
                       {FONT_OPTIONS.map(function(f) {
                         return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
                       })}
                     </select>
-                    <div style={{ display: "flex", gap: 4 }}>
+                    <div style={{ display: "flex", gap: SPACE[2] }}>
                       <button onClick={function() { boldSet(!boldVal); }}
                         title="Bold"
-                        style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: boldVal ? "rgba(165,180,252,0.25)" : "#28283e", color: boldVal ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+                        style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: boldVal ? CLR.activeOverlay : SURFACE.input, color: boldVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
                       <button onClick={function() { italicSet(!italicVal); }}
                         title="Italic"
-                        style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: italicVal ? "rgba(165,180,252,0.25)" : "#28283e", color: italicVal ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+                        style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italicVal ? CLR.activeOverlay : SURFACE.input, color: italicVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
                     </div>
                   </div>
                 )}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
                   {INLINE_SWATCHES.map(function(c) {
                     var active = colorVal === c;
                     return (
                       <button key={c} onClick={function() { colorSet(c); }}
-                        style={{ width: 20, height: 20, borderRadius: 4, border: active ? "2px solid #fff" : "1px solid #444", background: c, cursor: "pointer", padding: 0, boxShadow: active ? "0 0 0 1px #6366f1" : "none" }} />
+                        style={{ width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm, border: active ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border, background: c, cursor: "pointer", padding: 0, boxShadow: active ? "0 0 0 1px " + CLR.primary : "none" }} />
                     );
                   })}
                 </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
                   <input type="color" value={colorVal && colorVal.charAt(0) === "#" ? colorVal : "#ffffff"} onChange={function(e) { colorSet(e.target.value); }}
-                    style={{ width: 24, height: 24, border: "1px solid #444", borderRadius: 4, cursor: "pointer", background: "none", padding: 0 }} />
+                    style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }} />
                   <input value={colorVal || ""} onChange={function(e) { colorSet(e.target.value); }}
-                    style={{ flex: 1, padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, fontFamily: "monospace" }} />
+                    style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }} />
                 </div>
                 {opacitySet && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, paddingTop: 8, borderTop: "1px solid #3a3a50" }}>
-                    <span style={{ fontSize: 10, color: "#666", whiteSpace: "nowrap" }}>Opacity</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+                    <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
                     <input type="range" min={0} max={100} value={opacityVal != null ? opacityVal : 100} onChange={function(e) { opacitySet(Number(e.target.value)); }}
                       style={{ flex: 1 }} />
-                    <span style={{ fontSize: 10, color: "#555", width: 28, textAlign: "right" }}>{(opacityVal != null ? opacityVal : 100) + "%"}</span>
+                    <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>{(opacityVal != null ? opacityVal : 100) + "%"}</span>
                   </div>
                 )}
               </div>
             )}
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#28283e", borderRadius: 4, border: "1px solid #444", height: 28, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
           <button onClick={function() { if (sizes[sizeKey] > min) setSize(sizeKey, sizes[sizeKey] - 1); }}
-            style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>{"\u2212"}</button>
+            style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>{"\u2212"}</button>
           <input value={sizes[sizeKey]} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize(sizeKey, Math.max(min, Math.min(max, v))); }}
-            style={{ width: 30, height: 28, border: "none", borderLeft: "1px solid #444", borderRight: "1px solid #444", background: "transparent", color: "#666", fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+            style={{ width: SIZE.stepperInput, height: SIZE.stepper, border: "none", borderLeft: "1px solid " + SURFACE.border, borderRight: "1px solid " + SURFACE.border, background: "transparent", color: SURFACE.dimmed, fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
           <button onClick={function() { if (sizes[sizeKey] < max) setSize(sizeKey, sizes[sizeKey] + 1); }}
-            style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>+</button>
+            style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>+</button>
         </div>
       </div>
     </div>
@@ -1030,16 +1215,16 @@ function SlideSelector(props) {
   var canRemove = seriesSlides.length > 1;
 
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+    <div style={{ marginBottom: SPACE[5] }}>
+      <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[4] }}>
         <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
         <button onClick={duplicateSlide}
           disabled={seriesSlides.length >= MAX_SLIDES}
-          style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>
+          style={panelBtn({ marginLeft: "auto", padding: "3px " + SPACE[4] + "px", fontSize: 10, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
           Duplicate
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[3], marginBottom: 0 }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
           var isDragSource = dragFrom === i;
@@ -1055,21 +1240,21 @@ function SlideSelector(props) {
                 onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
                 onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
                 onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-                style={{ width: "100%", height: 44, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
+                style={{ width: "100%", height: SIZE.slideBtn, borderRadius: RADIUS.lg, border: isDragTarget ? "2px dashed " + CLR.primary : (isActive ? "2px solid " + GREEN : "2px solid " + SURFACE.muted), background: isDragTarget ? CLR.dragTarget : (isActive ? CLR.activeSlide : SURFACE.panel), color: isActive ? GREEN : SURFACE.inactive, cursor: isDragSource ? "grabbing" : "grab", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
                 {label}
               </button>
               {canRemove && (
                 <button
                   onClick={function(e) { e.stopPropagation(); removeSlide(i); }}
                   onDragStart={function(e) { e.preventDefault(); e.stopPropagation(); }}
-                  style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: 8, border: "none", background: "rgba(100,100,100,0.7)", color: "#f87171", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{"\u00d7"}</button>
+                  style={{ position: "absolute", top: -SPACE[2], right: -SPACE[2], width: SIZE.removeBadge, height: SIZE.removeBadge, borderRadius: RADIUS.lg, border: "none", background: CLR.removeBadgeBg, color: CLR.danger, cursor: "pointer", fontSize: 10, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{"\u00d7"}</button>
               )}
             </div>
           );
         })}
         {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
-            style={{ width: "100%", height: 44, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 20, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            style={{ width: "100%", height: SIZE.slideBtn, borderRadius: RADIUS.lg, border: "2px dashed " + SURFACE.muted, background: SURFACE.panel, color: SURFACE.tertiary, cursor: "pointer", fontSize: 20, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
       </div>
     </div>
@@ -2067,11 +2252,11 @@ function usePresets(deps) {
 // ---------------------------------------
 
 // Hoisted styles (module-scope to avoid per-render allocations)
-var inputStyle = { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 14, boxSizing: "border-box" };
-var labelStyle = { display: "block", marginBottom: 6, fontWeight: 600, fontSize: 13, color: "#bbb", letterSpacing: 0.5 };
+var inputStyle = { width: "100%", padding: SPACE[4] + "px " + SPACE[6] + "px", borderRadius: RADIUS.lg, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.white, fontSize: 14, boxSizing: "border-box" };
+var labelStyle = { display: "block", marginBottom: SPACE[3], fontWeight: 600, fontSize: 13, color: SURFACE.label, letterSpacing: 0.5 };
 var INLINE_SWATCHES = ["#ffffff", "#1a1a2e", "#333333", "#22c55e", "#a5b4fc", "#f59e0b", "#fb7185", "#22d3ee", "#a78bfa", "#38bdf8", "#d97706", "#fef3c7", "#e0f2fe", "#e0e7ff", "#f0fdf4", "#9ca3af"];
-var smallBtnStyle = { padding: "2px 8px", borderRadius: 4, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 9, fontWeight: 600 };
-var pickerDropdownStyle = { position: "absolute", top: "100%", left: 0, zIndex: 60, marginTop: 4, background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: 10, width: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.6)" };
+var smallBtnStyle = { padding: SPACE[1] + "px " + SPACE[4] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, cursor: "pointer", fontSize: 9, fontWeight: 600 };
+var pickerDropdownStyle = { position: "absolute", top: "100%", left: 0, zIndex: Z.dropdown, marginTop: SPACE[2], background: SURFACE.panel, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.xl, padding: SPACE[5], width: SIZE.pickerWidth, boxShadow: CLR.shadow };
 
 export default function App() {
   var canvasRef = useRef(null);
@@ -2269,88 +2454,81 @@ export default function App() {
   var isCustomBg = currentSlide.bgType === "custom";
 
   return (
-    <div style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', background: "#000000", height: "100vh", overflow: "hidden", color: "#e0e0e0", padding: "28px 48px", boxSizing: "border-box" }}>
+    <div style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', background: SURFACE.page, height: "100vh", overflow: "hidden", color: SURFACE.body, padding: SIZE.pagePadV + "px " + SIZE.pagePadH + "px", boxSizing: "border-box" }}>
       <div style={{ margin: "0 auto", height: "100%", display: "flex", flexDirection: "column" }}>
 
-        <div style={{ display: "flex", gap: 48, flex: 1, minHeight: 0, alignItems: "stretch" }}>
+        <div style={{ display: "grid", gridTemplateColumns: SIZE.leftPane + "px 1fr minmax(0," + SIZE.rightPaneMax + "px)", gridTemplateAreas: '"sidebar editor preview"', gap: SIZE.columnGap, flex: 1, minHeight: 0 }}>
 
         {/* -- LEFT COLUMN: Presets + Background + Slides -- */}
-        <div style={{ flex: "0 0 220px", minWidth: 220, maxWidth: 220, display: "flex", flexDirection: "column" }}>
+        <div style={{ gridArea: "sidebar", display: "flex", flexDirection: "column" }}>
           {/* Frozen top: Presets */}
           <div style={{ flexShrink: 0 }}>
-            <h2 style={{ color: "#fff", margin: "0 0 10px 0", fontSize: 18 }}>Carousel Generator</h2>
+            <h2 style={{ color: SURFACE.white, margin: "0 0 " + SPACE[5] + "px 0", fontSize: 18 }}>Carousel Generator</h2>
             {/* --- PRESETS --- */}
-            <div style={{ marginBottom: 6, minHeight: 36 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 4, alignItems: "center", marginBottom: 4 }}>
+            <div style={{ marginBottom: SPACE[3], minHeight: 36 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: SPACE[2], alignItems: "center", marginBottom: SPACE[2] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
                 <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
-                  style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                  style={panelBtn()}>
                   Save
                 </button>
                 <button onClick={function() { presets.setPresetError(""); if (presets.presetInputRef.current) presets.presetInputRef.current.click(); }}
-                  style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                  style={panelBtn()}>
                   Load
                 </button>
                 <input ref={presets.presetInputRef} type="file" accept=".json" onChange={presets.handlePresetUpload} style={{ display: "none" }} />
               </div>
               {presets.presetDownload && (
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
                   <a href={presets.presetDownload.url} download={presets.presetDownload.name}
                     onClick={function() { setTimeout(presets.clearPresetDownload, 1500); }}
-                    style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                    style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
                     {"Save " + presets.presetDownload.name}
                   </a>
                   <button onClick={presets.clearPresetDownload}
-                    style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>
+                    style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
                     {"\u00d7"}
                   </button>
                 </div>
               )}
               {presets.presetError && (
-                <div style={{ marginTop: 2, padding: "3px 6px", borderRadius: 6, background: "#3a1a1a", border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}>
+                <div style={{ marginTop: SPACE[1], padding: "3px " + SPACE[3] + "px", borderRadius: RADIUS.md, background: CLR.errorBg, border: "1px solid " + CLR.errorBorder, color: CLR.errorLight, fontSize: 10, display: "flex", alignItems: "center", gap: SPACE[2] }}>
                   <span style={{ flex: 1 }}>{presets.presetError}</span>
                   <button onClick={function() { presets.setPresetError(""); }}
-                    style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>{"\u00d7"}</button>
+                    style={{ background: "none", border: "none", color: CLR.errorLight, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>{"\u00d7"}</button>
                 </div>
               )}
             </div>
-            <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
+            <div style={{ borderTop: "1px solid " + SURFACE.border, marginTop: SPACE[5], marginBottom: SPACE[5] }} />
 
             {/* --- BACKGROUND --- */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, alignItems: "center", marginBottom: 16 }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
-              <button onClick={slideMgmt.syncBgToAll}
-                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-                Sync All
-              </button>
-              <button onClick={slideMgmt.resetBgToDefault}
-                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-                Reset
-              </button>
-              <button onClick={slideMgmt.resetAllBgToDefault}
-                style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-                Reset All
-              </button>
+            <div style={{ marginBottom: SPACE[7] }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[1] })}>BACKGROUND</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: SPACE[2] }}>
+                <button onClick={slideMgmt.resetBgToDefault} style={panelBtn()}>Reset</button>
+                <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
+                <button onClick={slideMgmt.resetAllBgToDefault} style={panelBtn()}>Reset All</button>
+              </div>
             </div>
             {/* Toggles + BG upload side by side */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: SPACE[4], marginBottom: SPACE[5] }}>
               {/* Left: toggle rows */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Accent */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  <label style={{ fontSize: 14, color: "#999", fontWeight: 600, width: 50 }}>Accent</label>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5], marginBottom: SPACE[6] }}>
+                  <label style={{ fontSize: 14, color: SURFACE.subtle, fontWeight: 600, width: 50 }}>Accent</label>
                   <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                 </div>
                 {/* Base */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 14, color: "#999", fontWeight: 600, width: 50 }}>Base</label>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5], marginBottom: SPACE[6], opacity: isCustomBg ? 0.35 : 1 }}>
+                  <label style={{ fontSize: 14, color: SURFACE.subtle, fontWeight: 600, width: 50 }}>Base</label>
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                 </div>
                 {/* Layer */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 14, color: "#999", fontWeight: 600, width: 50 }}>Layer</label>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[5], marginBottom: SPACE[2], opacity: isCustomBg ? 0.35 : 1 }}>
+                  <label style={{ fontSize: 14, color: SURFACE.subtle, fontWeight: 600, width: 50 }}>Layer</label>
                   <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
-                    style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: (!isCustomBg && currentSlide.geoEnabled) ? GREEN : "#555", color: "#fff", cursor: isCustomBg ? "default" : "pointer", fontSize: 8, fontWeight: 600 }}>
+                    style={toggleBtn(!isCustomBg && currentSlide.geoEnabled, { minWidth: SIZE.toggleSm, padding: "1px 5px", fontSize: 8, cursor: isCustomBg ? "default" : "pointer" })}>
                     {(!isCustomBg && currentSlide.geoEnabled) ? "ON" : "OFF"}
                   </button>
                   <div style={{ opacity: (isCustomBg || !currentSlide.geoEnabled) ? 0.5 : 1 }}>
@@ -2359,87 +2537,87 @@ export default function App() {
                 </div>
               </div>
               {/* Right: BACKGROUND upload */}
-              <div style={{ flex: "0 0 107px", height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 6px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
-                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 3 }}>BACKGROUND</label>
-                <span style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>800×1000px</span>
+              <div style={uploadFrameStyle({ flex: "0 0 " + SIZE.uploadBgWidth + "px", padding: SPACE[2] + "px " + SPACE[3] + "px" })}>
+                <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>BACKGROUND</label>
+                <span style={{ fontSize: 11, color: SURFACE.muted, marginBottom: SPACE[2] }}>800×1000px</span>
                 <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
-                <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (currentSlide.customBgImage ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
+                <div style={uploadBtnStyle(currentSlide.customBgImage)}
                   onClick={function() { if (!isCustomBg) updateBgField("bgType", "custom"); if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}>
                   {currentSlide.customBgImage ? (
                     <>
                       <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
                       <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeCustomBg(); }}
-                        style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
+                        style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                     </>
                   ) : (
-                    <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                    <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
                   )}
                 </div>
                 {currentSlide.customBgName && (
-                  <span style={{ fontSize: 11, color: "#666", marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.customBgName}</span>
+                  <span style={{ fontSize: 11, color: SURFACE.dimmed, marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.customBgName}</span>
                 )}
               </div>
             </div>
 
             {/* Profile + Screenshot side by side */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: SPACE[3], marginBottom: SPACE[5] }}>
               {/* PROFILE */}
-              <div style={{ flex: 1, minWidth: 0, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
-                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 3 }}>PROFILE</label>
-                <span style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>84×84px</span>
+              <div style={uploadFrameStyle({ flex: 1, minWidth: 0 })}>
+                <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>PROFILE</label>
+                <span style={{ fontSize: 11, color: SURFACE.muted, marginBottom: SPACE[2] }}>84×84px</span>
                 <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
-                <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (currentSlide.profileImg ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
+                <div style={uploadBtnStyle(currentSlide.profileImg)}
                   onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}>
                   {currentSlide.profileImg ? (
                     <>
                       <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
                       <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeProfilePic(); }}
-                        style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
+                        style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                     </>
                   ) : (
-                    <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                    <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
                   )}
                 </div>
                 {currentSlide.profilePicName && (
-                  <span style={{ fontSize: 11, color: "#666", marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.profilePicName}</span>
+                  <span style={{ fontSize: 11, color: SURFACE.dimmed, marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.profilePicName}</span>
                 )}
               </div>
               {/* SCREENSHOT */}
               {currentSlide && (
-                <div style={{ flex: 1, minWidth: 0, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
-                  <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 3 }}>SCREENSHOT</label>
+                <div style={uploadFrameStyle({ flex: 1, minWidth: 0 })}>
+                  <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>SCREENSHOT</label>
                   <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
-                  <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (getAsset(activeSlide).image ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
+                  <div style={uploadBtnStyle(getAsset(activeSlide).image)}
                     onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
                     {getAsset(activeSlide).image ? (
                       <>
                         <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
                         <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeScreenshot(activeSlide); }}
-                          style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
+                          style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                      <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
                     )}
                   </div>
                   {getAsset(activeSlide).name && (
-                    <span style={{ fontSize: 11, color: "#666", marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{getAsset(activeSlide).name}</span>
+                    <span style={{ fontSize: 11, color: SURFACE.dimmed, marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{getAsset(activeSlide).name}</span>
                   )}
                   {getAsset(activeSlide).image && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 2, width: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[1], marginTop: SPACE[1], width: "100%" }}>
                       <input type="range" min={50} max={200} value={Math.round(getAsset(activeSlide).scale * 100)} onChange={function(e) { setScale(activeSlide, Number(e.target.value) / 100); }}
                         style={{ flex: 1, minWidth: 0 }} />
-                      <span style={{ fontSize: 7, color: "#777", minWidth: 20, textAlign: "right" }}>{Math.round(getAsset(activeSlide).scale * 100) + "%"}</span>
+                      <span style={{ fontSize: 7, color: SURFACE.secondary, minWidth: 20, textAlign: "right" }}>{Math.round(getAsset(activeSlide).scale * 100) + "%"}</span>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
+            <div style={{ borderTop: "1px solid " + SURFACE.border, marginTop: SPACE[5], marginBottom: SPACE[5] }} />
           </div>
           {/* Scrollable bottom: Slides list */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            <div style={{ background: "#10101a", border: "1px solid #343447", borderRadius: 10, padding: 12 }}>
+            <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[6] }}>
               <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
                 dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
                 reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
@@ -2449,66 +2627,66 @@ export default function App() {
         </div>
 
         {/* -- CENTER PANE: Slide Editor -- */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ gridArea: "editor", display: "flex", flexDirection: "column", minWidth: 0 }}>
 
           {/* Scrollable: Slide Editor */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
 
           {/* --- SLIDE EDITOR --- */}
           {currentSlide && (
-            <div style={{ background: "#1a1a30", borderRadius: 10, padding: 14, border: "1px solid #3a3a50", marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ color: "#888", fontSize: 14, fontWeight: 700 }}>
+            <div style={{ background: SURFACE.panel, borderRadius: RADIUS.xl, padding: SPACE[6], border: "1px solid " + SURFACE.panelBorder, marginBottom: SPACE[6] }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: SPACE[5] }}>
+                <span style={{ color: SURFACE.tertiary, fontSize: 14, fontWeight: 700 }}>
                   {"SLIDE " + (activeSlide + 1)}
                 </span>
-                <span style={{ fontSize: 10, color: "#666", marginLeft: 16, marginRight: 4 }}>Expand</span>
+                <span style={{ fontSize: 10, color: SURFACE.dimmed, marginLeft: SPACE[7], marginRight: SPACE[2] }}>Expand</span>
                 <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
                   title="Expand screenshot area"
-                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #444", background: currentSlide.expandScreenshot ? "rgba(165,180,252,0.2)" : "#28283e", color: currentSlide.expandScreenshot ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 11, fontWeight: 700, lineHeight: "16px" }}>
+                  style={Object.assign({}, smallBtnStyle, { padding: "3px " + SPACE[4] + "px", background: currentSlide.expandScreenshot ? CLR.activeOverlay2 : SURFACE.input, color: currentSlide.expandScreenshot ? CLR.primaryLight : SURFACE.dimmed, lineHeight: "16px", fontSize: 11, fontWeight: 700 })}>
                   {"\u2922"}
                 </button>
-                <span style={{ fontSize: 10, color: "#555", marginLeft: 14 }}>**word** = accent color</span>
+                <span style={{ fontSize: 10, color: SURFACE.muted, marginLeft: SPACE[6] }}>**word** = accent color</span>
                 <div style={{ flex: 1 }} />
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: SPACE[3] }}>
                   <button onClick={slideMgmt.duplicateSlide}
-                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>Duplicate</button>
+                    style={{ background: "none", border: "1px solid " + SURFACE.border, color: SURFACE.text, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>Duplicate</button>
                   <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
-                    style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Reset</button>
+                    style={{ background: "none", border: "1px solid " + SURFACE.border, color: SURFACE.text, cursor: "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md }}>Reset</button>
                   {seriesSlides.length > 1 && (
                     <button onClick={function() { slideMgmt.removeSlide(activeSlide); }}
-                      style={{ background: "none", border: "1px solid #f8717133", color: "#f87171", cursor: "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6 }}>Remove</button>
+                      style={{ background: "none", border: "1px solid " + CLR.dangerBorder, color: CLR.danger, cursor: "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md }}>Remove</button>
                   )}
                 </div>
               </div>
 
               {/* -- Frame toggle (per-slide) -- */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[2], marginTop: SPACE[2] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>FRAME</label>
                 <button onClick={function() { updateBgField("frameEnabled", !currentSlide.frameEnabled); }}
-                  style={{ minWidth: 44, padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.frameEnabled ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  style={toggleBtn(currentSlide.frameEnabled)}>
                   {currentSlide.frameEnabled ? "ON" : "OFF"}
                 </button>
                 {currentSlide.frameEnabled && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginLeft: SPACE[2] }}>
                     <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
                   </div>
                 )}
               </div>
 
-              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
+              <div style={dividerStyle()} />
 
               {/* -- Footer & Pic toggle (per-slide) -- */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[2], marginTop: SPACE[2] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>FOOTER & PIC</label>
                 <button onClick={function() { updateSlide(activeSlide, "showBrandName", !currentSlide.showBrandName); }}
-                  style={{ minWidth: 44, padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showBrandName ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  style={toggleBtn(currentSlide.showBrandName)}>
                   {currentSlide.showBrandName ? "ON" : "OFF"}
                 </button>
                 {currentSlide.showBrandName && (
                   <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginLeft: SPACE[2] }}>
                       <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
-                      <span style={{ fontSize: 11, color: "#777", fontWeight: 600 }}>Base</span>
+                      <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                     </div>
                     <div style={{ flex: 1 }} />
                     <SizeControl sizeKey="brandName" min={12} max={60} sizes={sizes} setSize={setSize}
@@ -2521,19 +2699,19 @@ export default function App() {
                 )}
               </div>
               {currentSlide.showBrandName && (
-                <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
+                <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
                   <textarea value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} onKeyDown={function(e) { if (e.key === "Enter") e.preventDefault(); }} placeholder="Brand name..." rows={1}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: 6, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
+                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[3], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
               {/* -- Top Corner toggle (per-slide) -- */}
-              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
+              <div style={dividerStyle()} />
+              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[2], marginTop: SPACE[2] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>TOP CORNER</label>
                 <button onClick={function() { updateSlide(activeSlide, "showTopCorner", !currentSlide.showTopCorner); }}
-                  style={{ minWidth: 44, padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showTopCorner ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  style={toggleBtn(currentSlide.showTopCorner)}>
                   {currentSlide.showTopCorner ? "ON" : "OFF"}
                 </button>
                 {currentSlide.showTopCorner && (<><div style={{ flex: 1 }} />
@@ -2547,19 +2725,19 @@ export default function App() {
                 </>)}
               </div>
               {currentSlide.showTopCorner && (
-                <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
+                <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
                   <textarea value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} onKeyDown={function(e) { if (e.key === "Enter") e.preventDefault(); }} placeholder="Top corner..." rows={1}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
+                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[2], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
               {/* -- Bottom Corner toggle (per-slide) -- */}
-              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
+              <div style={dividerStyle()} />
+              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[2], marginTop: SPACE[2] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BOTTOM CORNER</label>
                 <button onClick={function() { updateSlide(activeSlide, "showBottomCorner", !currentSlide.showBottomCorner); }}
-                  style={{ minWidth: 44, padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showBottomCorner ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  style={toggleBtn(currentSlide.showBottomCorner)}>
                   {currentSlide.showBottomCorner ? "ON" : "OFF"}
                 </button>
                 {currentSlide.showBottomCorner && (<><div style={{ flex: 1 }} />
@@ -2573,31 +2751,31 @@ export default function App() {
                 </>)}
               </div>
               {currentSlide.showBottomCorner && (
-                <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
+                <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
                   <textarea value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} onKeyDown={function(e) { if (e.key === "Enter") e.preventDefault(); }} placeholder="Bottom corner..." rows={1}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
+                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[2], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
               {/* -- Heading toggle (per-slide) -- */}
-              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
+              <div style={dividerStyle()} />
+              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[2], marginTop: SPACE[2] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>HEADING</label>
                 <button onClick={function() { updateSlide(activeSlide, "showHeading", !currentSlide.showHeading); }}
-                  style={{ minWidth: 44, padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.showHeading ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  style={toggleBtn(currentSlide.showHeading)}>
                   {currentSlide.showHeading ? "ON" : "OFF"}
                 </button>
                 {!currentSlide.showCards ? (
                   <button onClick={function() { if (currentSlide.showHeading) updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true); }}
                     title="Accent bar"
-                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? "#a5b4fc" : "#666", cursor: currentSlide.showHeading ? "pointer" : "default", fontSize: 9, fontWeight: 700, lineHeight: "14px", opacity: currentSlide.showHeading ? 1 : 0.35 }}>
+                    style={Object.assign({}, smallBtnStyle, { padding: SPACE[1] + "px " + SPACE[3] + "px", background: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? CLR.activeOverlay2 : SURFACE.input, color: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? CLR.primaryLight : SURFACE.dimmed, cursor: currentSlide.showHeading ? "pointer" : "default", lineHeight: "14px", opacity: currentSlide.showHeading ? 1 : 0.35 })}>
                     {"\u2501"}
                   </button>
                 ) : (
                   <button onClick={function() { updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false), true); }}
                     title="Card checkmarks"
-                    style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: (currentSlide.showCardChecks !== false) ? "rgba(165,180,252,0.2)" : "#28283e", color: (currentSlide.showCardChecks !== false) ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px" }}>
+                    style={Object.assign({}, smallBtnStyle, { padding: SPACE[1] + "px " + SPACE[3] + "px", background: (currentSlide.showCardChecks !== false) ? CLR.activeOverlay2 : SURFACE.input, color: (currentSlide.showCardChecks !== false) ? CLR.primaryLight : SURFACE.dimmed, lineHeight: "14px" })}>
                     {"\u2713"}
                   </button>
                 )}
@@ -2614,24 +2792,24 @@ export default function App() {
                 )}
               </div>
               {currentSlide.showHeading && (
-                <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid #555" }}>
+                <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
                   <textarea value={currentSlide.title} onChange={function(e) { updateSlide(activeSlide, "title", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Heading..." rows={1}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: 4, fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
+                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[2], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
               {/* Body | Cards toggle */}
-              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
-              <div style={{ display: "flex", alignItems: "center", marginTop: 4, marginBottom: 6, gap: 4 }}>
+              <div style={dividerStyle()} />
+              <div style={{ display: "flex", alignItems: "center", marginTop: SPACE[2], marginBottom: SPACE[3], gap: SPACE[2] }}>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", false); }}
-                  style={{ fontWeight: 600, fontSize: 13, color: !currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>BODY</span>
-                <span style={{ color: "#2a2a3e", margin: "0 4px", fontSize: 14 }}>|</span>
+                  style={{ fontWeight: 600, fontSize: 13, color: !currentSlide.showCards ? GREEN : SURFACE.muted, letterSpacing: 0.5, cursor: "pointer" }}>BODY</span>
+                <span style={{ color: SURFACE.pipeSep, margin: "0 " + SPACE[2] + "px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
-                  style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4, opacity: currentSlide.showCards ? 1 : 0.35 }}>
+                  style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : SURFACE.muted, letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginLeft: SPACE[2], opacity: currentSlide.showCards ? 1 : 0.35 }}>
                   <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
-                  <span style={{ fontSize: 11, color: "#777", fontWeight: 600 }}>Base</span>
+                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                 </div>
                 <div style={{ flex: 1 }} />
                 <SizeControl sizeKey={currentSlide.showCards ? "cardText" : "body"} min={12} max={100} sizes={sizes} setSize={setSize}
@@ -2651,7 +2829,7 @@ export default function App() {
                 <div>
                   <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} rows={3}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 13, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
+                    style={Object.assign({}, inputStyle, { fontSize: 13, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                 </div>
               )}
 
@@ -2660,18 +2838,18 @@ export default function App() {
                 <div>
                   {currentSlide.cards.map(function(c, i) {
                     return (
-                      <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                      <div key={i} style={{ display: "flex", gap: SPACE[4], marginBottom: SPACE[3], alignItems: "center" }}>
                         <textarea value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder={"Card " + (i + 1) + "..."} rows={1}
                           ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                          style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 12, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
+                          style={Object.assign({}, inputStyle, { padding: SPACE[3] + "px " + SPACE[5] + "px", fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                         {currentSlide.cards.length > 1 && (
-                          <button onClick={function() { slideMgmt.removeSlideCard(activeSlide, i); }} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 18, padding: 4 }}>{"\u00d7"}</button>
+                          <button onClick={function() { slideMgmt.removeSlideCard(activeSlide, i); }} style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 18, padding: SPACE[2] }}>{"\u00d7"}</button>
                         )}
                       </div>
                     );
                   })}
                   {currentSlide.cards.length < 5 && (
-                    <button onClick={function() { slideMgmt.addSlideCard(activeSlide); }} style={{ background: "#28283e", border: "1px dashed #444", color: "#888", padding: "5px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, marginTop: 4 }}>+ Add Card</button>
+                    <button onClick={function() { slideMgmt.addSlideCard(activeSlide); }} style={{ background: SURFACE.input, border: "1px dashed " + SURFACE.border, color: SURFACE.tertiary, padding: SPACE[3] + "px " + SPACE[6] + "px", borderRadius: RADIUS.lg, cursor: "pointer", fontSize: 12, marginTop: SPACE[2] }}>+ Add Card</button>
                   )}
                 </div>
               )}
@@ -2682,51 +2860,51 @@ export default function App() {
         </div>
 
           {/* -- RIGHT PANE: Preview header row + filename + canvas -- */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, maxWidth: 480 }}>
+          <div style={{ gridArea: "preview", display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
             {/* PREVIEW label */}
-            <label style={Object.assign({}, labelStyle, { marginBottom: 6, whiteSpace: "nowrap", flexShrink: 0 })}>PREVIEW</label>
+            <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[3], whiteSpace: "nowrap", flexShrink: 0 })}>PREVIEW</label>
             {/* Download buttons row */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], flexShrink: 0 }}>
               <button onClick={downloadCurrentPDF}
-                style={{ flex: 1, padding: "5px 10px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", lineHeight: 1.3 }}>
+                style={{ flex: 1, padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "none", background: CLR.primary, color: SURFACE.white, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", lineHeight: 1.3 }}>
                 {"Download Current Slide (pdf)"}
               </button>
               <button onClick={downloadAllPDF}
                 disabled={seriesSlides.length <= 1}
-                style={{ flex: 1, padding: "5px 10px", borderRadius: 6, border: "2px solid " + GREEN, background: "transparent", color: GREEN, fontSize: 11, fontWeight: 700, cursor: seriesSlides.length > 1 ? "pointer" : "default", opacity: seriesSlides.length > 1 ? 1 : 0.4, whiteSpace: "nowrap", lineHeight: 1.3 }}>
+                style={{ flex: 1, padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "2px solid " + GREEN, background: "transparent", color: GREEN, fontSize: 11, fontWeight: 700, cursor: seriesSlides.length > 1 ? "pointer" : "default", opacity: seriesSlides.length > 1 ? 1 : 0.4, whiteSpace: "nowrap", lineHeight: 1.3 }}>
                 {"Download All Slides (pdf)"}
               </button>
             </div>
             {/* Download link + error row (below buttons, positioned under the pressed button) */}
-            <div style={{ display: "flex", gap: 8, minHeight: 18, marginBottom: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: SPACE[4], minHeight: 18, marginBottom: SPACE[4], flexShrink: 0 }}>
               <div style={{ flex: 1 }}>
                 {pdfDownload && !pdfDownload.name.includes("-all.") && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
                     <a href={pdfDownload.url} download={pdfDownload.name}
                       onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                      style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                      style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
                       {"Save " + pdfDownload.name}
                     </a>
                     <button onClick={clearPdfDownload}
-                      style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>
+                      style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
                       {"\u00d7"}
                     </button>
                   </div>
                 )}
                 {pdfError && !pdfDownload && (
-                  <span style={{ fontSize: 10, color: "#ef4444", marginTop: 2, display: "block" }}>{pdfError}</span>
+                  <span style={{ fontSize: 10, color: CLR.error, marginTop: SPACE[1], display: "block" }}>{pdfError}</span>
                 )}
               </div>
               <div style={{ flex: 1 }}>
                 {pdfDownload && pdfDownload.name.includes("-all.") && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
                     <a href={pdfDownload.url} download={pdfDownload.name}
                       onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                      style={{ fontSize: 10, color: "#a5b4fc", textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                      style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
                       {"Save " + pdfDownload.name}
                     </a>
                     <button onClick={clearPdfDownload}
-                      style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1 }}>
+                      style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
                       {"\u00d7"}
                     </button>
                   </div>
@@ -2737,28 +2915,28 @@ export default function App() {
             <input value={exportPrefix}
               onChange={function(e) { setExportPrefix(e.target.value); }}
               placeholder="linkedin-slide"
-              style={{ width: "100%", padding: "5px 10px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", fontSize: 11, boxSizing: "border-box", fontFamily: "monospace", marginBottom: 8, flexShrink: 0 }} />
+              style={{ width: "100%", padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, fontSize: 11, boxSizing: "border-box", fontFamily: "monospace", marginBottom: SPACE[4], flexShrink: 0 }} />
             {/* Canvas */}
             <canvas ref={canvasRef} width={W} height={H}
-              style={{ maxWidth: "100%", minHeight: 0, flex: "0 1 auto", borderRadius: 12, border: "1px solid #222", display: "block", objectFit: "contain", aspectRatio: W + "/" + H }} />
+              style={{ maxWidth: "100%", minHeight: 0, flex: "0 1 auto", borderRadius: RADIUS.xxl, border: "1px solid " + SURFACE.canvasBorder, display: "block", objectFit: "contain", aspectRatio: W + "/" + H }} />
           </div>
         </div>
       </div>
 
       {/* Confirm dialog overlay */}
       {confirmDialog && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+        <div style={dialogOverlay()}
           onClick={function() { setConfirmDialog(null); }}>
-          <div style={{ background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: "20px 24px", maxWidth: 320, textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
+          <div style={Object.assign({}, dialogBox(SIZE.dialogSm), { textAlign: "center" })}
             onClick={function(e) { e.stopPropagation(); }}>
-            <p style={{ color: "#ccc", fontSize: 13, margin: "0 0 16px 0", lineHeight: 1.4 }}>{confirmDialog.message}</p>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <p style={{ color: SURFACE.text, fontSize: 13, margin: "0 0 " + SPACE[7] + "px 0", lineHeight: 1.4 }}>{confirmDialog.message}</p>
+            <div style={{ display: "flex", gap: SPACE[5], justifyContent: "center" }}>
               <button onClick={function() { setConfirmDialog(null); }}
-                style={{ padding: "6px 18px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#999", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                style={dialogBtn(false)}>
                 Cancel
               </button>
               <button onClick={function() { confirmDialog.onConfirm(); setConfirmDialog(null); }}
-                style={{ padding: "6px 18px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                style={dialogBtn(true)}>
                 Confirm
               </button>
             </div>
@@ -2768,31 +2946,29 @@ export default function App() {
 
       {/* Save Preset dialog overlay */}
       {presets.presetDialog && presets.presetDialog.type === "save" && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
+        <div style={dialogOverlay()}
           onClick={function() { presets.setPresetDialog(null); }}>
-          <div style={{ background: "#1a1a30", border: "1px solid #444", borderRadius: 10, padding: "20px 24px", maxWidth: 360, textAlign: "left", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
+          <div style={Object.assign({}, dialogBox(SIZE.dialogMd), { textAlign: "left" })}
             onClick={function(e) { e.stopPropagation(); }}>
-            <p style={{ color: "#ccc", fontSize: 14, fontWeight: 600, margin: "0 0 12px 0" }}>Save Preset</p>
-            <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Preset name</label>
+            <p style={{ color: SURFACE.text, fontSize: 14, fontWeight: 600, margin: "0 0 " + SPACE[6] + "px 0" }}>Save Preset</p>
+            <label style={{ fontSize: 11, color: SURFACE.tertiary, display: "block", marginBottom: SPACE[2] }}>Preset name</label>
             <input value={presets.presetName} onChange={function(e) { presets.setPresetName(e.target.value); }}
               placeholder="My Carousel"
               style={inputStyle} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginTop: SPACE[6], marginBottom: SPACE[7] }}>
               <button onClick={function() { presets.setPresetIncludeImages(!presets.presetIncludeImages); }}
-                style={{ minWidth: 44, padding: "3px 12px", borderRadius: 20, border: "none",
-                  background: presets.presetIncludeImages ? GREEN : "#555",
-                  color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                style={toggleBtn(presets.presetIncludeImages)}>
                 {presets.presetIncludeImages ? "ON" : "OFF"}
               </button>
-              <span style={{ fontSize: 12, color: "#999" }}>Include images (larger file)</span>
+              <span style={{ fontSize: 12, color: SURFACE.subtle }}>Include images (larger file)</span>
             </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", gap: SPACE[5], justifyContent: "flex-end" }}>
               <button onClick={function() { presets.setPresetDialog(null); }}
-                style={{ padding: "6px 18px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#999", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                style={dialogBtn(false)}>
                 Cancel
               </button>
               <button onClick={function() { presets.downloadPreset(presets.presetName, presets.presetIncludeImages); presets.setPresetDialog(null); }}
-                style={{ padding: "6px 18px", borderRadius: 6, border: "none", background: "#6366f1", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                style={dialogBtn(true)}>
                 Save
               </button>
             </div>

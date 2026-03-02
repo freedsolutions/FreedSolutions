@@ -10,6 +10,7 @@ var OUTPUT = path.join(ROOT, "linkedin-carousel.jsx");
 // Dependencies flow top-to-bottom: each file may use symbols from files above it.
 var ORDER = [
   "src/constants.js",
+  "src/layoutTokens.js",
   "src/canvas/hexToRgba.js",
   "src/canvas/backgrounds.js",
   "src/canvas/text.js",

@@ -31,8 +31,8 @@ function ColorPickerInline(props) {
           setOpenPicker(isOpen ? null : pickerKey);
         }}
         style={{
-          width: 18, height: 18, borderRadius: 4,
-          border: isOpen ? "2px solid #6366f1" : "1px solid #444",
+          width: SIZE.swatchBtn, height: SIZE.swatchBtn, borderRadius: RADIUS.sm,
+          border: isOpen ? "2px solid " + CLR.primary : "1px solid " + SURFACE.border,
           background: value,
           cursor: disabled ? "default" : "pointer",
           padding: 0, display: "block"
@@ -41,57 +41,57 @@ function ColorPickerInline(props) {
       {isOpen && (
         <div style={pickerDropdownStyle}>
           {hasTypography && (
-            <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #3a3a50" }}>
+            <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
               <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { onFontFamilyChange(e.target.value); }}
-                style={{ width: "100%", padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, marginBottom: 6, cursor: "pointer" }}>
+                style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
                 {FONT_OPTIONS.map(function(f) {
                   return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
                 })}
               </select>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", gap: SPACE[2] }}>
                 <button onClick={function() { onBoldChange(!bold); }}
                   title="Bold"
-                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: bold ? "rgba(165,180,252,0.25)" : "#28283e", color: bold ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+                  style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: bold ? CLR.activeOverlay : SURFACE.input, color: bold ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
                 <button onClick={function() { onItalicChange(!italic); }}
                   title="Italic"
-                  style={{ flex: 1, padding: "3px 0", borderRadius: 4, border: "1px solid #444", background: italic ? "rgba(165,180,252,0.25)" : "#28283e", color: italic ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+                  style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italic ? CLR.activeOverlay : SURFACE.input, color: italic ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
               </div>
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, marginBottom: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
             {INLINE_SWATCHES.map(function(c) {
               return (
                 <button key={c} onClick={function() { onChange(c); }}
                   style={{
-                    width: 20, height: 20, borderRadius: 4,
-                    border: value === c ? "2px solid #fff" : "1px solid #444",
+                    width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                    border: value === c ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
                     background: c, cursor: "pointer", padding: 0,
-                    boxShadow: value === c ? "0 0 0 1px #6366f1" : "none"
+                    boxShadow: value === c ? "0 0 0 1px " + CLR.primary : "none"
                   }}
                 />
               );
             })}
           </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
             <input type="color"
               value={value && value.charAt(0) === "#" ? value : "#ffffff"}
               onChange={function(e) { onChange(e.target.value); }}
-              style={{ width: 24, height: 24, border: "1px solid #444", borderRadius: 4, cursor: "pointer", background: "none", padding: 0 }}
+              style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }}
             />
             <input value={value}
               onChange={function(e) { onChange(e.target.value); }}
-              style={{ flex: 1, padding: "4px 6px", borderRadius: 4, border: "1px solid #444", background: "#0e0e1a", color: "#bbb", fontSize: 11, fontFamily: "monospace" }}
+              style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
             />
           </div>
           {onOpacityChange && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, paddingTop: 8, borderTop: "1px solid #3a3a50" }}>
-              <span style={{ fontSize: 10, color: "#666", whiteSpace: "nowrap" }}>Opacity</span>
+            <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+              <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
               <input type="range" min={0} max={100}
                 value={opacityVal != null ? opacityVal : 100}
                 onChange={function(e) { onOpacityChange(Number(e.target.value)); }}
                 style={{ flex: 1 }}
               />
-              <span style={{ fontSize: 10, color: "#555", width: 28, textAlign: "right" }}>
+              <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
                 {(opacityVal != null ? opacityVal : 100) + "%"}
               </span>
             </div>

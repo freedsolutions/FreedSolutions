@@ -21,16 +21,16 @@ function SlideSelector(props) {
   var canRemove = seriesSlides.length > 1;
 
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+    <div style={{ marginBottom: SPACE[5] }}>
+      <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[4] }}>
         <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
         <button onClick={duplicateSlide}
           disabled={seriesSlides.length >= MAX_SLIDES}
-          style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 10, fontWeight: 700, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>
+          style={panelBtn({ marginLeft: "auto", padding: "3px " + SPACE[4] + "px", fontSize: 10, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
           Duplicate
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[3], marginBottom: 0 }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
           var isDragSource = dragFrom === i;
@@ -46,21 +46,21 @@ function SlideSelector(props) {
                 onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
                 onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
                 onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-                style={{ width: "100%", height: 44, borderRadius: 8, border: isDragTarget ? "2px dashed #6366f1" : (isActive ? "2px solid " + GREEN : "2px solid #555"), background: isDragTarget ? "rgba(99,102,241,0.10)" : (isActive ? "rgba(34,197,94,0.15)" : "#1a1a30"), color: isActive ? GREEN : "#aaa", cursor: isDragSource ? "grabbing" : "grab", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
+                style={{ width: "100%", height: SIZE.slideBtn, borderRadius: RADIUS.lg, border: isDragTarget ? "2px dashed " + CLR.primary : (isActive ? "2px solid " + GREEN : "2px solid " + SURFACE.muted), background: isDragTarget ? CLR.dragTarget : (isActive ? CLR.activeSlide : SURFACE.panel), color: isActive ? GREEN : SURFACE.inactive, cursor: isDragSource ? "grabbing" : "grab", fontSize: 18, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
                 {label}
               </button>
               {canRemove && (
                 <button
                   onClick={function(e) { e.stopPropagation(); removeSlide(i); }}
                   onDragStart={function(e) { e.preventDefault(); e.stopPropagation(); }}
-                  style={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: 8, border: "none", background: "rgba(100,100,100,0.7)", color: "#f87171", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{"\u00d7"}</button>
+                  style={{ position: "absolute", top: -SPACE[2], right: -SPACE[2], width: SIZE.removeBadge, height: SIZE.removeBadge, borderRadius: RADIUS.lg, border: "none", background: CLR.removeBadgeBg, color: CLR.danger, cursor: "pointer", fontSize: 10, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{"\u00d7"}</button>
               )}
             </div>
           );
         })}
         {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
-            style={{ width: "100%", height: 44, borderRadius: 8, border: "2px dashed #555", background: "#1a1a30", color: "#888", cursor: "pointer", fontSize: 20, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            style={{ width: "100%", height: SIZE.slideBtn, borderRadius: RADIUS.lg, border: "2px dashed " + SURFACE.muted, background: SURFACE.panel, color: SURFACE.tertiary, cursor: "pointer", fontSize: 20, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
       </div>
     </div>
