@@ -2280,15 +2280,15 @@ export default function App() {
           <div style={{ flexShrink: 0 }}>
             <h2 style={{ color: "#fff", margin: "0 0 10px 0", fontSize: 18 }}>Carousel Generator</h2>
             {/* --- PRESETS --- */}
-            <div style={{ marginBottom: 6, minHeight: 66 }}>
-              <label style={Object.assign({}, labelStyle, { marginBottom: 6 })}>PRESETS</label>
-              <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+            <div style={{ marginBottom: 6, minHeight: 36 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 4, alignItems: "center", marginBottom: 4 }}>
+                <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
                 <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
-                  style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                  style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
                   Save
                 </button>
                 <button onClick={function() { presets.setPresetError(""); if (presets.presetInputRef.current) presets.presetInputRef.current.click(); }}
-                  style={{ flex: 1, padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
+                  style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
                   Load
                 </button>
                 <input ref={presets.presetInputRef} type="file" accept=".json" onChange={presets.handlePresetUpload} style={{ display: "none" }} />
@@ -2317,7 +2317,7 @@ export default function App() {
             <div style={{ borderTop: "1px solid #444", marginTop: 10, marginBottom: 10 }} />
 
             {/* --- BACKGROUND --- */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, alignItems: "center", marginBottom: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, alignItems: "center", marginBottom: 16 }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
               <button onClick={slideMgmt.syncBgToAll}
                 style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #444", background: "#28283e", color: "#ccc", cursor: "pointer", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
@@ -2337,18 +2337,18 @@ export default function App() {
               {/* Left: toggle rows */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Accent */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-                  <label style={{ fontSize: 11, color: "#999", fontWeight: 600, width: 38 }}>Accent</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <label style={{ fontSize: 14, color: "#999", fontWeight: 600, width: 50 }}>Accent</label>
                   <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                 </div>
                 {/* Base */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 11, color: "#999", fontWeight: 600, width: 38 }}>Base</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, opacity: isCustomBg ? 0.35 : 1 }}>
+                  <label style={{ fontSize: 14, color: "#999", fontWeight: 600, width: 50 }}>Base</label>
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                 </div>
                 {/* Layer */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 0, opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 11, color: "#999", fontWeight: 600, width: 38 }}>Layer</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, opacity: isCustomBg ? 0.35 : 1 }}>
+                  <label style={{ fontSize: 14, color: "#999", fontWeight: 600, width: 50 }}>Layer</label>
                   <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
                     style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: (!isCustomBg && currentSlide.geoEnabled) ? GREEN : "#555", color: "#fff", cursor: isCustomBg ? "default" : "pointer", fontSize: 8, fontWeight: 600 }}>
                     {(!isCustomBg && currentSlide.geoEnabled) ? "ON" : "OFF"}
