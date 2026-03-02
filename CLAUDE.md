@@ -1,9 +1,5 @@
 # FreedSolutions — Workflow Contract
 
-// Adam's Notes...
-// Fill out `FEATURE_CARD.md` with the current feature using any agent/model. Replace the entire file — never append to prior cards.
-// SHIP: Read CLAUDE.md and FEATURE_CARD.md, then implement the feature.
-
 ## Repo Truth
 - `src/` is the editable source of behavior.
 - `linkedin-carousel.jsx` is the generated artifact (never edit manually).
@@ -42,7 +38,7 @@ Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defi
 ## Workflow: Write → Build → See → Push
 
 ### 1. Write
-Edit source files in `src/`. Draft `FEATURE_CARD.md` for anything non-trivial.
+Edit source files in `src/`.
 
 **Adding a new source file:**
 1. Create the file in `src/` (or `src/canvas/` for rendering code)
@@ -72,16 +68,21 @@ git push origin main
 
 ## Feature Flow
 
-### Step 1 — Prep (you do this before Claude Code)
-Fill out `FEATURE_CARD.md` with the current feature using any agent/model. Replace the entire file — never append to prior cards.
+### Phase 1 — Get the card
 
-### Step 2 — Kick off
-Paste into Claude Code:
+*Trigger A — In-session (feature described in chat):*
+Adam describes the feature in Claude Code chat. Claude asks 1–3 scope/approach questions, then writes `FEATURE_CARD.md` (replacing the entire file).
 
-SHIP: Read CLAUDE.md and FEATURE_CARD.md, then implement the feature.
+*Trigger B — External card (card written elsewhere):*
+Adam updates `FEATURE_CARD.md` outside this session and types `SHIP` in chat.
 
-### Step 3 — Claude Code executes (automatic)
-Claude Code runs this loop without pausing:
+### Phase 2 — Explore & ask
+
+Claude reads `FEATURE_CARD.md` and explores the relevant source files in the repo. Then asks 1–3 implementation questions based on what it found (approach choices, ambiguities, edge cases, patterns to reuse or avoid). Once answered, the autonomous SHIP loop starts.
+
+This is the single pause point before code changes begin.
+
+### Phase 3 — SHIP loop (autonomous, no pausing)
 
 **Implement:**
 - Read `FEATURE_CARD.md` scope and `CLAUDE.md` guardrails
@@ -99,16 +100,16 @@ Claude Code runs this loop without pausing:
 - Light test: verify the new feature works per `FEATURE_CARD.md` scope
 - Quick visual check: does the layout look right? Any obvious regressions?
 - If issues found: patch, rebuild, re-test
-- Requires `npx serve . --listen 5173` running in a separate terminal
+- If Playwright MCP is unavailable or the local server isn't running, stop and ask the user to fix it before continuing
 
 **Wrap up:**
 - Add `CHANGES.md` entry if behavior changed
 - Commit all changed files atomically (source + artifact + docs)
 - Do NOT push
 
-### Step 4 — Your review
+### Phase 4 — Your review
 Claude Code pauses after commit. Review the diff. Then either:
-- Request patches: describe what to fix, Claude Code patches and re-runs Step 3 from self-review onward
+- Request patches: describe what to fix, Claude Code patches and re-runs from self-review onward
 - Push: `git push origin main`
 
 ## Project Files
@@ -139,6 +140,7 @@ Claude Code pauses after commit. Review the diff. Then either:
 - Verify changes visually in `preview.html` before pushing UI changes.
 - Do not add `package.json`, `node_modules`, or npm dependencies — the repo is intentionally zero-dep.
 - When adding a new source file, add it to `ORDER` in `build.js` — files not in `ORDER` are silently excluded from the artifact.
+- Do not commit without a passing Playwright smoke test. If the smoke test cannot run, stop and ask.
 
 ## Documentation Update Rules
 - `CLAUDE.md`: update only when workflow/contracts change.

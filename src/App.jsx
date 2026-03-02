@@ -269,17 +269,17 @@ export default function App() {
               {/* Left: toggle rows */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Accent */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                   <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Accent</label>
                   <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                 </div>
                 {/* Base */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, opacity: isCustomBg ? 0.35 : 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, opacity: isCustomBg ? 0.35 : 1 }}>
                   <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Base</label>
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                 </div>
                 {/* Layer */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, opacity: isCustomBg ? 0.35 : 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 0, opacity: isCustomBg ? 0.35 : 1 }}>
                   <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Layer</label>
                   <button onClick={function() { if (!isCustomBg) updateBgField("geoEnabled", !currentSlide.geoEnabled); }}
                     style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: (!isCustomBg && currentSlide.geoEnabled) ? GREEN : "#555", color: "#fff", cursor: isCustomBg ? "default" : "pointer", fontSize: 8, fontWeight: 600 }}>
@@ -289,22 +289,11 @@ export default function App() {
                     <ColorPickerInline pickerKey="geoLines" value={currentSlide.geoLines} onChange={function(c) { updateBgField("geoLines", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg || !currentSlide.geoEnabled} />
                   </div>
                 </div>
-                {/* Frame */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <label style={{ fontSize: 10, color: "#999", fontWeight: 600, width: 38 }}>Frame</label>
-                  <button onClick={function() { updateBgField("frameEnabled", !currentSlide.frameEnabled); }}
-                    style={{ minWidth: 32, padding: "1px 5px", borderRadius: 20, border: "none", background: currentSlide.frameEnabled ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 8, fontWeight: 600 }}>
-                    {currentSlide.frameEnabled ? "ON" : "OFF"}
-                  </button>
-                  <div style={{ opacity: currentSlide.frameEnabled ? 1 : 0.35 }}>
-                    <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.frameEnabled} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
-                  </div>
-                </div>
               </div>
               {/* Right: BACKGROUND upload */}
               <div style={{ flex: "0 0 107px", height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 6px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box" }}>
-                <label style={{ fontSize: 9, color: "#bbb", fontWeight: 600, marginBottom: 1 }}>BACKGROUND</label>
-                <span style={{ fontSize: 9, color: "#555", marginBottom: 3 }}>800×1000px</span>
+                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 1 }}>BACKGROUND</label>
+                <span style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>800×1000px</span>
                 <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
                 <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (currentSlide.customBgImage ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
                   onClick={function() { if (!isCustomBg) updateBgField("bgType", "custom"); if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}>
@@ -315,11 +304,11 @@ export default function App() {
                         style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                     </>
                   ) : (
-                    <span style={{ fontSize: 8, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                    <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
                   )}
                 </div>
                 {currentSlide.customBgName && (
-                  <span style={{ fontSize: 9, color: "#666", marginTop: 2, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.customBgName}</span>
+                  <span style={{ fontSize: 11, color: "#666", marginTop: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.customBgName}</span>
                 )}
               </div>
             </div>
@@ -328,8 +317,8 @@ export default function App() {
             <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
               {/* PROFILE */}
               <div style={{ flex: 1, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box" }}>
-                <label style={{ fontSize: 9, color: "#bbb", fontWeight: 600, marginBottom: 1 }}>PROFILE</label>
-                <span style={{ fontSize: 9, color: "#555", marginBottom: 3 }}>84×84px</span>
+                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 1 }}>PROFILE</label>
+                <span style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>84×84px</span>
                 <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
                 <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (currentSlide.profileImg ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
                   onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}>
@@ -340,17 +329,17 @@ export default function App() {
                         style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                     </>
                   ) : (
-                    <span style={{ fontSize: 8, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                    <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
                   )}
                 </div>
                 {currentSlide.profilePicName && (
-                  <span style={{ fontSize: 9, color: "#666", marginTop: 2, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.profilePicName}</span>
+                  <span style={{ fontSize: 11, color: "#666", marginTop: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.profilePicName}</span>
                 )}
               </div>
               {/* SCREENSHOT */}
               {currentSlide && (
                 <div style={{ flex: 1, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
-                  <label style={{ fontSize: 9, color: "#bbb", fontWeight: 600, marginBottom: 3 }}>SCREENSHOT</label>
+                  <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 2 }}>SCREENSHOT</label>
                   <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
                   <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (getAsset(activeSlide).image ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
                     onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
@@ -361,11 +350,11 @@ export default function App() {
                           style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 8, color: "#ccc", fontWeight: 600 }}>Upload</span>
+                      <span style={{ fontSize: 9, color: "#ccc", fontWeight: 600 }}>Upload</span>
                     )}
                   </div>
                   {getAsset(activeSlide).name && (
-                    <span style={{ fontSize: 9, color: "#666", marginTop: 2, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{getAsset(activeSlide).name}</span>
+                    <span style={{ fontSize: 11, color: "#666", marginTop: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{getAsset(activeSlide).name}</span>
                   )}
                   {getAsset(activeSlide).image && (
                     <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 2, width: "100%" }}>
@@ -407,9 +396,17 @@ export default function App() {
           {currentSlide && (
             <div style={{ background: "#1a1a30", borderRadius: 10, padding: 14, border: "1px solid #3a3a50", marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ color: "#888", fontSize: 12, fontWeight: 600 }}>
+                <span style={{ color: "#888", fontSize: 14, fontWeight: 700 }}>
                   {"SLIDE " + (activeSlide + 1)}
                 </span>
+                <span style={{ fontSize: 10, color: "#666", marginLeft: 16, marginRight: 4 }}>Expand</span>
+                <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
+                  title="Expand screenshot area"
+                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #444", background: currentSlide.expandScreenshot ? "rgba(165,180,252,0.2)" : "#28283e", color: currentSlide.expandScreenshot ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 11, fontWeight: 700, lineHeight: "16px" }}>
+                  {"\u2922"}
+                </button>
+                <span style={{ fontSize: 10, color: "#555", marginLeft: 14 }}>**word** = accent color</span>
+                <div style={{ flex: 1 }} />
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={slideMgmt.duplicateSlide}
                     style={{ background: "none", border: "1px solid #444", color: "#ccc", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 11, padding: "3px 10px", borderRadius: 6, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>Duplicate</button>
@@ -421,6 +418,22 @@ export default function App() {
                   )}
                 </div>
               </div>
+
+              {/* -- Frame toggle (per-slide) -- */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
+                <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>FRAME</label>
+                <button onClick={function() { updateBgField("frameEnabled", !currentSlide.frameEnabled); }}
+                  style={{ minWidth: 44, padding: "3px 12px", borderRadius: 20, border: "none", background: currentSlide.frameEnabled ? GREEN : "#555", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
+                  {currentSlide.frameEnabled ? "ON" : "OFF"}
+                </button>
+                {currentSlide.frameEnabled && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4 }}>
+                    <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ borderTop: "1px solid #2a2a40", marginTop: 8, marginBottom: 8 }} />
 
               {/* -- Footer & Pic toggle (per-slide) -- */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 4 }}>
@@ -554,37 +567,21 @@ export default function App() {
                 <span style={{ color: "#2a2a3e", margin: "0 4px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : "#555", letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
-                <button onClick={function() { updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
-                  title="Expand screenshot area"
-                  style={{ padding: "2px 6px", borderRadius: 4, border: "1px solid #444", background: currentSlide.expandScreenshot ? "rgba(165,180,252,0.2)" : "#28283e", color: currentSlide.expandScreenshot ? "#a5b4fc" : "#666", cursor: "pointer", fontSize: 9, fontWeight: 700, lineHeight: "14px", marginLeft: 6 }}>
-                  {"\u2922"}
-                </button>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8 }}>
-                  <ColorPickerInline pickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} value={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")} onChange={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                    fontFamily={currentSlide.showCards ? currentSlide.cardFontFamily : currentSlide.bodyFontFamily}
-                    onFontFamilyChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardFontFamily" : "bodyFontFamily", v, true); }}
-                    bold={currentSlide.showCards ? currentSlide.cardBold : currentSlide.bodyBold}
-                    onBoldChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardBold" : "bodyBold", v, true); }}
-                    italic={currentSlide.showCards ? currentSlide.cardItalic : currentSlide.bodyItalic}
-                    onItalicChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardItalic" : "bodyItalic", v, true); }} />
-                  <span style={{ fontSize: 11, color: "#777", fontWeight: 600 }}>Text</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8, opacity: currentSlide.showCards ? 1 : 0.35 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4, opacity: currentSlide.showCards ? 1 : 0.35 }}>
                   <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
                   <span style={{ fontSize: 11, color: "#777", fontWeight: 600 }}>Base</span>
                 </div>
                 <div style={{ flex: 1 }} />
-                {/* Font size stepper - always visible, context-aware */}
-                {(function() { var sk = currentSlide.showCards ? "cardText" : "body"; return (
-                <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#28283e", borderRadius: 4, border: "1px solid #444", height: 28, overflow: "hidden" }}>
-                  <button onClick={function() { if (sizes[sk] > 12) setSize(sk, sizes[sk] - 1); }}
-                    style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>{"\u2212"}</button>
-                  <input value={sizes[sk]} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize(sk, Math.max(12, Math.min(100, v))); }}
-                    style={{ width: 30, height: 28, border: "none", borderLeft: "1px solid #444", borderRight: "1px solid #444", background: "transparent", color: "#666", fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
-                  <button onClick={function() { if (sizes[sk] < 100) setSize(sk, sizes[sk] + 1); }}
-                    style={{ minWidth: 28, minHeight: 28, border: "none", background: "transparent", color: "#555", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: "28px" }}>+</button>
-                </div>
-                ); })()}
+                <SizeControl sizeKey={currentSlide.showCards ? "cardText" : "body"} min={12} max={100} sizes={sizes} setSize={setSize}
+                  colorVal={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")}
+                  colorSet={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }}
+                  colorPickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                  fontFamily={currentSlide.showCards ? currentSlide.cardFontFamily : currentSlide.bodyFontFamily}
+                  fontFamilySet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardFontFamily" : "bodyFontFamily", v, true); }}
+                  boldVal={currentSlide.showCards ? currentSlide.cardBold : currentSlide.bodyBold}
+                  boldSet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardBold" : "bodyBold", v, true); }}
+                  italicVal={currentSlide.showCards ? currentSlide.cardItalic : currentSlide.bodyItalic}
+                  italicSet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardItalic" : "bodyItalic", v, true); }} />
               </div>
 
               {/* Body content */}
@@ -593,7 +590,6 @@ export default function App() {
                   <textarea value={currentSlide.body} onChange={function(e) { updateSlide(activeSlide, "body", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} rows={3}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
                     style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #444", background: "#28283e", color: "#fff", fontSize: 13, boxSizing: "border-box", resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" }} />
-                  <p style={{ fontSize: 11, color: "#555", marginTop: 2, marginBottom: 8 }}>**word** = accent color.</p>
                 </div>
               )}
 
@@ -615,7 +611,6 @@ export default function App() {
                   {currentSlide.cards.length < 5 && (
                     <button onClick={function() { slideMgmt.addSlideCard(activeSlide); }} style={{ background: "#28283e", border: "1px dashed #444", color: "#888", padding: "5px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, marginTop: 4 }}>+ Add Card</button>
                   )}
-                  <p style={{ fontSize: 11, color: "#555", marginTop: 6, marginBottom: 4 }}>**word** = accent color.</p>
                 </div>
               )}
             </div>
