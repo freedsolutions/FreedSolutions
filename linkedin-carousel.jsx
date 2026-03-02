@@ -2318,9 +2318,9 @@ export default function App() {
                 </div>
               </div>
               {/* Right: BACKGROUND upload */}
-              <div style={{ flex: "0 0 107px", height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 6px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box" }}>
-                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 1 }}>BACKGROUND</label>
-                <span style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>800×1000px</span>
+              <div style={{ flex: "0 0 107px", height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 6px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
+                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 3 }}>BACKGROUND</label>
+                <span style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>800×1000px</span>
                 <input ref={slideMgmt.customBgInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleCustomUpload(e); }} style={{ display: "none" }} />
                 <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (currentSlide.customBgImage ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
                   onClick={function() { if (!isCustomBg) updateBgField("bgType", "custom"); if (slideMgmt.customBgInputRef.current) slideMgmt.customBgInputRef.current.click(); }}>
@@ -2335,7 +2335,7 @@ export default function App() {
                   )}
                 </div>
                 {currentSlide.customBgName && (
-                  <span style={{ fontSize: 11, color: "#666", marginTop: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.customBgName}</span>
+                  <span style={{ fontSize: 11, color: "#666", marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.customBgName}</span>
                 )}
               </div>
             </div>
@@ -2343,9 +2343,9 @@ export default function App() {
             {/* Profile + Screenshot side by side */}
             <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
               {/* PROFILE */}
-              <div style={{ flex: 1, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box" }}>
-                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 1 }}>PROFILE</label>
-                <span style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>84×84px</span>
+              <div style={{ flex: 1, minWidth: 0, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
+                <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 3 }}>PROFILE</label>
+                <span style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>84×84px</span>
                 <input ref={slideMgmt.profilePicInputRef} type="file" accept="image/*" onChange={slideMgmt.handleProfilePicUpload} style={{ display: "none" }} />
                 <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (currentSlide.profileImg ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
                   onClick={function() { if (slideMgmt.profilePicInputRef.current) slideMgmt.profilePicInputRef.current.click(); }}>
@@ -2360,13 +2360,13 @@ export default function App() {
                   )}
                 </div>
                 {currentSlide.profilePicName && (
-                  <span style={{ fontSize: 11, color: "#666", marginTop: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.profilePicName}</span>
+                  <span style={{ fontSize: 11, color: "#666", marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{currentSlide.profilePicName}</span>
                 )}
               </div>
               {/* SCREENSHOT */}
               {currentSlide && (
-                <div style={{ flex: 1, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
-                  <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 2 }}>SCREENSHOT</label>
+                <div style={{ flex: 1, minWidth: 0, height: 88, background: "#0f0f1a", border: "1px solid #343447", borderRadius: 8, padding: "4px 8px", display: "flex", flexDirection: "column", alignItems: "center", boxSizing: "border-box", overflow: "hidden" }}>
+                  <label style={{ fontSize: 11, color: "#bbb", fontWeight: 600, marginBottom: 3 }}>SCREENSHOT</label>
                   <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
                   <div style={{ width: "100%", height: 24, borderRadius: 5, border: "1px solid " + (getAsset(activeSlide).image ? GREEN : "#444"), background: "#111119", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", gap: 15 }}
                     onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
@@ -2381,7 +2381,7 @@ export default function App() {
                     )}
                   </div>
                   {getAsset(activeSlide).name && (
-                    <span style={{ fontSize: 11, color: "#666", marginTop: 1, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{getAsset(activeSlide).name}</span>
+                    <span style={{ fontSize: 11, color: "#666", marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{getAsset(activeSlide).name}</span>
                   )}
                   {getAsset(activeSlide).image && (
                     <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 2, width: "100%" }}>

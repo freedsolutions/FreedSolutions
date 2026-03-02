@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-01 - Upload frame spacing + filename overflow fix
+- What changed: Increased margins between stacked elements (label, spec text, upload button, filename) in all three upload frames from 1-2px to 3-4px. Added `overflow: hidden` and `minWidth: 0` to prevent long filenames from widening the Profile and Screenshot frames.
+- Why: Elements were too tightly packed; long filenames could push flex containers wider than intended.
+- Files: `src/App.jsx`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-01 - Rename header + align top row across all panes
 - What changed: Renamed "LinkedIn Carousel Generator" → "Carousel Generator". Moved the header from a full-width row above all panes into the top of the left column. Increased outer container top padding so all three panes (left, center, right) start at the same vertical position. Updated browser tab title to "Carousel Generator".
 - Why: Even out the UI — the center and right panes previously started lower than the header row, wasting vertical space.
