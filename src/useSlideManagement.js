@@ -47,17 +47,19 @@ function useSlideManagement(deps) {
     var file = e.target.files[0];
     if (!file) return;
     var fileName = file.name;
+    var targetSlide = activeSlide;
     var reader = new FileReader();
     reader.onload = function(ev) {
       var img = new Image();
       img.onload = function() {
         setSeriesSlides(function(prev) {
           return prev.map(function(s, i) {
-            if (i !== activeSlide) return s;
+            if (i !== targetSlide) return s;
             return Object.assign({}, s, { customBgImage: img, customBgName: fileName, bgType: "custom" });
           });
         });
       };
+      img.onerror = function() { console.warn("Image failed to load: " + fileName); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
@@ -81,6 +83,7 @@ function useSlideManagement(deps) {
           });
         });
       };
+      img.onerror = function() { console.warn("Image failed to load: " + fileName); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
@@ -102,6 +105,7 @@ function useSlideManagement(deps) {
           });
         });
       };
+      img.onerror = function() { console.warn("Image failed to load: " + fileName); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);

@@ -10,5 +10,5 @@ function hexToRgba(hex, opacity) {
   var g = parseInt(hex.slice(3, 5), 16);
   var b = parseInt(hex.slice(5, 7), 16);
   if (isNaN(r) || isNaN(g) || isNaN(b)) return "rgba(255,255,255," + ((opacity || 0) / 100) + ")";
-  return "rgba(" + r + "," + g + "," + b + "," + (opacity / 100) + ")";
+  return "rgba(" + r + "," + g + "," + b + "," + ((opacity != null ? opacity : 100) / 100) + ")";
 }

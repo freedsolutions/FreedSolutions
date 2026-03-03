@@ -63,6 +63,7 @@ function drawGeoBg(ctx, baseColor, lineColor) {
 }
 
 function drawCustomBg(ctx, img) {
+  if (!img.width || !img.height) return;
   var imgRatio = img.width / img.height;
   var canvasRatio = W / H;
   var dw, dh;

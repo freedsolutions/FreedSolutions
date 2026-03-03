@@ -25,6 +25,63 @@ var FONT_OPTIONS = [
 
 var DEFAULT_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+// Canvas layout tokens — rendering geometry
+var CANVAS = {
+  // Content area
+  pad: 80,
+  innerPad: 20,
+
+  // Line heights (multipliers of font size)
+  headingLH: 1.22,
+  headingBlankLH: 0.5,
+  bodyLH: 1.4,
+  bodyBlankLH: 0.6,
+  cardLineSpacing: 6,
+  cardBlankLH: 0.5,
+
+  // Cards
+  cardGap: 20,
+  cardPadV: 20,
+  cardTextPad: 40,
+  cardMinH: 80,
+  cardExtraH: 10,
+  cardRadius: 16,
+  cardFirstLineY: 38,
+  cardCheckRadius: 22,
+  cardCheckOffsetY: -14,
+
+  // Screenshot
+  ssRadius: 12,
+  ssMinH: 60,
+  ssBottomPad: 20,
+  ssFloorExpandHeading: 300,
+  ssFloorExpandNoHeading: 180,
+  ssFloorNormalHeading: 420,
+  ssFloorNormalNoHeading: 200,
+
+  // Footer
+  footerBadgeW: 220,
+  footerBadgeRadius: 12,
+  footerTextY: 31,
+  footerPicOffsetY: -8,
+  footerStrokeWidth: 3,
+
+  // Accent bar
+  accentBarW: 50,
+  accentBarH: 3,
+  accentBarOffset: 10,
+
+  // Spacing offsets after heading
+  cardGapAfterHeadingExpand: 20,
+  cardGapAfterHeading: 45,
+  cardGapNoHeadingExpand: 30,
+  cardGapNoHeading: 60,
+  bodyGapAfterHeadingExpand: 40,
+  bodyGapAfterHeading: 100,
+  bodyGapNoHeadingExpand: 30,
+  bodyGapNoHeading: 60,
+};
+
 // Compose a valid ctx.font string: "italic bold 24px FontFamily"
 // weight can be boolean true ("bold"), false (omit), or a string like "600", "700", "900", "bold"
 function composeFont(family, size, weight, italic) {

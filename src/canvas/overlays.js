@@ -6,25 +6,25 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   var prevAlpha = ctx.globalAlpha;
   ctx.globalAlpha = (opacity != null ? opacity : 100) / 100;
   var badgeH = FOOTER_BADGE_H;
-  var badgeW = 220;
+  var badgeW = CANVAS.footerBadgeW;
   var badgeX = (W - badgeW) / 2;
   var badgeY = borderBottom - badgeH / 2;
 
   ctx.fillStyle = footerBg || "#ffffff";
   ctx.beginPath();
-  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 12);
+  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, CANVAS.footerBadgeRadius);
   ctx.fill();
 
   ctx.fillStyle = footerText || "#1a1a2e";
   var footerWeight = fontBold !== false ? "bold" : "normal";
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, textSize || 20, footerWeight, !!fontItalic);
   var tw = ctx.measureText(name).width;
-  ctx.fillText(name, (W - tw) / 2, badgeY + 31);
+  ctx.fillText(name, (W - tw) / 2, badgeY + CANVAS.footerTextY);
 
   if (profileImg) {
     var picSize = FOOTER_PIC_SIZE;
     var picX = W / 2;
-    var picY = badgeY + badgeH + picSize / 2 - 8;
+    var picY = badgeY + badgeH + picSize / 2 + CANVAS.footerPicOffsetY;
     ctx.save();
     ctx.beginPath();
     ctx.arc(picX, picY, picSize / 2, 0, Math.PI * 2);
@@ -32,7 +32,7 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
     ctx.drawImage(profileImg, picX - picSize / 2, picY - picSize / 2, picSize, picSize);
     ctx.restore();
     ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = CANVAS.footerStrokeWidth;
     ctx.beginPath();
     ctx.arc(picX, picY, picSize / 2, 0, Math.PI * 2);
     ctx.stroke();
@@ -48,7 +48,7 @@ function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fo
 }
 
 function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
-  var weight = fontBold ? "bold" : "600";
+  var weight = fontBold ? "700" : "600";
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 16, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
   ctx.fillText(text, MARGIN, H - MARGIN + 4);
@@ -62,7 +62,7 @@ function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {
   ctx.lineWidth = BORDER_WIDTH;
 
   if (hasFooter) {
-    var badgeW = 220;
+    var badgeW = CANVAS.footerBadgeW;
     var gapLeft = (W - badgeW) / 2;
     var gapRight = (W + badgeW) / 2;
     ctx.beginPath();

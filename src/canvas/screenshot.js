@@ -3,7 +3,7 @@
 // ---------------------------------------
 
 function drawScreenshot(ctx, screenshot, x, y, w, h, scale, edgeToEdge) {
-  var radius = edgeToEdge ? 0 : 12;
+  var radius = edgeToEdge ? 0 : CANVAS.ssRadius;
   if (!screenshot) {
     ctx.strokeStyle = "rgba(255,255,255,0.1)";
     ctx.lineWidth = 1;

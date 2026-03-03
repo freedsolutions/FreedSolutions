@@ -25,6 +25,63 @@ var FONT_OPTIONS = [
 
 var DEFAULT_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+// Canvas layout tokens — rendering geometry
+var CANVAS = {
+  // Content area
+  pad: 80,
+  innerPad: 20,
+
+  // Line heights (multipliers of font size)
+  headingLH: 1.22,
+  headingBlankLH: 0.5,
+  bodyLH: 1.4,
+  bodyBlankLH: 0.6,
+  cardLineSpacing: 6,
+  cardBlankLH: 0.5,
+
+  // Cards
+  cardGap: 20,
+  cardPadV: 20,
+  cardTextPad: 40,
+  cardMinH: 80,
+  cardExtraH: 10,
+  cardRadius: 16,
+  cardFirstLineY: 38,
+  cardCheckRadius: 22,
+  cardCheckOffsetY: -14,
+
+  // Screenshot
+  ssRadius: 12,
+  ssMinH: 60,
+  ssBottomPad: 20,
+  ssFloorExpandHeading: 300,
+  ssFloorExpandNoHeading: 180,
+  ssFloorNormalHeading: 420,
+  ssFloorNormalNoHeading: 200,
+
+  // Footer
+  footerBadgeW: 220,
+  footerBadgeRadius: 12,
+  footerTextY: 31,
+  footerPicOffsetY: -8,
+  footerStrokeWidth: 3,
+
+  // Accent bar
+  accentBarW: 50,
+  accentBarH: 3,
+  accentBarOffset: 10,
+
+  // Spacing offsets after heading
+  cardGapAfterHeadingExpand: 20,
+  cardGapAfterHeading: 45,
+  cardGapNoHeadingExpand: 30,
+  cardGapNoHeading: 60,
+  bodyGapAfterHeadingExpand: 40,
+  bodyGapAfterHeading: 100,
+  bodyGapNoHeadingExpand: 30,
+  bodyGapNoHeading: 60,
+};
+
 // Compose a valid ctx.font string: "italic bold 24px FontFamily"
 // weight can be boolean true ("bold"), false (omit), or a string like "600", "700", "900", "bold"
 function composeFont(family, size, weight, italic) {
@@ -234,7 +291,7 @@ function hexToRgba(hex, opacity) {
   var g = parseInt(hex.slice(3, 5), 16);
   var b = parseInt(hex.slice(5, 7), 16);
   if (isNaN(r) || isNaN(g) || isNaN(b)) return "rgba(255,255,255," + ((opacity || 0) / 100) + ")";
-  return "rgba(" + r + "," + g + "," + b + "," + (opacity / 100) + ")";
+  return "rgba(" + r + "," + g + "," + b + "," + ((opacity != null ? opacity : 100) / 100) + ")";
 }
 
 // ---------------------------------------
@@ -302,6 +359,7 @@ function drawGeoBg(ctx, baseColor, lineColor) {
 }
 
 function drawCustomBg(ctx, img) {
+  if (!img.width || !img.height) return;
   var imgRatio = img.width / img.height;
   var canvasRatio = W / H;
   var dw, dh;
@@ -422,25 +480,25 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   var prevAlpha = ctx.globalAlpha;
   ctx.globalAlpha = (opacity != null ? opacity : 100) / 100;
   var badgeH = FOOTER_BADGE_H;
-  var badgeW = 220;
+  var badgeW = CANVAS.footerBadgeW;
   var badgeX = (W - badgeW) / 2;
   var badgeY = borderBottom - badgeH / 2;
 
   ctx.fillStyle = footerBg || "#ffffff";
   ctx.beginPath();
-  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 12);
+  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, CANVAS.footerBadgeRadius);
   ctx.fill();
 
   ctx.fillStyle = footerText || "#1a1a2e";
   var footerWeight = fontBold !== false ? "bold" : "normal";
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, textSize || 20, footerWeight, !!fontItalic);
   var tw = ctx.measureText(name).width;
-  ctx.fillText(name, (W - tw) / 2, badgeY + 31);
+  ctx.fillText(name, (W - tw) / 2, badgeY + CANVAS.footerTextY);
 
   if (profileImg) {
     var picSize = FOOTER_PIC_SIZE;
     var picX = W / 2;
-    var picY = badgeY + badgeH + picSize / 2 - 8;
+    var picY = badgeY + badgeH + picSize / 2 + CANVAS.footerPicOffsetY;
     ctx.save();
     ctx.beginPath();
     ctx.arc(picX, picY, picSize / 2, 0, Math.PI * 2);
@@ -448,7 +506,7 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
     ctx.drawImage(profileImg, picX - picSize / 2, picY - picSize / 2, picSize, picSize);
     ctx.restore();
     ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = CANVAS.footerStrokeWidth;
     ctx.beginPath();
     ctx.arc(picX, picY, picSize / 2, 0, Math.PI * 2);
     ctx.stroke();
@@ -464,7 +522,7 @@ function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fo
 }
 
 function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
-  var weight = fontBold ? "bold" : "600";
+  var weight = fontBold ? "700" : "600";
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 16, weight, !!fontItalic);
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
   ctx.fillText(text, MARGIN, H - MARGIN + 4);
@@ -478,7 +536,7 @@ function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {
   ctx.lineWidth = BORDER_WIDTH;
 
   if (hasFooter) {
-    var badgeW = 220;
+    var badgeW = CANVAS.footerBadgeW;
     var gapLeft = (W - badgeW) / 2;
     var gapRight = (W + badgeW) / 2;
     ctx.beginPath();
@@ -505,7 +563,7 @@ function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {
 // ---------------------------------------
 
 function drawScreenshot(ctx, screenshot, x, y, w, h, scale, edgeToEdge) {
-  var radius = edgeToEdge ? 0 : 12;
+  var radius = edgeToEdge ? 0 : CANVAS.ssRadius;
   if (!screenshot) {
     ctx.strokeStyle = "rgba(255,255,255,0.1)";
     ctx.lineWidth = 1;
@@ -548,8 +606,8 @@ function drawScreenshot(ctx, screenshot, x, y, w, h, scale, edgeToEdge) {
 // ---------------------------------------
 
 function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameTop, frameBottom) {
-  var pad = 80;
-  var innerPad = 20;
+  var pad = CANVAS.pad;
+  var innerPad = CANVAS.innerPad;
   var topY = Math.max(pad, (frameTop || 0) + innerPad);
   var maxW = W - pad * 2;
 
@@ -573,35 +631,35 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   var ty = topY;
   if (slide.showHeading !== false) {
     ctx.font = composeFont(titleFamily, sizes.heading, titleWeight, titleItalic);
-    ty = topY + sizes.heading * 1.22;
+    ty = topY + sizes.heading * CANVAS.headingLH;
     var headingRawLines = (slide.title || "").split("\n");
     for (var hli = 0; hli < headingRawLines.length; hli++) {
       var hRaw = headingRawLines[hli];
-      if (hRaw.trim() === "") { ty += sizes.heading * 0.5; continue; }
+      if (hRaw.trim() === "") { ty += sizes.heading * CANVAS.headingBlankLH; continue; }
       var headingParsed = extractAccentMarkers(hRaw);
       var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, titleWeight, titleFamily, titleItalic);
       var hOffset = 0;
       for (var i = 0; i < titleLines.length; i++) {
         renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, titleWeight, slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset, titleFamily, titleItalic);
         hOffset += titleLines[i].length + 1;
-        ty += sizes.heading * 1.22;
+        ty += sizes.heading * CANVAS.headingLH;
       }
     }
 
     if (slide.showAccentBar !== false && (!slide.showCards || !slide.cards || slide.cards.length === 0)) {
-      var accentBarOffset = expand ? 0 : 10;
+      var accentBarOffset = expand ? 0 : CANVAS.accentBarOffset;
       ctx.fillStyle = colors.accent;
-      ctx.fillRect(pad, ty + accentBarOffset, 50, 3);
+      ctx.fillRect(pad, ty + accentBarOffset, CANVAS.accentBarW, CANVAS.accentBarH);
     }
   }
 
   if (slide.showCards && slide.cards && slide.cards.length > 0) {
     var showChecks = slide.showCardChecks !== false;
-    var cardStartY = (slide.showHeading !== false) ? ty + (expand ? 20 : 45) : ty + (expand ? 30 : 60);
-    var cardPadV = 20;
-    var gap = 20;
-    var textPadding = 40;
-    var cardContentW = maxW - 40;
+    var cardStartY = (slide.showHeading !== false) ? ty + (expand ? CANVAS.cardGapAfterHeadingExpand : CANVAS.cardGapAfterHeading) : ty + (expand ? CANVAS.cardGapNoHeadingExpand : CANVAS.cardGapNoHeading);
+    var cardPadV = CANVAS.cardPadV;
+    var gap = CANVAS.cardGap;
+    var textPadding = CANVAS.cardTextPad;
+    var cardContentW = maxW - CANVAS.cardTextPad;
     // Pre-compute wrapped lines per card (handling newlines)
     var cardsLineData = [];
     for (var cpi = 0; cpi < slide.cards.length; cpi++) {
@@ -635,8 +693,8 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         else visibleLines++;
       }
       if (visibleLines === 0 && emptyLines === 0) { cardHeights.push(0); continue; }
-      var textH = visibleLines * (sizes.cardText + 6) + emptyLines * (sizes.cardText * 0.5);
-      cardHeights.push(Math.max(80, textH + cardPadV * 2 + 10));
+      var textH = visibleLines * (sizes.cardText + CANVAS.cardLineSpacing) + emptyLines * (sizes.cardText * CANVAS.cardBlankLH);
+      cardHeights.push(Math.max(CANVAS.cardMinH, textH + cardPadV * 2 + CANVAS.cardExtraH));
     }
     var runningY = cardStartY;
     for (var ci = 0; ci < cardsLineData.length; ci++) {
@@ -647,34 +705,34 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       var cardW = maxW - textPadding * 2 + 20;
       ctx.fillStyle = slide.cardBgColor || colors.cardBg;
       ctx.beginPath();
-      ctx.roundRect(cardX, cy, cardW, cardH, 16);
+      ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.fill();
       if (showChecks) {
         ctx.fillStyle = colors.accent;
         ctx.beginPath();
-        ctx.arc(pad + textPadding + 18, cy - 14, 22, 0, Math.PI * 2);
+        ctx.arc(pad + textPadding + 18, cy + CANVAS.cardCheckOffsetY, CANVAS.cardCheckRadius, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = slide.cardBgColor || colors.cardBg;
         ctx.lineWidth = 3;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.beginPath();
-        ctx.moveTo(pad + textPadding + 8, cy - 14);
-        ctx.lineTo(pad + textPadding + 16, cy - 6);
-        ctx.lineTo(pad + textPadding + 30, cy - 22);
+        ctx.moveTo(pad + textPadding + 8, cy + CANVAS.cardCheckOffsetY);
+        ctx.lineTo(pad + textPadding + 16, cy + CANVAS.cardCheckOffsetY + 8);
+        ctx.lineTo(pad + textPadding + 30, cy + CANVAS.cardCheckOffsetY - 8);
         ctx.stroke();
       }
       ctx.save();
       ctx.beginPath();
-      ctx.roundRect(cardX, cy, cardW, cardH, 16);
+      ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.clip();
       ctx.font = composeFont(cardFamily, sizes.cardText, cardWeight, cardItalic);
-      var lineY = cy + 38;
+      var lineY = cy + CANVAS.cardFirstLineY;
       for (var cli = 0; cli < cardsLineData[ci].length; cli++) {
         var ld = cardsLineData[ci][cli];
-        if (ld.empty) { lineY += sizes.cardText * 0.5; continue; }
+        if (ld.empty) { lineY += sizes.cardText * CANVAS.cardBlankLH; continue; }
         renderLineWithAccents(ctx, ld.text, pad + textPadding + 20, lineY, sizes.cardText, cardWeight, slide.cardTextColor || colors.cardText, colors.accent, ld.parsed.markers, ld.offset, cardFamily, cardItalic);
-        lineY += sizes.cardText + 6;
+        lineY += sizes.cardText + CANVAS.cardLineSpacing;
       }
       ctx.restore();
       runningY += cardH + gap;
@@ -682,11 +740,11 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     ty = runningY;
   } else if (slide.body) {
     var bodyLines = (slide.body || "").split("\n");
-    var bodyY = (slide.showHeading !== false) ? ty + (expand ? 40 : 100) : ty + (expand ? 30 : 60);
+    var bodyY = (slide.showHeading !== false) ? ty + (expand ? CANVAS.bodyGapAfterHeadingExpand : CANVAS.bodyGapAfterHeading) : ty + (expand ? CANVAS.bodyGapNoHeadingExpand : CANVAS.bodyGapNoHeading);
     for (var bli = 0; bli < bodyLines.length; bli++) {
       var rawLine = bodyLines[bli];
       if (rawLine.trim() === "" || rawLine.replace(/\*\*(.+?)\*\*/g, "$1").trim() === "") {
-        bodyY += sizes.body * 0.6;
+        bodyY += sizes.body * CANVAS.bodyBlankLH;
       } else {
         var lineParsed = extractAccentMarkers(rawLine);
         var wrapped = wrapText(ctx, lineParsed.cleanText, maxW, sizes.body, bodyWeight, bodyFamily, bodyItalic);
@@ -694,7 +752,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
         for (var wi = 0; wi < wrapped.length; wi++) {
           renderLineWithAccents(ctx, wrapped[wi], pad, bodyY, sizes.body, bodyWeight, slide.bodyColor || colors.accent, colors.accent, lineParsed.markers, bOffset, bodyFamily, bodyItalic);
           bOffset += wrapped[wi].length + 1;
-          bodyY += sizes.body * 1.4;
+          bodyY += sizes.body * CANVAS.bodyLH;
         }
       }
     }
@@ -702,14 +760,14 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   }
 
   if (slide.showScreenshot || screenshot) {
-    var bottomBound = frameBottom ? frameBottom - 20 : H - 80;
+    var bottomBound = frameBottom ? frameBottom - CANVAS.ssBottomPad : H - pad;
     var hasHeading = slide.showHeading !== false;
-    var ssFloor = expand ? (hasHeading ? 300 : 180) : (hasHeading ? 420 : 200);
-    var ssY = Math.max(ty + 20, ssFloor);
+    var ssFloor = expand ? (hasHeading ? CANVAS.ssFloorExpandHeading : CANVAS.ssFloorExpandNoHeading) : (hasHeading ? CANVAS.ssFloorNormalHeading : CANVAS.ssFloorNormalNoHeading);
+    var ssY = Math.max(ty + CANVAS.ssBottomPad, ssFloor);
     var ssX = expand ? 0 : pad;
     var ssW = expand ? W : maxW;
     var ssH = bottomBound - ssY;
-    if (ssH > 60) {
+    if (ssH > CANVAS.ssMinH) {
       drawScreenshot(ctx, screenshot || null, ssX, ssY, ssW, ssH, scale, expand);
     }
   }
@@ -1368,17 +1426,19 @@ function useSlideManagement(deps) {
     var file = e.target.files[0];
     if (!file) return;
     var fileName = file.name;
+    var targetSlide = activeSlide;
     var reader = new FileReader();
     reader.onload = function(ev) {
       var img = new Image();
       img.onload = function() {
         setSeriesSlides(function(prev) {
           return prev.map(function(s, i) {
-            if (i !== activeSlide) return s;
+            if (i !== targetSlide) return s;
             return Object.assign({}, s, { customBgImage: img, customBgName: fileName, bgType: "custom" });
           });
         });
       };
+      img.onerror = function() { console.warn("Image failed to load: " + fileName); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
@@ -1402,6 +1462,7 @@ function useSlideManagement(deps) {
           });
         });
       };
+      img.onerror = function() { console.warn("Image failed to load: " + fileName); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
@@ -1423,6 +1484,7 @@ function useSlideManagement(deps) {
           });
         });
       };
+      img.onerror = function() { console.warn("Image failed to load: " + fileName); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);

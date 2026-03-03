@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-02 - Bug fixes + canvas layout tokens
+- What changed: Fixed `hexToRgba` returning invalid `rgba(...,NaN)` when opacity argument was omitted. Fixed `handleCustomUpload` using a stale `activeSlide` closure — custom background could land on the wrong slide if user switched slides during upload. Added `onerror` handlers to all three image upload functions (custom bg, screenshot, profile pic) so corrupt files log a warning instead of failing silently. Added zero-dimension guard in `drawCustomBg` to prevent `NaN` ratio calculations. Fixed `drawBottomCorner` using `"bold"` instead of `"700"` for font weight consistency. Extracted 35 hardcoded canvas layout values into a `CANVAS` object in `constants.js`.
+- Why: Edge-case bugs caused silent failures or incorrect behavior. Canvas magic numbers made layout tuning fragile — now all values are named and centralized.
+- Files: `src/canvas/hexToRgba.js`, `src/useSlideManagement.js`, `src/canvas/backgrounds.js`, `src/canvas/overlays.js`, `src/constants.js` (CANVAS tokens), `src/canvas/renderSlideContent.js`, `src/canvas/screenshot.js`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-02 - Layout grid + design tokens
 - What changed: Introduced `src/layoutTokens.js` with a shared design token system (SPACE, RADIUS, Z, SIZE, SURFACE, CLR) and style helper functions (panelBtn, toggleBtn, uploadFrameStyle, uploadBtnStyle, dividerStyle, dialogOverlay, dialogBox, dialogBtn). Replaced all ad-hoc magic numbers across App.jsx, ColorPickerInline.jsx, SizeControl.jsx, and SlideSelector.jsx with token references. Converted the three-column flex layout to CSS Grid with named grid areas (sidebar, editor, preview). Restructured BACKGROUND buttons from 2-column to label + 3-column equal-width grid.
 - Why: Layout tweaks were finicky because every gap, margin, padding, color, and size was a standalone magic number. Changing one value required hunting across files. Now all spacing/sizing/color decisions flow from shared constants — changing `SPACE[4]` from 8 to 10 updates every standard gap at once.
