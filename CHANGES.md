@@ -2,6 +2,27 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-03 - Loosen fixed question cap to alignment-based guidance
+- What changed: Updated `CLAUDE.md` Feature Flow so Phase 1 and Phase 2 no longer enforce a hard `1–3` question cap. The workflow now requires asking the number of questions needed for alignment, with rough guidance of typically `~2–6` and allowing more when ambiguity or risk is high.
+- Why: A strict `1–3` cap was too tight for complex or ambiguous features and could force implementation without sufficient alignment.
+- Files: `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verified both question-count lines in Phase 1 and Phase 2 now use alignment-based language with a rough range.
+- Notes/Risks: Slightly more upfront questioning can increase kickoff time, but reduces downstream rework risk.
+
+## 2026-03-03 - Make commit gate mandatory before user review
+- What changed: Hardened `CLAUDE.md` so Phase 3 ends with an explicit `Commit gate (final step before review)` requiring intended-file check, atomic commit, and commit hash reporting (`git rev-parse --short HEAD`). Updated Phase 4 to be post-commit only, added Git Policy requirement that review handoff include the local commit hash, and added a guardrail blocking review handoff before commit+hash.
+- Why: Ensure every review starts from a concrete local commit, so the only post-handoff outcomes are patching that commit path or pushing to GitHub.
+- Files: `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verified the new Commit gate section, post-commit Phase 4 wording, Git Policy hash requirement, and guardrail are present.
+- Notes/Risks: This is process enforcement via docs; compliance still depends on agents following the contract.
+
+## 2026-03-03 - Enforce permission preflight before escalation requests
+- What changed: Added a new `Permission Preflight (Before Any Escalation Request)` section to `CLAUDE.md` and wired it into guardrails. Agents must now check `.claude/settings.local.json` and `.claude/settings.json`, confirm whether a command is already allowed, and only request escalation when the exact action is not permitted.
+- Why: Prevent unnecessary permission prompts and make escalation requests deterministic and policy-driven.
+- Files: `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verified the new section and guardrail language are present and explicitly ordered as a pre-escalation gate.
+- Notes/Risks: This is process enforcement via documentation; runtime compliance still depends on agents following the contract.
+
 ## 2026-03-03 - Layer swatch breakout + updateSlide batching fix
 - What changed: The Layer (geometric overlay) color picker is now its own standalone swatch with label "Layer" next to Accent and Base in the SlideN pane, instead of being buried inside the Base picker dropdown. No ON/OFF toggle — the transparent checkerboard option serves as "off". ColorPickerInline gained two optional props (`swatches`, `allowTransparent`) for custom swatch grids with a transparent option. Also fixed a stale-closure batching bug in `updateSlide` (switched to functional updater form for `setSeriesSlides`) that caused consecutive field updates to overwrite each other.
 - Why: Layer was hard to discover inside the Base dropdown. Breaking it out makes it a first-class control. The batching fix ensures any two rapid `updateBgField` calls compose correctly.

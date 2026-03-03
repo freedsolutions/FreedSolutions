@@ -71,14 +71,14 @@ git push origin main
 ### Phase 1 — Get the card
 
 *Trigger A — In-session (feature described in chat):*
-Adam describes the feature in Claude Code chat. Claude asks 1–3 scope/approach questions, then writes `FEATURE_CARD.md` (replacing the entire file).
+Adam describes the feature in Claude Code chat. Claude asks the number of scope/approach questions needed for alignment (typically ~2–6, but more when ambiguity/risk is high), then writes `FEATURE_CARD.md` (replacing the entire file).
 
 *Trigger B — External card (card written elsewhere):*
 Adam updates `FEATURE_CARD.md` outside this session and types `SHIP` in chat.
 
 ### Phase 2 — Explore & ask
 
-Claude reads `FEATURE_CARD.md` and explores the relevant source files in the repo. Then asks 1–3 implementation questions based on what it found (approach choices, ambiguities, edge cases, patterns to reuse or avoid). Once answered, the autonomous SHIP loop starts.
+Claude reads `FEATURE_CARD.md` and explores the relevant source files in the repo. Then asks the number of implementation questions needed for alignment (typically ~2–6, but more when ambiguity/risk is high) based on what it found (approach choices, ambiguities, edge cases, patterns to reuse or avoid). Once answered, the autonomous SHIP loop starts.
 
 This is the single pause point before code changes begin.
 
@@ -102,13 +102,15 @@ This is the single pause point before code changes begin.
 - If issues found: patch, rebuild, re-test
 - If Playwright MCP is unavailable or the local server isn't running, stop and ask the user to fix it before continuing
 
-**Wrap up:**
+**Commit gate (final step before review):**
 - Add `CHANGES.md` entry if behavior changed
+- Verify `git status` reflects only intended task files
 - Commit all changed files atomically (source + artifact + docs)
+- Report commit hash (`git rev-parse --short HEAD`) in the handoff
 - Do NOT push
 
-### Phase 4 — Your review
-Claude Code pauses after commit. Review the diff. Then either:
+### Phase 4 — Your review (post-commit only)
+Claude Code pauses only after the Commit gate is complete. Review the diff. Then either:
 - Request patches: describe what to fix, Claude Code patches and re-runs from self-review onward
 - Push: `git push origin main`
 
@@ -132,7 +134,19 @@ Claude Code pauses after commit. Review the diff. Then either:
 - Direct push to `main`.
 - Single atomic commit per task (source + artifact + docs together).
 - Working tree clean after commit.
+- Review handoff must include the local commit hash.
 - Commit message style: imperative mood, sentence case, no trailing period. ~72 chars max. Use colons or `+` for multi-part summaries.
+
+## Permission Preflight (Before Any Escalation Request)
+- Always check permission config files before asking for approval:
+  1. `.claude/settings.local.json`
+  2. `.claude/settings.json`
+- Treat these files as the permission source of truth for the repo session.
+- Before requesting escalation, verify whether the exact action is already allowed (including wildcard/pattern matches).
+- If allowed, execute without requesting extra permission.
+- If not allowed, request escalation with a single-sentence reason tied to the specific blocked command.
+- Do not request broad or speculative approvals for actions you are not about to run.
+- Re-check permission config after any user or repo instruction that may have changed policy.
 
 ## Hard Guardrails
 - Do not edit `linkedin-carousel.jsx` manually — always regenerate via `node build.js`.
@@ -141,6 +155,8 @@ Claude Code pauses after commit. Review the diff. Then either:
 - Do not add `package.json`, `node_modules`, or npm dependencies — the repo is intentionally zero-dep.
 - When adding a new source file, add it to `ORDER` in `build.js` — files not in `ORDER` are silently excluded from the artifact.
 - Do not commit without a passing Playwright smoke test. If the smoke test cannot run, stop and ask.
+- Do not hand off for user review until a local commit is created and its hash is reported.
+- Do not request permission for an action until the Permission Preflight checklist above has been completed.
 
 ## Documentation Update Rules
 - `CLAUDE.md`: update only when workflow/contracts change.
