@@ -267,8 +267,8 @@ export default function App() {
             <div style={dividerStyle()} />
             {/* --- PRESETS --- */}
             <div style={{ marginBottom: SPACE[3], minHeight: 36 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: SPACE[2], alignItems: "center", marginBottom: SPACE[2] }}>
-                <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
+              <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[3] })}>PRESETS</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[2], marginBottom: SPACE[2] }}>
                 <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
                   style={panelBtn()}>
                   Save
@@ -304,7 +304,7 @@ export default function App() {
           </div>
           {/* Slides list */}
           <div>
-            <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[6] }}>
+            <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[7] }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[2], marginBottom: SPACE[5] }}>
                 <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
                 <button onClick={slideMgmt.resetAllToDefault} style={panelBtn()}>Reset All</button>

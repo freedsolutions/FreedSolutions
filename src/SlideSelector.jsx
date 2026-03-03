@@ -30,7 +30,7 @@ function SlideSelector(props) {
           Duplicate
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: SPACE[3], rowGap: SPACE[5] + SPACE[2], paddingTop: SPACE[2] }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: SPACE[5], paddingTop: SPACE[2], padding: "0 " + SPACE[5] + "px" }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
           var isDragSource = dragFrom === i;
@@ -46,7 +46,7 @@ function SlideSelector(props) {
                 onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
                 onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
                 onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-                style={{ width: "100%", height: SIZE.uploadBtn, borderRadius: RADIUS.md, border: isDragTarget ? "2px dashed " + CLR.primary : (isActive ? "2px solid " + GREEN : "2px solid " + SURFACE.muted), background: isDragTarget ? CLR.dragTarget : (isActive ? CLR.activeSlide : SURFACE.panel), color: isActive ? GREEN : SURFACE.inactive, cursor: isDragSource ? "grabbing" : "grab", fontSize: 13, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
+                style={{ width: "100%", aspectRatio: "1", borderRadius: RADIUS.md, border: isDragTarget ? "2px dashed " + CLR.primary : (isActive ? "2px solid " + GREEN : "2px solid " + SURFACE.muted), background: isDragTarget ? CLR.dragTarget : (isActive ? CLR.activeSlide : SURFACE.panel), color: isActive ? GREEN : SURFACE.inactive, cursor: isDragSource ? "grabbing" : "grab", fontSize: 13, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
                 {label}
               </button>
               {canRemove && (
@@ -60,7 +60,7 @@ function SlideSelector(props) {
         })}
         {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
-            style={{ width: "100%", height: SIZE.uploadBtn, borderRadius: RADIUS.md, border: "2px dashed " + SURFACE.muted, background: SURFACE.panel, color: SURFACE.tertiary, cursor: "pointer", fontSize: 15, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            style={{ width: "100%", aspectRatio: "1", borderRadius: RADIUS.md, border: "2px dashed " + SURFACE.muted, background: SURFACE.panel, color: SURFACE.tertiary, cursor: "pointer", fontSize: 15, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
       </div>
     </div>

@@ -1355,7 +1355,7 @@ function SlideSelector(props) {
           Duplicate
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: SPACE[3], rowGap: SPACE[5] + SPACE[2], paddingTop: SPACE[2] }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: SPACE[5], paddingTop: SPACE[2], padding: "0 " + SPACE[5] + "px" }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
           var isDragSource = dragFrom === i;
@@ -1371,7 +1371,7 @@ function SlideSelector(props) {
                 onDragLeave={function() { if (dragOver === i) setDragOver(null); }}
                 onDrop={function(e) { e.preventDefault(); if (dragFrom != null) { reorderSlide(dragFrom, i); } }}
                 onDragEnd={function() { setDragFrom(null); setDragOver(null); }}
-                style={{ width: "100%", height: SIZE.uploadBtn, borderRadius: RADIUS.md, border: isDragTarget ? "2px dashed " + CLR.primary : (isActive ? "2px solid " + GREEN : "2px solid " + SURFACE.muted), background: isDragTarget ? CLR.dragTarget : (isActive ? CLR.activeSlide : SURFACE.panel), color: isActive ? GREEN : SURFACE.inactive, cursor: isDragSource ? "grabbing" : "grab", fontSize: 13, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
+                style={{ width: "100%", aspectRatio: "1", borderRadius: RADIUS.md, border: isDragTarget ? "2px dashed " + CLR.primary : (isActive ? "2px solid " + GREEN : "2px solid " + SURFACE.muted), background: isDragTarget ? CLR.dragTarget : (isActive ? CLR.activeSlide : SURFACE.panel), color: isActive ? GREEN : SURFACE.inactive, cursor: isDragSource ? "grabbing" : "grab", fontSize: 13, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: isDragSource ? 0.4 : 1, transition: "opacity 0.15s, border 0.15s, background 0.15s" }}>
                 {label}
               </button>
               {canRemove && (
@@ -1385,7 +1385,7 @@ function SlideSelector(props) {
         })}
         {seriesSlides.length < MAX_SLIDES && (
           <button onClick={addSlide}
-            style={{ width: "100%", height: SIZE.uploadBtn, borderRadius: RADIUS.md, border: "2px dashed " + SURFACE.muted, background: SURFACE.panel, color: SURFACE.tertiary, cursor: "pointer", fontSize: 15, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            style={{ width: "100%", aspectRatio: "1", borderRadius: RADIUS.md, border: "2px dashed " + SURFACE.muted, background: SURFACE.panel, color: SURFACE.tertiary, cursor: "pointer", fontSize: 15, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
       </div>
     </div>
@@ -2653,8 +2653,8 @@ export default function App() {
             <div style={dividerStyle()} />
             {/* --- PRESETS --- */}
             <div style={{ marginBottom: SPACE[3], minHeight: 36 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: SPACE[2], alignItems: "center", marginBottom: SPACE[2] }}>
-                <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>PRESETS</label>
+              <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[3] })}>PRESETS</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[2], marginBottom: SPACE[2] }}>
                 <button onClick={function() { presets.setPresetError(""); presets.setPresetName(exportPrefix || ""); presets.setPresetDialog({ type: "save" }); }}
                   style={panelBtn()}>
                   Save
@@ -2690,7 +2690,7 @@ export default function App() {
           </div>
           {/* Slides list */}
           <div>
-            <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[6] }}>
+            <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[7] }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[2], marginBottom: SPACE[5] }}>
                 <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
                 <button onClick={slideMgmt.resetAllToDefault} style={panelBtn()}>Reset All</button>
