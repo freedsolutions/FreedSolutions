@@ -2,7 +2,7 @@
 // usePresets Hook
 // ===================================================
 // Manages preset serialize/deserialize, export/import, and stale-load guard.
-// Params: deps object { seriesSlides, slideAssets, sizes, setSizes,
+// Params: deps object { seriesSlides, slideAssets,
 //   exportPrefix, setExportPrefix, setSeriesSlides,
 //   setSlideAssets, setActiveSlide, clearPdfDownload, setPdfError, pushUndo,
 //   setConfirmDialog }
@@ -26,7 +26,9 @@ var PRESET_SLIDE_KEYS = [
   "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
   "solidColor", "bgType", "geoEnabled", "geoLines",
   "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg",
-  "profilePicName"
+  "profilePicName",
+  "headingSize", "bodySize", "cardTextSize",
+  "topCornerSize", "bottomCornerSize", "brandNameSize"
 ];
 
 var LEGACY_GEORGIA_FONT = "Georgia, serif";
@@ -117,7 +119,6 @@ function usePresets(deps) {
       name: name || "Untitled Preset",
       createdAt: new Date().toISOString(),
       exportPrefix: deps.exportPrefix,
-      sizes: Object.assign({}, deps.sizes),
       slides: serializedSlides,
       images: images
     };
@@ -127,12 +128,7 @@ function usePresets(deps) {
     deps.pushUndo();
     var loadToken = ++presetLoadTokenRef.current;
 
-    if (data.sizes) {
-      deps.setSizes(Object.assign({
-        heading: 48, body: 38, cardText: 22,
-        topCorner: 13, bottomCorner: 16, brandName: 20
-      }, data.sizes));
-    }
+    // Legacy: global sizes → per-slide migration handled after newSlides are built
 
     if (data.exportPrefix != null) {
       deps.setExportPrefix(data.exportPrefix);
@@ -264,6 +260,22 @@ function usePresets(deps) {
 
     if (newSlides.length === 0) {
       newSlides = [makeDefaultSlide()];
+    }
+
+    // Legacy migration: old presets have global sizes but no per-slide size fields
+    if (data.sizes && newSlides.length > 0 && newSlides[0].headingSize == null) {
+      var ls = Object.assign({
+        heading: 48, body: 38, cardText: 22,
+        topCorner: 13, bottomCorner: 16, brandName: 20
+      }, data.sizes);
+      for (var li = 0; li < newSlides.length; li++) {
+        newSlides[li].headingSize = ls.heading;
+        newSlides[li].bodySize = ls.body;
+        newSlides[li].cardTextSize = ls.cardText;
+        newSlides[li].topCornerSize = ls.topCorner;
+        newSlides[li].bottomCornerSize = ls.bottomCorner;
+        newSlides[li].brandNameSize = ls.brandName;
+      }
     }
 
     deps.setSeriesSlides(newSlides);

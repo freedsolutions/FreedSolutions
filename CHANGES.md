@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-03 - Per-slide font sizes + control relocation
+- What changed: Font sizes (heading, body, cardText, topCorner, bottomCorner, brandName) are now per-slide instead of global. Each slide gets its own copy of sizes stored in the slide data model. Upload buttons (Background, Footer, Screenshot) and Accent/Base color swatches moved from the left pane to the "Slide N" editor pane. Left pane simplified to just Sync All and Reset All buttons plus the slide list. Sync All now syncs all visual settings (sizes, typography, colors, backgrounds, toggles) from the active slide to all others — text content and screenshots are not affected. Reset All now fully resets all slides to defaults. Single-slide Reset button removed from left pane (per-slide reset lives on the Slide N header). Preset save/load updated with per-slide size fields and legacy migration for old presets with global sizes. Undo/redo automatically covers sizes since they're now part of the slide data.
+- Why: Per-slide sizes allow different typography on each slide. Relocating controls makes the left pane a global-actions panel while the Slide N pane owns all per-slide settings.
+- Files: `src/slideFactory.js`, `src/canvas/renderSlide.js`, `src/useCanvasRenderer.js`, `src/usePresets.js`, `src/useSlideManagement.js`, `src/App.jsx`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-02 - Bug fixes + canvas layout tokens
 - What changed: Fixed `hexToRgba` returning invalid `rgba(...,NaN)` when opacity argument was omitted. Fixed `handleCustomUpload` using a stale `activeSlide` closure — custom background could land on the wrong slide if user switched slides during upload. Added `onerror` handlers to all three image upload functions (custom bg, screenshot, profile pic) so corrupt files log a warning instead of failing silently. Added zero-dimension guard in `drawCustomBg` to prevent `NaN` ratio calculations. Fixed `drawBottomCorner` using `"bold"` instead of `"700"` for font weight consistency. Extracted 35 hardcoded canvas layout values into a `CANVAS` object in `constants.js`.
 - Why: Edge-case bugs caused silent failures or incorrect behavior. Canvas magic numbers made layout tuning fragile — now all values are named and centralized.

@@ -58,6 +58,12 @@ function makeDefaultSlide(title, body) {
     borderOpacity: 100,
     footerBg: "#ffffff",
     profileImg: null,
-    profilePicName: null
+    profilePicName: null,
+    headingSize: 48,
+    bodySize: 38,
+    cardTextSize: 22,
+    topCornerSize: 13,
+    bottomCornerSize: 16,
+    brandNameSize: 20
   };
 }

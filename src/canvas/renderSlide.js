@@ -2,9 +2,18 @@
 // Top-level render orchestrator (pure function)
 // ---------------------------------------
 
-function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets, sizes) {
+function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   ctx.clearRect(0, 0, W, H);
   var slide = seriesSlides[slideIndex] || seriesSlides[0];
+
+  var sizes = {
+    heading: slide.headingSize || 48,
+    body: slide.bodySize || 38,
+    cardText: slide.cardTextSize || 22,
+    topCorner: slide.topCornerSize || 13,
+    bottomCorner: slide.bottomCornerSize || 16,
+    brandName: slide.brandNameSize || 20,
+  };
 
   // Resolve custom bg image
   var customImg = (slide.bgType === "custom" && slide.customBgImage) ? slide.customBgImage : null;

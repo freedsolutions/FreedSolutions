@@ -7,7 +7,7 @@
 //   slideAssets, setSlideAssets, getAsset, setAsset, setScale,
 //   dragFrom, setDragFrom, dragOver, setDragOver,
 //   profilePicInputRef, screenshotInputRef, customBgInputRef,
-//   updateSlide, updateBgField, syncBgToAll, resetBgToDefault, resetAllBgToDefault,
+//   updateSlide, updateBgField, syncBgToAll, resetAllToDefault,
 //   addSlide, duplicateSlide, removeSlide, reorderSlide,
 //   updateSlideCard, addSlideCard, removeSlideCard,
 //   handleCustomUpload, handleScreenshotUpload, handleProfilePicUpload,
@@ -166,102 +166,92 @@ function useSlideManagement(deps) {
 
   var syncBgToAll = function() {
     deps.setConfirmDialog({
-      message: "Apply Slide " + (activeSlide + 1) + "\u2019s background, profile, and screenshot settings to all slides?",
+      message: "Apply Slide " + (activeSlide + 1) + "\u2019s visual settings to all slides? (Text content and screenshots are not affected.)",
       onConfirm: function() {
         deps.pushUndo();
         var src = seriesSlides[activeSlide];
-        var srcAsset = slideAssets[activeSlide] || null;
         setSeriesSlides(function(prev) {
           return prev.map(function(s) {
             return Object.assign({}, s, {
+              // Background
               solidColor: src.solidColor,
               bgType: src.bgType,
               customBgImage: src.customBgImage,
               customBgName: src.customBgName,
               geoEnabled: src.geoEnabled,
               geoLines: src.geoLines,
+              // Frame
               frameEnabled: src.frameEnabled,
               accentColor: src.accentColor,
               borderColor: src.borderColor,
               borderOpacity: src.borderOpacity,
+              // Profile
               profileImg: src.profileImg,
               profilePicName: src.profilePicName,
-              showScreenshot: src.showScreenshot,
-              expandScreenshot: src.expandScreenshot
+              footerBg: src.footerBg,
+              // Toggles (not text content)
+              showHeading: src.showHeading,
+              showAccentBar: src.showAccentBar,
+              showCards: src.showCards,
+              showCardChecks: src.showCardChecks,
+              showBrandName: src.showBrandName,
+              showTopCorner: src.showTopCorner,
+              showBottomCorner: src.showBottomCorner,
+              // Font sizes
+              headingSize: src.headingSize,
+              bodySize: src.bodySize,
+              cardTextSize: src.cardTextSize,
+              topCornerSize: src.topCornerSize,
+              bottomCornerSize: src.bottomCornerSize,
+              brandNameSize: src.brandNameSize,
+              // Title typography
+              titleColor: src.titleColor,
+              titleFontFamily: src.titleFontFamily,
+              titleBold: src.titleBold,
+              titleItalic: src.titleItalic,
+              // Body typography
+              bodyColor: src.bodyColor,
+              bodyFontFamily: src.bodyFontFamily,
+              bodyBold: src.bodyBold,
+              bodyItalic: src.bodyItalic,
+              // Card typography
+              cardTextColor: src.cardTextColor,
+              cardFontFamily: src.cardFontFamily,
+              cardBold: src.cardBold,
+              cardItalic: src.cardItalic,
+              cardBgColor: src.cardBgColor,
+              // Brand name typography
+              brandNameColor: src.brandNameColor,
+              brandNameFontFamily: src.brandNameFontFamily,
+              brandNameBold: src.brandNameBold,
+              brandNameItalic: src.brandNameItalic,
+              // Top corner typography
+              topCornerColor: src.topCornerColor,
+              topCornerFontFamily: src.topCornerFontFamily,
+              topCornerBold: src.topCornerBold,
+              topCornerItalic: src.topCornerItalic,
+              topCornerOpacity: src.topCornerOpacity,
+              // Bottom corner typography
+              bottomCornerColor: src.bottomCornerColor,
+              bottomCornerFontFamily: src.bottomCornerFontFamily,
+              bottomCornerBold: src.bottomCornerBold,
+              bottomCornerItalic: src.bottomCornerItalic,
+              bottomCornerOpacity: src.bottomCornerOpacity
             });
           });
-        });
-        setSlideAssets(function(prev) {
-          var next = {};
-          for (var i = 0; i < seriesSlides.length; i++) {
-            if (srcAsset) {
-              next[i] = Object.assign({}, srcAsset);
-            }
-          }
-          return next;
         });
       }
     });
   };
 
-  var resetBgToDefault = function() {
+  var resetAllToDefault = function() {
     deps.setConfirmDialog({
-      message: "Reset Slide " + (activeSlide + 1) + "\u2019s background, profile, and screenshot to defaults?",
+      message: "Reset ALL slides to defaults? This resets everything except text content.",
       onConfirm: function() {
         deps.pushUndo();
         setSeriesSlides(function(prev) {
-          return prev.map(function(s, i) {
-            if (i !== activeSlide) return s;
-            return Object.assign({}, s, {
-              solidColor: "#1e1e2e",
-              bgType: "solid",
-              customBgImage: null,
-              customBgName: null,
-              geoEnabled: true,
-              geoLines: "#a0a0af",
-              frameEnabled: true,
-              accentColor: "#a5b4fc",
-              borderColor: "#ffffff",
-              borderOpacity: 100,
-              profileImg: null,
-              profilePicName: null,
-              showScreenshot: false,
-              expandScreenshot: false
-            });
-          });
-        });
-        setSlideAssets(function(prev) {
-          var next = Object.assign({}, prev);
-          delete next[activeSlide];
-          return next;
-        });
-      }
-    });
-  };
-
-  var resetAllBgToDefault = function() {
-    deps.setConfirmDialog({
-      message: "Reset ALL slides\u2019 backgrounds, profiles, and screenshots to defaults?",
-      onConfirm: function() {
-        deps.pushUndo();
-        setSeriesSlides(function(prev) {
-          return prev.map(function(s) {
-            return Object.assign({}, s, {
-              solidColor: "#1e1e2e",
-              bgType: "solid",
-              customBgImage: null,
-              customBgName: null,
-              geoEnabled: true,
-              geoLines: "#a0a0af",
-              frameEnabled: true,
-              accentColor: "#a5b4fc",
-              borderColor: "#ffffff",
-              borderOpacity: 100,
-              profileImg: null,
-              profilePicName: null,
-              showScreenshot: false,
-              expandScreenshot: false
-            });
+          return prev.map(function() {
+            return makeDefaultSlide();
           });
         });
         setSlideAssets(function() {
@@ -453,7 +443,7 @@ function useSlideManagement(deps) {
     screenshotInputRef: screenshotInputRef,
     customBgInputRef: customBgInputRef,
     updateSlide: updateSlide, updateBgField: updateBgField,
-    syncBgToAll: syncBgToAll, resetBgToDefault: resetBgToDefault, resetAllBgToDefault: resetAllBgToDefault,
+    syncBgToAll: syncBgToAll, resetAllToDefault: resetAllToDefault,
     addSlide: addSlide, duplicateSlide: duplicateSlide,
     removeSlide: removeSlide, resetSlide: resetSlide, reorderSlide: reorderSlide,
     updateSlideCard: updateSlideCard, addSlideCard: addSlideCard, removeSlideCard: removeSlideCard,
