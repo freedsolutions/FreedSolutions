@@ -1,13 +1,13 @@
-# Feature: Left Pane Layout Improvements
+# Feature: Break Layer Swatch Out of Base Picker
 
 ## Scope
-1. **Slide grid: 5 → 2 columns** — Increase left pane preview slide thumbnails to fit 2 per row (within the existing 220px pane width).
-2. **Larger delete badge** — Increase the × remove badge from 16px to 20px, with proportional font-size and offset adjustments.
-3. **Larger Duplicate button** — Match the Duplicate button size to the standard `panelBtn()` size used by Save, Load, Sync All, Reset All.
-4. **Move Sync All / Reset All into Slides frame** — Remove the standalone GLOBAL ACTIONS section and its surrounding dividers. Place the two buttons side-by-side inside the slides frame container, above the "SLIDES" header.
-5. **Triple divider spacing** — Triple the margins on `dividerStyle()` (8px → 24px). Add matching spacing between PRESETS and the Slides frame.
+1. **Promote Layer to standalone swatch** — Move the geometric overlay (Layer) color picker out of the Base color picker's dropdown into its own labeled swatch ("Layer") next to Accent and Base in the SlideN pane.
+2. **Remove ON/OFF toggle** — The transparent/checkerboard option replaces the toggle. Selecting transparent disables the overlay; selecting any color enables it.
+3. **Same dropdown style** — Layer picker uses the same ColorPickerInline dropdown pattern as Accent and Base (7 layer presets + transparent + custom color input).
+4. **Dim when custom BG active** — Layer swatch dims (opacity 0.35) and is disabled when a custom background image is in use, matching Base behavior.
+5. **Defaults unchanged** — geoEnabled: true, geoLines: "#a0a0af".
 
 ## Out of scope
-- Changing left pane width
-- Changing slide thumbnail height
-- Any canvas/rendering changes
+- Changing the layer color presets
+- Changing canvas rendering behavior
+- Changing the data model

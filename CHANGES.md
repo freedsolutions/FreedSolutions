@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-03 - Layer swatch breakout + updateSlide batching fix
+- What changed: The Layer (geometric overlay) color picker is now its own standalone swatch with label "Layer" next to Accent and Base in the SlideN pane, instead of being buried inside the Base picker dropdown. No ON/OFF toggle — the transparent checkerboard option serves as "off". ColorPickerInline gained two optional props (`swatches`, `allowTransparent`) for custom swatch grids with a transparent option. Also fixed a stale-closure batching bug in `updateSlide` (switched to functional updater form for `setSeriesSlides`) that caused consecutive field updates to overwrite each other.
+- Why: Layer was hard to discover inside the Base dropdown. Breaking it out makes it a first-class control. The batching fix ensures any two rapid `updateBgField` calls compose correctly.
+- Files: `src/ColorPickerInline.jsx`, `src/App.jsx`, `src/useSlideManagement.js`, `linkedin-carousel.jsx` (regenerated).
+
 ## 2026-03-03 - Per-slide font sizes + control relocation
 - What changed: Font sizes (heading, body, cardText, topCorner, bottomCorner, brandName) are now per-slide instead of global. Each slide gets its own copy of sizes stored in the slide data model. Upload buttons (Background, Footer, Screenshot) and Accent/Base color swatches moved from the left pane to the "Slide N" editor pane. Left pane simplified to just Sync All and Reset All buttons plus the slide list. Sync All now syncs all visual settings (sizes, typography, colors, backgrounds, toggles) from the active slide to all others — text content and screenshots are not affected. Reset All now fully resets all slides to defaults. Single-slide Reset button removed from left pane (per-slide reset lives on the Slide N header). Preset save/load updated with per-slide size fields and legacy migration for old presets with global sizes. Undo/redo automatically covers sizes since they're now part of the slide data.
 - Why: Per-slide sizes allow different typography on each slide. Relocating controls makes the left pane a global-actions panel while the Slide N pane owns all per-slide settings.

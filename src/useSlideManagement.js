@@ -151,13 +151,14 @@ function useSlideManagement(deps) {
 
   var updateSlide = function(idx, field, val, shouldSnapshot) {
     if (shouldSnapshot) deps.pushUndo();
-    var next = seriesSlides.map(function(s, i) {
-      if (i !== idx) return s;
-      var updated = Object.assign({}, s);
-      updated[field] = val;
-      return updated;
+    setSeriesSlides(function(prev) {
+      return prev.map(function(s, i) {
+        if (i !== idx) return s;
+        var updated = Object.assign({}, s);
+        updated[field] = val;
+        return updated;
+      });
     });
-    setSeriesSlides(next);
   };
 
   var updateBgField = function(field, value) {

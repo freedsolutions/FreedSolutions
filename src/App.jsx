@@ -411,8 +411,11 @@ export default function App() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: isCustomBg ? 0.35 : 1 }}>
                   <label style={{ fontSize: 13, color: SURFACE.subtle, fontWeight: 600 }}>Base</label>
-                  <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg}
-                    layerColor={currentSlide.geoLines} onLayerChange={function(c) { updateBgField("geoLines", c); updateBgField("geoEnabled", true); }} layerEnabled={!isCustomBg && currentSlide.geoEnabled} onLayerToggle={function(on) { updateBgField("geoEnabled", on); }} />
+                  <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: isCustomBg ? 0.35 : 1 }}>
+                  <label style={{ fontSize: 13, color: SURFACE.subtle, fontWeight: 600 }}>Layer</label>
+                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} swatches={LAYER_SWATCHES} allowTransparent={true} />
                 </div>
               </div>
 
