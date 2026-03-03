@@ -26,11 +26,11 @@ function SlideSelector(props) {
         <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
         <button onClick={duplicateSlide}
           disabled={seriesSlides.length >= MAX_SLIDES}
-          style={panelBtn({ marginLeft: "auto", padding: "3px " + SPACE[4] + "px", fontSize: 10, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
+          style={panelBtn({ marginLeft: "auto", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
           Duplicate
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: SPACE[3], rowGap: SPACE[5] + SPACE[2], minHeight: SIZE.uploadBtn * 2 + SPACE[5] + SPACE[2], paddingTop: SPACE[2] }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: SPACE[3], rowGap: SPACE[5] + SPACE[2], paddingTop: SPACE[2] }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
           var isDragSource = dragFrom === i;
@@ -53,7 +53,7 @@ function SlideSelector(props) {
                 <button
                   onClick={function(e) { e.stopPropagation(); removeSlide(i); }}
                   onDragStart={function(e) { e.preventDefault(); e.stopPropagation(); }}
-                  style={{ position: "absolute", top: -SPACE[2], right: -SPACE[2], width: SIZE.removeBadge, height: SIZE.removeBadge, borderRadius: RADIUS.lg, border: "none", background: CLR.removeBadgeBg, color: CLR.danger, cursor: "pointer", fontSize: 10, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{"\u00d7"}</button>
+                  style={{ position: "absolute", top: -SPACE[3], right: -SPACE[3], width: SIZE.removeBadge, height: SIZE.removeBadge, borderRadius: RADIUS.lg, border: "none", background: CLR.removeBadgeBg, color: CLR.danger, cursor: "pointer", fontSize: 12, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{"\u00d7"}</button>
               )}
             </div>
           );

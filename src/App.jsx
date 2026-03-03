@@ -300,21 +300,15 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div style={{ borderTop: "1px solid " + SURFACE.border, marginTop: SPACE[5], marginBottom: SPACE[5] }} />
-
-            {/* --- GLOBAL ACTIONS --- */}
-            <div style={{ marginBottom: SPACE[5] }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[2] }}>
-                <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
-                <button onClick={slideMgmt.resetAllToDefault} style={panelBtn()}>Reset All</button>
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px solid " + SURFACE.border, marginTop: SPACE[5], marginBottom: SPACE[5] }} />
+            <div style={{ height: SPACE[8] }} />
           </div>
           {/* Slides list */}
           <div>
             <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[6] }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[2], marginBottom: SPACE[5] }}>
+                <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
+                <button onClick={slideMgmt.resetAllToDefault} style={panelBtn()}>Reset All</button>
+              </div>
               <SlideSelector seriesSlides={seriesSlides} activeSlide={activeSlide} setActiveSlide={setActiveSlide}
                 dragFrom={slideMgmt.dragFrom} setDragFrom={slideMgmt.setDragFrom} dragOver={slideMgmt.dragOver} setDragOver={slideMgmt.setDragOver}
                 reorderSlide={slideMgmt.reorderSlide} addSlide={slideMgmt.addSlide} duplicateSlide={slideMgmt.duplicateSlide}
@@ -338,6 +332,8 @@ export default function App() {
                 </span>
                 <div style={{ flex: 1 }} />
                 <div style={{ display: "flex", gap: SPACE[3] }}>
+                  <button onClick={function() { if (getAsset(activeSlide).image) updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
+                    style={{ background: "none", border: "1px solid " + (currentSlide.expandScreenshot ? CLR.primary : SURFACE.border), color: currentSlide.expandScreenshot ? CLR.primary : SURFACE.text, cursor: getAsset(activeSlide).image ? "pointer" : "default", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md, opacity: getAsset(activeSlide).image ? 1 : 0.4 }}>Expand Screenshot</button>
                   <button onClick={slideMgmt.duplicateSlide}
                     style={{ background: "none", border: "1px solid " + SURFACE.border, color: SURFACE.text, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>Duplicate</button>
                   <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
@@ -404,9 +400,6 @@ export default function App() {
                         <span style={{ fontSize: 11, color: GREEN, lineHeight: 1, fontWeight: 700 }}>{"\u2713"}</span>
                         <button onClick={function(e) { e.stopPropagation(); slideMgmt.removeScreenshot(activeSlide); }}
                           style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
-                        <button onClick={function(e) { e.stopPropagation(); updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
-                          title={currentSlide.expandScreenshot ? "Contract screenshot area" : "Expand screenshot area"}
-                          style={{ background: "none", border: "none", color: CLR.primary, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{currentSlide.expandScreenshot ? "\u2921" : "\u2922"}</button>
                       </>
                     ) : (
                       <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>

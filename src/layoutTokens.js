@@ -22,7 +22,7 @@ var SIZE = {
   slideBtn: 35,
   toggleSm: 32,
   toggleMd: 44,
-  removeBadge: 16,
+  removeBadge: 20,
   uploadFrame: 88,
   uploadBtn: 24,
   uploadBgWidth: 107,
@@ -142,12 +142,12 @@ function uploadBtnStyle(hasFile) {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    gap: SPACE[4],
+    gap: SPACE[4] * 2,
   };
 }
 
 function dividerStyle() {
-  return { borderTop: "1px solid " + SURFACE.divider, marginTop: SPACE[4], marginBottom: SPACE[4] };
+  return { borderTop: "1px solid " + SURFACE.divider, marginTop: SPACE[8], marginBottom: SPACE[8] };
 }
 
 function dialogOverlay() {
