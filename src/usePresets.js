@@ -24,7 +24,7 @@ var PRESET_SLIDE_KEYS = [
   "topCornerFontFamily", "topCornerBold", "topCornerItalic", "topCornerOpacity",
   "showBottomCorner", "bottomCornerText", "bottomCornerColor",
   "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
-  "solidColor", "bgType", "geoEnabled", "geoLines",
+  "solidColor", "bgType", "geoEnabled", "geoLines", "geoOpacity",
   "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg",
   "profilePicName",
   "headingSize", "bodySize", "cardTextSize",

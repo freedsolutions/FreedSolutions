@@ -18,7 +18,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   // Resolve custom bg image
   var customImg = (slide.bgType === "custom" && slide.customBgImage) ? slide.customBgImage : null;
 
-  renderBg(ctx, slide.bgType, slide.solidColor, customImg, slide.geoLines, slide.geoEnabled);
+  renderBg(ctx, slide.bgType, slide.solidColor, customImg, slide.geoLines, slide.geoEnabled, slide.geoOpacity);
 
   // Build render colors from per-slide properties with hard fallbacks for backward-compat
   var renderColors = {

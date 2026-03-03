@@ -7,7 +7,8 @@ function drawSolidBg(ctx, color) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawGeoBg(ctx, baseColor, lineColor) {
+function drawGeoBg(ctx, baseColor, lineColor, geoOpacity) {
+  var opScale = (geoOpacity != null ? geoOpacity : 100) / 100;
   if (baseColor) {
     ctx.fillStyle = baseColor;
     ctx.fillRect(0, 0, W, H);
@@ -30,17 +31,17 @@ function drawGeoBg(ctx, baseColor, lineColor) {
   ];
   for (var si = 0; si < spheres.length; si++) {
     var s = spheres[si];
-    ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + s.a + ")";
+    ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (s.a * opScale) + ")";
     ctx.beginPath();
     ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (s.a * 0.6) + ")";
+    ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (s.a * 0.6 * opScale) + ")";
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + ",0.06)";
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.06 * opScale) + ")";
   ctx.lineWidth = 0.7;
   var lines = [
     [0, 50, 800, 380], [50, 0, 750, 550], [150, 0, 800, 480],
@@ -79,13 +80,13 @@ function drawCustomBg(ctx, img) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled) {
+function renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled, geoOpacity) {
   if (bgType === "custom" && customImg) {
     drawCustomBg(ctx, customImg);
   } else {
     drawSolidBg(ctx, solidColor);
     if (geoEnabled) {
-      drawGeoBg(ctx, null, geoLines);
+      drawGeoBg(ctx, null, geoLines, geoOpacity);
     }
   }
 }

@@ -52,6 +52,7 @@ function makeDefaultSlide(title, body) {
     customBgName: null,
     geoEnabled: true,
     geoLines: "#a0a0af",
+    geoOpacity: 100,
     frameEnabled: false,
     accentColor: "#a5b4fc",
     borderColor: "#ffffff",

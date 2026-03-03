@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-03 - Slide pane UI tweaks
+- What changed: (1) Merged Frame section into Background row as a transparent-toggle swatch with opacity slider, matching Layer pattern. (2) Added opacity slider to Layer swatch, backed by new `geoOpacity` slide field. (3) Upgraded Layer swatch from 7-color LAYER_SWATCHES to 16-color INLINE_SWATCHES. (4) Moved Footer & Pic, Top Corner, and Bottom Corner text inputs inline with their ON/OFF toggle row, eliminating the indented sub-row. (5) Fixed Heading textarea scrollbar by setting explicit lineHeight. (6) Left pane: moved "SLIDES" header above Sync All/Reset All, centered and renamed "Duplicate" to "Duplicate Slide".
+- Why: Saves vertical space in the slide editor, consolidates related controls, and provides finer control over layer/frame opacity.
+- Files: `src/App.jsx`, `src/SlideSelector.jsx`, `src/slideFactory.js`, `src/canvas/backgrounds.js`, `src/canvas/renderSlide.js`, `src/useSlideManagement.js`, `src/usePresets.js`, `FEATURE_CARD.md`, `CHANGES.md`.
+
 ## 2026-03-03 - Loosen fixed question cap to alignment-based guidance
 - What changed: Updated `CLAUDE.md` Feature Flow so Phase 1 and Phase 2 no longer enforce a hard `1–3` question cap. The workflow now requires asking the number of questions needed for alignment, with rough guidance of typically `~2–6` and allowing more when ambiguity or risk is high.
 - Why: A strict `1–3` cap was too tight for complex or ambiguous features and could force implementation without sufficient alignment.

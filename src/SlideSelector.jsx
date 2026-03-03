@@ -22,14 +22,6 @@ function SlideSelector(props) {
 
   return (
     <div style={{ marginBottom: SPACE[5] }}>
-      <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[4] }}>
-        <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
-        <button onClick={duplicateSlide}
-          disabled={seriesSlides.length >= MAX_SLIDES}
-          style={panelBtn({ marginLeft: "auto", width: "calc(50% - " + SPACE[1] + "px)", boxSizing: "border-box", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
-          Duplicate
-        </button>
-      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: SPACE[5], paddingTop: SPACE[2], padding: "0 " + SPACE[5] + "px" }}>
         {seriesSlides.map(function(s, i) {
           var isActive = activeSlide === i;
@@ -62,6 +54,13 @@ function SlideSelector(props) {
           <button onClick={addSlide}
             style={{ width: "100%", aspectRatio: "1", borderRadius: RADIUS.md, border: "2px dashed " + SURFACE.muted, background: SURFACE.panel, color: SURFACE.tertiary, cursor: "pointer", fontSize: 15, fontWeight: 700, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
         )}
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: SPACE[5] }}>
+        <button onClick={duplicateSlide}
+          disabled={seriesSlides.length >= MAX_SLIDES}
+          style={panelBtn({ cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
+          Duplicate Slide
+        </button>
       </div>
     </div>
   );

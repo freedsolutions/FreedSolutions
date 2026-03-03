@@ -6,7 +6,6 @@
 var inputStyle = { width: "100%", padding: SPACE[4] + "px " + SPACE[6] + "px", borderRadius: RADIUS.lg, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.white, fontSize: 14, boxSizing: "border-box" };
 var labelStyle = { display: "block", marginBottom: SPACE[3], fontWeight: 600, fontSize: 13, color: SURFACE.label, letterSpacing: 0.5 };
 var INLINE_SWATCHES = ["#ffffff", "#1a1a2e", "#333333", "#22c55e", "#a5b4fc", "#f59e0b", "#fb7185", "#22d3ee", "#a78bfa", "#38bdf8", "#d97706", "#fef3c7", "#e0f2fe", "#e0e7ff", "#f0fdf4", "#9ca3af"];
-var LAYER_SWATCHES = ["#a0a0af", "#6366f1", "#a5b4fc", "#22c55e", "#22d3ee", "#f59e0b", "#fb7185"];
 var smallBtnStyle = { padding: SPACE[1] + "px " + SPACE[4] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, cursor: "pointer", fontSize: 9, fontWeight: 600 };
 var pickerDropdownStyle = { position: "absolute", top: "100%", left: 0, zIndex: Z.dropdown, marginTop: SPACE[2], background: SURFACE.panel, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.xl, padding: SPACE[5], width: SIZE.pickerWidth, boxShadow: CLR.shadow };
 
@@ -288,6 +287,7 @@ export default function App() {
           {/* Slides list */}
           <div>
             <div style={{ background: SURFACE.panelDeep, border: "1px solid " + SURFACE.uploadBorder, borderRadius: RADIUS.xl, padding: SPACE[7] }}>
+              <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[4] })}>SLIDES</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: SPACE[2], marginBottom: SPACE[5] }}>
                 <button onClick={slideMgmt.syncBgToAll} style={panelBtn({ whiteSpace: "nowrap" })}>Sync All</button>
                 <button onClick={slideMgmt.resetAllToDefault} style={panelBtn()}>Reset All</button>
@@ -414,26 +414,12 @@ export default function App() {
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Base</span>
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14, margin: "0 " + SPACE[1] + "px" }}>|</span>
-                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} swatches={LAYER_SWATCHES} allowTransparent={true} />
+                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Layer</span>
+                  <span style={{ color: SURFACE.pipeSep, fontSize: 14, margin: "0 " + SPACE[1] + "px" }}>|</span>
+                  <ColorPickerInline pickerKey="border" value={currentSlide.frameEnabled ? (currentSlide.borderColor || "#fff") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("frameEnabled", false); } else { updateBgField("borderColor", c); updateBgField("frameEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
+                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Frame</span>
                 </div>
-              </div>
-
-              <div style={dividerStyle()} />
-
-              {/* -- Frame toggle (per-slide) -- */}
-              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[2], marginTop: SPACE[2] }}>
-                <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>FRAME</label>
-                <button onClick={function() { updateBgField("frameEnabled", !currentSlide.frameEnabled); }}
-                  style={toggleBtn(currentSlide.frameEnabled)}>
-                  {currentSlide.frameEnabled ? "ON" : "OFF"}
-                </button>
-                {currentSlide.frameEnabled && (
-                  <>
-                    <div style={{ flex: 1 }} />
-                    <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
-                  </>
-                )}
               </div>
 
               <div style={dividerStyle()} />
@@ -447,7 +433,8 @@ export default function App() {
                 </button>
                 {currentSlide.showBrandName && (
                   <>
-                    <div style={{ flex: 1 }} />
+                    <input value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); }} placeholder="Brand name..."
+                      style={Object.assign({}, inputStyle, { flex: 1, minWidth: 0, fontSize: 12, padding: SPACE[2] + "px " + SPACE[3] + "px" })} />
                     <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
                     <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                     <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
@@ -461,13 +448,6 @@ export default function App() {
                   </>
                 )}
               </div>
-              {currentSlide.showBrandName && (
-                <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
-                  <textarea value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} onKeyDown={function(e) { if (e.key === "Enter") e.preventDefault(); }} placeholder="Brand name..." rows={1}
-                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[3], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
-                </div>
-              )}
 
               {/* -- Top Corner toggle (per-slide) -- */}
               <div style={dividerStyle()} />
@@ -477,7 +457,9 @@ export default function App() {
                   style={toggleBtn(currentSlide.showTopCorner)}>
                   {currentSlide.showTopCorner ? "ON" : "OFF"}
                 </button>
-                {currentSlide.showTopCorner && (<><div style={{ flex: 1 }} />
+                {currentSlide.showTopCorner && (<>
+                  <input value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); }} placeholder="Top corner..."
+                    style={Object.assign({}, inputStyle, { flex: 1, minWidth: 0, fontSize: 12, padding: SPACE[2] + "px " + SPACE[3] + "px" })} />
                   <SizeControl sizeKey="topCorner" min={8} max={60} sizes={sizes} setSize={setSize}
                     swatchLabel="Text"
                     colorVal={currentSlide.topCornerColor} colorSet={function(c) { updateSlide(activeSlide, "topCornerColor", c); }}
@@ -488,13 +470,6 @@ export default function App() {
                     italicVal={currentSlide.topCornerItalic} italicSet={function(v) { updateSlide(activeSlide, "topCornerItalic", v, true); }} />
                 </>)}
               </div>
-              {currentSlide.showTopCorner && (
-                <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
-                  <textarea value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} onKeyDown={function(e) { if (e.key === "Enter") e.preventDefault(); }} placeholder="Top corner..." rows={1}
-                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[2], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
-                </div>
-              )}
 
               {/* -- Bottom Corner toggle (per-slide) -- */}
               <div style={dividerStyle()} />
@@ -504,7 +479,9 @@ export default function App() {
                   style={toggleBtn(currentSlide.showBottomCorner)}>
                   {currentSlide.showBottomCorner ? "ON" : "OFF"}
                 </button>
-                {currentSlide.showBottomCorner && (<><div style={{ flex: 1 }} />
+                {currentSlide.showBottomCorner && (<>
+                  <input value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); }} placeholder="Bottom corner..."
+                    style={Object.assign({}, inputStyle, { flex: 1, minWidth: 0, fontSize: 12, padding: SPACE[2] + "px " + SPACE[3] + "px" })} />
                   <SizeControl sizeKey="bottomCorner" min={10} max={60} sizes={sizes} setSize={setSize}
                     swatchLabel="Text"
                     colorVal={currentSlide.bottomCornerColor} colorSet={function(c) { updateSlide(activeSlide, "bottomCornerColor", c); }}
@@ -515,13 +492,6 @@ export default function App() {
                     italicVal={currentSlide.bottomCornerItalic} italicSet={function(v) { updateSlide(activeSlide, "bottomCornerItalic", v, true); }} />
                 </>)}
               </div>
-              {currentSlide.showBottomCorner && (
-                <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
-                  <textarea value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} onKeyDown={function(e) { if (e.key === "Enter") e.preventDefault(); }} placeholder="Bottom corner..." rows={1}
-                    ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[2], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
-                </div>
-              )}
 
               {/* -- Heading toggle (per-slide) -- */}
               <div style={dividerStyle()} />
@@ -559,7 +529,7 @@ export default function App() {
                 <div style={{ marginBottom: SPACE[4], paddingLeft: SPACE[4], borderLeft: "2px solid " + SURFACE.muted }}>
                   <textarea value={currentSlide.title} onChange={function(e) { updateSlide(activeSlide, "title", e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder="Heading..." rows={1}
                     ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[2], fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
+                    style={Object.assign({}, inputStyle, { marginBottom: SPACE[2], fontSize: 12, lineHeight: "1.5", resize: "none", overflow: "hidden" })} />
                 </div>
               )}
 

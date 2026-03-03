@@ -181,6 +181,7 @@ function useSlideManagement(deps) {
               customBgName: src.customBgName,
               geoEnabled: src.geoEnabled,
               geoLines: src.geoLines,
+              geoOpacity: src.geoOpacity,
               // Frame
               frameEnabled: src.frameEnabled,
               accentColor: src.accentColor,
