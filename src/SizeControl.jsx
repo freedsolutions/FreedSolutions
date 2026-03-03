@@ -28,6 +28,7 @@ function SizeControl(props) {
   var boldSet = props.boldSet;
   var italicVal = props.italicVal;
   var italicSet = props.italicSet;
+  var swatchLabel = props.swatchLabel;
 
   var hasTypography = !!fontFamilySet;
 
@@ -88,6 +89,9 @@ function SizeControl(props) {
               </div>
             )}
           </div>
+        )}
+        {swatchLabel && (
+          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, whiteSpace: "nowrap" }}>{swatchLabel}</span>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
           <button onClick={function() { if (sizes[sizeKey] > min) setSize(sizeKey, sizes[sizeKey] - 1); }}

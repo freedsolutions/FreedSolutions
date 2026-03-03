@@ -1217,6 +1217,7 @@ function SizeControl(props) {
   var boldSet = props.boldSet;
   var italicVal = props.italicVal;
   var italicSet = props.italicSet;
+  var swatchLabel = props.swatchLabel;
 
   var hasTypography = !!fontFamilySet;
 
@@ -1277,6 +1278,9 @@ function SizeControl(props) {
               </div>
             )}
           </div>
+        )}
+        {swatchLabel && (
+          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, whiteSpace: "nowrap" }}>{swatchLabel}</span>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
           <button onClick={function() { if (sizes[sizeKey] > min) setSize(sizeKey, sizes[sizeKey] - 1); }}
@@ -2758,19 +2762,19 @@ export default function App() {
                 </div>
               </div>
 
-              {/* -- Accent and Base color swatches -- */}
-              <div style={{ display: "flex", gap: SPACE[6], marginBottom: SPACE[4] }}>
+              {/* -- Background color swatches -- */}
+              <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[4] }}>
+                <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
+                <div style={{ flex: 1 }} />
                 <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
-                  <label style={{ fontSize: 13, color: SURFACE.subtle, fontWeight: 600 }}>Accent</label>
                   <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#fff"} onChange={function(c) { updateBgField("accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 13, color: SURFACE.subtle, fontWeight: 600 }}>Base</label>
+                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Accent</span>
+                  <span style={{ color: SURFACE.pipeSep, fontSize: 14, margin: "0 " + SPACE[1] + "px" }}>|</span>
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: isCustomBg ? 0.35 : 1 }}>
-                  <label style={{ fontSize: 13, color: SURFACE.subtle, fontWeight: 600 }}>Layer</label>
+                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Base</span>
+                  <span style={{ color: SURFACE.pipeSep, fontSize: 14, margin: "0 " + SPACE[1] + "px" }}>|</span>
                   <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} swatches={LAYER_SWATCHES} allowTransparent={true} />
+                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Layer</span>
                 </div>
               </div>
 
@@ -2784,9 +2788,10 @@ export default function App() {
                   {currentSlide.frameEnabled ? "ON" : "OFF"}
                 </button>
                 {currentSlide.frameEnabled && (
-                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginLeft: SPACE[2] }}>
+                  <>
+                    <div style={{ flex: 1 }} />
                     <ColorPickerInline pickerKey="border" value={currentSlide.borderColor || "#fff"} onChange={function(c) { updateBgField("borderColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
-                  </div>
+                  </>
                 )}
               </div>
 
@@ -2801,12 +2806,12 @@ export default function App() {
                 </button>
                 {currentSlide.showBrandName && (
                   <>
-                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginLeft: SPACE[2] }}>
-                      <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
-                      <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
-                    </div>
                     <div style={{ flex: 1 }} />
+                    <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                    <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                    <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                     <SizeControl sizeKey="brandName" min={12} max={60} sizes={sizes} setSize={setSize}
+                      swatchLabel="Text"
                       colorVal={currentSlide.brandNameColor} colorSet={function(c) { updateSlide(activeSlide, "brandNameColor", c); }}
                       colorPickerKey={"s-" + activeSlide + "-bn"} openPicker={openPicker} setOpenPicker={setOpenPicker}
                       fontFamily={currentSlide.brandNameFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "brandNameFontFamily", v, true); }}
@@ -2833,6 +2838,7 @@ export default function App() {
                 </button>
                 {currentSlide.showTopCorner && (<><div style={{ flex: 1 }} />
                   <SizeControl sizeKey="topCorner" min={8} max={60} sizes={sizes} setSize={setSize}
+                    swatchLabel="Text"
                     colorVal={currentSlide.topCornerColor} colorSet={function(c) { updateSlide(activeSlide, "topCornerColor", c); }}
                     colorPickerKey={"s-" + activeSlide + "-tc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
                     opacityVal={currentSlide.topCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "topCornerOpacity", v); }}
@@ -2859,6 +2865,7 @@ export default function App() {
                 </button>
                 {currentSlide.showBottomCorner && (<><div style={{ flex: 1 }} />
                   <SizeControl sizeKey="bottomCorner" min={10} max={60} sizes={sizes} setSize={setSize}
+                    swatchLabel="Text"
                     colorVal={currentSlide.bottomCornerColor} colorSet={function(c) { updateSlide(activeSlide, "bottomCornerColor", c); }}
                     colorPickerKey={"s-" + activeSlide + "-bc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
                     opacityVal={currentSlide.bottomCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "bottomCornerOpacity", v); }}
@@ -2883,23 +2890,22 @@ export default function App() {
                   style={toggleBtn(currentSlide.showHeading)}>
                   {currentSlide.showHeading ? "ON" : "OFF"}
                 </button>
-                {!currentSlide.showCards ? (
-                  <button onClick={function() { if (currentSlide.showHeading) updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true); }}
-                    title="Accent bar"
-                    style={Object.assign({}, smallBtnStyle, { padding: SPACE[1] + "px " + SPACE[3] + "px", background: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? CLR.activeOverlay2 : SURFACE.input, color: (currentSlide.showHeading && currentSlide.showAccentBar !== false) ? CLR.primaryLight : SURFACE.dimmed, cursor: currentSlide.showHeading ? "pointer" : "default", lineHeight: "14px", opacity: currentSlide.showHeading ? 1 : 0.35 })}>
-                    {"\u2501"}
-                  </button>
-                ) : (
-                  <button onClick={function() { updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false), true); }}
-                    title="Card checkmarks"
-                    style={Object.assign({}, smallBtnStyle, { padding: SPACE[1] + "px " + SPACE[3] + "px", background: (currentSlide.showCardChecks !== false) ? CLR.activeOverlay2 : SURFACE.input, color: (currentSlide.showCardChecks !== false) ? CLR.primaryLight : SURFACE.dimmed, lineHeight: "14px" })}>
-                    {"\u2713"}
-                  </button>
-                )}
+                <button onClick={function() {
+                    if (!currentSlide.showCards) {
+                      if (currentSlide.showHeading) updateSlide(activeSlide, "showAccentBar", !currentSlide.showAccentBar, true);
+                    } else {
+                      updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false), true);
+                    }
+                  }}
+                  title={!currentSlide.showCards ? "Accent bar" : "Card checkmarks"}
+                  style={Object.assign({}, smallBtnStyle, { marginLeft: SPACE[2], padding: SPACE[1] + "px " + SPACE[4] + "px", background: (!currentSlide.showCards ? (currentSlide.showHeading && currentSlide.showAccentBar !== false) : (currentSlide.showCardChecks !== false)) ? CLR.activeOverlay2 : SURFACE.input, color: (!currentSlide.showCards ? (currentSlide.showHeading && currentSlide.showAccentBar !== false) : (currentSlide.showCardChecks !== false)) ? CLR.primaryLight : SURFACE.dimmed, cursor: currentSlide.showHeading ? "pointer" : "default", fontSize: 10, lineHeight: "14px", opacity: currentSlide.showHeading ? 1 : 0.35 })}>
+                  Accent
+                </button>
                 {currentSlide.showHeading && (
                   <>
                     <div style={{ flex: 1 }} />
                     <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
+                      swatchLabel="Text"
                       colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
                       colorPickerKey={"s-" + activeSlide + "-title"} openPicker={openPicker} setOpenPicker={setOpenPicker}
                       fontFamily={currentSlide.titleFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "titleFontFamily", v, true); }}
@@ -2924,12 +2930,14 @@ export default function App() {
                 <span style={{ color: SURFACE.pipeSep, margin: "0 " + SPACE[2] + "px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : SURFACE.muted, letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginLeft: SPACE[2], opacity: currentSlide.showCards ? 1 : 0.35 }}>
+                <div style={{ flex: 1 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], opacity: currentSlide.showCards ? 1 : 0.35 }}>
                   <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                 </div>
-                <div style={{ flex: 1 }} />
+                <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                 <SizeControl sizeKey={currentSlide.showCards ? "cardText" : "body"} min={12} max={100} sizes={sizes} setSize={setSize}
+                  swatchLabel="Text"
                   colorVal={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")}
                   colorSet={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }}
                   colorPickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} openPicker={openPicker} setOpenPicker={setOpenPicker}
