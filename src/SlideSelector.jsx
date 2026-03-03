@@ -26,7 +26,7 @@ function SlideSelector(props) {
         <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>SLIDES</label>
         <button onClick={duplicateSlide}
           disabled={seriesSlides.length >= MAX_SLIDES}
-          style={panelBtn({ marginLeft: "auto", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
+          style={panelBtn({ marginLeft: "auto", width: "calc(50% - " + SPACE[1] + "px)", boxSizing: "border-box", cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 })}>
           Duplicate
         </button>
       </div>

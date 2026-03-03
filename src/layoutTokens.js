@@ -147,7 +147,7 @@ function uploadBtnStyle(hasFile) {
 }
 
 function dividerStyle() {
-  return { borderTop: "1px solid " + SURFACE.divider, marginTop: SPACE[8], marginBottom: SPACE[8] };
+  return { borderTop: "1px solid " + SURFACE.divider, marginTop: SPACE[6], marginBottom: SPACE[6] };
 }
 
 function dialogOverlay() {

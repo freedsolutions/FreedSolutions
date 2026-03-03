@@ -211,8 +211,12 @@ export default function App() {
           <div>
             <h2 style={{ color: SURFACE.white, margin: "0 0 " + SPACE[5] + "px 0", fontSize: 18 }}>Carousel Generator</h2>
             {/* --- DOWNLOAD --- */}
-            <div style={{ marginBottom: SPACE[3] }}>
+            <div style={{ marginBottom: SPACE[7], position: "relative" }}>
               <label style={Object.assign({}, labelStyle, { marginBottom: SPACE[3], whiteSpace: "nowrap" })}>DOWNLOAD</label>
+              <input value={exportPrefix}
+                onChange={function(e) { setExportPrefix(e.target.value); }}
+                placeholder="linkedin-slide"
+                style={{ width: "100%", padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, fontSize: 11, boxSizing: "border-box", fontFamily: "monospace", marginBottom: SPACE[3] }} />
               <div style={{ display: "flex", alignItems: "center", gap: SPACE[4] }}>
                 <button onClick={downloadCurrentPDF}
                   style={{ flex: 1, padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "none", background: CLR.primary, color: SURFACE.white, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", lineHeight: 1.3 }}>
@@ -224,45 +228,24 @@ export default function App() {
                   {"All Slides"}
                 </button>
               </div>
-              <div style={{ display: "flex", gap: SPACE[4], minHeight: 18 }}>
-                <div style={{ flex: 1 }}>
-                  {pdfDownload && !pdfDownload.name.includes("-all.") && (
-                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
-                      <a href={pdfDownload.url} download={pdfDownload.name}
-                        onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                        style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
-                        {"Save " + pdfDownload.name}
-                      </a>
-                      <button onClick={clearPdfDownload}
-                        style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
-                        {"\u00d7"}
-                      </button>
-                    </div>
-                  )}
-                  {pdfError && !pdfDownload && (
-                    <span style={{ fontSize: 10, color: CLR.error, marginTop: SPACE[1], display: "block" }}>{pdfError}</span>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  {pdfDownload && pdfDownload.name.includes("-all.") && (
-                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], marginTop: SPACE[1] }}>
-                      <a href={pdfDownload.url} download={pdfDownload.name}
-                        onClick={function() { setTimeout(clearPdfDownload, 1500); }}
-                        style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
-                        {"Save " + pdfDownload.name}
-                      </a>
-                      <button onClick={clearPdfDownload}
-                        style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
-                        {"\u00d7"}
-                      </button>
-                    </div>
-                  )}
-                </div>
+              <div style={{ position: "absolute", left: 0, right: 0, top: "100%", paddingTop: SPACE[1] }}>
+                {pdfDownload && (
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[2] }}>
+                    <a href={pdfDownload.url} download={pdfDownload.name}
+                      onClick={function() { setTimeout(clearPdfDownload, 1500); }}
+                      style={{ fontSize: 10, color: CLR.primaryLight, textDecoration: "underline", flex: 1, wordBreak: "break-all" }}>
+                      {"Save " + pdfDownload.name}
+                    </a>
+                    <button onClick={clearPdfDownload}
+                      style={{ background: "none", border: "none", color: SURFACE.subtle, cursor: "pointer", fontSize: 13, padding: "0 " + SPACE[1] + "px", lineHeight: 1 }}>
+                      {"\u00d7"}
+                    </button>
+                  </div>
+                )}
+                {pdfError && !pdfDownload && (
+                  <span style={{ fontSize: 10, color: CLR.error, display: "block" }}>{pdfError}</span>
+                )}
               </div>
-              <input value={exportPrefix}
-                onChange={function(e) { setExportPrefix(e.target.value); }}
-                placeholder="linkedin-slide"
-                style={{ width: "100%", padding: SPACE[3] + "px " + SPACE[5] + "px", borderRadius: RADIUS.md, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, fontSize: 11, boxSizing: "border-box", fontFamily: "monospace" }} />
             </div>
             <div style={dividerStyle()} />
             {/* --- PRESETS --- */}
@@ -300,7 +283,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div style={{ height: SPACE[8] }} />
+            <div style={dividerStyle()} />
           </div>
           {/* Slides list */}
           <div>
@@ -335,7 +318,7 @@ export default function App() {
                   <button onClick={function() { if (getAsset(activeSlide).image) updateSlide(activeSlide, "expandScreenshot", !currentSlide.expandScreenshot, true); }}
                     style={{ background: "none", border: "1px solid " + (currentSlide.expandScreenshot ? CLR.primary : SURFACE.border), color: currentSlide.expandScreenshot ? CLR.primary : SURFACE.text, cursor: getAsset(activeSlide).image ? "pointer" : "default", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md, opacity: getAsset(activeSlide).image ? 1 : 0.4 }}>Expand Screenshot</button>
                   <button onClick={slideMgmt.duplicateSlide}
-                    style={{ background: "none", border: "1px solid " + SURFACE.border, color: SURFACE.text, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md, opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1 }}>Duplicate</button>
+                    style={panelBtn({ background: "none", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer" })}>Duplicate</button>
                   <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
                     style={{ background: "none", border: "1px solid " + SURFACE.border, color: SURFACE.text, cursor: "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md }}>Reset</button>
                   {seriesSlides.length > 1 && (
@@ -392,6 +375,15 @@ export default function App() {
                 {/* SCREENSHOT upload */}
                 <div style={uploadFrameStyle({ flex: 1, minWidth: 0 })}>
                   <label style={{ fontSize: 11, color: SURFACE.label, fontWeight: 600, marginBottom: 3 }}>SCREENSHOT</label>
+                  {getAsset(activeSlide).image ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[1], marginBottom: SPACE[2], width: "100%" }}>
+                      <input type="range" min={50} max={200} value={Math.round(getAsset(activeSlide).scale * 100)} onChange={function(e) { setScale(activeSlide, Number(e.target.value) / 100); }}
+                        style={{ flex: 1, minWidth: 0 }} />
+                      <span style={{ fontSize: 7, color: SURFACE.secondary, minWidth: 20, textAlign: "right" }}>{Math.round(getAsset(activeSlide).scale * 100) + "%"}</span>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: 11, color: SURFACE.muted, marginBottom: SPACE[2] }}>{"\u00A0"}</span>
+                  )}
                   <input ref={slideMgmt.screenshotInputRef} type="file" accept="image/*" onChange={function(e) { slideMgmt.handleScreenshotUpload(activeSlide, e); }} style={{ display: "none" }} />
                   <div style={uploadBtnStyle(getAsset(activeSlide).image)}
                     onClick={function() { if (slideMgmt.screenshotInputRef.current) slideMgmt.screenshotInputRef.current.click(); }}>
@@ -407,13 +399,6 @@ export default function App() {
                   </div>
                   {getAsset(activeSlide).name && (
                     <span style={{ fontSize: 11, color: SURFACE.dimmed, marginTop: 3, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block", textAlign: "center" }}>{getAsset(activeSlide).name}</span>
-                  )}
-                  {getAsset(activeSlide).image && (
-                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[1], marginTop: SPACE[1], width: "100%" }}>
-                      <input type="range" min={50} max={200} value={Math.round(getAsset(activeSlide).scale * 100)} onChange={function(e) { setScale(activeSlide, Number(e.target.value) / 100); }}
-                        style={{ flex: 1, minWidth: 0 }} />
-                      <span style={{ fontSize: 7, color: SURFACE.secondary, minWidth: 20, textAlign: "right" }}>{Math.round(getAsset(activeSlide).scale * 100) + "%"}</span>
-                    </div>
                   )}
                 </div>
               </div>
