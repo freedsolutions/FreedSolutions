@@ -53,7 +53,7 @@ function makeDefaultSlide(title, body) {
     geoEnabled: true,
     geoLines: "#a0a0af",
     geoOpacity: 100,
-    frameEnabled: false,
+    frameEnabled: true,
     accentColor: "#a5b4fc",
     borderColor: "#ffffff",
     borderOpacity: 100,

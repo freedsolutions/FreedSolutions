@@ -886,7 +886,7 @@ function makeDefaultSlide(title, body) {
     geoEnabled: true,
     geoLines: "#a0a0af",
     geoOpacity: 100,
-    frameEnabled: false,
+    frameEnabled: true,
     accentColor: "#a5b4fc",
     borderColor: "#ffffff",
     borderOpacity: 100,
@@ -2793,17 +2793,27 @@ export default function App() {
                   <>
                     <input value={currentSlide.brandNameText} onChange={function(e) { updateSlide(activeSlide, "brandNameText", e.target.value); }} placeholder="Brand name..."
                       style={Object.assign({}, inputStyle, { flex: 1, minWidth: 0, fontSize: 12, padding: SPACE[2] + "px " + SPACE[3] + "px" })} />
-                    <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2], alignItems: "flex-end" }}>
-                      <SizeControl sizeKey="brandName" min={12} max={60} sizes={sizes} setSize={setSize}
-                        swatchLabel="Text"
-                        colorVal={currentSlide.brandNameColor} colorSet={function(c) { updateSlide(activeSlide, "brandNameColor", c); }}
-                        colorPickerKey={"s-" + activeSlide + "-bn"} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                        fontFamily={currentSlide.brandNameFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "brandNameFontFamily", v, true); }}
-                        boldVal={currentSlide.brandNameBold} boldSet={function(v) { updateSlide(activeSlide, "brandNameBold", v, true); }}
-                        italicVal={currentSlide.brandNameItalic} italicSet={function(v) { updateSlide(activeSlide, "brandNameItalic", v, true); }} />
-                      <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
-                        <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
-                        <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2] }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-bn"} value={currentSlide.brandNameColor || "#1a1a2e"} onChange={function(c) { updateSlide(activeSlide, "brandNameColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                            fontFamily={currentSlide.brandNameFontFamily} onFontFamilyChange={function(v) { updateSlide(activeSlide, "brandNameFontFamily", v, true); }}
+                            bold={currentSlide.brandNameBold} onBoldChange={function(v) { updateSlide(activeSlide, "brandNameBold", v, true); }}
+                            italic={currentSlide.brandNameItalic} onItalicChange={function(v) { updateSlide(activeSlide, "brandNameItalic", v, true); }} />
+                          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
+                        <button onClick={function() { if (sizes.brandName > 12) setSize("brandName", sizes.brandName - 1); }}
+                          style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>{"\u2212"}</button>
+                        <input value={sizes.brandName} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize("brandName", Math.max(12, Math.min(60, v))); }}
+                          style={{ width: SIZE.stepperInput, height: SIZE.stepper, border: "none", borderLeft: "1px solid " + SURFACE.border, borderRight: "1px solid " + SURFACE.border, background: "transparent", color: SURFACE.dimmed, fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+                        <button onClick={function() { if (sizes.brandName < 60) setSize("brandName", sizes.brandName + 1); }}
+                          style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>+</button>
                       </div>
                     </div>
                   </>
@@ -2872,17 +2882,27 @@ export default function App() {
                 {currentSlide.showHeading && (
                   <>
                     <div style={{ flex: 1 }} />
-                    <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2], alignItems: "flex-end" }}>
-                      <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
-                        swatchLabel="Text"
-                        colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
-                        colorPickerKey={"s-" + activeSlide + "-title"} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                        fontFamily={currentSlide.titleFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "titleFontFamily", v, true); }}
-                        boldVal={currentSlide.titleBold} boldSet={function(v) { updateSlide(activeSlide, "titleBold", v, true); }}
-                        italicVal={currentSlide.titleItalic} italicSet={function(v) { updateSlide(activeSlide, "titleItalic", v, true); }} />
-                      <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
-                        <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor === "transparent" ? "transparent" : (currentSlide.accentColor || "#a5b4fc")} onChange={function(c) { if (c === "transparent") { updateSlide(activeSlide, "accentColor", "transparent"); updateSlide(activeSlide, "showAccentBar", false); } else { updateSlide(activeSlide, "accentColor", c); updateSlide(activeSlide, "showAccentBar", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} />
-                        <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Accent</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2] }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-title"} value={currentSlide.titleColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "titleColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                            fontFamily={currentSlide.titleFontFamily} onFontFamilyChange={function(v) { updateSlide(activeSlide, "titleFontFamily", v, true); }}
+                            bold={currentSlide.titleBold} onBoldChange={function(v) { updateSlide(activeSlide, "titleBold", v, true); }}
+                            italic={currentSlide.titleItalic} onItalicChange={function(v) { updateSlide(activeSlide, "titleItalic", v, true); }} />
+                          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                          <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor === "transparent" ? "transparent" : (currentSlide.accentColor || "#a5b4fc")} onChange={function(c) { if (c === "transparent") { updateSlide(activeSlide, "accentColor", "transparent"); updateSlide(activeSlide, "showAccentBar", false); } else { updateSlide(activeSlide, "accentColor", c); updateSlide(activeSlide, "showAccentBar", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} />
+                          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Accent</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
+                        <button onClick={function() { if (sizes.heading > 24) setSize("heading", sizes.heading - 1); }}
+                          style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>{"\u2212"}</button>
+                        <input value={sizes.heading} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize("heading", Math.max(24, Math.min(160, v))); }}
+                          style={{ width: SIZE.stepperInput, height: SIZE.stepper, border: "none", borderLeft: "1px solid " + SURFACE.border, borderRight: "1px solid " + SURFACE.border, background: "transparent", color: SURFACE.dimmed, fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+                        <button onClick={function() { if (sizes.heading < 160) setSize("heading", sizes.heading + 1); }}
+                          style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>+</button>
                       </div>
                     </div>
                   </>
