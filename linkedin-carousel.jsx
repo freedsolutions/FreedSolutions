@@ -2770,10 +2770,10 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Base</span>
-                  <span style={{ color: SURFACE.pipeSep, fontSize: 14, margin: "0 " + SPACE[1] + "px" }}>|</span>
+                  <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                   <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Layer</span>
-                  <span style={{ color: SURFACE.pipeSep, fontSize: 14, margin: "0 " + SPACE[1] + "px" }}>|</span>
+                  <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                   <ColorPickerInline pickerKey="border" value={currentSlide.frameEnabled ? (currentSlide.borderColor || "#fff") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("frameEnabled", false); } else { updateBgField("borderColor", c); updateBgField("frameEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Frame</span>
                 </div>
@@ -2904,14 +2904,14 @@ export default function App() {
 
               {/* Body | Cards toggle */}
               <div style={dividerStyle()} />
-              <div style={{ display: "flex", alignItems: "center", marginTop: SPACE[2], marginBottom: SPACE[3], gap: SPACE[2] }}>
+              <div style={{ display: "flex", alignItems: "center", marginTop: SPACE[2], marginBottom: SPACE[2], gap: SPACE[2] }}>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", false); }}
                   style={{ fontWeight: 600, fontSize: 13, color: !currentSlide.showCards ? GREEN : SURFACE.muted, letterSpacing: 0.5, cursor: "pointer" }}>BODY</span>
                 <span style={{ color: SURFACE.pipeSep, margin: "0 " + SPACE[2] + "px", fontSize: 14 }}>|</span>
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : SURFACE.muted, letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
                 <div style={{ flex: 1 }} />
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], opacity: currentSlide.showCards ? 1 : 0.35 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: currentSlide.showCards ? 1 : 0.35 }}>
                   <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                 </div>
