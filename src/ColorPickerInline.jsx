@@ -18,18 +18,30 @@ function drawShapeThumbnail(ctx, shapeId, w, h) {
     for (var i = 0; i < tl.length; i++) {
       ctx.beginPath(); ctx.moveTo(tl[i][0], tl[i][1]); ctx.lineTo(tl[i][2], tl[i][3]); ctx.stroke();
     }
-  } else if (shapeId === "dots") {
-    ctx.fillStyle = "rgba(102,102,102,0.5)";
-    for (var y = 4; y < h; y += 5) {
-      for (var x = 4; x < w; x += 5) {
-        ctx.beginPath(); ctx.arc(x, y, 0.8, 0, Math.PI * 2); ctx.fill();
-      }
+  } else if (shapeId === "bokeh") {
+    // Scattered translucent circles at varying sizes
+    var orbs = [
+      { x: 5, y: 6, r: 4, a: 0.3 }, { x: 20, y: 4, r: 3, a: 0.25 },
+      { x: 12, y: 16, r: 6, a: 0.2 }, { x: 24, y: 18, r: 4.5, a: 0.25 },
+      { x: 3, y: 24, r: 5, a: 0.2 }, { x: 17, y: 25, r: 3, a: 0.35 },
+      { x: 8, y: 12, r: 2.5, a: 0.3 },
+    ];
+    for (var oi = 0; oi < orbs.length; oi++) {
+      var ob = orbs[oi];
+      ctx.fillStyle = "rgba(102,102,102," + ob.a + ")";
+      ctx.beginPath(); ctx.arc(ob.x, ob.y, ob.r, 0, Math.PI * 2); ctx.fill();
     }
-  } else if (shapeId === "circles") {
+  } else if (shapeId === "waves") {
     ctx.strokeStyle = "rgba(102,102,102,0.4)";
     ctx.lineWidth = 0.5;
-    for (var r = 3; r <= 18; r += 4) {
-      ctx.beginPath(); ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2); ctx.stroke();
+    var waveYs = [5, 11, 17, 23];
+    for (var wi = 0; wi < waveYs.length; wi++) {
+      ctx.beginPath();
+      for (var wx = 0; wx <= w; wx += 2) {
+        var wy = waveYs[wi] + Math.sin(wx * 0.3 + wi * 1.5) * 2.5;
+        if (wx === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+      }
+      ctx.stroke();
     }
   } else if (shapeId === "stripes") {
     ctx.strokeStyle = "rgba(102,102,102,0.4)";
@@ -38,7 +50,7 @@ function drawShapeThumbnail(ctx, shapeId, w, h) {
       ctx.beginPath(); ctx.moveTo(d, 0); ctx.lineTo(d - h, h); ctx.stroke();
     }
   } else if (shapeId === "hex") {
-    var s = 6;
+    var s = 8;
     var colSt = s * 1.5;
     var rowSt = Math.sqrt(3) * s;
     ctx.strokeStyle = "rgba(102,102,102,0.4)";

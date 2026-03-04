@@ -3,7 +3,7 @@ Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
 ## 2026-03-04 - Add layer shape options + fix swatch pop-out clipping
-- What changed: (1) Added 4 new geometric layer patterns — Dots Grid, Concentric Circles, Diagonal Stripes, Hexagon Mesh — alongside the existing Lines pattern. A "Pattern" selector with canvas-rendered thumbnail icons appears below the opacity slider in the Layer pop-out. (2) Converted all swatch pop-outs (ColorPickerInline + SizeControl) from absolute positioning to React portals, fixing clipping caused by the sidebar's `overflowY: auto`. Updated outside-click handler to detect portal elements.
+- What changed: (1) Added 4 new geometric layer patterns — Bokeh (organic scattered circles), Waves (flowing curves), Diagonal Stripes, Hexagon Mesh (enlarged) — alongside the existing Lines pattern. A "Pattern" selector with canvas-rendered thumbnail icons appears below the opacity slider in the Layer pop-out. (2) Converted all swatch pop-outs (ColorPickerInline + SizeControl) from absolute positioning to React portals, fixing clipping caused by the sidebar's `overflowY: auto`. Updated outside-click handler to detect portal elements.
 - Why: More visual variety for slide backgrounds; pop-outs were getting cut off on the left pane.
 - Files: `src/constants.js`, `src/slideFactory.js`, `src/canvas/backgrounds.js`, `src/canvas/renderSlide.js`, `src/useSlideManagement.js`, `src/usePresets.js`, `src/ColorPickerInline.jsx`, `src/SizeControl.jsx`, `src/App.jsx`, `CHANGES.md`.
 - Validation: Playwright smoke test confirmed all 5 patterns render on canvas, shape selector UI works, pop-outs no longer clip, transparent toggle disables layer, and original Lines pattern is backward-compatible.

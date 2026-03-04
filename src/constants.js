@@ -97,8 +97,8 @@ function composeFont(family, size, weight, italic) {
 
 var GEO_SHAPES = [
   { id: "lines",   label: "Lines" },
-  { id: "dots",    label: "Dots" },
-  { id: "circles", label: "Circles" },
+  { id: "bokeh",   label: "Bokeh" },
+  { id: "waves",   label: "Waves" },
   { id: "stripes", label: "Stripes" },
   { id: "hex",     label: "Hexagons" }
 ];

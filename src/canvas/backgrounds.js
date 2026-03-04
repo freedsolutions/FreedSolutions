@@ -51,27 +51,64 @@ function drawGeoLines(ctx, lcR, lcG, lcB, opScale) {
   }
 }
 
-function drawGeoDots(ctx, lcR, lcG, lcB, opScale) {
-  ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.12 * opScale) + ")";
-  for (var y = 20; y < H; y += 40) {
-    for (var x = 20; x < W; x += 40) {
-      ctx.beginPath();
-      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
+function drawGeoBokeh(ctx, lcR, lcG, lcB, opScale) {
+  // Hand-placed translucent circles — organic scatter, varying size and opacity
+  var orbs = [
+    { x: 90,  y: 80,   r: 65,  a: 0.06 },
+    { x: 680, y: 60,   r: 45,  a: 0.05 },
+    { x: 350, y: 180,  r: 95,  a: 0.04 },
+    { x: 750, y: 280,  r: 80,  a: 0.06 },
+    { x: 60,  y: 420,  r: 110, a: 0.05 },
+    { x: 520, y: 370,  r: 35,  a: 0.08 },
+    { x: 200, y: 550,  r: 70,  a: 0.05 },
+    { x: 700, y: 520,  r: 55,  a: 0.07 },
+    { x: 420, y: 620,  r: 120, a: 0.04 },
+    { x: 130, y: 740,  r: 50,  a: 0.06 },
+    { x: 600, y: 760,  r: 85,  a: 0.05 },
+    { x: 330, y: 870,  r: 40,  a: 0.07 },
+    { x: 760, y: 900,  r: 70,  a: 0.05 },
+    { x: 50,  y: 940,  r: 90,  a: 0.04 },
+    { x: 480, y: 140,  r: 30,  a: 0.09 },
+    { x: 260, y: 320,  r: 50,  a: 0.06 },
+  ];
+  for (var i = 0; i < orbs.length; i++) {
+    var o = orbs[i];
+    // Soft filled circle
+    ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (o.a * opScale) + ")";
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+    ctx.fill();
+    // Subtle rim
+    ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (o.a * 0.5 * opScale) + ")";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+    ctx.stroke();
   }
 }
 
-function drawGeoCircles(ctx, lcR, lcG, lcB, opScale) {
-  var cx = W / 2, cy = H / 2;
-  var maxR = 550;
-  var rings = 8;
-  ctx.lineWidth = 1.0;
-  for (var i = 1; i <= rings; i++) {
-    var a = (0.04 + 0.06 * (1 - (i - 1) / (rings - 1))) * opScale;
-    ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + a + ")";
+function drawGeoWaves(ctx, lcR, lcG, lcB, opScale) {
+  // Flowing curves that sweep across the canvas — topographic/organic feel
+  var curves = [
+    { y: 80,   amp: 30,  freq: 1.2, phase: 0,    a: 0.10 },
+    { y: 200,  amp: 45,  freq: 0.8, phase: 1.5,  a: 0.08 },
+    { y: 340,  amp: 25,  freq: 1.5, phase: 0.8,  a: 0.11 },
+    { y: 460,  amp: 55,  freq: 0.6, phase: 2.2,  a: 0.07 },
+    { y: 580,  amp: 35,  freq: 1.1, phase: 0.4,  a: 0.10 },
+    { y: 720,  amp: 40,  freq: 0.9, phase: 3.0,  a: 0.08 },
+    { y: 850,  amp: 50,  freq: 0.7, phase: 1.8,  a: 0.09 },
+    { y: 960,  amp: 20,  freq: 1.4, phase: 0.6,  a: 0.07 },
+  ];
+  ctx.lineWidth = 1.2;
+  for (var i = 0; i < curves.length; i++) {
+    var c = curves[i];
+    ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (c.a * opScale) + ")";
     ctx.beginPath();
-    ctx.arc(cx, cy, (i / rings) * maxR, 0, Math.PI * 2);
+    ctx.moveTo(-10, c.y + Math.sin(c.phase) * c.amp);
+    for (var x = 0; x <= W + 10; x += 4) {
+      var t = (x / W) * Math.PI * 2 * c.freq + c.phase;
+      ctx.lineTo(x, c.y + Math.sin(t) * c.amp);
+    }
     ctx.stroke();
   }
 }
@@ -88,11 +125,11 @@ function drawGeoStripes(ctx, lcR, lcG, lcB, opScale) {
 }
 
 function drawGeoHex(ctx, lcR, lcG, lcB, opScale) {
-  var side = 30;
+  var side = 55;
   var colStep = side * 1.5;
   var rowStep = Math.sqrt(3) * side;
-  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.07 * opScale) + ")";
-  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.09 * opScale) + ")";
+  ctx.lineWidth = 1.0;
   ctx.beginPath();
   for (var col = -1; col * colStep < W + side * 2; col++) {
     for (var row = -1; row * rowStep < H + side * 2; row++) {
@@ -130,8 +167,8 @@ function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
     if (!isNaN(pb)) lcB = pb;
   }
   var shape = geoShape || "lines";
-  if (shape === "dots") drawGeoDots(ctx, lcR, lcG, lcB, opScale);
-  else if (shape === "circles") drawGeoCircles(ctx, lcR, lcG, lcB, opScale);
+  if (shape === "bokeh") drawGeoBokeh(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "waves") drawGeoWaves(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "stripes") drawGeoStripes(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "hex") drawGeoHex(ctx, lcR, lcG, lcB, opScale);
   else drawGeoLines(ctx, lcR, lcG, lcB, opScale);
