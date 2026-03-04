@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Require Playwright browser shutdown after smoke tests
+- What changed: Hardened `CLAUDE.md` smoke-test instructions to require explicit Playwright cleanup after every smoke-test attempt (pass or fail). Added guardrail language blocking Commit gate progression while any smoke-test Playwright window/session is still open.
+- Why: Smoke-test browser sessions were closed inconsistently, which could leave stale windows/sessions open across retests and handoff.
+- Files: `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verified Smoke test section now includes explicit close-out steps and Hard Guardrails now enforce browser/session closure before Commit gate.
+
 ## 2026-03-04 - Add Base background bubble to all text sections
 - What changed: Every text-content section (Heading, Body/Cards, Top Corner, Bottom Corner) now has a "Base" color swatch that draws a rounded-corner background bubble behind the text. Defaults to transparent. Each Base swatch includes an opacity slider. The Body/Cards Base swatch is no longer greyed out — it dynamically switches between `bodyBgColor` (body mode) and `cardBgColor` (cards mode). Heading, Top Corner, and Bottom Corner sections now use a stacked Text+Base swatch layout with an inline size stepper, replacing the old `SizeControl` component. Bottom corner text repositioned slightly lower for better spacing under the frame.
 - Why: Users needed per-section background control to improve text readability over busy slide backgrounds.

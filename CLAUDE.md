@@ -120,7 +120,8 @@ This is the single pause point before code changes begin.
 - Open `http://localhost:5173/preview.html` in Playwright browser
 - Light test: verify the new feature works per `FEATURE_CARD.md` scope
 - Quick visual check: does the layout look right? Any obvious regressions?
-- If issues found: patch, rebuild, re-test
+- Always close the Playwright page/context/browser after each smoke-test attempt (pass or fail)
+- If issues found: close Playwright first, then patch, rebuild, and re-test in a fresh Playwright browser session
 - If Playwright MCP is unavailable or the local server isn't running, stop and ask the user to fix it before continuing
 
 **Commit gate (final step before review):**
@@ -175,6 +176,7 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Do not add `package.json`, `node_modules`, or npm dependencies — the repo is intentionally zero-dep.
 - When adding a new source file, add it to `ORDER` in `build.js` — files not in `ORDER` are silently excluded from the artifact.
 - Do not commit without a passing Playwright smoke test. If the smoke test cannot run, stop and ask.
+- Do not proceed to Commit gate while any Playwright smoke-test browser window/session is still open.
 - Do not commit raw Playwright MCP logs, `test-results/` artifacts, or untracked root image artifacts; archive them via `node scripts/archive-smoke-artifacts.js`.
 - Do not hand off for user review until a local commit is created and its hash is reported.
 - If an unexpected permission prompt appears during Phase 3, accept it and report it in the handoff. Do not stop the SHIP loop for permission debugging.
