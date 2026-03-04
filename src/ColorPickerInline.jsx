@@ -230,20 +230,6 @@ function ColorPickerInline(props) {
       ) : (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
-            {allowTransparent && (
-              <button onClick={function() { onChange("transparent"); }}
-                title="None (transparent)"
-                style={{
-                  width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
-                  border: isTransparentValue ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
-                  background: "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
-                  backgroundSize: "8px 8px",
-                  backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
-                  cursor: "pointer", padding: 0,
-                  boxShadow: isTransparentValue ? "0 0 0 1px " + CLR.primary : "none"
-                }}
-              />
-            )}
             {swatches.map(function(c) {
               return (
                 <button key={c} onClick={function() { onChange(c); }}
@@ -258,16 +244,31 @@ function ColorPickerInline(props) {
             })}
           </div>
           <div style={{ display: "flex", gap: SPACE[3], alignItems: "center", opacity: isTransparentValue ? 0.4 : 1 }}>
+            {allowTransparent && (
+              <button onClick={function() { onChange("transparent"); }}
+                title="None (transparent)"
+                style={{
+                  width: SIZE.colorInput, height: SIZE.colorInput, borderRadius: RADIUS.sm,
+                  border: isTransparentValue ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+                  background: "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
+                  backgroundSize: "8px 8px",
+                  backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
+                  cursor: "pointer", padding: 0, flexShrink: 0,
+                  boxShadow: isTransparentValue ? "0 0 0 1px " + CLR.primary : "none",
+                  opacity: isTransparentValue ? 1 : undefined
+                }}
+              />
+            )}
             <input type="color"
               value={!isTransparentValue && value && value.charAt(0) === "#" ? value : "#a0a0af"}
               onChange={function(e) { onChange(e.target.value); }}
               disabled={isTransparentValue}
-              style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: isTransparentValue ? "default" : "pointer", background: "none", padding: 0 }}
+              style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: isTransparentValue ? "default" : "pointer", background: "none", padding: 0, flexShrink: 0 }}
             />
             <input value={isTransparentValue ? "none" : value}
               onChange={function(e) { if (!isTransparentValue) onChange(e.target.value); }}
               disabled={isTransparentValue}
-              style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
+              style={{ flex: 1, minWidth: 0, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
             />
           </div>
           {onOpacityChange && (

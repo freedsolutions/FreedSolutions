@@ -322,7 +322,7 @@ export default function App() {
                   <button onClick={slideMgmt.duplicateSlide}
                     style={panelBtn({ background: "none", opacity: seriesSlides.length >= MAX_SLIDES ? 0.4 : 1, cursor: seriesSlides.length >= MAX_SLIDES ? "default" : "pointer" })}>Duplicate</button>
                   <button onClick={function() { slideMgmt.resetSlide(activeSlide); }}
-                    style={{ background: "none", border: "1px solid " + SURFACE.border, color: SURFACE.text, cursor: "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md }}>Reset</button>
+                    style={{ background: "none", border: "1px solid " + SURFACE.border, color: SURFACE.text, cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md }}>Reset</button>
                   {seriesSlides.length > 1 && (
                     <button onClick={function() { slideMgmt.removeSlide(activeSlide); }}
                       style={{ background: "none", border: "1px solid " + CLR.dangerBorder, color: CLR.danger, cursor: "pointer", fontSize: 11, padding: "3px " + SPACE[5] + "px", borderRadius: RADIUS.md }}>Remove</button>
@@ -346,7 +346,7 @@ export default function App() {
                           style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
+                      <span style={{ fontSize: 11, color: SURFACE.text, fontWeight: 600 }}>File Upload</span>
                     )}
                   </div>
                   {currentSlide.customBgName && (
@@ -367,7 +367,7 @@ export default function App() {
                           style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
+                      <span style={{ fontSize: 11, color: SURFACE.text, fontWeight: 600 }}>File Upload</span>
                     )}
                   </div>
                   {currentSlide.profilePicName && (
@@ -396,7 +396,7 @@ export default function App() {
                           style={{ background: "none", border: "none", color: CLR.danger, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1, fontWeight: 700 }}>{"\u00d7"}</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 9, color: SURFACE.text, fontWeight: 600 }}>Upload</span>
+                      <span style={{ fontSize: 11, color: SURFACE.text, fontWeight: 600 }}>File Upload</span>
                     )}
                   </div>
                   {getAsset(activeSlide).name && (

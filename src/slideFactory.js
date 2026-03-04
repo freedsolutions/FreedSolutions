@@ -74,8 +74,8 @@ function makeDefaultSlide(title, body) {
     headingSize: 48,
     bodySize: 38,
     cardTextSize: 22,
-    topCornerSize: 13,
-    bottomCornerSize: 16,
+    topCornerSize: 16,
+    bottomCornerSize: 32,
     brandNameSize: 20
   };
 }

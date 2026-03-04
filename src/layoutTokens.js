@@ -24,14 +24,14 @@ var SIZE = {
   toggleMd: 44,
   removeBadge: 20,
   uploadFrame: 88,
-  uploadBtn: 24,
+  uploadBtn: 28,
   uploadBgWidth: 107,
   leftPane: 220,
   rightPaneMax: 480,
   pagePadH: 48,
   pagePadV: 28,
   columnGap: 48,
-  pickerWidth: 200,
+  pickerWidth: 220,
   dialogSm: 320,
   dialogMd: 360,
 };
@@ -42,7 +42,7 @@ var SURFACE = {
   inputDeep: "#0e0e1a",
   uploadBg: "#0f0f1a",
   panelDeep: "#10101a",
-  uploadBtn: "#111119",
+  uploadBtn: "#1e1e36",
   panel: "#1a1a30",
   canvasBorder: "#222",
   input: "#28283e",
@@ -142,7 +142,7 @@ function uploadBtnStyle(hasFile) {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    gap: SPACE[4] * 2,
+    gap: hasFile ? SPACE[4] * 2 : SPACE[2],
   };
 }
 

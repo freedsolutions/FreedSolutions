@@ -1,24 +1,22 @@
-# Feature: Base Swatch for All Text Sections
+# Feature: Upload Button UI Refresh
 
-## What
-Add a "Base" swatch to every text-content section in the Slide N editor. The Base draws a full-content-width solid-color rectangle behind text on the canvas. Defaults to transparent.
+## Problem
+The three Upload buttons (Background, Footer, Screenshot) are nearly invisible against their frame backgrounds — button bg `#111119` vs frame bg `#0f0f1a`. Text is also small (9px) with no icon to signal interactivity.
 
-## Sections
-- **Body/Cards** — Un-grey existing Base swatch; dynamically switches between `bodyBgColor` (body mode) and `cardBgColor` (cards mode)
-- **Heading** — New `headingBgColor` property + Base swatch below Text swatch
-- **Top Corner** — New `topCornerBgColor` property + Base swatch below Text swatch
-- **Bottom Corner** — New `bottomCornerBgColor` property + Base swatch below Text swatch
-- **Footer & Pic** — Already has Base (`footerBg`), no changes
+## Scope
+- Update all three Upload buttons with a subtle colored background (`#1e1e36`)
+- Increase button height from 24→28px
+- Add Unicode `↑` arrow icon before "Upload" text
+- Bump text from 9px to 11px
+- Tighten icon+text gap; keep wider gap for uploaded state
+- Uploaded state (green checkmark + red ×) stays unchanged
+- No hover/active effects
 
-## Shape & Controls
-- Full content-width rectangle: `MARGIN` to `W - MARGIN`, no rounded corners
-- Solid color + transparent toggle only (no opacity slider)
-- All new properties default to `"transparent"`
+## Files
+- `src/layoutTokens.js` — SIZE, SURFACE, uploadBtnStyle
+- `src/App.jsx` — 3× upload button content spans
 
-## Acceptance
-- Base swatch visible and functional in all 5 sections
-- Transparent toggle works (checkerboard pattern)
-- Body mode Base swatch is no longer greyed out
-- Cards mode Base still controls `cardBgColor` as before
-- syncBgToAll propagates all Base colors
-- Presets serialize/deserialize all Base colors
+## Out of scope
+- Hover/active states
+- Uploaded-state styling changes
+- Any logic or handler changes
