@@ -2,6 +2,13 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-03 - Enforce explicit question delivery before implementation
+- What changed: Hardened `CLAUDE.md` so Phase 1/2 questions must be sent as an explicit chat message and answered before continuing. Added explicit rule that preparing questions internally does not satisfy the phase. Added a required no-question fallback message (`No blocking questions; proceeding with stated assumptions:` + assumptions list). Added a hard guardrail blocking Phase 3 code changes until this ask/wait gate is satisfied.
+- Why: Agents could appear to prepare questions but still skip actually asking, causing misalignment before implementation.
+- Files: `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verified explicit send-and-wait wording exists in Phase 1 and Phase 2, plus matching hard guardrail language.
+- Notes/Risks: May add a brief pause before implementation, but reduces requirement misses and rework.
+
 ## 2026-03-03 - Phase-boundary permission recheck + cd wrapper allow
 - What changed: Hardened permission workflow and config to reduce avoidable approval prompts between phases. `CLAUDE.md` Permission Preflight now requires phase-boundary rechecks, command-segment evaluation (`&&`, `|`, `;`), and retrying commands without `cd ... &&` wrappers before escalation. Also documented local settings precedence for overlapping keys. Added `Bash(cd *)` to `.claude/settings.json` allow-list so shell wrappers that emit standalone `cd` segments do not trigger unnecessary approvals.
 - Why: Commands like `cd /... && git diff --stat` can be evaluated as separate segments; `git diff*` may be allowed while `cd` is not, causing noisy prompts even though the intended action is already permitted.

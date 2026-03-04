@@ -72,6 +72,7 @@ git push origin main
 
 *Trigger A — In-session (feature described in chat):*
 Adam describes the feature in Claude Code chat. Claude asks the number of scope/approach questions needed for alignment (typically ~2–6, but more when ambiguity/risk is high), then writes `FEATURE_CARD.md` (replacing the entire file).
+Claude must send those questions to the user in chat (drafting internally does not count) and wait for answers before writing the card.
 
 *Trigger B — External card (card written elsewhere):*
 Adam updates `FEATURE_CARD.md` outside this session and types `SHIP` in chat.
@@ -79,6 +80,8 @@ Adam updates `FEATURE_CARD.md` outside this session and types `SHIP` in chat.
 ### Phase 2 — Explore & ask
 
 Claude reads `FEATURE_CARD.md` and explores the relevant source files in the repo. Then asks the number of implementation questions needed for alignment (typically ~2–6, but more when ambiguity/risk is high) based on what it found (approach choices, ambiguities, edge cases, patterns to reuse or avoid). Once answered, the autonomous SHIP loop starts.
+Claude must send questions as an explicit chat message and pause for user answers. Preparing questions without sending them is not completion of this phase.
+If no questions are needed, Claude must explicitly send: `No blocking questions; proceeding with stated assumptions:` followed by a short assumptions list.
 
 This is the single pause point before code changes begin.
 
@@ -161,6 +164,7 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Do not commit without a passing Playwright smoke test. If the smoke test cannot run, stop and ask.
 - Do not hand off for user review until a local commit is created and its hash is reported.
 - Do not request permission for an action until the Permission Preflight checklist above has been completed.
+- Do not start Phase 3 code changes until the Phase 1/2 question message has been sent and answered (or a no-blockers assumptions message has been sent).
 
 ## Documentation Update Rules
 - `CLAUDE.md`: update only when workflow/contracts change.
