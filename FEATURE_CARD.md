@@ -1,14 +1,24 @@
-# Feature: Move Accent swatch from Heading to Background section
+# Feature: Base Swatch for All Text Sections
 
-## Summary
-Move the Accent color swatch from the HEADING section to the BACKGROUND section, placing it to the right of the Frame swatch with a " | " separator.
+## What
+Add a "Base" swatch to every text-content section in the Slide N editor. The Base draws a full-content-width solid-color rectangle behind text on the canvas. Defaults to transparent.
 
-## Scope
-1. Remove the Accent swatch (`ColorPickerInline` with `pickerKey="accent"`) and its trailing " | " separator from the HEADING section
-2. Add the Accent swatch after the Frame swatch in the BACKGROUND section, preceded by a " | " separator and followed by an "Accent" label
-3. Make the Accent swatch always visible (no longer conditional on `showHeading` toggle)
-4. Preserve all existing Accent swatch behavior (transparent support, accent bar toggling, etc.)
+## Sections
+- **Body/Cards** — Un-grey existing Base swatch; dynamically switches between `bodyBgColor` (body mode) and `cardBgColor` (cards mode)
+- **Heading** — New `headingBgColor` property + Base swatch below Text swatch
+- **Top Corner** — New `topCornerBgColor` property + Base swatch below Text swatch
+- **Bottom Corner** — New `bottomCornerBgColor` property + Base swatch below Text swatch
+- **Footer & Pic** — Already has Base (`footerBg`), no changes
 
-## Out of scope
-- No changes to accent color logic or rendering
-- No changes to other swatches or sections
+## Shape & Controls
+- Full content-width rectangle: `MARGIN` to `W - MARGIN`, no rounded corners
+- Solid color + transparent toggle only (no opacity slider)
+- All new properties default to `"transparent"`
+
+## Acceptance
+- Base swatch visible and functional in all 5 sections
+- Transparent toggle works (checkerboard pattern)
+- Body mode Base swatch is no longer greyed out
+- Cards mode Base still controls `cardBgColor` as before
+- syncBgToAll propagates all Base colors
+- Presets serialize/deserialize all Base colors

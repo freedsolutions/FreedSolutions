@@ -40,18 +40,40 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   ctx.globalAlpha = prevAlpha;
 }
 
-function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity) {
   var weight = fontBold !== false ? "700" : "normal";
-  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 13, weight, !!fontItalic);
+  var fs = size || 13;
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
+  if (bgColor && bgColor !== "transparent") {
+    var bgPad = 6;
+    var prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(MARGIN, MARGIN - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.fill();
+    ctx.globalAlpha = prevAlpha;
+  }
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 40);
-  ctx.fillText(text, MARGIN, MARGIN + (size || 13));
+  ctx.fillText(text, MARGIN, MARGIN + fs);
 }
 
-function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity) {
   var weight = fontBold ? "700" : "600";
-  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 16, weight, !!fontItalic);
+  var fs = size || 16;
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
+  if (bgColor && bgColor !== "transparent") {
+    var bgPad = 6;
+    var prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(MARGIN, H - MARGIN + 12 - fs - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.fill();
+    ctx.globalAlpha = prevAlpha;
+  }
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
-  ctx.fillText(text, MARGIN, H - MARGIN + 4);
+  ctx.fillText(text, MARGIN, H - MARGIN + 12);
 }
 
 function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {

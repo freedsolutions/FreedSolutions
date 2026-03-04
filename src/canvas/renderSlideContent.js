@@ -28,17 +28,54 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   var ty = topY;
   if (slide.showHeading !== false) {
     ctx.font = composeFont(titleFamily, sizes.heading, titleWeight, titleItalic);
-    ty = topY + sizes.heading * CANVAS.headingLH;
+
+    // Pre-compute heading lines for measurement + drawing
     var headingRawLines = (slide.title || "").split("\n");
+    var headingLineData = [];
     for (var hli = 0; hli < headingRawLines.length; hli++) {
       var hRaw = headingRawLines[hli];
-      if (hRaw.trim() === "") { ty += sizes.heading * CANVAS.headingBlankLH; continue; }
-      var headingParsed = extractAccentMarkers(hRaw);
-      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, titleWeight, titleFamily, titleItalic);
+      if (hRaw.trim() === "") {
+        headingLineData.push({ type: "blank" });
+      } else {
+        var headingParsed = extractAccentMarkers(hRaw);
+        var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, titleWeight, titleFamily, titleItalic);
+        headingLineData.push({ type: "text", parsed: headingParsed, lines: titleLines });
+      }
+    }
+
+    // Measure total heading height
+    var headingTotalH = 0;
+    for (var hmi = 0; hmi < headingLineData.length; hmi++) {
+      if (headingLineData[hmi].type === "blank") {
+        headingTotalH += sizes.heading * CANVAS.headingBlankLH;
+      } else {
+        headingTotalH += headingLineData[hmi].lines.length * sizes.heading * CANVAS.headingLH;
+      }
+    }
+
+    // Draw heading background bubble (frame-aligned, rounded corners)
+    var headingBg = slide.headingBgColor || "transparent";
+    if (headingBg !== "transparent") {
+      var hBgPadTop = 10;
+      var hBgPadBot = 6;
+      var prevAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = (slide.headingBgOpacity != null ? slide.headingBgOpacity : 100) / 100;
+      ctx.fillStyle = headingBg;
+      ctx.beginPath();
+      ctx.roundRect(MARGIN, topY - hBgPadTop, W - MARGIN * 2, headingTotalH + sizes.heading * CANVAS.headingLH + hBgPadTop + hBgPadBot, BORDER_RADIUS);
+      ctx.fill();
+      ctx.globalAlpha = prevAlpha;
+    }
+
+    // Draw heading text from pre-computed data
+    ty = topY + sizes.heading * CANVAS.headingLH;
+    for (var hdi = 0; hdi < headingLineData.length; hdi++) {
+      var hd = headingLineData[hdi];
+      if (hd.type === "blank") { ty += sizes.heading * CANVAS.headingBlankLH; continue; }
       var hOffset = 0;
-      for (var i = 0; i < titleLines.length; i++) {
-        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, titleWeight, slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset, titleFamily, titleItalic);
-        hOffset += titleLines[i].length + 1;
+      for (var i = 0; i < hd.lines.length; i++) {
+        renderLineWithAccents(ctx, hd.lines[i], pad, ty, sizes.heading, titleWeight, slide.titleColor || colors.text, colors.accent, hd.parsed.markers, hOffset, titleFamily, titleItalic);
+        hOffset += hd.lines[i].length + 1;
         ty += sizes.heading * CANVAS.headingLH;
       }
     }
@@ -100,10 +137,13 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       var cardH = cardHeights[ci];
       var cardX = pad - 10 + textPadding;
       var cardW = maxW - textPadding * 2 + 20;
+      var cardPrevAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = (slide.cardBgOpacity != null ? slide.cardBgOpacity : 100) / 100;
       ctx.fillStyle = slide.cardBgColor || colors.cardBg;
       ctx.beginPath();
       ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.fill();
+      ctx.globalAlpha = cardPrevAlpha;
       if (showChecks) {
         ctx.fillStyle = colors.decoration;
         ctx.beginPath();
@@ -136,21 +176,57 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     }
     ty = runningY;
   } else if (slide.body) {
+    ctx.font = composeFont(bodyFamily, sizes.body, bodyWeight, bodyItalic);
     var bodyLines = (slide.body || "").split("\n");
-    var bodyY = (slide.showHeading !== false) ? ty + (expand ? CANVAS.bodyGapAfterHeadingExpand : CANVAS.bodyGapAfterHeading) : ty + (expand ? CANVAS.bodyGapNoHeadingExpand : CANVAS.bodyGapNoHeading);
+    var bodyStartY = (slide.showHeading !== false) ? ty + (expand ? CANVAS.bodyGapAfterHeadingExpand : CANVAS.bodyGapAfterHeading) : ty + (expand ? CANVAS.bodyGapNoHeadingExpand : CANVAS.bodyGapNoHeading);
+
+    // Pre-compute body lines for measurement + drawing
+    var bodyLineData = [];
     for (var bli = 0; bli < bodyLines.length; bli++) {
       var rawLine = bodyLines[bli];
       if (rawLine.trim() === "" || rawLine.replace(/\*\*(.+?)\*\*/g, "$1").trim() === "") {
-        bodyY += sizes.body * CANVAS.bodyBlankLH;
+        bodyLineData.push({ type: "blank" });
       } else {
         var lineParsed = extractAccentMarkers(rawLine);
         var wrapped = wrapText(ctx, lineParsed.cleanText, maxW, sizes.body, bodyWeight, bodyFamily, bodyItalic);
-        var bOffset = 0;
-        for (var wi = 0; wi < wrapped.length; wi++) {
-          renderLineWithAccents(ctx, wrapped[wi], pad, bodyY, sizes.body, bodyWeight, slide.bodyColor || colors.accent, colors.accent, lineParsed.markers, bOffset, bodyFamily, bodyItalic);
-          bOffset += wrapped[wi].length + 1;
-          bodyY += sizes.body * CANVAS.bodyLH;
-        }
+        bodyLineData.push({ type: "text", parsed: lineParsed, lines: wrapped });
+      }
+    }
+
+    // Measure total body height
+    var bodyTotalH = 0;
+    for (var bmi = 0; bmi < bodyLineData.length; bmi++) {
+      if (bodyLineData[bmi].type === "blank") {
+        bodyTotalH += sizes.body * CANVAS.bodyBlankLH;
+      } else {
+        bodyTotalH += bodyLineData[bmi].lines.length * sizes.body * CANVAS.bodyLH;
+      }
+    }
+
+    // Draw body background bubble (frame-aligned, rounded corners)
+    var bodyBg = slide.bodyBgColor || "transparent";
+    if (bodyBg !== "transparent") {
+      var bBgPadTop = 10;
+      var bBgPadBot = 6;
+      var prevAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = (slide.bodyBgOpacity != null ? slide.bodyBgOpacity : 100) / 100;
+      ctx.fillStyle = bodyBg;
+      ctx.beginPath();
+      ctx.roundRect(MARGIN, bodyStartY - bBgPadTop, W - MARGIN * 2, bodyTotalH + bBgPadTop + bBgPadBot, BORDER_RADIUS);
+      ctx.fill();
+      ctx.globalAlpha = prevAlpha;
+    }
+
+    // Draw body text from pre-computed data
+    var bodyY = bodyStartY;
+    for (var bdi = 0; bdi < bodyLineData.length; bdi++) {
+      var bd = bodyLineData[bdi];
+      if (bd.type === "blank") { bodyY += sizes.body * CANVAS.bodyBlankLH; continue; }
+      var bOffset = 0;
+      for (var wi = 0; wi < bd.lines.length; wi++) {
+        renderLineWithAccents(ctx, bd.lines[wi], pad, bodyY, sizes.body, bodyWeight, slide.bodyColor || colors.accent, colors.accent, bd.parsed.markers, bOffset, bodyFamily, bodyItalic);
+        bOffset += bd.lines[wi].length + 1;
+        bodyY += sizes.body * CANVAS.bodyLH;
       }
     }
     ty = bodyY + 10;

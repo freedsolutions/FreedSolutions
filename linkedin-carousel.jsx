@@ -656,18 +656,40 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   ctx.globalAlpha = prevAlpha;
 }
 
-function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity) {
   var weight = fontBold !== false ? "700" : "normal";
-  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 13, weight, !!fontItalic);
+  var fs = size || 13;
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
+  if (bgColor && bgColor !== "transparent") {
+    var bgPad = 6;
+    var prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(MARGIN, MARGIN - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.fill();
+    ctx.globalAlpha = prevAlpha;
+  }
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 40);
-  ctx.fillText(text, MARGIN, MARGIN + (size || 13));
+  ctx.fillText(text, MARGIN, MARGIN + fs);
 }
 
-function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic) {
+function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity) {
   var weight = fontBold ? "700" : "600";
-  ctx.font = composeFont(fontFamily || DEFAULT_FONT, size || 16, weight, !!fontItalic);
+  var fs = size || 16;
+  ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
+  if (bgColor && bgColor !== "transparent") {
+    var bgPad = 6;
+    var prevAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(MARGIN, H - MARGIN + 12 - fs - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.fill();
+    ctx.globalAlpha = prevAlpha;
+  }
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
-  ctx.fillText(text, MARGIN, H - MARGIN + 4);
+  ctx.fillText(text, MARGIN, H - MARGIN + 12);
 }
 
 function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {
@@ -773,17 +795,54 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
   var ty = topY;
   if (slide.showHeading !== false) {
     ctx.font = composeFont(titleFamily, sizes.heading, titleWeight, titleItalic);
-    ty = topY + sizes.heading * CANVAS.headingLH;
+
+    // Pre-compute heading lines for measurement + drawing
     var headingRawLines = (slide.title || "").split("\n");
+    var headingLineData = [];
     for (var hli = 0; hli < headingRawLines.length; hli++) {
       var hRaw = headingRawLines[hli];
-      if (hRaw.trim() === "") { ty += sizes.heading * CANVAS.headingBlankLH; continue; }
-      var headingParsed = extractAccentMarkers(hRaw);
-      var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, titleWeight, titleFamily, titleItalic);
+      if (hRaw.trim() === "") {
+        headingLineData.push({ type: "blank" });
+      } else {
+        var headingParsed = extractAccentMarkers(hRaw);
+        var titleLines = wrapText(ctx, headingParsed.cleanText, maxW, sizes.heading, titleWeight, titleFamily, titleItalic);
+        headingLineData.push({ type: "text", parsed: headingParsed, lines: titleLines });
+      }
+    }
+
+    // Measure total heading height
+    var headingTotalH = 0;
+    for (var hmi = 0; hmi < headingLineData.length; hmi++) {
+      if (headingLineData[hmi].type === "blank") {
+        headingTotalH += sizes.heading * CANVAS.headingBlankLH;
+      } else {
+        headingTotalH += headingLineData[hmi].lines.length * sizes.heading * CANVAS.headingLH;
+      }
+    }
+
+    // Draw heading background bubble (frame-aligned, rounded corners)
+    var headingBg = slide.headingBgColor || "transparent";
+    if (headingBg !== "transparent") {
+      var hBgPadTop = 10;
+      var hBgPadBot = 6;
+      var prevAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = (slide.headingBgOpacity != null ? slide.headingBgOpacity : 100) / 100;
+      ctx.fillStyle = headingBg;
+      ctx.beginPath();
+      ctx.roundRect(MARGIN, topY - hBgPadTop, W - MARGIN * 2, headingTotalH + sizes.heading * CANVAS.headingLH + hBgPadTop + hBgPadBot, BORDER_RADIUS);
+      ctx.fill();
+      ctx.globalAlpha = prevAlpha;
+    }
+
+    // Draw heading text from pre-computed data
+    ty = topY + sizes.heading * CANVAS.headingLH;
+    for (var hdi = 0; hdi < headingLineData.length; hdi++) {
+      var hd = headingLineData[hdi];
+      if (hd.type === "blank") { ty += sizes.heading * CANVAS.headingBlankLH; continue; }
       var hOffset = 0;
-      for (var i = 0; i < titleLines.length; i++) {
-        renderLineWithAccents(ctx, titleLines[i], pad, ty, sizes.heading, titleWeight, slide.titleColor || colors.text, colors.accent, headingParsed.markers, hOffset, titleFamily, titleItalic);
-        hOffset += titleLines[i].length + 1;
+      for (var i = 0; i < hd.lines.length; i++) {
+        renderLineWithAccents(ctx, hd.lines[i], pad, ty, sizes.heading, titleWeight, slide.titleColor || colors.text, colors.accent, hd.parsed.markers, hOffset, titleFamily, titleItalic);
+        hOffset += hd.lines[i].length + 1;
         ty += sizes.heading * CANVAS.headingLH;
       }
     }
@@ -845,10 +904,13 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       var cardH = cardHeights[ci];
       var cardX = pad - 10 + textPadding;
       var cardW = maxW - textPadding * 2 + 20;
+      var cardPrevAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = (slide.cardBgOpacity != null ? slide.cardBgOpacity : 100) / 100;
       ctx.fillStyle = slide.cardBgColor || colors.cardBg;
       ctx.beginPath();
       ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.fill();
+      ctx.globalAlpha = cardPrevAlpha;
       if (showChecks) {
         ctx.fillStyle = colors.decoration;
         ctx.beginPath();
@@ -881,21 +943,57 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     }
     ty = runningY;
   } else if (slide.body) {
+    ctx.font = composeFont(bodyFamily, sizes.body, bodyWeight, bodyItalic);
     var bodyLines = (slide.body || "").split("\n");
-    var bodyY = (slide.showHeading !== false) ? ty + (expand ? CANVAS.bodyGapAfterHeadingExpand : CANVAS.bodyGapAfterHeading) : ty + (expand ? CANVAS.bodyGapNoHeadingExpand : CANVAS.bodyGapNoHeading);
+    var bodyStartY = (slide.showHeading !== false) ? ty + (expand ? CANVAS.bodyGapAfterHeadingExpand : CANVAS.bodyGapAfterHeading) : ty + (expand ? CANVAS.bodyGapNoHeadingExpand : CANVAS.bodyGapNoHeading);
+
+    // Pre-compute body lines for measurement + drawing
+    var bodyLineData = [];
     for (var bli = 0; bli < bodyLines.length; bli++) {
       var rawLine = bodyLines[bli];
       if (rawLine.trim() === "" || rawLine.replace(/\*\*(.+?)\*\*/g, "$1").trim() === "") {
-        bodyY += sizes.body * CANVAS.bodyBlankLH;
+        bodyLineData.push({ type: "blank" });
       } else {
         var lineParsed = extractAccentMarkers(rawLine);
         var wrapped = wrapText(ctx, lineParsed.cleanText, maxW, sizes.body, bodyWeight, bodyFamily, bodyItalic);
-        var bOffset = 0;
-        for (var wi = 0; wi < wrapped.length; wi++) {
-          renderLineWithAccents(ctx, wrapped[wi], pad, bodyY, sizes.body, bodyWeight, slide.bodyColor || colors.accent, colors.accent, lineParsed.markers, bOffset, bodyFamily, bodyItalic);
-          bOffset += wrapped[wi].length + 1;
-          bodyY += sizes.body * CANVAS.bodyLH;
-        }
+        bodyLineData.push({ type: "text", parsed: lineParsed, lines: wrapped });
+      }
+    }
+
+    // Measure total body height
+    var bodyTotalH = 0;
+    for (var bmi = 0; bmi < bodyLineData.length; bmi++) {
+      if (bodyLineData[bmi].type === "blank") {
+        bodyTotalH += sizes.body * CANVAS.bodyBlankLH;
+      } else {
+        bodyTotalH += bodyLineData[bmi].lines.length * sizes.body * CANVAS.bodyLH;
+      }
+    }
+
+    // Draw body background bubble (frame-aligned, rounded corners)
+    var bodyBg = slide.bodyBgColor || "transparent";
+    if (bodyBg !== "transparent") {
+      var bBgPadTop = 10;
+      var bBgPadBot = 6;
+      var prevAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = (slide.bodyBgOpacity != null ? slide.bodyBgOpacity : 100) / 100;
+      ctx.fillStyle = bodyBg;
+      ctx.beginPath();
+      ctx.roundRect(MARGIN, bodyStartY - bBgPadTop, W - MARGIN * 2, bodyTotalH + bBgPadTop + bBgPadBot, BORDER_RADIUS);
+      ctx.fill();
+      ctx.globalAlpha = prevAlpha;
+    }
+
+    // Draw body text from pre-computed data
+    var bodyY = bodyStartY;
+    for (var bdi = 0; bdi < bodyLineData.length; bdi++) {
+      var bd = bodyLineData[bdi];
+      if (bd.type === "blank") { bodyY += sizes.body * CANVAS.bodyBlankLH; continue; }
+      var bOffset = 0;
+      for (var wi = 0; wi < bd.lines.length; wi++) {
+        renderLineWithAccents(ctx, bd.lines[wi], pad, bodyY, sizes.body, bodyWeight, slide.bodyColor || colors.accent, colors.accent, bd.parsed.markers, bOffset, bodyFamily, bodyItalic);
+        bOffset += bd.lines[wi].length + 1;
+        bodyY += sizes.body * CANVAS.bodyLH;
       }
     }
     ty = bodyY + 10;
@@ -954,7 +1052,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   var borderBottom = slide.showBrandName ? H - MARGIN - FOOTER_PIC_SIZE + 8 - FOOTER_BADGE_H / 2 : H - MARGIN - 16;
 
   if (slide.showTopCorner && slide.topCornerText) {
-    drawTopCorner(ctx, slide.topCornerText, slide.topCornerColor, slide.topCornerOpacity, sizes.topCorner, slide.topCornerFontFamily, slide.topCornerBold, slide.topCornerItalic);
+    drawTopCorner(ctx, slide.topCornerText, slide.topCornerColor, slide.topCornerOpacity, sizes.topCorner, slide.topCornerFontFamily, slide.topCornerBold, slide.topCornerItalic, slide.topCornerBgColor, slide.topCornerBgOpacity);
   }
 
   var asset = slideAssets[slideIndex] || { image: null, name: null, scale: 1 };
@@ -969,7 +1067,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   }
 
   if (slide.showBottomCorner && slide.bottomCornerText) {
-    drawBottomCorner(ctx, slide.bottomCornerText, slide.bottomCornerColor, slide.bottomCornerOpacity, sizes.bottomCorner, slide.bottomCornerFontFamily, slide.bottomCornerBold, slide.bottomCornerItalic);
+    drawBottomCorner(ctx, slide.bottomCornerText, slide.bottomCornerColor, slide.bottomCornerOpacity, sizes.bottomCorner, slide.bottomCornerFontFamily, slide.bottomCornerBold, slide.bottomCornerItalic, slide.bottomCornerBgColor, slide.bottomCornerBgOpacity);
   }
 }
 
@@ -987,10 +1085,14 @@ function makeDefaultSlide(title, body) {
     titleFontFamily: DEFAULT_FONT,
     titleBold: true,
     titleItalic: false,
+    headingBgColor: "transparent",
+    headingBgOpacity: 100,
     bodyColor: "#a5b4fc",
     bodyFontFamily: DEFAULT_FONT,
     bodyBold: false,
     bodyItalic: false,
+    bodyBgColor: "transparent",
+    bodyBgOpacity: 100,
     showCards: false,
     showCardChecks: true,
     cards: ["Card 1"],
@@ -999,6 +1101,7 @@ function makeDefaultSlide(title, body) {
     cardBold: false,
     cardItalic: false,
     cardBgColor: "#ffffff",
+    cardBgOpacity: 100,
     expandScreenshot: false,
     showScreenshot: false,
     showBrandName: false,
@@ -1014,6 +1117,8 @@ function makeDefaultSlide(title, body) {
     topCornerBold: true,
     topCornerItalic: false,
     topCornerOpacity: 40,
+    topCornerBgColor: "transparent",
+    topCornerBgOpacity: 100,
     showBottomCorner: false,
     bottomCornerText: "01 / ",
     bottomCornerColor: "#ffffff",
@@ -1021,6 +1126,8 @@ function makeDefaultSlide(title, body) {
     bottomCornerBold: false,
     bottomCornerItalic: false,
     bottomCornerOpacity: 35,
+    bottomCornerBgColor: "transparent",
+    bottomCornerBgOpacity: 100,
     solidColor: "#1e1e2e",
     bgType: "solid",
     customBgImage: null,
@@ -1976,17 +2083,22 @@ function useSlideManagement(deps) {
               titleFontFamily: src.titleFontFamily,
               titleBold: src.titleBold,
               titleItalic: src.titleItalic,
+              headingBgColor: src.headingBgColor,
+              headingBgOpacity: src.headingBgOpacity,
               // Body typography
               bodyColor: src.bodyColor,
               bodyFontFamily: src.bodyFontFamily,
               bodyBold: src.bodyBold,
               bodyItalic: src.bodyItalic,
+              bodyBgColor: src.bodyBgColor,
+              bodyBgOpacity: src.bodyBgOpacity,
               // Card typography
               cardTextColor: src.cardTextColor,
               cardFontFamily: src.cardFontFamily,
               cardBold: src.cardBold,
               cardItalic: src.cardItalic,
               cardBgColor: src.cardBgColor,
+              cardBgOpacity: src.cardBgOpacity,
               // Brand name typography
               brandNameColor: src.brandNameColor,
               brandNameFontFamily: src.brandNameFontFamily,
@@ -1998,12 +2110,16 @@ function useSlideManagement(deps) {
               topCornerBold: src.topCornerBold,
               topCornerItalic: src.topCornerItalic,
               topCornerOpacity: src.topCornerOpacity,
+              topCornerBgColor: src.topCornerBgColor,
+              topCornerBgOpacity: src.topCornerBgOpacity,
               // Bottom corner typography
               bottomCornerColor: src.bottomCornerColor,
               bottomCornerFontFamily: src.bottomCornerFontFamily,
               bottomCornerBold: src.bottomCornerBold,
               bottomCornerItalic: src.bottomCornerItalic,
-              bottomCornerOpacity: src.bottomCornerOpacity
+              bottomCornerOpacity: src.bottomCornerOpacity,
+              bottomCornerBgColor: src.bottomCornerBgColor,
+              bottomCornerBgOpacity: src.bottomCornerBgOpacity
             });
           });
         });
@@ -2368,17 +2484,17 @@ function usePdfExport(canvasRef, renderSlide, seriesSlides, activeSlide, exportP
 
 var PRESET_SLIDE_KEYS = [
   "title", "showHeading", "showAccentBar", "body",
-  "titleColor", "titleFontFamily", "titleBold", "titleItalic",
-  "bodyColor", "bodyFontFamily", "bodyBold", "bodyItalic",
+  "titleColor", "titleFontFamily", "titleBold", "titleItalic", "headingBgColor", "headingBgOpacity",
+  "bodyColor", "bodyFontFamily", "bodyBold", "bodyItalic", "bodyBgColor", "bodyBgOpacity",
   "showCards", "showCardChecks", "cards",
-  "cardTextColor", "cardFontFamily", "cardBold", "cardItalic", "cardBgColor",
+  "cardTextColor", "cardFontFamily", "cardBold", "cardItalic", "cardBgColor", "cardBgOpacity",
   "expandScreenshot", "showScreenshot",
   "showBrandName", "brandNameText", "brandNameColor",
   "brandNameFontFamily", "brandNameBold", "brandNameItalic",
   "showTopCorner", "topCornerText", "topCornerColor",
-  "topCornerFontFamily", "topCornerBold", "topCornerItalic", "topCornerOpacity",
+  "topCornerFontFamily", "topCornerBold", "topCornerItalic", "topCornerOpacity", "topCornerBgColor", "topCornerBgOpacity",
   "showBottomCorner", "bottomCornerText", "bottomCornerColor",
-  "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
+  "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity", "bottomCornerBgColor", "bottomCornerBgOpacity",
   "solidColor", "bgType", "geoEnabled", "geoLines", "geoOpacity", "geoShape",
   "frameEnabled", "accentColor", "decorationColor", "borderColor", "borderOpacity", "footerBg",
   "profilePicName",
@@ -3234,14 +3350,31 @@ export default function App() {
                 {currentSlide.showTopCorner && (<>
                   <input value={currentSlide.topCornerText} onChange={function(e) { updateSlide(activeSlide, "topCornerText", e.target.value); }} placeholder="Top corner..."
                     style={Object.assign({}, inputStyle, { flex: 1, minWidth: 0, fontSize: 12, padding: SPACE[2] + "px " + SPACE[3] + "px" })} />
-                  <SizeControl sizeKey="topCorner" min={8} max={60} sizes={sizes} setSize={setSize}
-                    swatchLabel="Text"
-                    colorVal={currentSlide.topCornerColor} colorSet={function(c) { updateSlide(activeSlide, "topCornerColor", c); }}
-                    colorPickerKey={"s-" + activeSlide + "-tc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                    opacityVal={currentSlide.topCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "topCornerOpacity", v); }}
-                    fontFamily={currentSlide.topCornerFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "topCornerFontFamily", v, true); }}
-                    boldVal={currentSlide.topCornerBold} boldSet={function(v) { updateSlide(activeSlide, "topCornerBold", v, true); }}
-                    italicVal={currentSlide.topCornerItalic} italicSet={function(v) { updateSlide(activeSlide, "topCornerItalic", v, true); }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2] }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                        <ColorPickerInline pickerKey={"s-" + activeSlide + "-tc"} value={currentSlide.topCornerColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "topCornerColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                          opacityVal={currentSlide.topCornerOpacity} onOpacityChange={function(v) { updateSlide(activeSlide, "topCornerOpacity", v); }}
+                          fontFamily={currentSlide.topCornerFontFamily} onFontFamilyChange={function(v) { updateSlide(activeSlide, "topCornerFontFamily", v, true); }}
+                          bold={currentSlide.topCornerBold} onBoldChange={function(v) { updateSlide(activeSlide, "topCornerBold", v, true); }}
+                          italic={currentSlide.topCornerItalic} onItalicChange={function(v) { updateSlide(activeSlide, "topCornerItalic", v, true); }} />
+                        <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                        <ColorPickerInline pickerKey={"s-" + activeSlide + "-tcbg"} value={currentSlide.topCornerBgColor || "transparent"} onChange={function(c) { updateSlide(activeSlide, "topCornerBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true}
+                          opacityVal={currentSlide.topCornerBgOpacity} onOpacityChange={function(v) { updateSlide(activeSlide, "topCornerBgOpacity", v); }} />
+                        <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
+                      <button onClick={function() { if (sizes.topCorner > 8) setSize("topCorner", sizes.topCorner - 1); }}
+                        style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>{"\u2212"}</button>
+                      <input value={sizes.topCorner} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize("topCorner", Math.max(8, Math.min(60, v))); }}
+                        style={{ width: SIZE.stepperInput, height: SIZE.stepper, border: "none", borderLeft: "1px solid " + SURFACE.border, borderRight: "1px solid " + SURFACE.border, background: "transparent", color: SURFACE.dimmed, fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+                      <button onClick={function() { if (sizes.topCorner < 60) setSize("topCorner", sizes.topCorner + 1); }}
+                        style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>+</button>
+                    </div>
+                  </div>
                 </>)}
               </div>
 
@@ -3256,14 +3389,31 @@ export default function App() {
                 {currentSlide.showBottomCorner && (<>
                   <input value={currentSlide.bottomCornerText} onChange={function(e) { updateSlide(activeSlide, "bottomCornerText", e.target.value); }} placeholder="Bottom corner..."
                     style={Object.assign({}, inputStyle, { flex: 1, minWidth: 0, fontSize: 12, padding: SPACE[2] + "px " + SPACE[3] + "px" })} />
-                  <SizeControl sizeKey="bottomCorner" min={10} max={60} sizes={sizes} setSize={setSize}
-                    swatchLabel="Text"
-                    colorVal={currentSlide.bottomCornerColor} colorSet={function(c) { updateSlide(activeSlide, "bottomCornerColor", c); }}
-                    colorPickerKey={"s-" + activeSlide + "-bc"} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                    opacityVal={currentSlide.bottomCornerOpacity} opacitySet={function(v) { updateSlide(activeSlide, "bottomCornerOpacity", v); }}
-                    fontFamily={currentSlide.bottomCornerFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "bottomCornerFontFamily", v, true); }}
-                    boldVal={currentSlide.bottomCornerBold} boldSet={function(v) { updateSlide(activeSlide, "bottomCornerBold", v, true); }}
-                    italicVal={currentSlide.bottomCornerItalic} italicSet={function(v) { updateSlide(activeSlide, "bottomCornerItalic", v, true); }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2] }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                        <ColorPickerInline pickerKey={"s-" + activeSlide + "-bc"} value={currentSlide.bottomCornerColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "bottomCornerColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                          opacityVal={currentSlide.bottomCornerOpacity} onOpacityChange={function(v) { updateSlide(activeSlide, "bottomCornerOpacity", v); }}
+                          fontFamily={currentSlide.bottomCornerFontFamily} onFontFamilyChange={function(v) { updateSlide(activeSlide, "bottomCornerFontFamily", v, true); }}
+                          bold={currentSlide.bottomCornerBold} onBoldChange={function(v) { updateSlide(activeSlide, "bottomCornerBold", v, true); }}
+                          italic={currentSlide.bottomCornerItalic} onItalicChange={function(v) { updateSlide(activeSlide, "bottomCornerItalic", v, true); }} />
+                        <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                        <ColorPickerInline pickerKey={"s-" + activeSlide + "-bcbg"} value={currentSlide.bottomCornerBgColor || "transparent"} onChange={function(c) { updateSlide(activeSlide, "bottomCornerBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true}
+                          opacityVal={currentSlide.bottomCornerBgOpacity} onOpacityChange={function(v) { updateSlide(activeSlide, "bottomCornerBgOpacity", v); }} />
+                        <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
+                      <button onClick={function() { if (sizes.bottomCorner > 10) setSize("bottomCorner", sizes.bottomCorner - 1); }}
+                        style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>{"\u2212"}</button>
+                      <input value={sizes.bottomCorner} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize("bottomCorner", Math.max(10, Math.min(60, v))); }}
+                        style={{ width: SIZE.stepperInput, height: SIZE.stepper, border: "none", borderLeft: "1px solid " + SURFACE.border, borderRight: "1px solid " + SURFACE.border, background: "transparent", color: SURFACE.dimmed, fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+                      <button onClick={function() { if (sizes.bottomCorner < 60) setSize("bottomCorner", sizes.bottomCorner + 1); }}
+                        style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>+</button>
+                    </div>
+                  </div>
                 </>)}
               </div>
 
@@ -3278,13 +3428,30 @@ export default function App() {
                 {currentSlide.showHeading && (
                   <>
                     <div style={{ flex: 1 }} />
-                    <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
-                      swatchLabel="Text"
-                      colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
-                      colorPickerKey={"s-" + activeSlide + "-title"} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                      fontFamily={currentSlide.titleFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "titleFontFamily", v, true); }}
-                      boldVal={currentSlide.titleBold} boldSet={function(v) { updateSlide(activeSlide, "titleBold", v, true); }}
-                      italicVal={currentSlide.titleItalic} italicSet={function(v) { updateSlide(activeSlide, "titleItalic", v, true); }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2] }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-title"} value={currentSlide.titleColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "titleColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                            fontFamily={currentSlide.titleFontFamily} onFontFamilyChange={function(v) { updateSlide(activeSlide, "titleFontFamily", v, true); }}
+                            bold={currentSlide.titleBold} onBoldChange={function(v) { updateSlide(activeSlide, "titleBold", v, true); }}
+                            italic={currentSlide.titleItalic} onItalicChange={function(v) { updateSlide(activeSlide, "titleItalic", v, true); }} />
+                          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-headingbg"} value={currentSlide.headingBgColor || "transparent"} onChange={function(c) { updateSlide(activeSlide, "headingBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true}
+                            opacityVal={currentSlide.headingBgOpacity} onOpacityChange={function(v) { updateSlide(activeSlide, "headingBgOpacity", v); }} />
+                          <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
+                        <button onClick={function() { if (sizes.heading > 24) setSize("heading", sizes.heading - 1); }}
+                          style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>{"\u2212"}</button>
+                        <input value={sizes.heading} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize("heading", Math.max(24, Math.min(160, v))); }}
+                          style={{ width: SIZE.stepperInput, height: SIZE.stepper, border: "none", borderLeft: "1px solid " + SURFACE.border, borderRight: "1px solid " + SURFACE.border, background: "transparent", color: SURFACE.dimmed, fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+                        <button onClick={function() { if (sizes.heading < 160) setSize("heading", sizes.heading + 1); }}
+                          style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>+</button>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -3314,8 +3481,9 @@ export default function App() {
                         italic={currentSlide.showCards ? currentSlide.cardItalic : currentSlide.bodyItalic} onItalicChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardItalic" : "bodyItalic", v, true); }} />
                       <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: currentSlide.showCards ? 1 : 0.35 }}>
-                      <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                      <ColorPickerInline pickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardbg" : "-bodybg")} value={currentSlide.showCards ? (currentSlide.cardBgColor || "#ffffff") : (currentSlide.bodyBgColor || "transparent")} onChange={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardBgColor" : "bodyBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true}
+                        opacityVal={currentSlide.showCards ? currentSlide.cardBgOpacity : currentSlide.bodyBgOpacity} onOpacityChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardBgOpacity" : "bodyBgOpacity", v); }} />
                       <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                     </div>
                   </div>

@@ -37,7 +37,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   var borderBottom = slide.showBrandName ? H - MARGIN - FOOTER_PIC_SIZE + 8 - FOOTER_BADGE_H / 2 : H - MARGIN - 16;
 
   if (slide.showTopCorner && slide.topCornerText) {
-    drawTopCorner(ctx, slide.topCornerText, slide.topCornerColor, slide.topCornerOpacity, sizes.topCorner, slide.topCornerFontFamily, slide.topCornerBold, slide.topCornerItalic);
+    drawTopCorner(ctx, slide.topCornerText, slide.topCornerColor, slide.topCornerOpacity, sizes.topCorner, slide.topCornerFontFamily, slide.topCornerBold, slide.topCornerItalic, slide.topCornerBgColor, slide.topCornerBgOpacity);
   }
 
   var asset = slideAssets[slideIndex] || { image: null, name: null, scale: 1 };
@@ -52,6 +52,6 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   }
 
   if (slide.showBottomCorner && slide.bottomCornerText) {
-    drawBottomCorner(ctx, slide.bottomCornerText, slide.bottomCornerColor, slide.bottomCornerOpacity, sizes.bottomCorner, slide.bottomCornerFontFamily, slide.bottomCornerBold, slide.bottomCornerItalic);
+    drawBottomCorner(ctx, slide.bottomCornerText, slide.bottomCornerColor, slide.bottomCornerOpacity, sizes.bottomCorner, slide.bottomCornerFontFamily, slide.bottomCornerBold, slide.bottomCornerItalic, slide.bottomCornerBgColor, slide.bottomCornerBgOpacity);
   }
 }

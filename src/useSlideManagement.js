@@ -213,17 +213,22 @@ function useSlideManagement(deps) {
               titleFontFamily: src.titleFontFamily,
               titleBold: src.titleBold,
               titleItalic: src.titleItalic,
+              headingBgColor: src.headingBgColor,
+              headingBgOpacity: src.headingBgOpacity,
               // Body typography
               bodyColor: src.bodyColor,
               bodyFontFamily: src.bodyFontFamily,
               bodyBold: src.bodyBold,
               bodyItalic: src.bodyItalic,
+              bodyBgColor: src.bodyBgColor,
+              bodyBgOpacity: src.bodyBgOpacity,
               // Card typography
               cardTextColor: src.cardTextColor,
               cardFontFamily: src.cardFontFamily,
               cardBold: src.cardBold,
               cardItalic: src.cardItalic,
               cardBgColor: src.cardBgColor,
+              cardBgOpacity: src.cardBgOpacity,
               // Brand name typography
               brandNameColor: src.brandNameColor,
               brandNameFontFamily: src.brandNameFontFamily,
@@ -235,12 +240,16 @@ function useSlideManagement(deps) {
               topCornerBold: src.topCornerBold,
               topCornerItalic: src.topCornerItalic,
               topCornerOpacity: src.topCornerOpacity,
+              topCornerBgColor: src.topCornerBgColor,
+              topCornerBgOpacity: src.topCornerBgOpacity,
               // Bottom corner typography
               bottomCornerColor: src.bottomCornerColor,
               bottomCornerFontFamily: src.bottomCornerFontFamily,
               bottomCornerBold: src.bottomCornerBold,
               bottomCornerItalic: src.bottomCornerItalic,
-              bottomCornerOpacity: src.bottomCornerOpacity
+              bottomCornerOpacity: src.bottomCornerOpacity,
+              bottomCornerBgColor: src.bottomCornerBgColor,
+              bottomCornerBgOpacity: src.bottomCornerBgOpacity
             });
           });
         });

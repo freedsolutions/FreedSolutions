@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Add Base background bubble to all text sections
+- What changed: Every text-content section (Heading, Body/Cards, Top Corner, Bottom Corner) now has a "Base" color swatch that draws a rounded-corner background bubble behind the text. Defaults to transparent. Each Base swatch includes an opacity slider. The Body/Cards Base swatch is no longer greyed out — it dynamically switches between `bodyBgColor` (body mode) and `cardBgColor` (cards mode). Heading, Top Corner, and Bottom Corner sections now use a stacked Text+Base swatch layout with an inline size stepper, replacing the old `SizeControl` component. Bottom corner text repositioned slightly lower for better spacing under the frame.
+- Why: Users needed per-section background control to improve text readability over busy slide backgrounds.
+- Files: `src/slideFactory.js`, `src/canvas/overlays.js`, `src/canvas/renderSlide.js`, `src/canvas/renderSlideContent.js`, `src/App.jsx`, `src/useSlideManagement.js`, `src/usePresets.js`, `linkedin-carousel.jsx`, `FEATURE_CARD.md`, `CHANGES.md`.
+- New slide properties: `headingBgColor`, `headingBgOpacity`, `bodyBgColor`, `bodyBgOpacity`, `cardBgOpacity`, `topCornerBgColor`, `topCornerBgOpacity`, `bottomCornerBgColor`, `bottomCornerBgOpacity`.
+
 ## 2026-03-04 - Permission hardening for autonomous workflow
 - What changed: Replaced 30+ enumerated Bash permission patterns in `settings.local.json` with bare `Bash` catch-all for full Phase 3 autonomy. Cleaned `settings.json` to fix colon-syntax bugs (`echo:*` → `echo *`), consolidated 7 git subcommand patterns into `Bash(git *)`, removed `npm` permission (zero-dep project), added missing utilities (`cat`, `tail`, `wc`, `mkdir`, `pwd`, `which`). Fixed identical colon-syntax bugs in global `~/.claude/settings.json`. Added "Tool Selection Rules" section to `CLAUDE.md` prescribing dedicated tools over Bash equivalents. Simplified "Permission Preflight" section. Added Phase 3 autonomy expectation note.
 - Why: Claude Code was periodically stopping during the autonomous SHIP loop to request Bash command permissions, breaking the oneshot workflow.
