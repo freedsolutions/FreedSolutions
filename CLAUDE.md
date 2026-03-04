@@ -142,7 +142,11 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
   1. `.claude/settings.local.json`
   2. `.claude/settings.json`
 - Treat these files as the permission source of truth for the repo session.
+- Precedence rule: when both files define the same permission key, `.claude/settings.local.json` takes priority for this session.
 - Before requesting escalation, verify whether the exact action is already allowed (including wildcard/pattern matches).
+- Re-run this preflight at each phase boundary (`Explore -> Implement`, `Self-review -> Smoke test`, `Smoke test -> Commit gate`).
+- Evaluate shell commands by segments (`&&`, `|`, `;`), not only full command strings.
+- If a command was only blocked because of a `cd ... &&` wrapper, rerun it from repo root without the `cd` prefix before requesting escalation.
 - If allowed, execute without requesting extra permission.
 - If not allowed, request escalation with a single-sentence reason tied to the specific blocked command.
 - Do not request broad or speculative approvals for actions you are not about to run.

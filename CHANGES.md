@@ -2,6 +2,13 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-03 - Phase-boundary permission recheck + cd wrapper allow
+- What changed: Hardened permission workflow and config to reduce avoidable approval prompts between phases. `CLAUDE.md` Permission Preflight now requires phase-boundary rechecks, command-segment evaluation (`&&`, `|`, `;`), and retrying commands without `cd ... &&` wrappers before escalation. Also documented local settings precedence for overlapping keys. Added `Bash(cd *)` to `.claude/settings.json` allow-list so shell wrappers that emit standalone `cd` segments do not trigger unnecessary approvals.
+- Why: Commands like `cd /... && git diff --stat` can be evaluated as separate segments; `git diff*` may be allowed while `cd` is not, causing noisy prompts even though the intended action is already permitted.
+- Files: `CLAUDE.md`, `.claude/settings.json`, `CHANGES.md`.
+- Validation: Verified new preflight bullets are present and `Bash(cd *)` is in the allow-list.
+- Notes/Risks: `Bash(cd *)` only permits directory changes; subsequent command segments still require their own permission matches.
+
 ## 2026-03-03 - Slide pane UI tweaks
 - What changed: (1) Merged Frame section into Background row as a transparent-toggle swatch with opacity slider, matching Layer pattern. (2) Added opacity slider to Layer swatch, backed by new `geoOpacity` slide field. (3) Upgraded Layer swatch from 7-color LAYER_SWATCHES to 16-color INLINE_SWATCHES. (4) Moved Footer & Pic, Top Corner, and Bottom Corner text inputs inline with their ON/OFF toggle row, eliminating the indented sub-row. (5) Fixed Heading textarea scrollbar by setting explicit lineHeight. (6) Left pane: moved "SLIDES" header above Sync All/Reset All, centered and renamed "Duplicate" to "Duplicate Slide".
 - Why: Saves vertical space in the slide editor, consolidates related controls, and provides finer control over layer/frame opacity.
