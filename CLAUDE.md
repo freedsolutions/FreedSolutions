@@ -34,14 +34,14 @@ Claude Code has dedicated tools that are faster and never trigger permission pro
 **Bash is the right choice for:** `node build.js`, `node scripts/*.js`, all `git` commands, `npx serve`, `npx playwright`, and quick one-liners where no dedicated tool exists (`wc -l`, `pwd`, `mkdir -p`).
 
 ## Source Manifest
-`build.js` defines an explicit `ORDER` array that lists all 19 source files and their concatenation sequence. **This array is the single source of truth** for what ships in the artifact and in what order.
+`build.js` defines an explicit `ORDER` array that lists all 20 source files and their concatenation sequence. **This array is the single source of truth** for what ships in the artifact and in what order.
 
 Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defined in files above it.
 
 **Structure at a glance:**
 | Layer | Files | Purpose |
 |-------|-------|---------|
-| Constants | `constants.js` | Shared constants (`MAX_SLIDES`, `FONT_OPTIONS`, `composeFont`) |
+| Constants | `constants.js`, `layoutTokens.js` | Shared constants, design tokens, style helpers |
 | Canvas | `canvas/*.js` (7 files) | Pure rendering: backgrounds, text, overlays, screenshots, slide composition |
 | Data | `slideFactory.js`, `undoRedo.js`, `pdfBuilder.js` | Slide model, undo stack, PDF generation |
 | UI components | `ColorPickerInline.jsx`, `SizeControl.jsx`, `SlideSelector.jsx` | Reusable React components |
@@ -105,6 +105,12 @@ This is the single pause point before code changes begin.
 
 > **Autonomy expectation:** This entire phase runs without user interaction. If an unexpected permission prompt appears, accept it, complete the phase, and report the unexpected prompt in the handoff so settings can be updated.
 
+> **Pre-flight checklist** (all must be true before starting):
+> - Local server running on `:5173` (`npx serve . --listen 5173`)
+> - Playwright MCP available and responsive
+> - Git working tree clean (`git status` shows no uncommitted changes)
+> - `FEATURE_CARD.md` present with current feature scope
+
 **Implement:**
 - Read `FEATURE_CARD.md` scope and `CLAUDE.md` guardrails
 - Make targeted edits in `src/`
@@ -144,6 +150,7 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 |------|---------|-------------|
 | `CLAUDE.md` | Workflow contract | Workflow/process changes |
 | `CHANGES.md` | Behavior/process changelog | Behavior or process changes |
+| `CHANGES_ARCHIVE.md` | Archived changelog entries | When `CHANGES.md` is trimmed |
 | `FEATURE_CARD.md` | Current feature scope | Replaced each new feature session |
 
 **Code artifacts** (rarely touched directly):
@@ -185,4 +192,4 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 
 ## Documentation Update Rules
 - `CLAUDE.md`: update only when workflow/contracts change.
-- `CHANGES.md`: add entry when behavior or process changes. Pure refactors with no behavior effect skip this.
+- `CHANGES.md`: add entry when behavior or process changes. Pure refactors with no behavior effect skip this. When `CHANGES.md` exceeds ~300 lines, move the older half of entries to `CHANGES_ARCHIVE.md`.

@@ -2,8 +2,18 @@
 .DS_Store
 Thumbs.db
 
-# Editor
+# Editor / IDE
 .vscode/
+.idea/
+*.sublime-*
+*.swp
+*~
+
+# Environment
+.env
+
+# Dependencies (zero-dep project — defensive only)
+node_modules/
 
 # Claude Code local settings
 .claude/
@@ -11,7 +21,10 @@ Thumbs.db
 # Playwright smoke test artifacts
 test-results/
 .playwright-mcp/
-smoke-test*.png
-slide-panel*.png
-layer-*-test.png
-final-layout.png
+
+# Root-level image artifacts (archived by pre-commit hook)
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.gif

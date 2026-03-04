@@ -1,5 +1,12 @@
 #!/bin/sh
 
+node scripts/validate-order.js
+status=$?
+if [ $status -ne 0 ]; then
+  echo "pre-commit: ORDER validation failed — see errors above"
+  exit $status
+fi
+
 node scripts/archive-smoke-artifacts.js
 status=$?
 if [ $status -ne 0 ]; then
