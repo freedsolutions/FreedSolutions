@@ -586,7 +586,7 @@ export default function App() {
                   {currentSlide.cards.map(function(c, i) {
                     return (
                       <div key={i} style={{ display: "flex", gap: SPACE[4], marginBottom: SPACE[3], alignItems: "center" }}>
-                        <textarea value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder={"Card " + (i + 1) + "..."} rows={1}
+                        <textarea value={c} onChange={function(e) { slideMgmt.updateSlideCard(activeSlide, i, e.target.value); var el = e.target; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }} placeholder={"Card " + (i + 1) + "..."} rows={2}
                           ref={function(el) { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
                           style={Object.assign({}, inputStyle, { padding: SPACE[3] + "px " + SPACE[5] + "px", fontSize: 12, resize: "none", overflow: "hidden", maxHeight: "50vh", overflowY: "auto" })} />
                         {currentSlide.cards.length > 1 && (
