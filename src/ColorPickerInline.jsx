@@ -7,7 +7,13 @@ function drawShapeThumbnail(ctx, shapeId, w, h) {
   ctx.fillStyle = SURFACE.inputDeep;
   ctx.fillRect(0, 0, w, h);
   var c = SURFACE.dimmed;
-  if (shapeId === "lines") {
+  if (shapeId === "solid") {
+    ctx.fillStyle = "rgba(102,102,102,0.35)";
+    ctx.fillRect(2, 2, w - 4, h - 4);
+    ctx.strokeStyle = "rgba(102,102,102,0.5)";
+    ctx.lineWidth = 0.6;
+    ctx.strokeRect(2, 2, w - 4, h - 4);
+  } else if (shapeId === "lines") {
     // Simplified spheres + lines
     ctx.fillStyle = "rgba(102,102,102,0.3)";
     ctx.beginPath(); ctx.arc(2, 8, 6, 0, Math.PI * 2); ctx.fill();
@@ -92,14 +98,19 @@ function ColorPickerInline(props) {
   // Layer shape props (optional)
   var geoShape = props.geoShape;
   var onShapeChange = props.onShapeChange;
+  // Dual-color mode props (optional — used by merged Layer swatch)
+  var fillValue = props.fillValue;
+  var onFillChange = props.onFillChange;
+  var dualColor = props.dualColor || false;
 
-  // Customizable swatches + transparent option (used by Layer picker)
+  // Customizable swatches + transparent option (used by Frame/Accent pickers)
   var swatches = props.swatches || INLINE_SWATCHES;
   var allowTransparent = props.allowTransparent || false;
 
   var hasTypography = !!onFontFamilyChange;
   var isTransparentValue = value === "transparent";
   var isOpen = openPicker === pickerKey && !disabled;
+  var isSolidShape = dualColor && (geoShape || "lines") === "solid";
 
   var swatchBtnRef = useRef(null);
   var thumbCanvasRefs = useRef({});
@@ -118,6 +129,41 @@ function ColorPickerInline(props) {
     });
     return function() { cancelAnimationFrame(raf); };
   }, [isOpen, onShapeChange]);
+
+  // Helper: render a color grid section (swatches + hex input)
+  function renderColorSection(label, colorVal, colorOnChange) {
+    var isColorTransparent = colorVal === "transparent";
+    return (
+      <div>
+        <span style={{ fontSize: 10, color: SURFACE.dimmed, display: "block", marginBottom: SPACE[3] }}>{label}</span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
+          {swatches.map(function(c) {
+            return (
+              <button key={c} onClick={function() { colorOnChange(c); }}
+                style={{
+                  width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                  border: colorVal === c ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+                  background: c, cursor: "pointer", padding: 0,
+                  boxShadow: colorVal === c ? "0 0 0 1px " + CLR.primary : "none"
+                }}
+              />
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
+          <input type="color"
+            value={!isColorTransparent && colorVal && colorVal.charAt(0) === "#" ? colorVal : "#a0a0af"}
+            onChange={function(e) { colorOnChange(e.target.value); }}
+            style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }}
+          />
+          <input value={colorVal || ""}
+            onChange={function(e) { colorOnChange(e.target.value); }}
+            style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   // Compute portal position from swatch button
   var portalStyle = null;
@@ -157,64 +203,92 @@ function ColorPickerInline(props) {
           </div>
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
-        {allowTransparent && (
-          <button onClick={function() { onChange("transparent"); }}
-            title="None (transparent)"
-            style={{
-              width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
-              border: isTransparentValue ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
-              background: "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
-              backgroundSize: "8px 8px",
-              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
-              cursor: "pointer", padding: 0,
-              boxShadow: isTransparentValue ? "0 0 0 1px " + CLR.primary : "none"
-            }}
-          />
-        )}
-        {swatches.map(function(c) {
-          return (
-            <button key={c} onClick={function() { onChange(c); }}
-              style={{
-                width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
-                border: value === c ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
-                background: c, cursor: "pointer", padding: 0,
-                boxShadow: value === c ? "0 0 0 1px " + CLR.primary : "none"
-              }}
+      {dualColor ? (
+        <>
+          {renderColorSection("Fill", fillValue || "#1e1e2e", onFillChange)}
+          {!isSolidShape && (
+            <>
+              <div style={{ borderTop: "1px solid " + SURFACE.panelBorder, marginTop: SPACE[4], paddingTop: SPACE[4] }}>
+                {renderColorSection("Pattern", value, onChange)}
+              </div>
+              {onOpacityChange && (
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4] }}>
+                  <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
+                  <input type="range" min={0} max={100}
+                    value={opacityVal != null ? opacityVal : 100}
+                    onChange={function(e) { onOpacityChange(Number(e.target.value)); }}
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
+                    {(opacityVal != null ? opacityVal : 100) + "%"}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
+            {allowTransparent && (
+              <button onClick={function() { onChange("transparent"); }}
+                title="None (transparent)"
+                style={{
+                  width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                  border: isTransparentValue ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+                  background: "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
+                  backgroundSize: "8px 8px",
+                  backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
+                  cursor: "pointer", padding: 0,
+                  boxShadow: isTransparentValue ? "0 0 0 1px " + CLR.primary : "none"
+                }}
+              />
+            )}
+            {swatches.map(function(c) {
+              return (
+                <button key={c} onClick={function() { onChange(c); }}
+                  style={{
+                    width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                    border: value === c ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+                    background: c, cursor: "pointer", padding: 0,
+                    boxShadow: value === c ? "0 0 0 1px " + CLR.primary : "none"
+                  }}
+                />
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: SPACE[3], alignItems: "center", opacity: isTransparentValue ? 0.4 : 1 }}>
+            <input type="color"
+              value={!isTransparentValue && value && value.charAt(0) === "#" ? value : "#a0a0af"}
+              onChange={function(e) { onChange(e.target.value); }}
+              disabled={isTransparentValue}
+              style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: isTransparentValue ? "default" : "pointer", background: "none", padding: 0 }}
             />
-          );
-        })}
-      </div>
-      <div style={{ display: "flex", gap: SPACE[3], alignItems: "center", opacity: isTransparentValue ? 0.4 : 1 }}>
-        <input type="color"
-          value={!isTransparentValue && value && value.charAt(0) === "#" ? value : "#a0a0af"}
-          onChange={function(e) { onChange(e.target.value); }}
-          disabled={isTransparentValue}
-          style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: isTransparentValue ? "default" : "pointer", background: "none", padding: 0 }}
-        />
-        <input value={isTransparentValue ? "none" : value}
-          onChange={function(e) { if (!isTransparentValue) onChange(e.target.value); }}
-          disabled={isTransparentValue}
-          style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
-        />
-      </div>
-      {onOpacityChange && (
-        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
-          <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
-          <input type="range" min={0} max={100}
-            value={opacityVal != null ? opacityVal : 100}
-            onChange={function(e) { onOpacityChange(Number(e.target.value)); }}
-            style={{ flex: 1 }}
-          />
-          <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
-            {(opacityVal != null ? opacityVal : 100) + "%"}
-          </span>
-        </div>
+            <input value={isTransparentValue ? "none" : value}
+              onChange={function(e) { if (!isTransparentValue) onChange(e.target.value); }}
+              disabled={isTransparentValue}
+              style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
+            />
+          </div>
+          {onOpacityChange && (
+            <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+              <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
+              <input type="range" min={0} max={100}
+                value={opacityVal != null ? opacityVal : 100}
+                onChange={function(e) { onOpacityChange(Number(e.target.value)); }}
+                style={{ flex: 1 }}
+              />
+              <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
+                {(opacityVal != null ? opacityVal : 100) + "%"}
+              </span>
+            </div>
+          )}
+        </>
       )}
       {onShapeChange && (
         <div style={{ marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
-          <span style={{ fontSize: 10, color: SURFACE.dimmed, display: "block", marginBottom: SPACE[3] }}>Pattern</span>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: SPACE[2] }}>
+          <span style={{ fontSize: 10, color: SURFACE.dimmed, display: "block", marginBottom: SPACE[3] }}>Shape</span>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: SPACE[2] }}>
             {GEO_SHAPES.map(function(shape) {
               var isActive = (geoShape || "lines") === shape.id;
               return (
@@ -241,6 +315,24 @@ function ColorPickerInline(props) {
     </div>
   ) : null;
 
+  // Swatch button background
+  var swatchBtnBg, swatchBtnBgImage;
+  if (dualColor) {
+    if (isSolidShape) {
+      swatchBtnBg = fillValue || "#1e1e2e";
+      swatchBtnBgImage = "none";
+    } else {
+      swatchBtnBg = "transparent";
+      swatchBtnBgImage = "linear-gradient(135deg, " + (fillValue || "#1e1e2e") + " 50%, " + (value || "#a0a0af") + " 50%)";
+    }
+  } else if (isTransparentValue) {
+    swatchBtnBg = "transparent";
+    swatchBtnBgImage = "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)";
+  } else {
+    swatchBtnBg = value;
+    swatchBtnBgImage = "none";
+  }
+
   return (
     <div style={{ position: "relative" }} data-picker={pickerKey}>
       <button
@@ -253,12 +345,10 @@ function ColorPickerInline(props) {
         style={{
           width: SIZE.swatchBtn, height: SIZE.swatchBtn, borderRadius: RADIUS.sm,
           border: isOpen ? "2px solid " + CLR.primary : "1px solid " + SURFACE.border,
-          backgroundColor: isTransparentValue ? "transparent" : value,
-          backgroundImage: isTransparentValue
-            ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
-            : "none",
-          backgroundSize: "8px 8px",
-          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
+          backgroundColor: swatchBtnBg,
+          backgroundImage: swatchBtnBgImage,
+          backgroundSize: isTransparentValue && !dualColor ? "8px 8px" : "auto",
+          backgroundPosition: isTransparentValue && !dualColor ? "0 0, 0 4px, 4px -4px, -4px 0" : "auto",
           cursor: disabled ? "default" : "pointer",
           padding: 0, display: "block"
         }}

@@ -183,6 +183,7 @@ export default function App() {
   var updateBgField = slideMgmt.updateBgField;
   var currentSlide = seriesSlides[activeSlide] || seriesSlides[0];
   var isCustomBg = currentSlide.bgType === "custom";
+  var effectiveGeoShape = (!currentSlide.geoEnabled && (currentSlide.geoShape || "lines") !== "solid") ? "solid" : (currentSlide.geoShape || "lines");
 
   // Per-slide font sizes (derived from active slide)
   var sizes = {
@@ -408,10 +409,7 @@ export default function App() {
               <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[4] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
                 <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
-                  <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
-                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Base</span>
-                  <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
-                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} geoShape={currentSlide.geoShape || "lines"} onShapeChange={function(s) { updateBgField("geoShape", s); }} />
+                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoLines || "#a0a0af"} onChange={function(c) { updateBgField("geoLines", c); }} fillValue={currentSlide.solidColor || "#1e1e2e"} onFillChange={function(c) { updateBgField("solidColor", c); }} dualColor={true} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} geoShape={effectiveGeoShape} onShapeChange={function(s) { updateBgField("geoShape", s); updateBgField("geoEnabled", s !== "solid"); }} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Layer</span>
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                   <ColorPickerInline pickerKey="border" value={currentSlide.frameEnabled ? (currentSlide.borderColor || "#fff") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("frameEnabled", false); } else { updateBgField("borderColor", c); updateBgField("frameEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />

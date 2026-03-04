@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Merge Base + Layer swatches, add Solid shape
+- What changed: Removed the Base swatch from the Background row and merged its fill-color functionality into the Layer swatch. The Layer popup now has dual-color sections (Fill + Pattern) stacked vertically, with the pattern section hidden when Solid is selected. Added "Solid" as the first entry in GEO_SHAPES — selecting it disables the geo pattern and shows only the fill color. The swatch button shows a diagonal split when a pattern is active or a solid fill when Solid is selected. Removed the transparent option from the Layer swatch.
+- Why: Simplifies the Background row from 4 swatches to 3 and gives users unified control over both fill and pattern colors in one place.
+- Files: `src/constants.js`, `src/ColorPickerInline.jsx`, `src/App.jsx`, `linkedin-carousel.jsx`, `CHANGES.md`.
+- Validation: Smoke-tested in Playwright — verified dual-color popup, solid/pattern toggle, canvas rendering, and Frame/Accent swatches unaffected.
+
 ## 2026-03-04 - Disable AskUserQuestion path for alignment gates
 - What changed: Hardened `CLAUDE.md` so Phase 1/2 alignment questions must be asked in plain chat only, explicitly disallowing `AskUserQuestion` for those gates. Added empty/unclear response handling rule: treat blank payloads as unanswered and re-ask in plain chat. Added matching hard guardrail. Removed `AskUserQuestion` from `.claude/settings.json` allow-list and local settings to prevent the buggy tool path from being selected.
 - Why: `AskUserQuestion` was returning empty/ambiguous answer payloads in practice, causing false "answered" states and skipped alignment pauses.
