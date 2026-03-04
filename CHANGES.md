@@ -2,6 +2,13 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Automate smoke artifact filing on every commit
+- What changed: Added `scripts/archive-smoke-artifacts.js` to file away Playwright MCP logs and smoke-test/layout screenshots into `.playwright-mcp/archive/<timestamp>/` and clear them from repo root/working artifact locations (`.playwright-mcp/`, `test-results/`, root `smoke-test*.png`, `slide-panel*.png`, `layer-*-test.png`, `final-layout.png`). Added tracked pre-commit hook `.githooks/pre-commit` to run this script automatically on every commit. Updated `CLAUDE.md` Commit gate, Git Policy, and Hard Guardrails to require and document this hygiene flow.
+- Why: Keep commits clean and deterministic while preserving smoke artifacts for local debugging/history instead of scattering them in the repo root.
+- Files: `scripts/archive-smoke-artifacts.js`, `.githooks/pre-commit`, `.gitattributes`, `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verified hook and script files exist, Commit gate references the script, and policy documents one-time `core.hooksPath` setup.
+- Notes/Risks: Hook automation applies per clone once `git config core.hooksPath .githooks` is set; without that setup, the script must be run manually.
+
 ## 2026-03-04 - Add layer shape options + fix swatch pop-out clipping
 - What changed: (1) Added 4 new geometric layer patterns — Bokeh (organic scattered circles), Waves (flowing curves), Diagonal Stripes, Hexagon Mesh (enlarged) — alongside the existing Lines pattern. A "Pattern" selector with canvas-rendered thumbnail icons appears below the opacity slider in the Layer pop-out. (2) Converted all swatch pop-outs (ColorPickerInline + SizeControl) from absolute positioning to React portals, fixing clipping caused by the sidebar's `overflowY: auto`. Updated outside-click handler to detect portal elements.
 - Why: More visual variety for slide backgrounds; pop-outs were getting cut off on the left pane.

@@ -1,0 +1,10 @@
+#!/bin/sh
+
+node scripts/archive-smoke-artifacts.js
+status=$?
+if [ $status -ne 0 ]; then
+  echo "pre-commit: failed to archive Playwright/smoke artifacts"
+  exit $status
+fi
+
+exit 0

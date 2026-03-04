@@ -13,3 +13,5 @@ test-results/
 .playwright-mcp/
 smoke-test*.png
 slide-panel*.png
+layer-*-test.png
+final-layout.png
