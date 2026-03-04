@@ -45,7 +45,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
     if (slide.showAccentBar !== false && (!slide.showCards || !slide.cards || slide.cards.length === 0)) {
       var accentBarOffset = expand ? 0 : CANVAS.accentBarOffset;
-      ctx.fillStyle = colors.accent;
+      ctx.fillStyle = colors.decoration;
       ctx.fillRect(pad, ty + accentBarOffset, CANVAS.accentBarW, CANVAS.accentBarH);
     }
   }
@@ -105,7 +105,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.fill();
       if (showChecks) {
-        ctx.fillStyle = colors.accent;
+        ctx.fillStyle = colors.decoration;
         ctx.beginPath();
         ctx.arc(pad + textPadding + 18, cy + CANVAS.cardCheckOffsetY, CANVAS.cardCheckRadius, 0, Math.PI * 2);
         ctx.fill();

@@ -790,7 +790,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
 
     if (slide.showAccentBar !== false && (!slide.showCards || !slide.cards || slide.cards.length === 0)) {
       var accentBarOffset = expand ? 0 : CANVAS.accentBarOffset;
-      ctx.fillStyle = colors.accent;
+      ctx.fillStyle = colors.decoration;
       ctx.fillRect(pad, ty + accentBarOffset, CANVAS.accentBarW, CANVAS.accentBarH);
     }
   }
@@ -850,7 +850,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.fill();
       if (showChecks) {
-        ctx.fillStyle = colors.accent;
+        ctx.fillStyle = colors.decoration;
         ctx.beginPath();
         ctx.arc(pad + textPadding + 18, cy + CANVAS.cardCheckOffsetY, CANVAS.cardCheckRadius, 0, Math.PI * 2);
         ctx.fill();
@@ -943,6 +943,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
     body: slide.bodyColor || "#ffffff",
     text: slide.titleColor || "#ffffff",
     accent: slide.accentColor || "#22c55e",
+    decoration: slide.decorationColor || "#22c55e",
     border: hexToRgba(slide.borderColor || "#ffffff", slide.borderOpacity != null ? slide.borderOpacity : 100),
     cardBg: slide.cardBgColor || "#ffffff",
     cardText: slide.cardTextColor || "#333333",
@@ -1030,6 +1031,7 @@ function makeDefaultSlide(title, body) {
     geoShape: "lines",
     frameEnabled: true,
     accentColor: "#a5b4fc",
+    decorationColor: "#a5b4fc",
     borderColor: "#ffffff",
     borderOpacity: 100,
     footerBg: "#ffffff",
@@ -1947,6 +1949,7 @@ function useSlideManagement(deps) {
               // Frame
               frameEnabled: src.frameEnabled,
               accentColor: src.accentColor,
+              decorationColor: src.decorationColor,
               borderColor: src.borderColor,
               borderOpacity: src.borderOpacity,
               // Profile
@@ -2377,7 +2380,7 @@ var PRESET_SLIDE_KEYS = [
   "showBottomCorner", "bottomCornerText", "bottomCornerColor",
   "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
   "solidColor", "bgType", "geoEnabled", "geoLines", "geoOpacity", "geoShape",
-  "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg",
+  "frameEnabled", "accentColor", "decorationColor", "borderColor", "borderOpacity", "footerBg",
   "profilePicName",
   "headingSize", "bodySize", "cardTextSize",
   "topCornerSize", "bottomCornerSize", "brandNameSize"
@@ -3171,7 +3174,10 @@ export default function App() {
                   <ColorPickerInline pickerKey="border" value={currentSlide.frameEnabled ? (currentSlide.borderColor || "#fff") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("frameEnabled", false); } else { updateBgField("borderColor", c); updateBgField("frameEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Frame</span>
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
-                  <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor === "transparent" ? "transparent" : (currentSlide.accentColor || "#a5b4fc")} onChange={function(c) { if (c === "transparent") { updateSlide(activeSlide, "accentColor", "transparent"); updateSlide(activeSlide, "showAccentBar", false); } else { updateSlide(activeSlide, "accentColor", c); updateSlide(activeSlide, "showAccentBar", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} disabled={isCustomBg} />
+                  <ColorPickerInline pickerKey="decoration" value={currentSlide.decorationColor === "transparent" ? "transparent" : (currentSlide.decorationColor || "#a5b4fc")} onChange={function(c) { if (c === "transparent") { updateSlide(activeSlide, "decorationColor", "transparent"); updateSlide(activeSlide, "showAccentBar", false); } else { updateSlide(activeSlide, "decorationColor", c); updateSlide(activeSlide, "showAccentBar", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} disabled={isCustomBg} />
+                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Decorations</span>
+                  <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
+                  <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor || "#a5b4fc"} onChange={function(c) { updateSlide(activeSlide, "accentColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Accent</span>
                   <span style={{ fontSize: 11, color: SURFACE.muted, marginLeft: SPACE[6] }}>**word** = accent color</span>
                 </div>

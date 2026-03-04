@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Split Accent swatch into Decorations + Accent
+- What changed: The single "Accent" color swatch now splits into two independent swatches: "Decorations" (controls accent bar under title + card checkmark circles) and "Accent" (controls `**word**` bold text color only). Added `decorationColor` property to the slide model, render pipeline, sync-all, and preset serialization. Removed transparent option from the Accent swatch (Decorations retains it to hide bar/checkmarks).
+- Why: Users need independent control over decorative element colors vs bold-word text accent color.
+- Files: `src/slideFactory.js`, `src/canvas/renderSlide.js`, `src/canvas/renderSlideContent.js`, `src/App.jsx`, `src/useSlideManagement.js`, `src/usePresets.js`, `linkedin-carousel.jsx`, `CHANGES.md`.
+- Validation: Smoke-tested in Playwright — verified independent color control, accent bar uses decoration color, `**word**` uses accent color, UI layout correct.
+
 ## 2026-03-04 - Merge Base + Layer swatches, add Solid shape
 - What changed: Removed the Base swatch from the Background row and merged its fill-color functionality into the Layer swatch. The Layer popup now has dual-color sections (Fill + Pattern) stacked vertically, with the pattern section hidden when Solid is selected. Added "Solid" as the first entry in GEO_SHAPES — selecting it disables the geo pattern and shows only the fill color. The swatch button shows a diagonal split when a pattern is active or a solid fill when Solid is selected. Removed the transparent option from the Layer swatch.
 - Why: Simplifies the Background row from 4 swatches to 3 and gives users unified control over both fill and pattern colors in one place.

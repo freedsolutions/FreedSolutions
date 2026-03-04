@@ -186,6 +186,7 @@ function useSlideManagement(deps) {
               // Frame
               frameEnabled: src.frameEnabled,
               accentColor: src.accentColor,
+              decorationColor: src.decorationColor,
               borderColor: src.borderColor,
               borderOpacity: src.borderOpacity,
               // Profile
