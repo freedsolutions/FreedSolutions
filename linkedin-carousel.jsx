@@ -407,6 +407,26 @@ function drawGeoWaves(ctx, lcR, lcG, lcB, opScale) {
   ctx.lineWidth = 1.2;
   for (var i = 0; i < curves.length; i++) {
     var c = curves[i];
+    // Every other pair: fill between this curve and the next curve
+    if (i % 2 === 0 && i + 1 < curves.length) {
+      var n = curves[i + 1];
+      ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (c.a * 0.35 * opScale) + ")";
+      ctx.beginPath();
+      // Trace top wave left-to-right
+      ctx.moveTo(-10, c.y + Math.sin(c.phase) * c.amp);
+      for (var fx = 0; fx <= W + 10; fx += 4) {
+        var ft = (fx / W) * Math.PI * 2 * c.freq + c.phase;
+        ctx.lineTo(fx, c.y + Math.sin(ft) * c.amp);
+      }
+      // Trace bottom wave right-to-left
+      for (var bx = W + 10; bx >= -10; bx -= 4) {
+        var bt = (bx / W) * Math.PI * 2 * n.freq + n.phase;
+        ctx.lineTo(bx, n.y + Math.sin(bt) * n.amp);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Stroke the wave line
     ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (c.a * opScale) + ")";
     ctx.beginPath();
     ctx.moveTo(-10, c.y + Math.sin(c.phase) * c.amp);
