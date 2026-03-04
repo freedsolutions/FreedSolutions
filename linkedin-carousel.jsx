@@ -2767,7 +2767,6 @@ export default function App() {
               {/* -- Background color swatches -- */}
               <div style={{ display: "flex", alignItems: "center", gap: SPACE[4], marginBottom: SPACE[4] }}>
                 <label style={Object.assign({}, labelStyle, { marginBottom: 0 })}>BACKGROUND</label>
-                <div style={{ flex: 1 }} />
                 <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Base</span>
