@@ -49,7 +49,7 @@ function ColorPickerInline(props) {
         }}
       />
       {isOpen && (
-        <div style={pickerDropdownStyle}>
+        <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
           {hasTypography && (
             <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
               <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { onFontFamilyChange(e.target.value); }}

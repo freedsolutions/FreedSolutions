@@ -37,7 +37,7 @@ function extractAccentMarkers(text) {
 
 function renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor, accentColor, markers, lineOffset, fontFamily, fontItalic) {
   var family = fontFamily || DEFAULT_FONT;
-  if (!markers || markers.length === 0) {
+  if (!markers || markers.length === 0 || accentColor === "transparent") {
     ctx.font = composeFont(family, fontSize, baseWeight, !!fontItalic);
     ctx.fillStyle = baseColor;
     ctx.fillText(line, x, y);

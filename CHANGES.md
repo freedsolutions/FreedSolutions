@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Slide N panel: stack swatches, move Accent to Heading, default text
+- What changed: (1) Footer & Pic section swatches now stack vertically — Text on top, Base underneath — with pipe separator removed. (2) Moved Accent color swatch from Background section to Heading section, stacked below Text swatch. Accent picker now supports transparent "none" selection that disables both the accent bar and inline accent text highlighting. Removed the dual-purpose Accent toggle button; Cards mode now shows a dedicated "Checks" button instead. (3) Changed Bottom Corner default text from "Brand Name" to "01 / ".
+- Why: Better visual grouping of swatch controls and cleaner accent on/off UX.
+- Files: `src/App.jsx`, `src/canvas/text.js`, `src/slideFactory.js`, `src/ColorPickerInline.jsx`, `CHANGES.md`.
+- Validation: Playwright smoke test confirmed all three changes render correctly on canvas and in panel UI.
+
 ## 2026-03-03 - Enforce explicit question delivery before implementation
 - What changed: Hardened `CLAUDE.md` so Phase 1/2 questions must be sent as an explicit chat message and answered before continuing. Added explicit rule that preparing questions internally does not satisfy the phase. Added a required no-question fallback message (`No blocking questions; proceeding with stated assumptions:` + assumptions list). Added a hard guardrail blocking Phase 3 code changes until this ask/wait gate is satisfied.
 - Why: Agents could appear to prepare questions but still skip actually asking, causing misalignment before implementation.

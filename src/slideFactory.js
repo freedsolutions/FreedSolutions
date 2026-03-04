@@ -40,7 +40,7 @@ function makeDefaultSlide(title, body) {
     topCornerItalic: false,
     topCornerOpacity: 40,
     showBottomCorner: false,
-    bottomCornerText: "Brand Name",
+    bottomCornerText: "01 / ",
     bottomCornerColor: "#ffffff",
     bottomCornerFontFamily: DEFAULT_FONT,
     bottomCornerBold: false,
