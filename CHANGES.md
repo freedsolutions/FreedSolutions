@@ -2,6 +2,13 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Disable AskUserQuestion path for alignment gates
+- What changed: Hardened `CLAUDE.md` so Phase 1/2 alignment questions must be asked in plain chat only, explicitly disallowing `AskUserQuestion` for those gates. Added empty/unclear response handling rule: treat blank payloads as unanswered and re-ask in plain chat. Added matching hard guardrail. Removed `AskUserQuestion` from `.claude/settings.json` allow-list and local settings to prevent the buggy tool path from being selected.
+- Why: `AskUserQuestion` was returning empty/ambiguous answer payloads in practice, causing false "answered" states and skipped alignment pauses.
+- Files: `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json`, `CHANGES.md`.
+- Validation: Verified Phase 1/2 now require plain-chat questions, guardrail language is present, and `AskUserQuestion` is absent from both permission allow-lists.
+- Notes/Risks: If tooling behavior changes in the future, this can be revisited; plain-chat ask/wait is currently the most reliable path.
+
 ## 2026-03-04 - Automate smoke artifact filing on every commit
 - What changed: Added `scripts/archive-smoke-artifacts.js` to file away Playwright MCP logs and smoke-test/layout screenshots into `.playwright-mcp/archive/<timestamp>/` and clear them from repo root/working artifact locations (`.playwright-mcp/`, `test-results/`, root `smoke-test*.png`, `slide-panel*.png`, `layer-*-test.png`, `final-layout.png`). Added tracked pre-commit hook `.githooks/pre-commit` to run this script automatically on every commit. Updated `CLAUDE.md` Commit gate, Git Policy, and Hard Guardrails to require and document this hygiene flow.
 - Why: Keep commits clean and deterministic while preserving smoke artifacts for local debugging/history instead of scattering them in the repo root.
