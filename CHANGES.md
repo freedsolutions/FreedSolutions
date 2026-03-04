@@ -3,7 +3,7 @@ Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
 ## 2026-03-04 - Move Accent swatch from Heading to Background section
-- What changed: Moved the Accent color swatch from the Heading section to the Background section, placed after Frame with a pipe separator. Accent swatch is now always visible (not conditional on Heading toggle).
+- What changed: Moved the Accent color swatch from the Heading section to the Background section, placed after Frame with a pipe separator. Accent swatch is now always visible (not conditional on Heading toggle). Moved the `**word** = accent color` hint text from the bottom of the pane to inline after the Accent label.
 - Why: Better grouping — accent is a slide-level color concern like the other background swatches.
 - Files: `src/App.jsx`, `CHANGES.md`.
 

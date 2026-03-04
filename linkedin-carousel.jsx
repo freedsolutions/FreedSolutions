@@ -2779,6 +2779,7 @@ export default function App() {
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                   <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor === "transparent" ? "transparent" : (currentSlide.accentColor || "#a5b4fc")} onChange={function(c) { if (c === "transparent") { updateSlide(activeSlide, "accentColor", "transparent"); updateSlide(activeSlide, "showAccentBar", false); } else { updateSlide(activeSlide, "accentColor", c); updateSlide(activeSlide, "showAccentBar", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} disabled={isCustomBg} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Accent</span>
+                  <span style={{ fontSize: 11, color: SURFACE.muted, marginLeft: SPACE[6] }}>**word** = accent color</span>
                 </div>
               </div>
 
@@ -2958,10 +2959,6 @@ export default function App() {
                   )}
                 </div>
               )}
-              {/* Accent color hint */}
-              <div style={{ marginTop: SPACE[4], textAlign: "center" }}>
-                <span style={{ fontSize: 14, color: SURFACE.muted }}>**word** = accent color</span>
-              </div>
             </div>
           )}
 
