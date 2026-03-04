@@ -10,3 +10,6 @@ Thumbs.db
 
 # Playwright smoke test artifacts
 test-results/
+.playwright-mcp/
+smoke-test*.png
+slide-panel*.png
