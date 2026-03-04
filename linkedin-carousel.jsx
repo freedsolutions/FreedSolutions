@@ -3312,22 +3312,29 @@ export default function App() {
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : SURFACE.muted, letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
                 <div style={{ flex: 1 }} />
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: currentSlide.showCards ? 1 : 0.35 }}>
-                  <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
-                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: SPACE[2] }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
+                      <ColorPickerInline pickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} value={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")} onChange={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker}
+                        fontFamily={currentSlide.showCards ? currentSlide.cardFontFamily : currentSlide.bodyFontFamily} onFontFamilyChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardFontFamily" : "bodyFontFamily", v, true); }}
+                        bold={currentSlide.showCards ? currentSlide.cardBold : currentSlide.bodyBold} onBoldChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardBold" : "bodyBold", v, true); }}
+                        italic={currentSlide.showCards ? currentSlide.cardItalic : currentSlide.bodyItalic} onItalicChange={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardItalic" : "bodyItalic", v, true); }} />
+                      <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], opacity: currentSlide.showCards ? 1 : 0.35 }}>
+                      <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
+                      <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 0, background: SURFACE.input, borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, height: SIZE.stepper, overflow: "hidden" }}>
+                    <button onClick={function() { var sk = currentSlide.showCards ? "cardText" : "body"; if (sizes[sk] > 12) setSize(sk, sizes[sk] - 1); }}
+                      style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>{"\u2212"}</button>
+                    <input value={sizes[currentSlide.showCards ? "cardText" : "body"]} onChange={function(e) { var v = parseInt(e.target.value, 10); if (!isNaN(v)) setSize(currentSlide.showCards ? "cardText" : "body", Math.max(12, Math.min(100, v))); }}
+                      style={{ width: SIZE.stepperInput, height: SIZE.stepper, border: "none", borderLeft: "1px solid " + SURFACE.border, borderRight: "1px solid " + SURFACE.border, background: "transparent", color: SURFACE.dimmed, fontSize: 11, fontFamily: "monospace", textAlign: "center", padding: 0, outline: "none" }} />
+                    <button onClick={function() { var sk = currentSlide.showCards ? "cardText" : "body"; if (sizes[sk] < 100) setSize(sk, sizes[sk] + 1); }}
+                      style={{ minWidth: SIZE.stepper, minHeight: SIZE.stepper, border: "none", background: "transparent", color: SURFACE.muted, cursor: "pointer", fontSize: 14, padding: 0, lineHeight: SIZE.stepper + "px" }}>+</button>
+                  </div>
                 </div>
-                <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
-                <SizeControl sizeKey={currentSlide.showCards ? "cardText" : "body"} min={12} max={100} sizes={sizes} setSize={setSize}
-                  swatchLabel="Text"
-                  colorVal={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")}
-                  colorSet={function(c) { updateSlide(activeSlide, currentSlide.showCards ? "cardTextColor" : "bodyColor", c); }}
-                  colorPickerKey={"s-" + activeSlide + (currentSlide.showCards ? "-cardtext" : "-body")} openPicker={openPicker} setOpenPicker={setOpenPicker}
-                  fontFamily={currentSlide.showCards ? currentSlide.cardFontFamily : currentSlide.bodyFontFamily}
-                  fontFamilySet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardFontFamily" : "bodyFontFamily", v, true); }}
-                  boldVal={currentSlide.showCards ? currentSlide.cardBold : currentSlide.bodyBold}
-                  boldSet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardBold" : "bodyBold", v, true); }}
-                  italicVal={currentSlide.showCards ? currentSlide.cardItalic : currentSlide.bodyItalic}
-                  italicSet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardItalic" : "bodyItalic", v, true); }} />
               </div>
 
               {/* Body content */}
