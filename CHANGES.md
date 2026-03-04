@@ -2,6 +2,11 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Move Accent swatch from Heading to Background section
+- What changed: Moved the Accent color swatch from the Heading section to the Background section, placed after Frame with a pipe separator. Accent swatch is now always visible (not conditional on Heading toggle).
+- Why: Better grouping — accent is a slide-level color concern like the other background swatches.
+- Files: `src/App.jsx`, `CHANGES.md`.
+
 ## 2026-03-04 - Slide N panel: stack swatches, move Accent to Heading, default text
 - What changed: (1) Footer & Pic section swatches now stack vertically — Text on top, Base underneath — with pipe separator removed. (2) Moved Accent color swatch from Background section to Heading section, stacked below Text swatch. Accent picker now supports transparent "none" selection that disables both the accent bar and inline accent text highlighting. Removed the dual-purpose Accent toggle button; Cards mode now shows a dedicated "Checks" button instead. (3) Changed Bottom Corner default text from "Brand Name" to "01 / ".
 - Why: Better visual grouping of swatch controls and cleaner accent on/off UX.
