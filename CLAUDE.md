@@ -109,7 +109,7 @@ This is the single pause point before code changes begin.
 - If Playwright MCP is unavailable or the local server isn't running, stop and ask the user to fix it before continuing
 
 **Commit gate (final step before review):**
-- Run `node scripts/archive-smoke-artifacts.js` to file away Playwright MCP logs and smoke screenshots from repo root, `.playwright-mcp/`, and `test-results/`
+- Run `node scripts/archive-smoke-artifacts.js` to file away Playwright MCP logs, `test-results/` output, and all untracked root image artifacts (any `.png/.jpg/.jpeg/.webp/.gif` name)
 - Add `CHANGES.md` entry if behavior changed
 - Verify `git status` reflects only intended task files
 - Commit all changed files atomically (source + artifact + docs)
@@ -167,7 +167,7 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Do not add `package.json`, `node_modules`, or npm dependencies — the repo is intentionally zero-dep.
 - When adding a new source file, add it to `ORDER` in `build.js` — files not in `ORDER` are silently excluded from the artifact.
 - Do not commit without a passing Playwright smoke test. If the smoke test cannot run, stop and ask.
-- Do not commit raw Playwright MCP logs or smoke screenshots from repo root; archive them via `node scripts/archive-smoke-artifacts.js`.
+- Do not commit raw Playwright MCP logs, `test-results/` artifacts, or untracked root image artifacts; archive them via `node scripts/archive-smoke-artifacts.js`.
 - Do not hand off for user review until a local commit is created and its hash is reported.
 - Do not request permission for an action until the Permission Preflight checklist above has been completed.
 - Do not start Phase 3 code changes until the Phase 1/2 question message has been sent and answered (or a no-blockers assumptions message has been sent).

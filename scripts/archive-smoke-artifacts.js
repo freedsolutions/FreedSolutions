@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
 const repoRoot = path.resolve(__dirname, "..");
 const archiveStamp = new Date()
@@ -12,12 +13,7 @@ const archiveStamp = new Date()
   .replace("T", "-");
 const archiveRoot = path.join(repoRoot, ".playwright-mcp", "archive", archiveStamp);
 
-const ROOT_SCREENSHOT_PATTERNS = [
-  /^smoke-test.*\.png$/i,
-  /^slide-panel.*\.png$/i,
-  /^layer-.*-test\.png$/i,
-  /^final-layout\.png$/i,
-];
+const ROOT_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 
 function exists(targetPath) {
   return fs.existsSync(targetPath);
@@ -70,14 +66,33 @@ function pruneEmptyDirs(startPath, stopPath) {
   }
 }
 
+function getUntrackedRepoPaths() {
+  try {
+    const output = execSync("git ls-files --others --exclude-standard", {
+      cwd: repoRoot,
+      stdio: ["ignore", "pipe", "pipe"],
+      encoding: "utf8",
+    });
+    return output.split(/\r?\n/).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function isUntrackedRootImage(relPath) {
+  if (!relPath) return false;
+  if (relPath.includes("/") || relPath.includes("\\")) return false;
+  const ext = path.extname(relPath).toLowerCase();
+  return ROOT_IMAGE_EXTENSIONS.has(ext);
+}
+
 const candidates = [];
 
-for (const entry of fs.readdirSync(repoRoot, { withFileTypes: true })) {
-  if (!entry.isFile()) continue;
-  if (!ROOT_SCREENSHOT_PATTERNS.some((pattern) => pattern.test(entry.name))) continue;
+for (const relPath of getUntrackedRepoPaths()) {
+  if (!isUntrackedRootImage(relPath)) continue;
   candidates.push({
-    srcPath: path.join(repoRoot, entry.name),
-    relPath: path.join("repo-root", entry.name),
+    srcPath: path.join(repoRoot, relPath),
+    relPath: path.join("repo-root", path.basename(relPath)),
   });
 }
 

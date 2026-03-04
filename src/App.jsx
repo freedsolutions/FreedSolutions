@@ -516,13 +516,6 @@ export default function App() {
                   style={toggleBtn(currentSlide.showHeading)}>
                   {currentSlide.showHeading ? "ON" : "OFF"}
                 </button>
-                {currentSlide.showCards && (
-                  <button onClick={function() { updateSlide(activeSlide, "showCardChecks", !(currentSlide.showCardChecks !== false), true); }}
-                    title="Card checkmarks"
-                    style={Object.assign({}, smallBtnStyle, { marginLeft: SPACE[2], padding: SPACE[1] + "px " + SPACE[4] + "px", background: (currentSlide.showCardChecks !== false) ? CLR.activeOverlay2 : SURFACE.input, color: (currentSlide.showCardChecks !== false) ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 10, lineHeight: "14px" })}>
-                    Checks
-                  </button>
-                )}
                 {currentSlide.showHeading && (
                   <>
                     <div style={{ flex: 1 }} />

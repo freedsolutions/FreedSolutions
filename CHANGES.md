@@ -2,6 +2,13 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Archive all untracked root images (not prefix-based)
+- What changed: Updated `scripts/archive-smoke-artifacts.js` so root image cleanup is no longer tied to filename prefixes. The script now archives all untracked root image files by extension (`.png/.jpg/.jpeg/.webp/.gif`), plus existing `.playwright-mcp/` and `test-results/` artifacts. Updated `CLAUDE.md` Commit gate and guardrail wording to reflect extension-based root image cleanup.
+- Why: Claude can generate varying screenshot filenames; prefix matching was brittle and missed artifacts.
+- Files: `scripts/archive-smoke-artifacts.js`, `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verified script includes git-untracked root image detection and workflow text references extension-based cleanup.
+- Notes/Risks: Intentional new root images that are still untracked will also be archived unless they are staged first.
+
 ## 2026-03-04 - Split Accent swatch into Decorations + Accent
 - What changed: The single "Accent" color swatch now splits into two independent swatches: "Decorations" (controls accent bar under title + card checkmark circles) and "Accent" (controls `**word**` bold text color only). Added `decorationColor` property to the slide model, render pipeline, sync-all, and preset serialization. Removed transparent option from the Accent swatch (Decorations retains it to hide bar/checkmarks).
 - Why: Users need independent control over decorative element colors vs bold-word text accent color.
