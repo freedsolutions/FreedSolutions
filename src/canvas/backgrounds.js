@@ -1,4 +1,4 @@
-﻿// ---------------------------------------
+// ---------------------------------------
 // Background renderers
 // ---------------------------------------
 
@@ -7,22 +7,10 @@ function drawSolidBg(ctx, color) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawGeoBg(ctx, baseColor, lineColor, geoOpacity) {
-  var opScale = (geoOpacity != null ? geoOpacity : 100) / 100;
-  if (baseColor) {
-    ctx.fillStyle = baseColor;
-    ctx.fillRect(0, 0, W, H);
-  }
-  var lc = lineColor || "#a0a0af";
-  var lcR = 160, lcG = 160, lcB = 175;
-  if (lc.charAt(0) === "#" && lc.length >= 7) {
-    var pr = parseInt(lc.slice(1,3), 16);
-    var pg = parseInt(lc.slice(3,5), 16);
-    var pb = parseInt(lc.slice(5,7), 16);
-    if (!isNaN(pr)) lcR = pr;
-    if (!isNaN(pg)) lcG = pg;
-    if (!isNaN(pb)) lcB = pb;
-  }
+// --- Shape-specific drawing functions ---
+// All share signature: (ctx, lcR, lcG, lcB, opScale)
+
+function drawGeoLines(ctx, lcR, lcG, lcB, opScale) {
   var spheres = [
     { x: -30, y: 220, r: 170, a: 0.10 },
     { x: -10, y: 800, r: 150, a: 0.08 },
@@ -63,6 +51,92 @@ function drawGeoBg(ctx, baseColor, lineColor, geoOpacity) {
   }
 }
 
+function drawGeoDots(ctx, lcR, lcG, lcB, opScale) {
+  ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.12 * opScale) + ")";
+  for (var y = 20; y < H; y += 40) {
+    for (var x = 20; x < W; x += 40) {
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawGeoCircles(ctx, lcR, lcG, lcB, opScale) {
+  var cx = W / 2, cy = H / 2;
+  var maxR = 550;
+  var rings = 8;
+  ctx.lineWidth = 1.0;
+  for (var i = 1; i <= rings; i++) {
+    var a = (0.04 + 0.06 * (1 - (i - 1) / (rings - 1))) * opScale;
+    ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + a + ")";
+    ctx.beginPath();
+    ctx.arc(cx, cy, (i / rings) * maxR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawGeoStripes(ctx, lcR, lcG, lcB, opScale) {
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.07 * opScale) + ")";
+  ctx.lineWidth = 1.0;
+  for (var d = -1000; d < 1600; d += 50) {
+    ctx.beginPath();
+    ctx.moveTo(d, 0);
+    ctx.lineTo(d - H, H);
+    ctx.stroke();
+  }
+}
+
+function drawGeoHex(ctx, lcR, lcG, lcB, opScale) {
+  var side = 30;
+  var colStep = side * 1.5;
+  var rowStep = Math.sqrt(3) * side;
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.07 * opScale) + ")";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (var col = -1; col * colStep < W + side * 2; col++) {
+    for (var row = -1; row * rowStep < H + side * 2; row++) {
+      var cx = col * colStep;
+      var cy = row * rowStep + (col % 2 !== 0 ? rowStep / 2 : 0);
+      for (var a = 0; a < 6; a++) {
+        var angle = Math.PI / 3 * a;
+        var px = cx + side * Math.cos(angle);
+        var py = cy + side * Math.sin(angle);
+        if (a === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+  }
+  ctx.stroke();
+}
+
+// --- Dispatcher ---
+
+function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
+  var opScale = (geoOpacity != null ? geoOpacity : 100) / 100;
+  if (baseColor) {
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(0, 0, W, H);
+  }
+  var lc = lineColor || "#a0a0af";
+  var lcR = 160, lcG = 160, lcB = 175;
+  if (lc.charAt(0) === "#" && lc.length >= 7) {
+    var pr = parseInt(lc.slice(1,3), 16);
+    var pg = parseInt(lc.slice(3,5), 16);
+    var pb = parseInt(lc.slice(5,7), 16);
+    if (!isNaN(pr)) lcR = pr;
+    if (!isNaN(pg)) lcG = pg;
+    if (!isNaN(pb)) lcB = pb;
+  }
+  var shape = geoShape || "lines";
+  if (shape === "dots") drawGeoDots(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "circles") drawGeoCircles(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "stripes") drawGeoStripes(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "hex") drawGeoHex(ctx, lcR, lcG, lcB, opScale);
+  else drawGeoLines(ctx, lcR, lcG, lcB, opScale);
+}
+
 function drawCustomBg(ctx, img) {
   if (!img.width || !img.height) return;
   var imgRatio = img.width / img.height;
@@ -80,13 +154,13 @@ function drawCustomBg(ctx, img) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled, geoOpacity) {
+function renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled, geoOpacity, geoShape) {
   if (bgType === "custom" && customImg) {
     drawCustomBg(ctx, customImg);
   } else {
     drawSolidBg(ctx, solidColor);
     if (geoEnabled) {
-      drawGeoBg(ctx, null, geoLines, geoOpacity);
+      drawGeoBg(ctx, null, geoLines, geoOpacity, geoShape);
     }
   }
 }

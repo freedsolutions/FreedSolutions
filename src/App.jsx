@@ -24,7 +24,8 @@ export default function App() {
     if (!openPicker) return;
     var handler = function(e) {
       var picker = document.querySelector('[data-picker="' + openPicker + '"]');
-      if (picker && !picker.contains(e.target)) {
+      var portal = document.querySelector('[data-picker-portal="' + openPicker + '"]');
+      if (picker && !picker.contains(e.target) && (!portal || !portal.contains(e.target))) {
         setOpenPicker(null);
       }
     };
@@ -410,7 +411,7 @@ export default function App() {
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Base</span>
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
-                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} />
+                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} geoShape={currentSlide.geoShape || "lines"} onShapeChange={function(s) { updateBgField("geoShape", s); }} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Layer</span>
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                   <ColorPickerInline pickerKey="border" value={currentSlide.frameEnabled ? (currentSlide.borderColor || "#fff") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("frameEnabled", false); } else { updateBgField("borderColor", c); updateBgField("frameEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />

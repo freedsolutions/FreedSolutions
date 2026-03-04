@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 // ---------------------------------------
 // Canvas Constants
@@ -93,6 +94,14 @@ function composeFont(family, size, weight, italic) {
   parts.push(family || DEFAULT_FONT);
   return parts.join(" ");
 }
+
+var GEO_SHAPES = [
+  { id: "lines",   label: "Lines" },
+  { id: "dots",    label: "Dots" },
+  { id: "circles", label: "Circles" },
+  { id: "stripes", label: "Stripes" },
+  { id: "hex",     label: "Hexagons" }
+];
 
 // ===================================================
 // Layout Tokens — design system constants
@@ -303,22 +312,10 @@ function drawSolidBg(ctx, color) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawGeoBg(ctx, baseColor, lineColor, geoOpacity) {
-  var opScale = (geoOpacity != null ? geoOpacity : 100) / 100;
-  if (baseColor) {
-    ctx.fillStyle = baseColor;
-    ctx.fillRect(0, 0, W, H);
-  }
-  var lc = lineColor || "#a0a0af";
-  var lcR = 160, lcG = 160, lcB = 175;
-  if (lc.charAt(0) === "#" && lc.length >= 7) {
-    var pr = parseInt(lc.slice(1,3), 16);
-    var pg = parseInt(lc.slice(3,5), 16);
-    var pb = parseInt(lc.slice(5,7), 16);
-    if (!isNaN(pr)) lcR = pr;
-    if (!isNaN(pg)) lcG = pg;
-    if (!isNaN(pb)) lcB = pb;
-  }
+// --- Shape-specific drawing functions ---
+// All share signature: (ctx, lcR, lcG, lcB, opScale)
+
+function drawGeoLines(ctx, lcR, lcG, lcB, opScale) {
   var spheres = [
     { x: -30, y: 220, r: 170, a: 0.10 },
     { x: -10, y: 800, r: 150, a: 0.08 },
@@ -359,6 +356,92 @@ function drawGeoBg(ctx, baseColor, lineColor, geoOpacity) {
   }
 }
 
+function drawGeoDots(ctx, lcR, lcG, lcB, opScale) {
+  ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.12 * opScale) + ")";
+  for (var y = 20; y < H; y += 40) {
+    for (var x = 20; x < W; x += 40) {
+      ctx.beginPath();
+      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawGeoCircles(ctx, lcR, lcG, lcB, opScale) {
+  var cx = W / 2, cy = H / 2;
+  var maxR = 550;
+  var rings = 8;
+  ctx.lineWidth = 1.0;
+  for (var i = 1; i <= rings; i++) {
+    var a = (0.04 + 0.06 * (1 - (i - 1) / (rings - 1))) * opScale;
+    ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + a + ")";
+    ctx.beginPath();
+    ctx.arc(cx, cy, (i / rings) * maxR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawGeoStripes(ctx, lcR, lcG, lcB, opScale) {
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.07 * opScale) + ")";
+  ctx.lineWidth = 1.0;
+  for (var d = -1000; d < 1600; d += 50) {
+    ctx.beginPath();
+    ctx.moveTo(d, 0);
+    ctx.lineTo(d - H, H);
+    ctx.stroke();
+  }
+}
+
+function drawGeoHex(ctx, lcR, lcG, lcB, opScale) {
+  var side = 30;
+  var colStep = side * 1.5;
+  var rowStep = Math.sqrt(3) * side;
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.07 * opScale) + ")";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (var col = -1; col * colStep < W + side * 2; col++) {
+    for (var row = -1; row * rowStep < H + side * 2; row++) {
+      var cx = col * colStep;
+      var cy = row * rowStep + (col % 2 !== 0 ? rowStep / 2 : 0);
+      for (var a = 0; a < 6; a++) {
+        var angle = Math.PI / 3 * a;
+        var px = cx + side * Math.cos(angle);
+        var py = cy + side * Math.sin(angle);
+        if (a === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+  }
+  ctx.stroke();
+}
+
+// --- Dispatcher ---
+
+function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
+  var opScale = (geoOpacity != null ? geoOpacity : 100) / 100;
+  if (baseColor) {
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(0, 0, W, H);
+  }
+  var lc = lineColor || "#a0a0af";
+  var lcR = 160, lcG = 160, lcB = 175;
+  if (lc.charAt(0) === "#" && lc.length >= 7) {
+    var pr = parseInt(lc.slice(1,3), 16);
+    var pg = parseInt(lc.slice(3,5), 16);
+    var pb = parseInt(lc.slice(5,7), 16);
+    if (!isNaN(pr)) lcR = pr;
+    if (!isNaN(pg)) lcG = pg;
+    if (!isNaN(pb)) lcB = pb;
+  }
+  var shape = geoShape || "lines";
+  if (shape === "dots") drawGeoDots(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "circles") drawGeoCircles(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "stripes") drawGeoStripes(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "hex") drawGeoHex(ctx, lcR, lcG, lcB, opScale);
+  else drawGeoLines(ctx, lcR, lcG, lcB, opScale);
+}
+
 function drawCustomBg(ctx, img) {
   if (!img.width || !img.height) return;
   var imgRatio = img.width / img.height;
@@ -376,13 +459,13 @@ function drawCustomBg(ctx, img) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled, geoOpacity) {
+function renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled, geoOpacity, geoShape) {
   if (bgType === "custom" && customImg) {
     drawCustomBg(ctx, customImg);
   } else {
     drawSolidBg(ctx, solidColor);
     if (geoEnabled) {
-      drawGeoBg(ctx, null, geoLines, geoOpacity);
+      drawGeoBg(ctx, null, geoLines, geoOpacity, geoShape);
     }
   }
 }
@@ -794,7 +877,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   // Resolve custom bg image
   var customImg = (slide.bgType === "custom" && slide.customBgImage) ? slide.customBgImage : null;
 
-  renderBg(ctx, slide.bgType, slide.solidColor, customImg, slide.geoLines, slide.geoEnabled, slide.geoOpacity);
+  renderBg(ctx, slide.bgType, slide.solidColor, customImg, slide.geoLines, slide.geoEnabled, slide.geoOpacity, slide.geoShape);
 
   // Build render colors from per-slide properties with hard fallbacks for backward-compat
   var renderColors = {
@@ -886,6 +969,7 @@ function makeDefaultSlide(title, body) {
     geoEnabled: true,
     geoLines: "#a0a0af",
     geoOpacity: 100,
+    geoShape: "lines",
     frameEnabled: true,
     accentColor: "#a5b4fc",
     borderColor: "#ffffff",
@@ -1063,6 +1147,65 @@ function buildPdfFromJpegs(jpegPages, pageW, pageH) {
 // Inline Color Picker Component
 // ===================================================
 
+function drawShapeThumbnail(ctx, shapeId, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = SURFACE.inputDeep;
+  ctx.fillRect(0, 0, w, h);
+  var c = SURFACE.dimmed;
+  if (shapeId === "lines") {
+    // Simplified spheres + lines
+    ctx.fillStyle = "rgba(102,102,102,0.3)";
+    ctx.beginPath(); ctx.arc(2, 8, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(26, 22, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.5;
+    var tl = [[0, 2, 28, 18], [4, 0, 24, 28], [0, 14, 28, 6], [10, 0, 0, 20], [18, 0, 28, 22]];
+    for (var i = 0; i < tl.length; i++) {
+      ctx.beginPath(); ctx.moveTo(tl[i][0], tl[i][1]); ctx.lineTo(tl[i][2], tl[i][3]); ctx.stroke();
+    }
+  } else if (shapeId === "dots") {
+    ctx.fillStyle = "rgba(102,102,102,0.5)";
+    for (var y = 4; y < h; y += 5) {
+      for (var x = 4; x < w; x += 5) {
+        ctx.beginPath(); ctx.arc(x, y, 0.8, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  } else if (shapeId === "circles") {
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.5;
+    for (var r = 3; r <= 18; r += 4) {
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2); ctx.stroke();
+    }
+  } else if (shapeId === "stripes") {
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.6;
+    for (var d = -28; d < 56; d += 6) {
+      ctx.beginPath(); ctx.moveTo(d, 0); ctx.lineTo(d - h, h); ctx.stroke();
+    }
+  } else if (shapeId === "hex") {
+    var s = 6;
+    var colSt = s * 1.5;
+    var rowSt = Math.sqrt(3) * s;
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.4;
+    ctx.beginPath();
+    for (var col = 0; col * colSt < w + s; col++) {
+      for (var row = 0; row * rowSt < h + s; row++) {
+        var cx = col * colSt;
+        var cy = row * rowSt + (col % 2 !== 0 ? rowSt / 2 : 0);
+        for (var a = 0; a < 6; a++) {
+          var angle = Math.PI / 3 * a;
+          var px = cx + s * Math.cos(angle);
+          var py = cy + s * Math.sin(angle);
+          if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+      }
+    }
+    ctx.stroke();
+  }
+}
+
 function ColorPickerInline(props) {
   var pickerKey = props.pickerKey;
   var value = props.value || "#ffffff";
@@ -1079,6 +1222,9 @@ function ColorPickerInline(props) {
   var onBoldChange = props.onBoldChange;
   var italic = props.italic;
   var onItalicChange = props.onItalicChange;
+  // Layer shape props (optional)
+  var geoShape = props.geoShape;
+  var onShapeChange = props.onShapeChange;
 
   // Customizable swatches + transparent option (used by Layer picker)
   var swatches = props.swatches || INLINE_SWATCHES;
@@ -1088,9 +1234,150 @@ function ColorPickerInline(props) {
   var isTransparentValue = value === "transparent";
   var isOpen = openPicker === pickerKey && !disabled;
 
+  var swatchBtnRef = useRef(null);
+  var thumbCanvasRefs = useRef({});
+
+  // Draw shape thumbnails when picker opens
+  useEffect(function() {
+    if (!isOpen || !onShapeChange) return;
+    // Small delay to let portal mount
+    var raf = requestAnimationFrame(function() {
+      GEO_SHAPES.forEach(function(shape) {
+        var canvas = thumbCanvasRefs.current[shape.id];
+        if (!canvas) return;
+        var tctx = canvas.getContext("2d");
+        drawShapeThumbnail(tctx, shape.id, 28, 28);
+      });
+    });
+    return function() { cancelAnimationFrame(raf); };
+  }, [isOpen, onShapeChange]);
+
+  // Compute portal position from swatch button
+  var portalStyle = null;
+  if (isOpen && swatchBtnRef.current) {
+    var rect = swatchBtnRef.current.getBoundingClientRect();
+    portalStyle = {
+      position: "fixed",
+      top: rect.bottom + SPACE[2],
+      left: Math.max(4, rect.right - SIZE.pickerWidth),
+      zIndex: Z.dropdown,
+      background: SURFACE.panel,
+      border: "1px solid " + SURFACE.border,
+      borderRadius: RADIUS.xl,
+      padding: SPACE[5],
+      width: SIZE.pickerWidth,
+      boxShadow: CLR.shadow
+    };
+  }
+
+  var popout = isOpen && portalStyle ? (
+    <div data-picker-portal={pickerKey} style={portalStyle}>
+      {hasTypography && (
+        <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
+          <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { onFontFamilyChange(e.target.value); }}
+            style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
+            {FONT_OPTIONS.map(function(f) {
+              return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
+            })}
+          </select>
+          <div style={{ display: "flex", gap: SPACE[2] }}>
+            <button onClick={function() { onBoldChange(!bold); }}
+              title="Bold"
+              style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: bold ? CLR.activeOverlay : SURFACE.input, color: bold ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+            <button onClick={function() { onItalicChange(!italic); }}
+              title="Italic"
+              style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italic ? CLR.activeOverlay : SURFACE.input, color: italic ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+          </div>
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
+        {allowTransparent && (
+          <button onClick={function() { onChange("transparent"); }}
+            title="None (transparent)"
+            style={{
+              width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+              border: isTransparentValue ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+              background: "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
+              backgroundSize: "8px 8px",
+              backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
+              cursor: "pointer", padding: 0,
+              boxShadow: isTransparentValue ? "0 0 0 1px " + CLR.primary : "none"
+            }}
+          />
+        )}
+        {swatches.map(function(c) {
+          return (
+            <button key={c} onClick={function() { onChange(c); }}
+              style={{
+                width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
+                border: value === c ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
+                background: c, cursor: "pointer", padding: 0,
+                boxShadow: value === c ? "0 0 0 1px " + CLR.primary : "none"
+              }}
+            />
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: SPACE[3], alignItems: "center", opacity: isTransparentValue ? 0.4 : 1 }}>
+        <input type="color"
+          value={!isTransparentValue && value && value.charAt(0) === "#" ? value : "#a0a0af"}
+          onChange={function(e) { onChange(e.target.value); }}
+          disabled={isTransparentValue}
+          style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: isTransparentValue ? "default" : "pointer", background: "none", padding: 0 }}
+        />
+        <input value={isTransparentValue ? "none" : value}
+          onChange={function(e) { if (!isTransparentValue) onChange(e.target.value); }}
+          disabled={isTransparentValue}
+          style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
+        />
+      </div>
+      {onOpacityChange && (
+        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+          <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
+          <input type="range" min={0} max={100}
+            value={opacityVal != null ? opacityVal : 100}
+            onChange={function(e) { onOpacityChange(Number(e.target.value)); }}
+            style={{ flex: 1 }}
+          />
+          <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
+            {(opacityVal != null ? opacityVal : 100) + "%"}
+          </span>
+        </div>
+      )}
+      {onShapeChange && (
+        <div style={{ marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+          <span style={{ fontSize: 10, color: SURFACE.dimmed, display: "block", marginBottom: SPACE[3] }}>Pattern</span>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: SPACE[2] }}>
+            {GEO_SHAPES.map(function(shape) {
+              var isActive = (geoShape || "lines") === shape.id;
+              return (
+                <button key={shape.id}
+                  onClick={function() { onShapeChange(shape.id); }}
+                  title={shape.label}
+                  style={{
+                    width: "100%", aspectRatio: "1", borderRadius: RADIUS.sm,
+                    border: isActive ? "2px solid " + CLR.primaryLight : "1px solid " + SURFACE.border,
+                    background: isActive ? CLR.activeOverlay : "transparent",
+                    cursor: "pointer", padding: 1, display: "flex", alignItems: "center", justifyContent: "center"
+                  }}>
+                  <canvas
+                    ref={function(el) { thumbCanvasRefs.current[shape.id] = el; }}
+                    width={28} height={28}
+                    style={{ width: 28, height: 28, borderRadius: 2, display: "block" }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div style={{ position: "relative" }} data-picker={pickerKey}>
       <button
+        ref={swatchBtnRef}
         onClick={function(e) {
           if (disabled) return;
           e.stopPropagation();
@@ -1109,82 +1396,7 @@ function ColorPickerInline(props) {
           padding: 0, display: "block"
         }}
       />
-      {isOpen && (
-        <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
-          {hasTypography && (
-            <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
-              <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { onFontFamilyChange(e.target.value); }}
-                style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
-                {FONT_OPTIONS.map(function(f) {
-                  return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
-                })}
-              </select>
-              <div style={{ display: "flex", gap: SPACE[2] }}>
-                <button onClick={function() { onBoldChange(!bold); }}
-                  title="Bold"
-                  style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: bold ? CLR.activeOverlay : SURFACE.input, color: bold ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
-                <button onClick={function() { onItalicChange(!italic); }}
-                  title="Italic"
-                  style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italic ? CLR.activeOverlay : SURFACE.input, color: italic ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
-              </div>
-            </div>
-          )}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
-            {allowTransparent && (
-              <button onClick={function() { onChange("transparent"); }}
-                title="None (transparent)"
-                style={{
-                  width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
-                  border: isTransparentValue ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
-                  background: "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)",
-                  backgroundSize: "8px 8px",
-                  backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0",
-                  cursor: "pointer", padding: 0,
-                  boxShadow: isTransparentValue ? "0 0 0 1px " + CLR.primary : "none"
-                }}
-              />
-            )}
-            {swatches.map(function(c) {
-              return (
-                <button key={c} onClick={function() { onChange(c); }}
-                  style={{
-                    width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm,
-                    border: value === c ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border,
-                    background: c, cursor: "pointer", padding: 0,
-                    boxShadow: value === c ? "0 0 0 1px " + CLR.primary : "none"
-                  }}
-                />
-              );
-            })}
-          </div>
-          <div style={{ display: "flex", gap: SPACE[3], alignItems: "center", opacity: isTransparentValue ? 0.4 : 1 }}>
-            <input type="color"
-              value={!isTransparentValue && value && value.charAt(0) === "#" ? value : "#a0a0af"}
-              onChange={function(e) { onChange(e.target.value); }}
-              disabled={isTransparentValue}
-              style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: isTransparentValue ? "default" : "pointer", background: "none", padding: 0 }}
-            />
-            <input value={isTransparentValue ? "none" : value}
-              onChange={function(e) { if (!isTransparentValue) onChange(e.target.value); }}
-              disabled={isTransparentValue}
-              style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }}
-            />
-          </div>
-          {onOpacityChange && (
-            <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
-              <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
-              <input type="range" min={0} max={100}
-                value={opacityVal != null ? opacityVal : 100}
-                onChange={function(e) { onOpacityChange(Number(e.target.value)); }}
-                style={{ flex: 1 }}
-              />
-              <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>
-                {(opacityVal != null ? opacityVal : 100) + "%"}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+      {popout && createPortal(popout, document.body)}
     </div>
   );
 }
@@ -1226,59 +1438,81 @@ function SizeControl(props) {
   if (!sizeKey) return <label style={labelStyle}>{text}{extra ? " " : ""}{extra}</label>;
 
   var cpOpen = colorPickerKey && openPicker === colorPickerKey;
+  var scSwatchRef = useRef(null);
+
+  // Compute portal position from swatch button
+  var scPortalStyle = null;
+  if (cpOpen && scSwatchRef.current) {
+    var scRect = scSwatchRef.current.getBoundingClientRect();
+    scPortalStyle = {
+      position: "fixed",
+      top: scRect.bottom + SPACE[2],
+      left: Math.max(4, scRect.right - SIZE.pickerWidth),
+      zIndex: Z.dropdown,
+      background: SURFACE.panel,
+      border: "1px solid " + SURFACE.border,
+      borderRadius: RADIUS.xl,
+      padding: SPACE[5],
+      width: SIZE.pickerWidth,
+      boxShadow: CLR.shadow
+    };
+  }
+
+  var scPopout = cpOpen && scPortalStyle ? (
+    <div data-picker-portal={colorPickerKey} style={scPortalStyle}>
+      {hasTypography && (
+        <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
+          <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { fontFamilySet(e.target.value); }}
+            style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
+            {FONT_OPTIONS.map(function(f) {
+              return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
+            })}
+          </select>
+          <div style={{ display: "flex", gap: SPACE[2] }}>
+            <button onClick={function() { boldSet(!boldVal); }}
+              title="Bold"
+              style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: boldVal ? CLR.activeOverlay : SURFACE.input, color: boldVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+            <button onClick={function() { italicSet(!italicVal); }}
+              title="Italic"
+              style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italicVal ? CLR.activeOverlay : SURFACE.input, color: italicVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+          </div>
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
+        {INLINE_SWATCHES.map(function(c) {
+          var active = colorVal === c;
+          return (
+            <button key={c} onClick={function() { colorSet(c); }}
+              style={{ width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm, border: active ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border, background: c, cursor: "pointer", padding: 0, boxShadow: active ? "0 0 0 1px " + CLR.primary : "none" }} />
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
+        <input type="color" value={colorVal && colorVal.charAt(0) === "#" ? colorVal : "#ffffff"} onChange={function(e) { colorSet(e.target.value); }}
+          style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }} />
+        <input value={colorVal || ""} onChange={function(e) { colorSet(e.target.value); }}
+          style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }} />
+      </div>
+      {opacitySet && (
+        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+          <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
+          <input type="range" min={0} max={100} value={opacityVal != null ? opacityVal : 100} onChange={function(e) { opacitySet(Number(e.target.value)); }}
+            style={{ flex: 1 }} />
+          <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>{(opacityVal != null ? opacityVal : 100) + "%"}</span>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div style={{ display: "flex", alignItems: "center", marginBottom: text ? SPACE[3] : 0, gap: text ? 0 : SPACE[3] }}>
       {text && <span style={{ fontWeight: 600, fontSize: 13, color: SURFACE.label, letterSpacing: 0.5, flex: 1 }}>{text}{extra ? " " : ""}{extra}</span>}
       <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
         {colorPickerKey && (
           <div style={{ position: "relative" }} data-picker={colorPickerKey}>
-            <button onClick={function(e) { e.stopPropagation(); setOpenPicker(cpOpen ? null : colorPickerKey); }}
+            <button ref={scSwatchRef} onClick={function(e) { e.stopPropagation(); setOpenPicker(cpOpen ? null : colorPickerKey); }}
               style={{ width: SIZE.swatchBtn, height: SIZE.swatchBtn, borderRadius: RADIUS.sm, border: cpOpen ? "2px solid " + CLR.primary : "1px solid " + SURFACE.border, background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
-            {cpOpen && (
-              <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
-                {hasTypography && (
-                  <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
-                    <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { fontFamilySet(e.target.value); }}
-                      style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
-                      {FONT_OPTIONS.map(function(f) {
-                        return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
-                      })}
-                    </select>
-                    <div style={{ display: "flex", gap: SPACE[2] }}>
-                      <button onClick={function() { boldSet(!boldVal); }}
-                        title="Bold"
-                        style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: boldVal ? CLR.activeOverlay : SURFACE.input, color: boldVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
-                      <button onClick={function() { italicSet(!italicVal); }}
-                        title="Italic"
-                        style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italicVal ? CLR.activeOverlay : SURFACE.input, color: italicVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
-                  {INLINE_SWATCHES.map(function(c) {
-                    var active = colorVal === c;
-                    return (
-                      <button key={c} onClick={function() { colorSet(c); }}
-                        style={{ width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm, border: active ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border, background: c, cursor: "pointer", padding: 0, boxShadow: active ? "0 0 0 1px " + CLR.primary : "none" }} />
-                    );
-                  })}
-                </div>
-                <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
-                  <input type="color" value={colorVal && colorVal.charAt(0) === "#" ? colorVal : "#ffffff"} onChange={function(e) { colorSet(e.target.value); }}
-                    style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }} />
-                  <input value={colorVal || ""} onChange={function(e) { colorSet(e.target.value); }}
-                    style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }} />
-                </div>
-                {opacitySet && (
-                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
-                    <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
-                    <input type="range" min={0} max={100} value={opacityVal != null ? opacityVal : 100} onChange={function(e) { opacitySet(Number(e.target.value)); }}
-                      style={{ flex: 1 }} />
-                    <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>{(opacityVal != null ? opacityVal : 100) + "%"}</span>
-                  </div>
-                )}
-              </div>
-            )}
+            {scPopout && createPortal(scPopout, document.body)}
           </div>
         )}
         {swatchLabel && (
@@ -1549,6 +1783,7 @@ function useSlideManagement(deps) {
               geoEnabled: src.geoEnabled,
               geoLines: src.geoLines,
               geoOpacity: src.geoOpacity,
+              geoShape: src.geoShape,
               // Frame
               frameEnabled: src.frameEnabled,
               accentColor: src.accentColor,
@@ -1981,7 +2216,7 @@ var PRESET_SLIDE_KEYS = [
   "topCornerFontFamily", "topCornerBold", "topCornerItalic", "topCornerOpacity",
   "showBottomCorner", "bottomCornerText", "bottomCornerColor",
   "bottomCornerFontFamily", "bottomCornerBold", "bottomCornerItalic", "bottomCornerOpacity",
-  "solidColor", "bgType", "geoEnabled", "geoLines", "geoOpacity",
+  "solidColor", "bgType", "geoEnabled", "geoLines", "geoOpacity", "geoShape",
   "frameEnabled", "accentColor", "borderColor", "borderOpacity", "footerBg",
   "profilePicName",
   "headingSize", "bodySize", "cardTextSize",
@@ -2385,7 +2620,8 @@ export default function App() {
     if (!openPicker) return;
     var handler = function(e) {
       var picker = document.querySelector('[data-picker="' + openPicker + '"]');
-      if (picker && !picker.contains(e.target)) {
+      var portal = document.querySelector('[data-picker-portal="' + openPicker + '"]');
+      if (picker && !picker.contains(e.target) && (!portal || !portal.contains(e.target))) {
         setOpenPicker(null);
       }
     };
@@ -2771,7 +3007,7 @@ export default function App() {
                   <ColorPickerInline pickerKey="solidColor" value={currentSlide.solidColor || "#fff"} onChange={function(c) { updateBgField("solidColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Base</span>
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
-                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} />
+                  <ColorPickerInline pickerKey="layer" value={currentSlide.geoEnabled ? (currentSlide.geoLines || "#a0a0af") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("geoEnabled", false); } else { updateBgField("geoLines", c); updateBgField("geoEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.geoOpacity} onOpacityChange={function(v) { updateBgField("geoOpacity", v); }} geoShape={currentSlide.geoShape || "lines"} onShapeChange={function(s) { updateBgField("geoShape", s); }} />
                   <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600, opacity: isCustomBg ? 0.35 : 1 }}>Layer</span>
                   <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                   <ColorPickerInline pickerKey="border" value={currentSlide.frameEnabled ? (currentSlide.borderColor || "#fff") : "transparent"} onChange={function(c) { if (c === "transparent") { updateBgField("frameEnabled", false); } else { updateBgField("borderColor", c); updateBgField("frameEnabled", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={isCustomBg} allowTransparent={true} opacityVal={currentSlide.borderOpacity} onOpacityChange={function(v) { updateBgField("borderOpacity", v); }} />

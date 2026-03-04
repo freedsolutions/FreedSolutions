@@ -1,4 +1,5 @@
 ﻿import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 // ---------------------------------------
 // Canvas Constants
@@ -93,3 +94,11 @@ function composeFont(family, size, weight, italic) {
   parts.push(family || DEFAULT_FONT);
   return parts.join(" ");
 }
+
+var GEO_SHAPES = [
+  { id: "lines",   label: "Lines" },
+  { id: "dots",    label: "Dots" },
+  { id: "circles", label: "Circles" },
+  { id: "stripes", label: "Stripes" },
+  { id: "hex",     label: "Hexagons" }
+];

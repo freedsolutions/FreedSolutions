@@ -35,59 +35,81 @@ function SizeControl(props) {
   if (!sizeKey) return <label style={labelStyle}>{text}{extra ? " " : ""}{extra}</label>;
 
   var cpOpen = colorPickerKey && openPicker === colorPickerKey;
+  var scSwatchRef = useRef(null);
+
+  // Compute portal position from swatch button
+  var scPortalStyle = null;
+  if (cpOpen && scSwatchRef.current) {
+    var scRect = scSwatchRef.current.getBoundingClientRect();
+    scPortalStyle = {
+      position: "fixed",
+      top: scRect.bottom + SPACE[2],
+      left: Math.max(4, scRect.right - SIZE.pickerWidth),
+      zIndex: Z.dropdown,
+      background: SURFACE.panel,
+      border: "1px solid " + SURFACE.border,
+      borderRadius: RADIUS.xl,
+      padding: SPACE[5],
+      width: SIZE.pickerWidth,
+      boxShadow: CLR.shadow
+    };
+  }
+
+  var scPopout = cpOpen && scPortalStyle ? (
+    <div data-picker-portal={colorPickerKey} style={scPortalStyle}>
+      {hasTypography && (
+        <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
+          <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { fontFamilySet(e.target.value); }}
+            style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
+            {FONT_OPTIONS.map(function(f) {
+              return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
+            })}
+          </select>
+          <div style={{ display: "flex", gap: SPACE[2] }}>
+            <button onClick={function() { boldSet(!boldVal); }}
+              title="Bold"
+              style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: boldVal ? CLR.activeOverlay : SURFACE.input, color: boldVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
+            <button onClick={function() { italicSet(!italicVal); }}
+              title="Italic"
+              style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italicVal ? CLR.activeOverlay : SURFACE.input, color: italicVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
+          </div>
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
+        {INLINE_SWATCHES.map(function(c) {
+          var active = colorVal === c;
+          return (
+            <button key={c} onClick={function() { colorSet(c); }}
+              style={{ width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm, border: active ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border, background: c, cursor: "pointer", padding: 0, boxShadow: active ? "0 0 0 1px " + CLR.primary : "none" }} />
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
+        <input type="color" value={colorVal && colorVal.charAt(0) === "#" ? colorVal : "#ffffff"} onChange={function(e) { colorSet(e.target.value); }}
+          style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }} />
+        <input value={colorVal || ""} onChange={function(e) { colorSet(e.target.value); }}
+          style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }} />
+      </div>
+      {opacitySet && (
+        <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
+          <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
+          <input type="range" min={0} max={100} value={opacityVal != null ? opacityVal : 100} onChange={function(e) { opacitySet(Number(e.target.value)); }}
+            style={{ flex: 1 }} />
+          <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>{(opacityVal != null ? opacityVal : 100) + "%"}</span>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div style={{ display: "flex", alignItems: "center", marginBottom: text ? SPACE[3] : 0, gap: text ? 0 : SPACE[3] }}>
       {text && <span style={{ fontWeight: 600, fontSize: 13, color: SURFACE.label, letterSpacing: 0.5, flex: 1 }}>{text}{extra ? " " : ""}{extra}</span>}
       <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
         {colorPickerKey && (
           <div style={{ position: "relative" }} data-picker={colorPickerKey}>
-            <button onClick={function(e) { e.stopPropagation(); setOpenPicker(cpOpen ? null : colorPickerKey); }}
+            <button ref={scSwatchRef} onClick={function(e) { e.stopPropagation(); setOpenPicker(cpOpen ? null : colorPickerKey); }}
               style={{ width: SIZE.swatchBtn, height: SIZE.swatchBtn, borderRadius: RADIUS.sm, border: cpOpen ? "2px solid " + CLR.primary : "1px solid " + SURFACE.border, background: colorVal || "#fff", cursor: "pointer", padding: 0, display: "block" }} />
-            {cpOpen && (
-              <div style={Object.assign({}, pickerDropdownStyle, { left: "auto", right: 0 })}>
-                {hasTypography && (
-                  <div style={{ marginBottom: SPACE[4], paddingBottom: SPACE[4], borderBottom: "1px solid " + SURFACE.panelBorder }}>
-                    <select value={fontFamily || DEFAULT_FONT} onChange={function(e) { fontFamilySet(e.target.value); }}
-                      style={{ width: "100%", padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, marginBottom: SPACE[3], cursor: "pointer" }}>
-                      {FONT_OPTIONS.map(function(f) {
-                        return <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>;
-                      })}
-                    </select>
-                    <div style={{ display: "flex", gap: SPACE[2] }}>
-                      <button onClick={function() { boldSet(!boldVal); }}
-                        title="Bold"
-                        style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: boldVal ? CLR.activeOverlay : SURFACE.input, color: boldVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontWeight: 900, lineHeight: "16px" }}>B</button>
-                      <button onClick={function() { italicSet(!italicVal); }}
-                        title="Italic"
-                        style={{ flex: 1, padding: "3px 0", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: italicVal ? CLR.activeOverlay : SURFACE.input, color: italicVal ? CLR.primaryLight : SURFACE.dimmed, cursor: "pointer", fontSize: 12, fontStyle: "italic", fontWeight: 600, lineHeight: "16px" }}>I</button>
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: SPACE[2], marginBottom: SPACE[4] }}>
-                  {INLINE_SWATCHES.map(function(c) {
-                    var active = colorVal === c;
-                    return (
-                      <button key={c} onClick={function() { colorSet(c); }}
-                        style={{ width: SIZE.swatch, height: SIZE.swatch, borderRadius: RADIUS.sm, border: active ? "2px solid " + SURFACE.white : "1px solid " + SURFACE.border, background: c, cursor: "pointer", padding: 0, boxShadow: active ? "0 0 0 1px " + CLR.primary : "none" }} />
-                    );
-                  })}
-                </div>
-                <div style={{ display: "flex", gap: SPACE[3], alignItems: "center" }}>
-                  <input type="color" value={colorVal && colorVal.charAt(0) === "#" ? colorVal : "#ffffff"} onChange={function(e) { colorSet(e.target.value); }}
-                    style={{ width: SIZE.colorInput, height: SIZE.colorInput, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.sm, cursor: "pointer", background: "none", padding: 0 }} />
-                  <input value={colorVal || ""} onChange={function(e) { colorSet(e.target.value); }}
-                    style={{ flex: 1, padding: SPACE[2] + "px " + SPACE[3] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.inputDeep, color: SURFACE.label, fontSize: 11, fontFamily: "monospace" }} />
-                </div>
-                {opacitySet && (
-                  <div style={{ display: "flex", alignItems: "center", gap: SPACE[3], marginTop: SPACE[4], paddingTop: SPACE[4], borderTop: "1px solid " + SURFACE.panelBorder }}>
-                    <span style={{ fontSize: 10, color: SURFACE.dimmed, whiteSpace: "nowrap" }}>Opacity</span>
-                    <input type="range" min={0} max={100} value={opacityVal != null ? opacityVal : 100} onChange={function(e) { opacitySet(Number(e.target.value)); }}
-                      style={{ flex: 1 }} />
-                    <span style={{ fontSize: 10, color: SURFACE.muted, width: SIZE.stepper, textAlign: "right" }}>{(opacityVal != null ? opacityVal : 100) + "%"}</span>
-                  </div>
-                )}
-              </div>
-            )}
+            {scPopout && createPortal(scPopout, document.body)}
           </div>
         )}
         {swatchLabel && (

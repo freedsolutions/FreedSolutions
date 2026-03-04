@@ -182,6 +182,7 @@ function useSlideManagement(deps) {
               geoEnabled: src.geoEnabled,
               geoLines: src.geoLines,
               geoOpacity: src.geoOpacity,
+              geoShape: src.geoShape,
               // Frame
               frameEnabled: src.frameEnabled,
               accentColor: src.accentColor,
