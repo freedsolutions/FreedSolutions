@@ -53,16 +53,22 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       }
     }
 
-    // Draw heading background bubble (frame-aligned, rounded corners)
+    // Draw heading background bubble (tied to actual text metrics)
     var headingBg = slide.headingBgColor || "transparent";
     if (headingBg !== "transparent") {
-      var hBgPadTop = 10;
-      var hBgPadBot = 6;
+      var hBgPad = 10;
+      var hMetrics = ctx.measureText("Hg");
+      var hAscent = hMetrics.actualBoundingBoxAscent;
+      var hDescent = hMetrics.actualBoundingBoxDescent;
+      var hFirstBL = topY + sizes.heading * CANVAS.headingLH;
+      var hLastBL = topY + headingTotalH;
+      var hBgTop = hFirstBL - hAscent - hBgPad;
+      var hBgBot = hLastBL + hDescent + hBgPad;
       var prevAlpha = ctx.globalAlpha;
       ctx.globalAlpha = (slide.headingBgOpacity != null ? slide.headingBgOpacity : 100) / 100;
       ctx.fillStyle = headingBg;
       ctx.beginPath();
-      ctx.roundRect(MARGIN, topY - hBgPadTop, W - MARGIN * 2, headingTotalH + sizes.heading * CANVAS.headingLH + hBgPadTop + hBgPadBot, BORDER_RADIUS);
+      ctx.roundRect(MARGIN, hBgTop, W - MARGIN * 2, hBgBot - hBgTop, BORDER_RADIUS);
       ctx.fill();
       ctx.globalAlpha = prevAlpha;
     }
@@ -203,16 +209,22 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       }
     }
 
-    // Draw body background bubble (frame-aligned, rounded corners)
+    // Draw body background bubble (tied to actual text metrics)
     var bodyBg = slide.bodyBgColor || "transparent";
     if (bodyBg !== "transparent") {
-      var bBgPadTop = 10;
-      var bBgPadBot = 6;
+      var bBgPad = 10;
+      var bMetrics = ctx.measureText("Hg");
+      var bAscent = bMetrics.actualBoundingBoxAscent;
+      var bDescent = bMetrics.actualBoundingBoxDescent;
+      var bFirstBL = bodyStartY;
+      var bLastBL = bodyStartY + bodyTotalH - sizes.body * CANVAS.bodyLH;
+      var bBgTop = bFirstBL - bAscent - bBgPad;
+      var bBgBot = bLastBL + bDescent + bBgPad;
       var prevAlpha = ctx.globalAlpha;
       ctx.globalAlpha = (slide.bodyBgOpacity != null ? slide.bodyBgOpacity : 100) / 100;
       ctx.fillStyle = bodyBg;
       ctx.beginPath();
-      ctx.roundRect(MARGIN, bodyStartY - bBgPadTop, W - MARGIN * 2, bodyTotalH + bBgPadTop + bBgPadBot, BORDER_RADIUS);
+      ctx.roundRect(MARGIN, bBgTop, W - MARGIN * 2, bBgBot - bBgTop, BORDER_RADIUS);
       ctx.fill();
       ctx.globalAlpha = prevAlpha;
     }

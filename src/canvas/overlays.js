@@ -10,10 +10,12 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   var badgeX = (W - badgeW) / 2;
   var badgeY = borderBottom - badgeH / 2;
 
-  ctx.fillStyle = footerBg || "#ffffff";
-  ctx.beginPath();
-  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, CANVAS.footerBadgeRadius);
-  ctx.fill();
+  if (footerBg !== "transparent") {
+    ctx.fillStyle = footerBg || "#ffffff";
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, CANVAS.footerBadgeRadius);
+    ctx.fill();
+  }
 
   ctx.fillStyle = footerText || "#1a1a2e";
   var footerWeight = fontBold !== false ? "bold" : "normal";
@@ -46,11 +48,12 @@ function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fo
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
   if (bgColor && bgColor !== "transparent") {
     var bgPad = 6;
+    var tw = ctx.measureText(text).width;
     var prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
-    ctx.roundRect(MARGIN, MARGIN - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.roundRect(MARGIN - bgPad, MARGIN - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
     ctx.fill();
     ctx.globalAlpha = prevAlpha;
   }
@@ -64,11 +67,12 @@ function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold,
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
   if (bgColor && bgColor !== "transparent") {
     var bgPad = 6;
+    var tw = ctx.measureText(text).width;
     var prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
-    ctx.roundRect(MARGIN, H - MARGIN + 12 - fs - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.roundRect(MARGIN - bgPad, H - MARGIN + 12 - fs - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
     ctx.fill();
     ctx.globalAlpha = prevAlpha;
   }

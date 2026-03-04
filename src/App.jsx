@@ -447,7 +447,7 @@ export default function App() {
                           <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
-                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} />
                           <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                         </div>
                       </div>

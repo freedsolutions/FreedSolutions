@@ -626,10 +626,12 @@ function drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, foote
   var badgeX = (W - badgeW) / 2;
   var badgeY = borderBottom - badgeH / 2;
 
-  ctx.fillStyle = footerBg || "#ffffff";
-  ctx.beginPath();
-  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, CANVAS.footerBadgeRadius);
-  ctx.fill();
+  if (footerBg !== "transparent") {
+    ctx.fillStyle = footerBg || "#ffffff";
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, CANVAS.footerBadgeRadius);
+    ctx.fill();
+  }
 
   ctx.fillStyle = footerText || "#1a1a2e";
   var footerWeight = fontBold !== false ? "bold" : "normal";
@@ -662,11 +664,12 @@ function drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fo
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
   if (bgColor && bgColor !== "transparent") {
     var bgPad = 6;
+    var tw = ctx.measureText(text).width;
     var prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
-    ctx.roundRect(MARGIN, MARGIN - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.roundRect(MARGIN - bgPad, MARGIN - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
     ctx.fill();
     ctx.globalAlpha = prevAlpha;
   }
@@ -680,11 +683,12 @@ function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold,
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
   if (bgColor && bgColor !== "transparent") {
     var bgPad = 6;
+    var tw = ctx.measureText(text).width;
     var prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
-    ctx.roundRect(MARGIN, H - MARGIN + 12 - fs - bgPad, W - MARGIN * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.roundRect(MARGIN - bgPad, H - MARGIN + 12 - fs - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
     ctx.fill();
     ctx.globalAlpha = prevAlpha;
   }
@@ -820,16 +824,22 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       }
     }
 
-    // Draw heading background bubble (frame-aligned, rounded corners)
+    // Draw heading background bubble (tied to actual text metrics)
     var headingBg = slide.headingBgColor || "transparent";
     if (headingBg !== "transparent") {
-      var hBgPadTop = 10;
-      var hBgPadBot = 6;
+      var hBgPad = 10;
+      var hMetrics = ctx.measureText("Hg");
+      var hAscent = hMetrics.actualBoundingBoxAscent;
+      var hDescent = hMetrics.actualBoundingBoxDescent;
+      var hFirstBL = topY + sizes.heading * CANVAS.headingLH;
+      var hLastBL = topY + headingTotalH;
+      var hBgTop = hFirstBL - hAscent - hBgPad;
+      var hBgBot = hLastBL + hDescent + hBgPad;
       var prevAlpha = ctx.globalAlpha;
       ctx.globalAlpha = (slide.headingBgOpacity != null ? slide.headingBgOpacity : 100) / 100;
       ctx.fillStyle = headingBg;
       ctx.beginPath();
-      ctx.roundRect(MARGIN, topY - hBgPadTop, W - MARGIN * 2, headingTotalH + sizes.heading * CANVAS.headingLH + hBgPadTop + hBgPadBot, BORDER_RADIUS);
+      ctx.roundRect(MARGIN, hBgTop, W - MARGIN * 2, hBgBot - hBgTop, BORDER_RADIUS);
       ctx.fill();
       ctx.globalAlpha = prevAlpha;
     }
@@ -970,16 +980,22 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       }
     }
 
-    // Draw body background bubble (frame-aligned, rounded corners)
+    // Draw body background bubble (tied to actual text metrics)
     var bodyBg = slide.bodyBgColor || "transparent";
     if (bodyBg !== "transparent") {
-      var bBgPadTop = 10;
-      var bBgPadBot = 6;
+      var bBgPad = 10;
+      var bMetrics = ctx.measureText("Hg");
+      var bAscent = bMetrics.actualBoundingBoxAscent;
+      var bDescent = bMetrics.actualBoundingBoxDescent;
+      var bFirstBL = bodyStartY;
+      var bLastBL = bodyStartY + bodyTotalH - sizes.body * CANVAS.bodyLH;
+      var bBgTop = bFirstBL - bAscent - bBgPad;
+      var bBgBot = bLastBL + bDescent + bBgPad;
       var prevAlpha = ctx.globalAlpha;
       ctx.globalAlpha = (slide.bodyBgOpacity != null ? slide.bodyBgOpacity : 100) / 100;
       ctx.fillStyle = bodyBg;
       ctx.beginPath();
-      ctx.roundRect(MARGIN, bodyStartY - bBgPadTop, W - MARGIN * 2, bodyTotalH + bBgPadTop + bBgPadBot, BORDER_RADIUS);
+      ctx.roundRect(MARGIN, bBgTop, W - MARGIN * 2, bBgBot - bBgTop, BORDER_RADIUS);
       ctx.fill();
       ctx.globalAlpha = prevAlpha;
     }
@@ -3322,7 +3338,7 @@ export default function App() {
                           <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Text</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: SPACE[3] }}>
-                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} />
+                          <ColorPickerInline pickerKey={"s-" + activeSlide + "-footerBase"} value={currentSlide.footerBg || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "footerBg", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} />
                           <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
                         </div>
                       </div>
