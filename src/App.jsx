@@ -520,6 +520,9 @@ export default function App() {
                 {currentSlide.showHeading && (
                   <>
                     <div style={{ flex: 1 }} />
+                    <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor === "transparent" ? "transparent" : (currentSlide.accentColor || "#a5b4fc")} onChange={function(c) { if (c === "transparent") { updateSlide(activeSlide, "accentColor", "transparent"); updateSlide(activeSlide, "showAccentBar", false); } else { updateSlide(activeSlide, "accentColor", c); updateSlide(activeSlide, "showAccentBar", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} />
+                    <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Accent</span>
+                    <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                     <SizeControl sizeKey="heading" min={24} max={160} sizes={sizes} setSize={setSize}
                       swatchLabel="Text"
                       colorVal={currentSlide.titleColor} colorSet={function(c) { updateSlide(activeSlide, "titleColor", c); }}
@@ -527,9 +530,6 @@ export default function App() {
                       fontFamily={currentSlide.titleFontFamily} fontFamilySet={function(v) { updateSlide(activeSlide, "titleFontFamily", v, true); }}
                       boldVal={currentSlide.titleBold} boldSet={function(v) { updateSlide(activeSlide, "titleBold", v, true); }}
                       italicVal={currentSlide.titleItalic} italicSet={function(v) { updateSlide(activeSlide, "titleItalic", v, true); }} />
-                    <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
-                    <ColorPickerInline pickerKey="accent" value={currentSlide.accentColor === "transparent" ? "transparent" : (currentSlide.accentColor || "#a5b4fc")} onChange={function(c) { if (c === "transparent") { updateSlide(activeSlide, "accentColor", "transparent"); updateSlide(activeSlide, "showAccentBar", false); } else { updateSlide(activeSlide, "accentColor", c); updateSlide(activeSlide, "showAccentBar", true); } }} openPicker={openPicker} setOpenPicker={setOpenPicker} allowTransparent={true} />
-                    <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Accent</span>
                   </>
                 )}
               </div>
@@ -550,6 +550,11 @@ export default function App() {
                 <span onClick={function() { updateSlide(activeSlide, "showCards", true); }}
                   style={{ fontWeight: 600, fontSize: 13, color: currentSlide.showCards ? GREEN : SURFACE.muted, letterSpacing: 0.5, cursor: "pointer" }}>CARDS</span>
                 <div style={{ flex: 1 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], opacity: currentSlide.showCards ? 1 : 0.35 }}>
+                  <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
+                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
+                </div>
+                <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
                 <SizeControl sizeKey={currentSlide.showCards ? "cardText" : "body"} min={12} max={100} sizes={sizes} setSize={setSize}
                   swatchLabel="Text"
                   colorVal={currentSlide.showCards ? (currentSlide.cardTextColor || "#333333") : (currentSlide.bodyColor || "#ffffff")}
@@ -561,11 +566,6 @@ export default function App() {
                   boldSet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardBold" : "bodyBold", v, true); }}
                   italicVal={currentSlide.showCards ? currentSlide.cardItalic : currentSlide.bodyItalic}
                   italicSet={function(v) { updateSlide(activeSlide, currentSlide.showCards ? "cardItalic" : "bodyItalic", v, true); }} />
-                <span style={{ color: SURFACE.pipeSep, fontSize: 14 }}>|</span>
-                <div style={{ display: "flex", alignItems: "center", gap: SPACE[2], opacity: currentSlide.showCards ? 1 : 0.35 }}>
-                  <ColorPickerInline pickerKey={"s-" + activeSlide + "-cardbg"} value={currentSlide.cardBgColor || "#ffffff"} onChange={function(c) { updateSlide(activeSlide, "cardBgColor", c); }} openPicker={openPicker} setOpenPicker={setOpenPicker} disabled={!currentSlide.showCards} />
-                  <span style={{ fontSize: 11, color: SURFACE.secondary, fontWeight: 600 }}>Base</span>
-                </div>
               </div>
 
               {/* Body content */}
