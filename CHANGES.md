@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Permission hardening for autonomous workflow
+- What changed: Replaced 30+ enumerated Bash permission patterns in `settings.local.json` with bare `Bash` catch-all for full Phase 3 autonomy. Cleaned `settings.json` to fix colon-syntax bugs (`echo:*` → `echo *`), consolidated 7 git subcommand patterns into `Bash(git *)`, removed `npm` permission (zero-dep project), added missing utilities (`cat`, `tail`, `wc`, `mkdir`, `pwd`, `which`). Fixed identical colon-syntax bugs in global `~/.claude/settings.json`. Added "Tool Selection Rules" section to `CLAUDE.md` prescribing dedicated tools over Bash equivalents. Simplified "Permission Preflight" section. Added Phase 3 autonomy expectation note.
+- Why: Claude Code was periodically stopping during the autonomous SHIP loop to request Bash command permissions, breaking the oneshot workflow.
+- Files: `.claude/settings.local.json`, `.claude/settings.json`, `~/.claude/settings.json`, `CLAUDE.md`, `CHANGES.md`.
+- Validation: Start a new session and verify `node build.js`, `git status`, `echo "test"` run without permission prompts.
+
 ## 2026-03-04 - Archive all untracked root images (not prefix-based)
 - What changed: Updated `scripts/archive-smoke-artifacts.js` so root image cleanup is no longer tied to filename prefixes. The script now archives all untracked root image files by extension (`.png/.jpg/.jpeg/.webp/.gif`), plus existing `.playwright-mcp/` and `test-results/` artifacts. Updated `CLAUDE.md` Commit gate and guardrail wording to reflect extension-based root image cleanup.
 - Why: Claude can generate varying screenshot filenames; prefix matching was brittle and missed artifacts.

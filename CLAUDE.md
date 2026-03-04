@@ -20,6 +20,19 @@ This is a **LinkedIn carousel slide designer** — a single-page React app that 
 - `preview.html` loads React/Babel from unpkg CDN
 - This constraint is intentional — the artifact must run identically in `preview.html` and when pasted into Claude.ai's artifact sandbox
 
+## Tool Selection Rules
+Claude Code has dedicated tools that are faster and never trigger permission prompts. Always prefer them:
+
+| Instead of Bash...    | Use this tool | Why                                    |
+|-----------------------|---------------|----------------------------------------|
+| `cat`, `head`, `tail` | `Read`       | Better UX, no permission needed        |
+| `echo "…" > file`    | `Write`       | Atomic writes, no shell quoting issues |
+| `sed`, `awk`          | `Edit`        | Structural edits, not regex gambles    |
+| `find`, `ls -R`       | `Glob`        | Faster, cross-platform                 |
+| `grep`, `rg`          | `Grep`        | Optimized, permission-free             |
+
+**Bash is the right choice for:** `node build.js`, `node scripts/*.js`, all `git` commands, `npx serve`, `npx playwright`, and quick one-liners where no dedicated tool exists (`wc -l`, `pwd`, `mkdir -p`).
+
 ## Source Manifest
 `build.js` defines an explicit `ORDER` array that lists all 19 source files and their concatenation sequence. **This array is the single source of truth** for what ships in the artifact and in what order.
 
@@ -90,6 +103,8 @@ This is the single pause point before code changes begin.
 
 ### Phase 3 — SHIP loop (autonomous, no pausing)
 
+> **Autonomy expectation:** This entire phase runs without user interaction. If an unexpected permission prompt appears, accept it, complete the phase, and report the unexpected prompt in the handoff so settings can be updated.
+
 **Implement:**
 - Read `FEATURE_CARD.md` scope and `CLAUDE.md` guardrails
 - Make targeted edits in `src/`
@@ -145,20 +160,13 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Commit message style: imperative mood, sentence case, no trailing period. ~72 chars max. Use colons or `+` for multi-part summaries.
 - Commit-time artifact hygiene is automated by `.githooks/pre-commit` (one-time setup per clone: `git config core.hooksPath .githooks`).
 
-## Permission Preflight (Before Any Escalation Request)
-- Always check permission config files before asking for approval:
-  1. `.claude/settings.local.json`
-  2. `.claude/settings.json`
-- Treat these files as the permission source of truth for the repo session.
-- Precedence rule: when both files define the same permission key, `.claude/settings.local.json` takes priority for this session.
-- Before requesting escalation, verify whether the exact action is already allowed (including wildcard/pattern matches).
-- Re-run this preflight at each phase boundary (`Explore -> Implement`, `Self-review -> Smoke test`, `Smoke test -> Commit gate`).
-- Evaluate shell commands by segments (`&&`, `|`, `;`), not only full command strings.
-- If a command was only blocked because of a `cd ... &&` wrapper, rerun it from repo root without the `cd` prefix before requesting escalation.
-- If allowed, execute without requesting extra permission.
-- If not allowed, request escalation with a single-sentence reason tied to the specific blocked command.
+## Permission Preflight
+- Local permissions (`settings.local.json`) grant unrestricted Bash access. Permission prompts should never appear during normal workflow.
+- If a prompt does appear, it indicates configuration drift. Before requesting approval:
+  1. Check `.claude/settings.local.json` then `.claude/settings.json`
+  2. Verify the action is not in a `deny` list
+  3. If allowed by config but still prompted, note the exact command for debugging
 - Do not request broad or speculative approvals for actions you are not about to run.
-- Re-check permission config after any user or repo instruction that may have changed policy.
 
 ## Hard Guardrails
 - Do not edit `linkedin-carousel.jsx` manually — always regenerate via `node build.js`.
@@ -169,7 +177,7 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Do not commit without a passing Playwright smoke test. If the smoke test cannot run, stop and ask.
 - Do not commit raw Playwright MCP logs, `test-results/` artifacts, or untracked root image artifacts; archive them via `node scripts/archive-smoke-artifacts.js`.
 - Do not hand off for user review until a local commit is created and its hash is reported.
-- Do not request permission for an action until the Permission Preflight checklist above has been completed.
+- If an unexpected permission prompt appears during Phase 3, accept it and report it in the handoff. Do not stop the SHIP loop for permission debugging.
 - Do not start Phase 3 code changes until the Phase 1/2 question message has been sent and answered (or a no-blockers assumptions message has been sent).
 - Do not use `AskUserQuestion` for Phase 1/2 alignment gates; ask in plain chat and wait for explicit user responses.
 
