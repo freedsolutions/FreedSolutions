@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-05 - Add LSP support + Symbol GPS to CLAUDE.md
+- What changed: Added `jsconfig.json` for TypeScript Language Server integration (`checkJs: false`, `jsx: react`, `moduleResolution: bundler`). Added "Symbol GPS" section to CLAUDE.md with key symbols/signatures for all 20 source files. Added "LSP Configuration" section to CLAUDE.md documenting jsconfig purpose and constraints. Installed `typescript-language-server` globally.
+- Why: LSP provides IDE-like code intelligence (hover, go-to-definition, find-references) for Claude Code sessions. The Symbol GPS section gives Claude instant awareness of the full symbol landscape at session start, reducing exploration overhead. Together they act as "GPS for the codebase" — LSP navigates, CLAUDE.md orients.
+- Files: `jsconfig.json` (new), `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verify `jsconfig.json` doesn't break build (`node build.js`). Confirm Symbol GPS section is accurate against source files.
+
 ## 2026-03-05 - Add /smoke-deep extended smoke test skill
 - What changed: Created `/smoke-deep` skill in `.claude/skills/smoke-deep/SKILL.md`. This extends the standard 7-step `/smoke` checklist with 5 additional interaction tests: color picker swatches, geo shape switching, slide CRUD with custom confirm dialog handling, toggle controls, and size stepper controls. Updated CLAUDE.md Phase 3 skills list to include `/smoke-deep`. Includes documented patterns for confirm dialog handling (React modals, not native dialogs) and opacity slider interaction via `browser_evaluate`.
 - Why: The standard `/smoke full` checklist covers basic app health but misses significant interaction surface. Manual deep testing during this session revealed all these areas work correctly but had no repeatable skill to codify them.

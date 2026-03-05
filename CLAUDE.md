@@ -48,6 +48,83 @@ Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defi
 | Hooks | `useSlideManagement.js`, `useCanvasRenderer.js`, `usePdfExport.js`, `usePresets.js` | State management, rendering, export, presets |
 | App | `App.jsx` | Root component, layout, event wiring |
 
+## Symbol GPS
+
+Quick-reference of key symbols per source file. All symbols share global scope (concatenated artifact).
+
+### Constants Layer
+**`constants.js`** — Canvas dimensions, font system, geometric shapes
+- `W` (800), `H` (1000) — canvas pixel dimensions
+- `MARGIN`, `BORDER_RADIUS`, `BORDER_WIDTH` — frame geometry
+- `CANVAS` — layout tokens object (padding, line heights, card/screenshot/footer geometry)
+- `FONT_OPTIONS`, `DEFAULT_FONT` — typography system
+- `GEO_SHAPES` — `[{id, label}]` for background pattern picker
+- `composeFont(family, size, weight, italic)` → ctx.font string
+
+**`layoutTokens.js`** — UI design system
+- `SPACE`, `RADIUS`, `Z`, `SIZE` — spacing/radius/z-index/component-size scales
+- `SURFACE` — UI surface color palette (dark theme, 20+ keys)
+- `CLR` — semantic colors (primary, danger, overlays, shadows)
+- Style helpers: `panelBtn()`, `toggleBtn(isOn)`, `uploadFrameStyle()`, `uploadBtnStyle(hasFile)`, `dividerStyle()`, `dialogOverlay()`, `dialogBox(maxWidth)`, `dialogBtn(isPrimary)`
+
+### Canvas Layer (pure rendering, no React)
+**`canvas/hexToRgba.js`** — `hexToRgba(hex, opacity)` → rgba string
+
+**`canvas/backgrounds.js`** — Background rendering
+- `renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled, geoOpacity, geoShape)` — top-level entry point
+- `drawSolidBg(ctx, color)`, `drawCustomBg(ctx, img)`, `drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape)`
+- Shape renderers: `drawGeoLines`, `drawGeoBokeh`, `drawGeoWaves`, `drawGeoStripes`, `drawGeoHex`
+
+**`canvas/text.js`** — Text layout and rendering
+- `wrapText(ctx, text, maxWidth, fontSize, fontWeight, fontFamily, fontItalic)` → string[]
+- `extractAccentMarkers(text)` → `{cleanText, markers[]}` (parses `**bold**` markers)
+- `renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor, accentColor, markers, lineOffset, fontFamily, fontItalic)`
+
+**`canvas/overlays.js`** — Footer, corners, border frame
+- `drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, footerText, textSize, opacity, fontFamily, fontBold, fontItalic)`
+- `drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity)`
+- `drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity)`
+- `drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor)`
+
+**`canvas/screenshot.js`** — `drawScreenshot(ctx, screenshot, x, y, w, h, scale, edgeToEdge)`
+
+**`canvas/renderSlideContent.js`** — `renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameTop, frameBottom)` — lays out heading, body/cards, screenshot within frame bounds
+
+**`canvas/renderSlide.js`** — `renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets)` — top-level orchestrator: bg → corners → content → frame → footer
+
+### Data Layer
+**`slideFactory.js`** — `makeDefaultSlide(title, body)` → full slide object (~80 properties with defaults)
+
+**`undoRedo.js`** — `createUndoManager()` → `{pushSnapshot, undo, redo, canUndo, canRedo}` (max 20 snapshots)
+
+**`pdfBuilder.js`** — PDF generation (hand-rolled encoder, no dependencies)
+- `sanitizePrefix(raw)` → safe filename string
+- `buildPdfFromJpegs(jpegPages, pageW, pageH)` → Blob
+
+### UI Components (React)
+**`ColorPickerInline.jsx`** — `ColorPickerInline` — swatch button + portal dropdown with color grid, opacity slider, typography controls, geo shape picker. Also: `drawShapeThumbnail(ctx, shapeId, w, h)`
+
+**`SizeControl.jsx`** — `SizeControl` — font-size stepper with optional color picker, opacity, and typography controls
+
+**`SlideSelector.jsx`** — `SlideSelector` — numbered slide buttons with drag-to-reorder, remove overlay, add/duplicate
+
+### Hooks
+**`useSlideManagement.js`** — `useSlideManagement(deps)` — slide CRUD, reorder, card management, image uploads. Returns 30+ functions/state values (see file header for full list).
+
+**`useCanvasRenderer.js`** — `useCanvasRenderer(canvasRef, seriesSlides, slideAssets, activeSlide)` — 40ms debounced rendering. Returns `{renderSlide}`.
+
+**`usePdfExport.js`** — `usePdfExport(canvasRef, renderSlide, seriesSlides, activeSlide, exportPrefix)` → `{pdfDownload, pdfError, downloadCurrentPDF, downloadAllPDF, clearPdfDownload}`
+
+**`usePresets.js`** — `usePresets(deps)` — preset serialize/deserialize, export/import with legacy font migration. Defines `PRESET_SLIDE_KEYS` (60+ property keys), `normalizeLegacyFontFamily()`.
+
+### App
+**`App.jsx`** — Root component. Hoisted styles: `inputStyle`, `labelStyle`, `INLINE_SWATCHES`, `smallBtnStyle`, `pickerDropdownStyle`. Wires all hooks, renders three-column layout.
+
+## LSP Configuration
+- `jsconfig.json` configures TypeScript Language Server for navigation (hover, go-to-definition, find-references).
+- `checkJs: false` — diagnostics disabled to avoid false positives from missing React types and global scope model.
+- No `@types/react` — would require npm, violating zero-dep constraint. React API hover info unavailable by design.
+
 ## Workflow: Write → Build → See → Push
 
 ### 1. Write
