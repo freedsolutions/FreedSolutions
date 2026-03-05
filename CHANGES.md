@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-05 - Add "Dots" geometric background pattern
+- What changed: Added a new "Dots" entry to the geo shape picker. Renders filled circles (radius 22px) in a staggered grid using the geo color layer with opacity support. Includes a thumbnail in the shape picker dropdown.
+- Why: Expands the background pattern library with a clean, polka-dot style option. Also served as an LSP workflow demo.
+- Files: `src/constants.js` (GEO_SHAPES entry), `src/canvas/backgrounds.js` (drawGeoDots + dispatcher), `src/ColorPickerInline.jsx` (thumbnail), `linkedin-carousel.jsx` (rebuilt), `FEATURE_CARD.md`, `CHANGES.md`.
+- Validation: Smoke tested via Playwright — dots render as filled circles on canvas, shape picker shows all 7 patterns, no console errors.
+
 ## 2026-03-05 - Fix card checkmarks with transparent decorations + bottom corner base alignment
 - What changed: (1) Card checkmarks now skip rendering entirely when decoration color is "transparent" — previously the checkmark stroke (using card bg color) still rendered even with transparent fill. (2) Bottom corner text+base bubble repositioned from `H - MARGIN + 12` to `H - MARGIN`, fixing a 12px offset that pushed the bubble partially off the canvas edge and misaligned it with the text.
 - Why: Two visual bugs reported during smoke testing. The checkmark stroke was visible as a ghost artifact on cards when decorations were disabled. The bottom corner base bubble was a tiny sliver at the canvas edge instead of properly wrapping the text.

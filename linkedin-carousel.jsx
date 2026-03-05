@@ -101,7 +101,8 @@ var GEO_SHAPES = [
   { id: "bokeh",   label: "Bokeh" },
   { id: "waves",   label: "Waves" },
   { id: "stripes", label: "Stripes" },
-  { id: "hex",     label: "Hexagons" }
+  { id: "hex",     label: "Hexagons" },
+  { id: "dots",    label: "Dots" }
 ];
 
 // ===================================================
@@ -474,6 +475,24 @@ function drawGeoHex(ctx, lcR, lcG, lcB, opScale) {
   ctx.stroke();
 }
 
+function drawGeoDots(ctx, lcR, lcG, lcB, opScale) {
+  var radius = 22;
+  var spacingX = 90;
+  var spacingY = 85;
+  ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.10 * opScale) + ")";
+  ctx.beginPath();
+  for (var row = 0; row * spacingY < H + radius * 2; row++) {
+    var offsetX = (row % 2 !== 0) ? spacingX / 2 : 0;
+    for (var col = -1; col * spacingX < W + radius * 2; col++) {
+      var cx = col * spacingX + offsetX;
+      var cy = row * spacingY;
+      ctx.moveTo(cx + radius, cy);
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    }
+  }
+  ctx.fill();
+}
+
 // --- Dispatcher ---
 
 function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
@@ -497,6 +516,7 @@ function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
   else if (shape === "waves") drawGeoWaves(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "stripes") drawGeoStripes(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "hex") drawGeoHex(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "dots") drawGeoDots(ctx, lcR, lcG, lcB, opScale);
   else drawGeoLines(ctx, lcR, lcG, lcB, opScale);
 }
 
@@ -1407,6 +1427,21 @@ function drawShapeThumbnail(ctx, shapeId, w, h) {
       }
     }
     ctx.stroke();
+  } else if (shapeId === "dots") {
+    var dots = [
+      { x: 5, y: 5, r: 3 }, { x: 18, y: 4, r: 2.5 },
+      { x: 11, y: 13, r: 3.5 }, { x: 24, y: 12, r: 3 },
+      { x: 4, y: 22, r: 2.5 }, { x: 17, y: 22, r: 3 },
+      { x: 26, y: 24, r: 2 },
+    ];
+    ctx.fillStyle = "rgba(102,102,102,0.35)";
+    ctx.beginPath();
+    for (var di = 0; di < dots.length; di++) {
+      var dt = dots[di];
+      ctx.moveTo(dt.x + dt.r, dt.y);
+      ctx.arc(dt.x, dt.y, dt.r, 0, Math.PI * 2);
+    }
+    ctx.fill();
   }
 }
 

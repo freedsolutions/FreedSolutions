@@ -168,6 +168,24 @@ function drawGeoHex(ctx, lcR, lcG, lcB, opScale) {
   ctx.stroke();
 }
 
+function drawGeoDots(ctx, lcR, lcG, lcB, opScale) {
+  var radius = 22;
+  var spacingX = 90;
+  var spacingY = 85;
+  ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.10 * opScale) + ")";
+  ctx.beginPath();
+  for (var row = 0; row * spacingY < H + radius * 2; row++) {
+    var offsetX = (row % 2 !== 0) ? spacingX / 2 : 0;
+    for (var col = -1; col * spacingX < W + radius * 2; col++) {
+      var cx = col * spacingX + offsetX;
+      var cy = row * spacingY;
+      ctx.moveTo(cx + radius, cy);
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    }
+  }
+  ctx.fill();
+}
+
 // --- Dispatcher ---
 
 function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
@@ -191,6 +209,7 @@ function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
   else if (shape === "waves") drawGeoWaves(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "stripes") drawGeoStripes(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "hex") drawGeoHex(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "dots") drawGeoDots(ctx, lcR, lcG, lcB, opScale);
   else drawGeoLines(ctx, lcR, lcG, lcB, opScale);
 }
 

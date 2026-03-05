@@ -76,6 +76,21 @@ function drawShapeThumbnail(ctx, shapeId, w, h) {
       }
     }
     ctx.stroke();
+  } else if (shapeId === "dots") {
+    var dots = [
+      { x: 5, y: 5, r: 3 }, { x: 18, y: 4, r: 2.5 },
+      { x: 11, y: 13, r: 3.5 }, { x: 24, y: 12, r: 3 },
+      { x: 4, y: 22, r: 2.5 }, { x: 17, y: 22, r: 3 },
+      { x: 26, y: 24, r: 2 },
+    ];
+    ctx.fillStyle = "rgba(102,102,102,0.35)";
+    ctx.beginPath();
+    for (var di = 0; di < dots.length; di++) {
+      var dt = dots[di];
+      ctx.moveTo(dt.x + dt.r, dt.y);
+      ctx.arc(dt.x, dt.y, dt.r, 0, Math.PI * 2);
+    }
+    ctx.fill();
   }
 }
 

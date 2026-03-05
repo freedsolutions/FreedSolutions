@@ -101,5 +101,6 @@ var GEO_SHAPES = [
   { id: "bokeh",   label: "Bokeh" },
   { id: "waves",   label: "Waves" },
   { id: "stripes", label: "Stripes" },
-  { id: "hex",     label: "Hexagons" }
+  { id: "hex",     label: "Hexagons" },
+  { id: "dots",    label: "Dots" }
 ];

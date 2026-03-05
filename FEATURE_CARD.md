@@ -1,25 +1,36 @@
-# Feature: Repo Cleanup and Process Hardening
+# Feature: Add "Dots" Geometric Background Pattern
 
-## Problem
-Audit found documentation drift, missing defensive patterns, and process gaps accumulated over recent feature work. No behavioral bugs — this is a docs/config/tooling hygiene pass.
+## Summary
+Add a new "Dots" pattern to the geometric background shape picker. Renders filled circles in the geo color layer, sized large enough to be clearly visible.
 
 ## Scope
-- Fix CLAUDE.md source count (19 → 20), add layoutTokens.js to manifest table, add Phase 3 pre-flight checklist
-- Harden .gitignore with defensive patterns (node_modules, IDE files, .env) and simplify root image globs to extension-based
-- Remove cat/head/tail Bash permissions from settings.json (contradicts Tool Selection Rules)
-- Archive pre-March CHANGES.md entries to CHANGES_ARCHIVE.md; add 300-line maintenance rule to CLAUDE.md
-- Add scripts/validate-order.js (checks src/ ↔ ORDER parity) wired into pre-commit hook
 
-## Files
-- `CLAUDE.md` — source count, manifest table, pre-flight checklist, changelog maintenance rule, project files table
-- `.gitignore` — defensive patterns, simplified image globs
-- `.claude/settings.json` — remove cat/head/tail permissions
-- `CHANGES.md` — trimmed to March entries + archive pointer
-- `CHANGES_ARCHIVE.md` — new file with pre-March entries
-- `scripts/validate-order.js` — new ORDER validation script
-- `.githooks/pre-commit` — wire in validate-order before archive step
+### Add
+- New `GEO_SHAPES` entry: `{ id: "dots", label: "Dots" }`
+- New `drawGeoDots(ctx, baseColor, lineColor, geoOpacity)` function in `canvas/backgrounds.js`
+- Wire into `drawGeoBg` switch/dispatch
+- New thumbnail case in `drawShapeThumbnail` in `ColorPickerInline.jsx`
 
-## Out of scope
-- Any src/ code changes or build output changes
-- preview.html, build.js logic, settings.local.json
-- Git hook archive logic (working correctly)
+### Do not change
+- Existing patterns (lines, bokeh, waves, stripes, hex)
+- Any UI layout, controls, or state management
+- Any rendering logic outside the new pattern
+
+## Design Constraints
+- Dots must be filled circles (not stroked outlines)
+- Use the geo color layer (`lineColor` with `geoOpacity`) for fill
+- Dots should be clearly visible — minimum ~18-24px radius range
+- Scattered/grid placement similar to how other patterns tile the canvas
+- Background base color rendered first (same as other patterns)
+
+## Files Touched
+1. `src/constants.js` — add entry to `GEO_SHAPES` array
+2. `src/canvas/backgrounds.js` — add `drawGeoDots` function + wire into `drawGeoBg`
+3. `src/ColorPickerInline.jsx` — add dots case to `drawShapeThumbnail`
+4. `src/globals.d.ts` — no new exported symbols needed (internal function)
+
+## LSP Demo Notes
+This feature is intentionally chosen to demonstrate LSP-assisted workflow. During implementation, Claude Code will:
+- Use `workspaceSymbol` to locate cross-file symbols instead of grep
+- Narrate LSP usage inline as it works
+- Summarize LSP value at the end
