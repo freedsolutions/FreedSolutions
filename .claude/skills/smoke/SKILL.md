@@ -44,6 +44,12 @@ Determine what to test based on the argument:
 
 ## Execution protocol
 
+### Prepare output directory
+Ensure the screenshot directory exists:
+```
+mkdir -p test-results
+```
+
 ### Navigate and wait
 1. `browser_navigate` to `http://localhost:5173/preview.html`
 2. `browser_wait_for` the app heading text (timeout: 10s)
@@ -53,7 +59,7 @@ Determine what to test based on the argument:
 1. Use `browser_snapshot` to get the accessibility tree before each interaction
 2. Use element refs from snapshots for all clicks and inputs — never guess selectors
 3. Take a `browser_take_screenshot` after each meaningful interaction
-4. Name screenshots descriptively: `smoke-01-app-loaded.png`, `smoke-02-text-edited.png`, etc.
+4. Save screenshots to `test-results/`: `test-results/smoke-01-app-loaded.png`, `test-results/smoke-02-text-edited.png`, etc.
 
 ### Console check
 After all interactions, run `browser_console_messages` with level "error". Report any errors found.
@@ -87,13 +93,13 @@ SMOKE TEST
 ──────────
 Scope: [FEATURE_CARD.md / specific description / full checklist]
 
-[PASS] App loads (smoke-01-app-loaded.png)
+[PASS] App loads (test-results/smoke-01-app-loaded.png)
 [PASS] Canvas renders — 800x1000 canvas present
 [FAIL] Text editing — heading input not found in snapshot
 [PASS] No console errors
 
 Result: FAIL (1 of 4 checks failed)
-Screenshots: smoke-01-app-loaded.png, smoke-02-canvas.png
+Screenshots: test-results/smoke-01-app-loaded.png, test-results/smoke-02-canvas.png
 Browser: closed
 Artifacts: archived
 ```

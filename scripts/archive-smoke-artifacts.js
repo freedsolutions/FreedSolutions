@@ -3,7 +3,6 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execSync } = require("child_process");
 
 const repoRoot = path.resolve(__dirname, "..");
 const archiveStamp = new Date()
@@ -66,33 +65,15 @@ function pruneEmptyDirs(startPath, stopPath) {
   }
 }
 
-function getUntrackedRepoPaths() {
-  try {
-    const output = execSync("git ls-files --others --exclude-standard", {
-      cwd: repoRoot,
-      stdio: ["ignore", "pipe", "pipe"],
-      encoding: "utf8",
-    });
-    return output.split(/\r?\n/).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-function isUntrackedRootImage(relPath) {
-  if (!relPath) return false;
-  if (relPath.includes("/") || relPath.includes("\\")) return false;
-  const ext = path.extname(relPath).toLowerCase();
-  return ROOT_IMAGE_EXTENSIONS.has(ext);
-}
-
 const candidates = [];
 
-for (const relPath of getUntrackedRepoPaths()) {
-  if (!isUntrackedRootImage(relPath)) continue;
+for (const entry of fs.readdirSync(repoRoot, { withFileTypes: true })) {
+  if (!entry.isFile()) continue;
+  const ext = path.extname(entry.name).toLowerCase();
+  if (!ROOT_IMAGE_EXTENSIONS.has(ext)) continue;
   candidates.push({
-    srcPath: path.join(repoRoot, relPath),
-    relPath: path.join("repo-root", path.basename(relPath)),
+    srcPath: path.join(repoRoot, entry.name),
+    relPath: path.join("repo-root", entry.name),
   });
 }
 

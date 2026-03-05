@@ -46,7 +46,7 @@ Follow the exact `/smoke` skill protocol:
 2. **Navigate** to `http://localhost:5173/preview.html`
 3. **Wait** for the app heading to appear
 4. **Interact** using `browser_snapshot` refs — never guess selectors
-5. **Screenshot** each step (`smoke-01-*.png`, `smoke-02-*.png`, etc.)
+5. **Screenshot** each step to `test-results/` (`test-results/smoke-01-*.png`, `test-results/smoke-02-*.png`, etc.)
 6. **Console check** for errors
 7. **ALWAYS close the browser** — no matter what happens
 8. **Archive smoke artifacts**: `node scripts/archive-smoke-artifacts.js`
@@ -69,13 +69,13 @@ BUILD + TEST
 Build: PASS — linkedin-carousel.jsx regenerated
 
 Smoke test scope: [FEATURE_CARD.md / description / full checklist]
-[PASS] App loads (smoke-01-app-loaded.png)
+[PASS] App loads (test-results/smoke-01-app-loaded.png)
 [PASS] Canvas renders
 [PASS] Feature: color picker opens and selects color
 [PASS] No console errors
 
 Result: ALL PASS
-Screenshots: smoke-01-app-loaded.png, smoke-02-picker.png
+Screenshots: test-results/smoke-01-app-loaded.png, test-results/smoke-02-picker.png
 Browser: closed
 Artifacts: archived
 ```

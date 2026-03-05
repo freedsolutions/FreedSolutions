@@ -43,6 +43,12 @@ Steps 1-7 match the standard `/smoke full` checklist. Steps 8-12 extend coverage
 
 ## Execution protocol
 
+### Prepare output directory
+Ensure the screenshot directory exists:
+```
+mkdir -p test-results
+```
+
 ### Navigate and wait
 1. `browser_navigate` to `http://localhost:5173/preview.html`
 2. Wait for the app heading to appear in the snapshot
@@ -52,7 +58,7 @@ Steps 1-7 match the standard `/smoke full` checklist. Steps 8-12 extend coverage
 1. Use `browser_snapshot` to get the accessibility tree before each interaction
 2. Use element refs from snapshots for all clicks and inputs -- never guess selectors
 3. Take `browser_take_screenshot` after each meaningful interaction
-4. Name screenshots: `deep-01-app-loaded.png`, `deep-02-text.png`, etc.
+4. Save screenshots to `test-results/`: `test-results/deep-01-app-loaded.png`, `test-results/deep-02-text.png`, etc.
 
 ### Confirm dialog handling
 This app uses **custom modal overlays** (not native browser dialogs) for destructive actions (duplicate, remove, reset, sync-to-all). When a confirm dialog appears:
@@ -103,23 +109,23 @@ DEEP SMOKE TEST
 Scope: [full deep checklist / specific area]
 
 Standard checks:
-[PASS] App loads (deep-01-app-loaded.png)
+[PASS] App loads (test-results/deep-01-app-loaded.png)
 [PASS] Canvas renders
-[PASS] Text editing (deep-02-text.png)
+[PASS] Text editing (test-results/deep-02-text.png)
 [PASS] Slide navigation
 [PASS] Add slide
 [PASS] Download button
 [PASS] No console errors
 
 Extended checks:
-[PASS] Color picker: swatch selected, hex updated (deep-03-color.png)
-[PASS] Geo shape: Bokeh pattern visible (deep-04-shape.png)
-[PASS] Slide CRUD: duplicate + remove with confirm dialogs (deep-05-crud.png)
-[PASS] Toggle: Footer & Pic ON, footer visible (deep-06-toggle.png)
+[PASS] Color picker: swatch selected, hex updated (test-results/deep-03-color.png)
+[PASS] Geo shape: Bokeh pattern visible (test-results/deep-04-shape.png)
+[PASS] Slide CRUD: duplicate + remove with confirm dialogs (test-results/deep-05-crud.png)
+[PASS] Toggle: Footer & Pic ON, footer visible (test-results/deep-06-toggle.png)
 [PASS] Size control: heading 48 -> 50
 
 Result: ALL PASS (12/12)
-Screenshots: deep-01 through deep-06
+Screenshots: test-results/deep-01 through test-results/deep-06
 Browser: closed
 Artifacts: archived
 ```
