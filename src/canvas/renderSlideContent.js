@@ -150,7 +150,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.fill();
       ctx.globalAlpha = cardPrevAlpha;
-      if (showChecks) {
+      if (showChecks && colors.decoration !== "transparent") {
         ctx.fillStyle = colors.decoration;
         ctx.beginPath();
         ctx.arc(pad + textPadding + 18, cy + CANVAS.cardCheckOffsetY, CANVAS.cardCheckRadius, 0, Math.PI * 2);

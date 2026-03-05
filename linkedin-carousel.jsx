@@ -681,6 +681,7 @@ function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold,
   var weight = fontBold ? "700" : "600";
   var fs = size || 16;
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
+  var textY = H - MARGIN;
   if (bgColor && bgColor !== "transparent") {
     var bgPad = 6;
     var tw = ctx.measureText(text).width;
@@ -688,12 +689,12 @@ function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold,
     ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
-    ctx.roundRect(MARGIN - bgPad, H - MARGIN + 12 - fs - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.roundRect(MARGIN - bgPad, textY - fs - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
     ctx.fill();
     ctx.globalAlpha = prevAlpha;
   }
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
-  ctx.fillText(text, MARGIN, H - MARGIN + 12);
+  ctx.fillText(text, MARGIN, textY);
 }
 
 function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {
@@ -921,7 +922,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
       ctx.roundRect(cardX, cy, cardW, cardH, CANVAS.cardRadius);
       ctx.fill();
       ctx.globalAlpha = cardPrevAlpha;
-      if (showChecks) {
+      if (showChecks && colors.decoration !== "transparent") {
         ctx.fillStyle = colors.decoration;
         ctx.beginPath();
         ctx.arc(pad + textPadding + 18, cy + CANVAS.cardCheckOffsetY, CANVAS.cardCheckRadius, 0, Math.PI * 2);
@@ -1066,7 +1067,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   var topCornerOffset = (slide.showTopCorner && slide.topCornerText) ? sizes.topCorner * 2.2 : 0;
   var borderTop = MARGIN + topCornerOffset + 8;
   var baseBorderBottom = slide.showBrandName ? H - MARGIN - FOOTER_PIC_SIZE + 8 - FOOTER_BADGE_H / 2 : H - MARGIN - 16;
-  var bottomCornerOffset = (slide.showBottomCorner && slide.bottomCornerText) ? Math.max(0, baseBorderBottom - (H - MARGIN + 12 - sizes.bottomCorner - 6) + 8) : 0;
+  var bottomCornerOffset = (slide.showBottomCorner && slide.bottomCornerText) ? Math.max(0, baseBorderBottom - (H - MARGIN - sizes.bottomCorner - 6) + 8) : 0;
   var borderBottom = baseBorderBottom - bottomCornerOffset;
 
   if (slide.showTopCorner && slide.topCornerText) {

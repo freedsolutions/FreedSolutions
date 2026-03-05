@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-05 - Fix card checkmarks with transparent decorations + bottom corner base alignment
+- What changed: (1) Card checkmarks now skip rendering entirely when decoration color is "transparent" — previously the checkmark stroke (using card bg color) still rendered even with transparent fill. (2) Bottom corner text+base bubble repositioned from `H - MARGIN + 12` to `H - MARGIN`, fixing a 12px offset that pushed the bubble partially off the canvas edge and misaligned it with the text.
+- Why: Two visual bugs reported during smoke testing. The checkmark stroke was visible as a ghost artifact on cards when decorations were disabled. The bottom corner base bubble was a tiny sliver at the canvas edge instead of properly wrapping the text.
+- Files: `src/canvas/renderSlideContent.js`, `src/canvas/overlays.js`, `src/canvas/renderSlide.js`, `linkedin-carousel.jsx` (rebuilt), `CHANGES.md`.
+- Validation: Set decorations to transparent, switch to Cards — no checkmark visible. Set decorations to a color — checkmark renders normally. Enable bottom corner with white base — bubble properly wraps text at bottom-left, matching top corner alignment pattern.
+
 ## 2026-03-05 - Add LSP support + Symbol GPS to CLAUDE.md
 - What changed: Added `jsconfig.json` for TypeScript Language Server integration (`checkJs: false`, `jsx: react`, `moduleResolution: bundler`). Added "Symbol GPS" section to CLAUDE.md with key symbols/signatures for all 20 source files. Added "LSP Configuration" section to CLAUDE.md documenting jsconfig purpose and constraints. Installed `typescript-language-server` globally.
 - Why: LSP provides IDE-like code intelligence (hover, go-to-definition, find-references) for Claude Code sessions. The Symbol GPS section gives Claude instant awareness of the full symbol landscape at session start, reducing exploration overhead. Together they act as "GPS for the codebase" — LSP navigates, CLAUDE.md orients.

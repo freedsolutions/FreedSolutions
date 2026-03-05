@@ -65,6 +65,7 @@ function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold,
   var weight = fontBold ? "700" : "600";
   var fs = size || 16;
   ctx.font = composeFont(fontFamily || DEFAULT_FONT, fs, weight, !!fontItalic);
+  var textY = H - MARGIN;
   if (bgColor && bgColor !== "transparent") {
     var bgPad = 6;
     var tw = ctx.measureText(text).width;
@@ -72,12 +73,12 @@ function drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold,
     ctx.globalAlpha = (bgOpacity != null ? bgOpacity : 100) / 100;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
-    ctx.roundRect(MARGIN - bgPad, H - MARGIN + 12 - fs - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
+    ctx.roundRect(MARGIN - bgPad, textY - fs - bgPad, tw + bgPad * 2, fs + bgPad * 2, BORDER_RADIUS);
     ctx.fill();
     ctx.globalAlpha = prevAlpha;
   }
   ctx.fillStyle = hexToRgba(color || "#ffffff", opacity != null ? opacity : 35);
-  ctx.fillText(text, MARGIN, H - MARGIN + 12);
+  ctx.fillText(text, MARGIN, textY);
 }
 
 function drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor) {

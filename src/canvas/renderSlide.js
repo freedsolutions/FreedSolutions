@@ -35,7 +35,7 @@ function renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets) {
   var topCornerOffset = (slide.showTopCorner && slide.topCornerText) ? sizes.topCorner * 2.2 : 0;
   var borderTop = MARGIN + topCornerOffset + 8;
   var baseBorderBottom = slide.showBrandName ? H - MARGIN - FOOTER_PIC_SIZE + 8 - FOOTER_BADGE_H / 2 : H - MARGIN - 16;
-  var bottomCornerOffset = (slide.showBottomCorner && slide.bottomCornerText) ? Math.max(0, baseBorderBottom - (H - MARGIN + 12 - sizes.bottomCorner - 6) + 8) : 0;
+  var bottomCornerOffset = (slide.showBottomCorner && slide.bottomCornerText) ? Math.max(0, baseBorderBottom - (H - MARGIN - sizes.bottomCorner - 6) + 8) : 0;
   var borderBottom = baseBorderBottom - bottomCornerOffset;
 
   if (slide.showTopCorner && slide.topCornerText) {
