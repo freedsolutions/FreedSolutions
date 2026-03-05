@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-05 - Add /smoke-deep extended smoke test skill
+- What changed: Created `/smoke-deep` skill in `.claude/skills/smoke-deep/SKILL.md`. This extends the standard 7-step `/smoke` checklist with 5 additional interaction tests: color picker swatches, geo shape switching, slide CRUD with custom confirm dialog handling, toggle controls, and size stepper controls. Updated CLAUDE.md Phase 3 skills list to include `/smoke-deep`. Includes documented patterns for confirm dialog handling (React modals, not native dialogs) and opacity slider interaction via `browser_evaluate`.
+- Why: The standard `/smoke full` checklist covers basic app health but misses significant interaction surface. Manual deep testing during this session revealed all these areas work correctly but had no repeatable skill to codify them.
+- Files: `.claude/skills/smoke-deep/SKILL.md` (new), `CLAUDE.md`, `CHANGES.md`.
+- Validation: Run `/smoke-deep` and verify all 12 steps pass. Verify skill appears in `/` autocomplete.
+
 ## 2026-03-04 - Add smoke testing skills for structured Playwright workflows
 - What changed: Created 4 Claude Code custom skills in `.claude/skills/`: `/smoke-preflight` (pre-flight validation), `/smoke` (main test runner with standard checklist), `/smoke-close` (idempotent browser teardown), `/build-test` (build + smoke compound). Updated CLAUDE.md Phase 3 smoke test section to reference skills. Added `.gitignore` carve-out (`!.claude/skills/`) so skills are version-controlled.
 - Why: Smoke testing was entirely ad-hoc — every cycle required manually writing Playwright MCP calls from scratch, with forgotten browser cleanup, inconsistent screenshots, and no replayable test definitions. Skills codify these repeated patterns into composable slash commands.

@@ -127,6 +127,7 @@ Use `/smoke` (test only) or `/build-test` (build + test) skills for structured s
 - `/smoke-preflight` — validate prerequisites (server, build freshness, git state, Playwright)
 - `/smoke [description]` — run smoke test (defaults to FEATURE_CARD.md scope, or pass `full` for standard checklist)
 - `/smoke-close` — guarantee clean browser teardown (auto-invocable safety net)
+- `/smoke-deep [area]` — extended 12-step test (color pickers, geo shapes, toggles, sizes, slide CRUD with confirm dialogs)
 - `/build-test [description]` — build artifact then immediately smoke test
 
 Manual Playwright MCP usage is still permitted when skills don't cover the scenario. Core rules remain:
