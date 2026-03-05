@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-04 - Add smoke testing skills for structured Playwright workflows
+- What changed: Created 4 Claude Code custom skills in `.claude/skills/`: `/smoke-preflight` (pre-flight validation), `/smoke` (main test runner with standard checklist), `/smoke-close` (idempotent browser teardown), `/build-test` (build + smoke compound). Updated CLAUDE.md Phase 3 smoke test section to reference skills. Added `.gitignore` carve-out (`!.claude/skills/`) so skills are version-controlled.
+- Why: Smoke testing was entirely ad-hoc — every cycle required manually writing Playwright MCP calls from scratch, with forgotten browser cleanup, inconsistent screenshots, and no replayable test definitions. Skills codify these repeated patterns into composable slash commands.
+- Files: `.claude/skills/smoke-preflight/SKILL.md` (new), `.claude/skills/smoke/SKILL.md` (new), `.claude/skills/smoke-close/SKILL.md` (new), `.claude/skills/build-test/SKILL.md` (new), `.gitignore`, `CLAUDE.md`, `CHANGES.md`.
+- Validation: Verify skills appear in `/` autocomplete. Run `/smoke-preflight` to confirm checks execute. Run `/smoke full` to confirm browser workflow. Run `/smoke-close` to confirm teardown.
+
 ## 2026-03-04 - Repo cleanup: fix doc drift + harden gitignore/settings/pre-commit + archive changelog
 - What changed: Fixed CLAUDE.md source count (19 → 20) and manifest table (added layoutTokens.js). Added Phase 3 pre-flight checklist. Hardened .gitignore with defensive patterns (node_modules, IDE files, .env) and replaced prefix-based root image globs with extension-based globs. Removed cat/head/tail Bash permissions from settings.json (contradicts Tool Selection Rules). Archived pre-March CHANGES.md entries to CHANGES_ARCHIVE.md and added 300-line maintenance rule. Added scripts/validate-order.js to verify src/ ↔ ORDER parity, wired into .githooks/pre-commit.
 - Why: Audit found documentation drift, missing defensive patterns, and process gaps from recent feature work.

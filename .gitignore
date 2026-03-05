@@ -15,8 +15,9 @@ Thumbs.db
 # Dependencies (zero-dep project — defensive only)
 node_modules/
 
-# Claude Code local settings
-.claude/
+# Claude Code local settings (except version-controlled skills)
+.claude/*
+!.claude/skills/
 
 # Playwright smoke test artifacts
 test-results/

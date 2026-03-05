@@ -123,9 +123,13 @@ This is the single pause point before code changes begin.
 - Patch issues, rebuild, repeat until clean
 
 **Smoke test (via Playwright MCP):**
-- Open `http://localhost:5173/preview.html` in Playwright browser
-- Light test: verify the new feature works per `FEATURE_CARD.md` scope
-- Quick visual check: does the layout look right? Any obvious regressions?
+Use `/smoke` (test only) or `/build-test` (build + test) skills for structured smoke testing. These skills handle pre-flight checks, navigation, interaction, screenshots, and mandatory browser cleanup automatically. Available skills:
+- `/smoke-preflight` — validate prerequisites (server, build freshness, git state, Playwright)
+- `/smoke [description]` — run smoke test (defaults to FEATURE_CARD.md scope, or pass `full` for standard checklist)
+- `/smoke-close` — guarantee clean browser teardown (auto-invocable safety net)
+- `/build-test [description]` — build artifact then immediately smoke test
+
+Manual Playwright MCP usage is still permitted when skills don't cover the scenario. Core rules remain:
 - Always close the Playwright page/context/browser after each smoke-test attempt (pass or fail)
 - If issues found: close Playwright first, then patch, rebuild, and re-test in a fresh Playwright browser session
 - If Playwright MCP is unavailable or the local server isn't running, stop and ask the user to fix it before continuing
