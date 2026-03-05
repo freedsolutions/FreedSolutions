@@ -99,7 +99,7 @@ function renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameT
     var cardPadV = CANVAS.cardPadV;
     var gap = CANVAS.cardGap;
     var textPadding = CANVAS.cardTextPad;
-    var cardContentW = maxW - CANVAS.cardTextPad;
+    var cardContentW = maxW - textPadding * 2 - 30;
     // Pre-compute wrapped lines per card (handling newlines)
     var cardsLineData = [];
     for (var cpi = 0; cpi < slide.cards.length; cpi++) {

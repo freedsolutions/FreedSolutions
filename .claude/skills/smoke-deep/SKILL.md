@@ -81,6 +81,12 @@ browser_close
 ```
 This is a hard requirement. Never skip this step.
 
+### Archive smoke artifacts
+After closing the browser, archive any root images and Playwright logs:
+```
+node scripts/archive-smoke-artifacts.js
+```
+
 ## Failure handling
 
 If any step fails:
@@ -115,6 +121,7 @@ Extended checks:
 Result: ALL PASS (12/12)
 Screenshots: deep-01 through deep-06
 Browser: closed
+Artifacts: archived
 ```
 
-Always end with `Browser: closed` confirmation.
+Always end with `Browser: closed` and `Artifacts: archived` confirmation.

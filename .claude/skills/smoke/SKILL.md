@@ -65,6 +65,12 @@ browser_close
 ```
 This is a hard requirement. Never skip this step. If an interaction fails, close the browser FIRST, then report the failure.
 
+### Archive smoke artifacts
+After closing the browser, archive any root images and Playwright logs:
+```
+node scripts/archive-smoke-artifacts.js
+```
+
 ## Failure handling
 
 If any step fails:
@@ -89,6 +95,7 @@ Scope: [FEATURE_CARD.md / specific description / full checklist]
 Result: FAIL (1 of 4 checks failed)
 Screenshots: smoke-01-app-loaded.png, smoke-02-canvas.png
 Browser: closed
+Artifacts: archived
 ```
 
-Always end with `Browser: closed` confirmation.
+Always end with `Browser: closed` and `Artifacts: archived` confirmation.

@@ -19,18 +19,27 @@ Guarantee that all Playwright MCP browser sessions are fully closed. Safe to cal
    - If this errors or returns no tabs, closure is confirmed
    - If tabs still show, call `browser_close` again
 
-4. Report result:
+4. Archive smoke artifacts:
+   ```
+   node scripts/archive-smoke-artifacts.js
+   ```
+   - Moves any root image files, Playwright logs, and test-results to `.playwright-mcp/archive/{timestamp}/`
+   - Report the archive result in the output
+
+5. Report result:
 
 ```
 BROWSER CLEANUP
 ───────────────
 Status: CLOSED (was open with N tab(s))
+Artifacts: archived 3 artifact(s) to .playwright-mcp/archive/20260305-001800/
 ```
 or
 ```
 BROWSER CLEANUP
 ───────────────
 Status: ALREADY CLOSED (no active session found)
+Artifacts: clean (nothing to archive)
 ```
 
 ## When to use

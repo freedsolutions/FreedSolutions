@@ -49,6 +49,7 @@ Follow the exact `/smoke` skill protocol:
 5. **Screenshot** each step (`smoke-01-*.png`, `smoke-02-*.png`, etc.)
 6. **Console check** for errors
 7. **ALWAYS close the browser** — no matter what happens
+8. **Archive smoke artifacts**: `node scripts/archive-smoke-artifacts.js`
 
 ### Standard checklist (when scope is `full` or fallback)
 
@@ -76,6 +77,7 @@ Smoke test scope: [FEATURE_CARD.md / description / full checklist]
 Result: ALL PASS
 Screenshots: smoke-01-app-loaded.png, smoke-02-picker.png
 Browser: closed
+Artifacts: archived
 ```
 
 On build failure:
