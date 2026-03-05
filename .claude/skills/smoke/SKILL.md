@@ -1,7 +1,7 @@
 ---
 name: smoke
 description: Run a Playwright MCP smoke test against preview.html at localhost:5173. Navigates, interacts, screenshots, and reports pass/fail. Always closes the browser cleanly.
-argument-hint: "[what to test — or blank for FEATURE_CARD.md scope]"
+argument-hint: "[what to test, 'full' for checklist, or blank for FEATURE_CARD.md]"
 ---
 
 # Smoke Test Runner
