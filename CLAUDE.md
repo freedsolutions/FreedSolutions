@@ -47,6 +47,7 @@ Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defi
 | UI components | `ColorPickerInline.jsx`, `SizeControl.jsx`, `SlideSelector.jsx` | Reusable React components |
 | Hooks | `useSlideManagement.js`, `useCanvasRenderer.js`, `usePdfExport.js`, `usePresets.js` | State management, rendering, export, presets |
 | App | `App.jsx` | Root component, layout, event wiring |
+| LSP | `globals.d.ts`, `react-globals.d.ts` | Ambient type declarations for cross-file LSP navigation (not in build) |
 
 ## Symbol GPS
 
@@ -121,9 +122,13 @@ Quick-reference of key symbols per source file. All symbols share global scope (
 **`App.jsx`** — Root component. Hoisted styles: `inputStyle`, `labelStyle`, `INLINE_SWATCHES`, `smallBtnStyle`, `pickerDropdownStyle`. Wires all hooks, renders three-column layout.
 
 ## LSP Configuration
-- `jsconfig.json` configures TypeScript Language Server for navigation (hover, go-to-definition, find-references).
+- `jsconfig.json` configures TypeScript Language Server for navigation.
 - `checkJs: false` — diagnostics disabled to avoid false positives from missing React types and global scope model.
-- No `@types/react` — would require npm, violating zero-dep constraint. React API hover info unavailable by design.
+- `src/globals.d.ts` declares all cross-file symbols as ambient globals so the TS language server can resolve references across the concatenated source files.
+- `src/react-globals.d.ts` provides minimal React hook type shims (`useState`, `useRef`, `useEffect`, `useCallback`, `createPortal`) without requiring `@types/react`.
+- These `.d.ts` files are **not** in `build.js` `ORDER` — they are LSP-only and excluded from the artifact.
+- **Claude Code LSP:** The `typescript-lsp` plugin currently supports `workspaceSymbol` (cross-file symbol search). Other operations (hover, go-to-definition, find-references) are not yet functional for this project's JS/JSX files.
+- **VS Code:** Full LSP features (hover, go-to-def, find-refs) should work with the standard TypeScript extension using the same `jsconfig.json` and `.d.ts` declarations.
 
 ## Workflow: Write → Build → See → Push
 
@@ -133,7 +138,8 @@ Edit source files in `src/`.
 **Adding a new source file:**
 1. Create the file in `src/` (or `src/canvas/` for rendering code)
 2. Add it to the `ORDER` array in `build.js` at the correct dependency position
-3. Rebuild — the build will fail if a file is in `ORDER` but missing on disk, but will **silently exclude** a file that exists on disk but is not in `ORDER`
+3. Add any new global symbols (functions, variables) to `src/globals.d.ts` for LSP cross-file navigation
+4. Rebuild — the build will fail if a file is in `ORDER` but missing on disk, but will **silently exclude** a file that exists on disk but is not in `ORDER`
 
 ### 2. Build
 ```bash
