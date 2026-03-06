@@ -102,7 +102,9 @@ var GEO_SHAPES = [
   { id: "waves",   label: "Waves" },
   { id: "stripes", label: "Stripes" },
   { id: "hex",     label: "Hexagons" },
-  { id: "dots",    label: "Dots" }
+  { id: "dots",    label: "Dots" },
+  { id: "crosshatch", label: "Crosshatch" },
+  { id: "diamonds",   label: "Diamonds" }
 ];
 
 // ===================================================
@@ -493,6 +495,58 @@ function drawGeoDots(ctx, lcR, lcG, lcB, opScale) {
   ctx.fill();
 }
 
+function drawGeoCrosshatch(ctx, lcR, lcG, lcB, opScale) {
+  var gap = 18;
+  // First set of diagonals (top-left to bottom-right)
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.06 * opScale) + ")";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (var d = -H; d < W + H; d += gap) {
+    ctx.moveTo(d, 0);
+    ctx.lineTo(d + H, H);
+  }
+  ctx.stroke();
+  // Second set of diagonals (top-right to bottom-left)
+  ctx.beginPath();
+  for (var d2 = -H; d2 < W + H; d2 += gap) {
+    ctx.moveTo(d2, H);
+    ctx.lineTo(d2 + H, 0);
+  }
+  ctx.stroke();
+  // Subtle filled intersection nodes for texture depth
+  ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.04 * opScale) + ")";
+  ctx.beginPath();
+  for (var ny = 0; ny < H + gap; ny += gap) {
+    for (var nx = 0; nx < W + gap; nx += gap) {
+      ctx.moveTo(nx + 2, ny);
+      ctx.arc(nx, ny, 2, 0, Math.PI * 2);
+    }
+  }
+  ctx.fill();
+}
+
+function drawGeoDiamonds(ctx, lcR, lcG, lcB, opScale) {
+  var size = 40;
+  var spacingX = size * 2;
+  var spacingY = size;
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.08 * opScale) + ")";
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  for (var row = -1; row * spacingY < H + size * 2; row++) {
+    var offsetX = (row % 2 !== 0) ? size : 0;
+    for (var col = -1; col * spacingX < W + size * 2; col++) {
+      var cx = col * spacingX + offsetX;
+      var cy = row * spacingY;
+      ctx.moveTo(cx, cy - size);
+      ctx.lineTo(cx + size, cy);
+      ctx.lineTo(cx, cy + size);
+      ctx.lineTo(cx - size, cy);
+      ctx.closePath();
+    }
+  }
+  ctx.stroke();
+}
+
 // --- Dispatcher ---
 
 function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
@@ -517,6 +571,8 @@ function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
   else if (shape === "stripes") drawGeoStripes(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "hex") drawGeoHex(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "dots") drawGeoDots(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "crosshatch") drawGeoCrosshatch(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "diamonds") drawGeoDiamonds(ctx, lcR, lcG, lcB, opScale);
   else drawGeoLines(ctx, lcR, lcG, lcB, opScale);
 }
 
@@ -1442,6 +1498,42 @@ function drawShapeThumbnail(ctx, shapeId, w, h) {
       ctx.arc(dt.x, dt.y, dt.r, 0, Math.PI * 2);
     }
     ctx.fill();
+  } else if (shapeId === "crosshatch") {
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.4;
+    ctx.beginPath();
+    for (var cd = -28; cd < 56; cd += 5) {
+      ctx.moveTo(cd, 0); ctx.lineTo(cd + h, h);
+      ctx.moveTo(cd, h); ctx.lineTo(cd + h, 0);
+    }
+    ctx.stroke();
+    ctx.fillStyle = "rgba(102,102,102,0.25)";
+    ctx.beginPath();
+    for (var ny = 0; ny < h + 5; ny += 5) {
+      for (var nx = 0; nx < w + 5; nx += 5) {
+        ctx.moveTo(nx + 1, ny);
+        ctx.arc(nx, ny, 1, 0, Math.PI * 2);
+      }
+    }
+    ctx.fill();
+  } else if (shapeId === "diamonds") {
+    var ds = 7;
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (var dr = -1; dr * ds < h + ds * 2; dr++) {
+      var dox = (dr % 2 !== 0) ? ds : 0;
+      for (var dc = -1; dc * ds * 2 < w + ds * 2; dc++) {
+        var dx = dc * ds * 2 + dox;
+        var dy = dr * ds;
+        ctx.moveTo(dx, dy - ds);
+        ctx.lineTo(dx + ds, dy);
+        ctx.lineTo(dx, dy + ds);
+        ctx.lineTo(dx - ds, dy);
+        ctx.closePath();
+      }
+    }
+    ctx.stroke();
   }
 }
 

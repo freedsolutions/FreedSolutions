@@ -186,6 +186,58 @@ function drawGeoDots(ctx, lcR, lcG, lcB, opScale) {
   ctx.fill();
 }
 
+function drawGeoCrosshatch(ctx, lcR, lcG, lcB, opScale) {
+  var gap = 18;
+  // First set of diagonals (top-left to bottom-right)
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.06 * opScale) + ")";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (var d = -H; d < W + H; d += gap) {
+    ctx.moveTo(d, 0);
+    ctx.lineTo(d + H, H);
+  }
+  ctx.stroke();
+  // Second set of diagonals (top-right to bottom-left)
+  ctx.beginPath();
+  for (var d2 = -H; d2 < W + H; d2 += gap) {
+    ctx.moveTo(d2, H);
+    ctx.lineTo(d2 + H, 0);
+  }
+  ctx.stroke();
+  // Subtle filled intersection nodes for texture depth
+  ctx.fillStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.04 * opScale) + ")";
+  ctx.beginPath();
+  for (var ny = 0; ny < H + gap; ny += gap) {
+    for (var nx = 0; nx < W + gap; nx += gap) {
+      ctx.moveTo(nx + 2, ny);
+      ctx.arc(nx, ny, 2, 0, Math.PI * 2);
+    }
+  }
+  ctx.fill();
+}
+
+function drawGeoDiamonds(ctx, lcR, lcG, lcB, opScale) {
+  var size = 40;
+  var spacingX = size * 2;
+  var spacingY = size;
+  ctx.strokeStyle = "rgba(" + lcR + "," + lcG + "," + lcB + "," + (0.08 * opScale) + ")";
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  for (var row = -1; row * spacingY < H + size * 2; row++) {
+    var offsetX = (row % 2 !== 0) ? size : 0;
+    for (var col = -1; col * spacingX < W + size * 2; col++) {
+      var cx = col * spacingX + offsetX;
+      var cy = row * spacingY;
+      ctx.moveTo(cx, cy - size);
+      ctx.lineTo(cx + size, cy);
+      ctx.lineTo(cx, cy + size);
+      ctx.lineTo(cx - size, cy);
+      ctx.closePath();
+    }
+  }
+  ctx.stroke();
+}
+
 // --- Dispatcher ---
 
 function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
@@ -210,6 +262,8 @@ function drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape) {
   else if (shape === "stripes") drawGeoStripes(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "hex") drawGeoHex(ctx, lcR, lcG, lcB, opScale);
   else if (shape === "dots") drawGeoDots(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "crosshatch") drawGeoCrosshatch(ctx, lcR, lcG, lcB, opScale);
+  else if (shape === "diamonds") drawGeoDiamonds(ctx, lcR, lcG, lcB, opScale);
   else drawGeoLines(ctx, lcR, lcG, lcB, opScale);
 }
 

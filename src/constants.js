@@ -102,5 +102,7 @@ var GEO_SHAPES = [
   { id: "waves",   label: "Waves" },
   { id: "stripes", label: "Stripes" },
   { id: "hex",     label: "Hexagons" },
-  { id: "dots",    label: "Dots" }
+  { id: "dots",    label: "Dots" },
+  { id: "crosshatch", label: "Crosshatch" },
+  { id: "diamonds",   label: "Diamonds" }
 ];

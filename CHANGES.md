@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-05 - Add Crosshatch + Diamonds geometric background patterns
+- What changed: Added two new geo shape patterns. Crosshatch renders intersecting diagonal lines with subtle intersection node dots for a woven/fabric texture. Diamonds renders a tessellated grid of stroked diamond outlines with staggered row offset.
+- Why: Expands the background pattern library to 9 options. Crosshatch specifically addresses the request for a textured look.
+- Files: `src/constants.js` (GEO_SHAPES entries), `src/canvas/backgrounds.js` (drawGeoCrosshatch + drawGeoDiamonds + dispatcher), `src/ColorPickerInline.jsx` (thumbnails), `linkedin-carousel.jsx` (rebuilt), `CHANGES.md`.
+- Validation: Smoke tested via Playwright — both patterns render correctly on canvas, shape picker shows all 9 patterns in 6+3 grid, no console errors.
+
 ## 2026-03-05 - Add "Dots" geometric background pattern
 - What changed: Added a new "Dots" entry to the geo shape picker. Renders filled circles (radius 22px) in a staggered grid using the geo color layer with opacity support. Includes a thumbnail in the shape picker dropdown.
 - Why: Expands the background pattern library with a clean, polka-dot style option. Also served as an LSP workflow demo.

@@ -91,6 +91,42 @@ function drawShapeThumbnail(ctx, shapeId, w, h) {
       ctx.arc(dt.x, dt.y, dt.r, 0, Math.PI * 2);
     }
     ctx.fill();
+  } else if (shapeId === "crosshatch") {
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.4;
+    ctx.beginPath();
+    for (var cd = -28; cd < 56; cd += 5) {
+      ctx.moveTo(cd, 0); ctx.lineTo(cd + h, h);
+      ctx.moveTo(cd, h); ctx.lineTo(cd + h, 0);
+    }
+    ctx.stroke();
+    ctx.fillStyle = "rgba(102,102,102,0.25)";
+    ctx.beginPath();
+    for (var ny = 0; ny < h + 5; ny += 5) {
+      for (var nx = 0; nx < w + 5; nx += 5) {
+        ctx.moveTo(nx + 1, ny);
+        ctx.arc(nx, ny, 1, 0, Math.PI * 2);
+      }
+    }
+    ctx.fill();
+  } else if (shapeId === "diamonds") {
+    var ds = 7;
+    ctx.strokeStyle = "rgba(102,102,102,0.4)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (var dr = -1; dr * ds < h + ds * 2; dr++) {
+      var dox = (dr % 2 !== 0) ? ds : 0;
+      for (var dc = -1; dc * ds * 2 < w + ds * 2; dc++) {
+        var dx = dc * ds * 2 + dox;
+        var dy = dr * ds;
+        ctx.moveTo(dx, dy - ds);
+        ctx.lineTo(dx + ds, dy);
+        ctx.lineTo(dx, dy + ds);
+        ctx.lineTo(dx - ds, dy);
+        ctx.closePath();
+      }
+    }
+    ctx.stroke();
   }
 }
 
