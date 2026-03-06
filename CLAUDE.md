@@ -135,6 +135,17 @@ Quick-reference of key symbols per source file. All symbols share global scope (
 - **VS Code:** Full LSP features (hover, go-to-def, find-refs) work with the standard TypeScript extension using the same `jsconfig.json` and `.d.ts` declarations.
 - **Module/script model:** All source files are scripts (global scope), not ES modules. The React `import` statements live in `src/imports.js` (first in build ORDER) to keep them isolated from TS module detection. No source file should contain `import` or `export` statements — this ensures TS treats every file as a script, matching the concatenation build model.
 
+### Code Intelligence
+Prefer LSP over Grep/Read for code navigation when it returns results — it’s faster, precise, and avoids reading entire files:
+- `workspaceSymbol` to find where something is defined
+- `findReferences` to see all usages across the codebase
+- `goToDefinition` / `goToImplementation` to jump to source
+- `hover` for type info without reading the file
+
+Use Grep only when LSP isn’t available or returns empty, or for text/pattern searches (comments, strings, config).
+
+After writing or editing code, check LSP diagnostics and fix errors before proceeding.
+
 ## Workflow: Write → Build → See → Push
 
 ### 1. Write
