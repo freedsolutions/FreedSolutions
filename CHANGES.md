@@ -2,6 +2,12 @@
 Operational change log for behavior and workflow updates in this repo.
 Add newest entries at the top.
 
+## 2026-03-06 - Fix LSP module/script mismatch + update LSP docs
+- What changed: Extracted React/ReactDOM `import` statements from `constants.js` into a new `src/imports.js` (first in build ORDER). Removed `export default` from `App.jsx`. Changed `jsconfig.json` from `module: "ESNext"` to `module: "None"` and removed `moduleResolution: "bundler"`. Updated CLAUDE.md LSP section with accurate, hedged language about Claude Code LSP bridge limitations vs repo config issues.
+- Why: TS was treating `constants.js` and `App.jsx` as ES modules (scoped declarations) due to import/export statements, while the actual build model is concatenated scripts (global scope). This mismatch affected VS Code cross-file resolution. Also corrected CLAUDE.md claims about LSP capabilities based on empirical testing.
+- Files: `src/imports.js` (new), `src/constants.js`, `src/App.jsx`, `build.js`, `jsconfig.json`, `CLAUDE.md`, `CHANGES.md`, `linkedin-carousel.jsx` (rebuilt).
+- Validation: Build output diff shows only `export default function App()` → `function App()` change. `workspaceSymbol` confirmed no regression. Claude.ai sandbox compatibility of `function App()` (no export) to be verified by user.
+
 ## 2026-03-05 - Add Crosshatch + Diamonds geometric background patterns
 - What changed: Added two new geo shape patterns. Crosshatch renders intersecting diagonal lines with subtle intersection node dots for a woven/fabric texture. Diamonds renders a tessellated grid of stroked diamond outlines with staggered row offset.
 - Why: Expands the background pattern library to 9 options. Crosshatch specifically addresses the request for a textured look.

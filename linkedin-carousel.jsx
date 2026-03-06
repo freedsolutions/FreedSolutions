@@ -3031,7 +3031,7 @@ var INLINE_SWATCHES = ["#ffffff", "#1a1a2e", "#333333", "#22c55e", "#a5b4fc", "#
 var smallBtnStyle = { padding: SPACE[1] + "px " + SPACE[4] + "px", borderRadius: RADIUS.sm, border: "1px solid " + SURFACE.border, background: SURFACE.input, color: SURFACE.text, cursor: "pointer", fontSize: 9, fontWeight: 600 };
 var pickerDropdownStyle = { position: "absolute", top: "100%", left: 0, zIndex: Z.dropdown, marginTop: SPACE[2], background: SURFACE.panel, border: "1px solid " + SURFACE.border, borderRadius: RADIUS.xl, padding: SPACE[5], width: SIZE.pickerWidth, boxShadow: CLR.shadow };
 
-export default function App() {
+function App() {
   var canvasRef = useRef(null);
   var [confirmDialog, setConfirmDialog] = useState(null);
 

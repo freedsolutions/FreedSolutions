@@ -34,13 +34,14 @@ Claude Code has dedicated tools that are faster and never trigger permission pro
 **Bash is the right choice for:** `node build.js`, `node scripts/*.js`, all `git` commands, `npx serve`, `npx playwright`, and quick one-liners where no dedicated tool exists (`wc -l`, `pwd`, `mkdir -p`).
 
 ## Source Manifest
-`build.js` defines an explicit `ORDER` array that lists all 20 source files and their concatenation sequence. **This array is the single source of truth** for what ships in the artifact and in what order.
+`build.js` defines an explicit `ORDER` array that lists all 21 source files and their concatenation sequence. **This array is the single source of truth** for what ships in the artifact and in what order.
 
 Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defined in files above it.
 
 **Structure at a glance:**
 | Layer | Files | Purpose |
 |-------|-------|---------|
+| Imports | `imports.js` | React/ReactDOM imports (first in ORDER, no other file imports) |
 | Constants | `constants.js`, `layoutTokens.js` | Shared constants, design tokens, style helpers |
 | Canvas | `canvas/*.js` (7 files) | Pure rendering: backgrounds, text, overlays, screenshots, slide composition |
 | Data | `slideFactory.js`, `undoRedo.js`, `pdfBuilder.js` | Slide model, undo stack, PDF generation |
@@ -52,6 +53,9 @@ Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defi
 ## Symbol GPS
 
 Quick-reference of key symbols per source file. All symbols share global scope (concatenated artifact).
+
+### Imports Layer
+**`imports.js`** — React/ReactDOM imports (first in ORDER, isolated for TS module detection)
 
 ### Constants Layer
 **`constants.js`** — Canvas dimensions, font system, geometric shapes
@@ -127,8 +131,9 @@ Quick-reference of key symbols per source file. All symbols share global scope (
 - `src/globals.d.ts` declares all cross-file symbols as ambient globals so the TS language server can resolve references across the concatenated source files.
 - `src/react-globals.d.ts` provides minimal React hook type shims (`useState`, `useRef`, `useEffect`, `useCallback`, `createPortal`) without requiring `@types/react`.
 - These `.d.ts` files are **not** in `build.js` `ORDER` — they are LSP-only and excluded from the artifact.
-- **Claude Code LSP:** The `typescript-lsp` plugin currently supports `workspaceSymbol` (cross-file symbol search). Other operations (hover, go-to-definition, find-references) are not yet functional for this project's JS/JSX files.
-- **VS Code:** Full LSP features (hover, go-to-def, find-refs) should work with the standard TypeScript extension using the same `jsconfig.json` and `.d.ts` declarations.
+- **Claude Code LSP:** Currently only `workspaceSymbol` returns results. Position-dependent operations (`hover`, `goToDefinition`, `findReferences`, `documentSymbol`) return empty — this appears to be a Claude Code LSP bridge limitation rather than a project config issue (even pure `.d.ts` declarations produce no results). This may improve as Claude Code's LSP integration matures.
+- **VS Code:** Full LSP features (hover, go-to-def, find-refs) work with the standard TypeScript extension using the same `jsconfig.json` and `.d.ts` declarations.
+- **Module/script model:** All source files are scripts (global scope), not ES modules. The React `import` statements live in `src/imports.js` (first in build ORDER) to keep them isolated from TS module detection. No source file should contain `import` or `export` statements — this ensures TS treats every file as a script, matching the concatenation build model.
 
 ## Workflow: Write → Build → See → Push
 
