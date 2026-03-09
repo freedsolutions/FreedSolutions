@@ -1,13 +1,13 @@
 #!/bin/sh
 
-node scripts/validate-order.js
+node projects/linkedin-carousel/scripts/validate-order.js
 status=$?
 if [ $status -ne 0 ]; then
   echo "pre-commit: ORDER validation failed — see errors above"
   exit $status
 fi
 
-node scripts/archive-smoke-artifacts.js
+node projects/linkedin-carousel/scripts/archive-smoke-artifacts.js
 status=$?
 if [ $status -ne 0 ]; then
   echo "pre-commit: failed to archive Playwright/smoke artifacts"

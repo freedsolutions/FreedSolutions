@@ -20,12 +20,14 @@ node_modules/
 !.claude/skills/
 
 # Playwright smoke test artifacts
-test-results/
 .playwright-mcp/
+test-results/
+projects/linkedin-carousel/test-results/
+projects/linkedin-carousel/.playwright-mcp/
 
-# Root-level image artifacts (archived by pre-commit hook)
-/*.png
-/*.jpg
-/*.jpeg
-/*.webp
-/*.gif
+# Project-level image artifacts (archived by pre-commit hook)
+projects/linkedin-carousel/*.png
+projects/linkedin-carousel/*.jpg
+projects/linkedin-carousel/*.jpeg
+projects/linkedin-carousel/*.webp
+projects/linkedin-carousel/*.gif

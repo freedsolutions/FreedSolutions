@@ -1,4 +1,7 @@
-# FreedSolutions — Workflow Contract
+# LinkedIn Carousel — Workflow Contract
+
+> This project lives at `projects/linkedin-carousel/` within the FreedSolutions repo.
+> All relative paths in this document are relative to the project root unless prefixed with the repo root.
 
 ## Repo Truth
 - `src/` is the editable source of behavior.
@@ -31,7 +34,7 @@ Claude Code has dedicated tools that are faster and never trigger permission pro
 | `find`, `ls -R`       | `Glob`        | Faster, cross-platform                 |
 | `grep`, `rg`          | `Grep`        | Optimized, permission-free             |
 
-**Bash is the right choice for:** `node build.js`, `node scripts/*.js`, all `git` commands, `npx serve`, `npx playwright`, and quick one-liners where no dedicated tool exists (`wc -l`, `pwd`, `mkdir -p`).
+**Bash is the right choice for:** `node projects/linkedin-carousel/build.js`, `node projects/linkedin-carousel/scripts/*.js`, all `git` commands, `npx serve`, `npx playwright`, and quick one-liners where no dedicated tool exists (`wc -l`, `pwd`, `mkdir -p`).
 
 ## Source Manifest
 `build.js` defines an explicit `ORDER` array that lists all 21 source files and their concatenation sequence. **This array is the single source of truth** for what ships in the artifact and in what order.
@@ -159,15 +162,15 @@ Edit source files in `src/`.
 
 ### 2. Build
 ```bash
-node build.js
+node projects/linkedin-carousel/build.js
 ```
 Required after any `src/` change. No exceptions.
 
 ### 3. See
-Serve the repo root locally and open `preview.html` in a browser. The preview loads the built artifact directly — what you see is what ships. Refresh after each build.
+Serve the project directory locally and open `preview.html` in a browser. The preview loads the built artifact directly — what you see is what ships. Refresh after each build.
 
 ```bash
-npx serve . --listen 5173
+npx serve projects/linkedin-carousel --listen 5173
 # then open http://localhost:5173/preview.html
 ```
 
@@ -205,7 +208,7 @@ This is the single pause point before code changes begin.
 > **Autonomy expectation:** This entire phase runs without user interaction. If an unexpected permission prompt appears, accept it, complete the phase, and report the unexpected prompt in the handoff so settings can be updated.
 
 > **Pre-flight checklist** (all must be true before starting):
-> - Local server running on `:5173` (`npx serve . --listen 5173`)
+> - Local server running on `:5173` (`npx serve projects/linkedin-carousel --listen 5173`)
 > - Playwright MCP available and responsive
 > - Git working tree clean (`git status` shows no uncommitted changes)
 > - `FEATURE_CARD.md` present with current feature scope
@@ -214,7 +217,7 @@ This is the single pause point before code changes begin.
 - Read `FEATURE_CARD.md` scope and `CLAUDE.md` guardrails
 - Make targeted edits in `src/`
 - If a new source file was created, add it to `ORDER` in `build.js`
-- Run `node build.js` — fix any build errors before continuing
+- Run `node projects/linkedin-carousel/build.js` — fix any build errors before continuing
 
 **Self-review:**
 - Review own diff against `FEATURE_CARD.md` scope (anything missing? anything out of scope?)
@@ -235,7 +238,7 @@ Manual Playwright MCP usage is still permitted when skills don't cover the scena
 - If Playwright MCP is unavailable or the local server isn't running, stop and ask the user to fix it before continuing
 
 **Commit gate (final step before review):**
-- Run `node scripts/archive-smoke-artifacts.js` to file away Playwright MCP logs, `test-results/` output, and all untracked root image artifacts (any `.png/.jpg/.jpeg/.webp/.gif` name)
+- Run `node projects/linkedin-carousel/scripts/archive-smoke-artifacts.js` to file away Playwright MCP logs, `test-results/` output, and all untracked project image artifacts (any `.png/.jpg/.jpeg/.webp/.gif` name)
 - Add `CHANGES.md` entry if behavior changed
 - Verify `git status` reflects only intended task files
 - Commit all changed files atomically (source + artifact + docs)
@@ -270,7 +273,7 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Working tree clean after commit.
 - Review handoff must include the local commit hash.
 - Commit message style: imperative mood, sentence case, no trailing period. ~72 chars max. Use colons or `+` for multi-part summaries.
-- Commit-time artifact hygiene is automated by `.githooks/pre-commit` (one-time setup per clone: `git config core.hooksPath .githooks`).
+- Commit-time artifact hygiene is automated by `projects/linkedin-carousel/.githooks/pre-commit` (one-time setup per clone: `git config core.hooksPath projects/linkedin-carousel/.githooks`).
 
 ## Permission Preflight
 - Local permissions (`settings.local.json`) grant unrestricted Bash access. Permission prompts should never appear during normal workflow.
@@ -281,14 +284,14 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Do not request broad or speculative approvals for actions you are not about to run.
 
 ## Hard Guardrails
-- Do not edit `linkedin-carousel.jsx` manually — always regenerate via `node build.js`.
+- Do not edit `linkedin-carousel.jsx` manually — always regenerate via `node projects/linkedin-carousel/build.js`.
 - Do not skip build after source change.
 - Verify changes visually in `preview.html` before pushing UI changes.
 - Do not add `package.json`, `node_modules`, or npm dependencies — the repo is intentionally zero-dep.
 - When adding a new source file, add it to `ORDER` in `build.js` — files not in `ORDER` are silently excluded from the artifact.
 - Do not commit without a passing Playwright smoke test. If the smoke test cannot run, stop and ask.
 - Do not proceed to Commit gate while any Playwright smoke-test browser window/session is still open.
-- Do not commit raw Playwright MCP logs, `test-results/` artifacts, or untracked root image artifacts; archive them via `node scripts/archive-smoke-artifacts.js`.
+- Do not commit raw Playwright MCP logs, `test-results/` artifacts, or untracked project image artifacts; archive them via `node projects/linkedin-carousel/scripts/archive-smoke-artifacts.js`.
 - Do not hand off for user review until a local commit is created and its hash is reported.
 - If an unexpected permission prompt appears during Phase 3, accept it and report it in the handoff. Do not stop the SHIP loop for permission debugging.
 - Do not start Phase 3 code changes until the Phase 1/2 question message has been sent and answered (or a no-blockers assumptions message has been sent).
