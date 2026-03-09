@@ -58,5 +58,5 @@ terminal and with following technical steps.
 
 ---
 
-> **Done when:** You can send and receive email at `adam@freedsolutions.com` and `www.freedsolutions.com` loads your landing page.
-> **Remaining:** Google Workspace setup (#2), then Gmail migration (#3) and forwarding (#4) can proceed.
+> **Done when:** You can send and receive email at `adam@freedsolutions.com`, and Gmail migration plus forwarding are complete.
+> **Remaining:** Google Workspace setup (#2), then Gmail migration (#3) and forwarding (#4).
