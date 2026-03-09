@@ -6,51 +6,37 @@
 
 ---
 
-## Paste this into a fresh Claude chat:
+## Remaining: Google Workspace + Gmail Migration
 
 ```
-I need to migrate my professional identity from a personal Gmail to a
-custom domain on Google Workspace, and simultaneously get my landing
-page website live on that domain. Here is my full context:
+I need to finish setting up my professional email identity. Domain
+and website are already live — this covers only Google Workspace
+setup and the Gmail migration.
 
 IDENTITY:
   Current email:   freedsolutions@gmail.com
   Target email:    adam@freedsolutions.com
   Business name:   Freed Solutions (DBA, cannabis fractional consulting)
 
-DOMAINS TO PURCHASE:
-  Primary:    freedsolutions.com  (full Workspace setup on this domain)
-  Secondary:  thirdwavecannabis.com  (purchase and park only — no
-              active setup needed, just IP protection)
-
-WEBSITE:
-  I have a pre-built single HTML file (landing page) that I will
-  provide. It currently references freedsolutions@gmail.com and has
-  no hosted domain yet. I need this deployed at freedsolutions.com.
-  Preferred hosting: GitHub Pages (free) or Netlify (free tier).
-  I want a clean www.freedsolutions.com URL.
+ALREADY COMPLETE (do not redo):
+  - freedsolutions.com purchased and DNS configured
+  - thirdwavecannabis.com purchased and parked
+  - Landing page live at www.freedsolutions.com (GitHub Pages)
+  - CTA links to Calendly booking (not email)
+  - Repo restructured (multi-project layout)
 
 CURRENT STATE:
-  - All work tools (Calendly, Notion, Cowork) tied to old Gmail
+  - All work tools (Calendly, Notion, Cowork) still tied to old Gmail
   - Google Calendar in use — must not lose events
   - Outlook client calendar synced via Cowork tasks
-  - No existing domain registrar account
 
 GOALS FOR THIS PHASE:
-  1. Purchase freedsolutions.com from a reputable registrar
-     (recommend one — I have no preference)
-  2. Purchase and park thirdwavecannabis.com (no email, no site)
-  3. Set up Google Workspace Starter on freedsolutions.com
-  4. Create adam@freedsolutions.com as primary account
-  5. Migrate Gmail history, contacts, and calendar to new account
+  1. Set up Google Workspace Starter on freedsolutions.com
+  2. Create adam@freedsolutions.com as primary account
+  3. Migrate Gmail history, contacts, and calendar to new account
      without losing anything
-  6. Set up forwarding from old Gmail so nothing is missed
+  4. Set up forwarding from old Gmail so nothing is missed
      during transition
-  7. Deploy my HTML landing page to www.freedsolutions.com
-     — walk me through the hosting setup step by step
-  8. Update the email reference in the HTML from
-     freedsolutions@gmail.com to adam@freedsolutions.com
-     before deploying
 
 Please walk me through this end-to-end in strict sequential order.
 Flag any steps that are irreversible or require waiting (DNS
