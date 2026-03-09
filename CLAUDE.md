@@ -8,7 +8,7 @@ FreedSolutions/
 ├── projects/
 │   └── linkedin-carousel/  # LinkedIn carousel slide designer
 ├── ops/                    # Migration prompts & internal ops
-├── brand/                  # Brand assets (logo, resumes)
+├── brand/                  # Brand assets — local only (.gitignore)
 ```
 
 ## Project Routing
@@ -30,4 +30,4 @@ Each project has its own CLAUDE.md with full workflow details.
 ## Landing Page
 - Hosted via GitHub Pages from repo root
 - Custom domain: `www.freedsolutions.com` (configured via `CNAME` file)
-- Email CTA currently shows "coming soon" — swap to `adam@freedsolutions.com` mailto link once Workspace is live
+- CTA currently links to Calendly booking (`https://calendly.com/freedsolutions/30min`)

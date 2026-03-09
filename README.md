@@ -10,7 +10,9 @@ Fractional data & systems consulting for the cannabis industry.
 ```
 FreedSolutions/
 ├── index.html                     # Landing page (GitHub Pages)
-├── brand/                         # Brand assets (logo, resumes)
+├── CLAUDE.md                      # AI workflow config & project routing
+├── CNAME                          # Custom domain (freedsolutions.com)
+├── brand/                         # Brand assets — local only (.gitignore)
 ├── projects/
 │   └── linkedin-carousel/         # LinkedIn carousel slide designer
 ├── ops/                           # Internal ops & migration docs
@@ -23,5 +25,5 @@ FreedSolutions/
 ### Global Assets
 
 - `index.html` — Landing page deployed via GitHub Pages
-- `brand/` — Logo, resumes, and other brand assets
+- `brand/` — Logo, resumes, and other brand assets (local only, not tracked)
 - `ops/` — Internal operations, migration prompts, and automation scripts
