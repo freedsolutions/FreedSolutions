@@ -14,14 +14,14 @@ This is a **LinkedIn carousel slide designer** — a single-page React app that 
 
 **Runtime model:**
 - React 18.2.0 (UMD from CDN) + Babel Standalone 7.26.10 (browser JSX transform)
-- `preview.html` pins these versions to match the Claude.ai artifact sandbox — do not upgrade without verifying sandbox parity
+- `preview.html` pins these versions for runtime stability — do not upgrade without testing in preview
 - No bundler, no transpiler, no module system — source files are concatenated by `build.js` into a single JSX artifact
 
 **Zero-dependency constraint:**
 - No `package.json`, no `node_modules`, no npm. Do not add them.
 - `build.js` uses only Node.js built-ins (`fs`, `path`)
 - `preview.html` loads React/Babel from unpkg CDN
-- This constraint is intentional — the artifact must run identically in `preview.html` and when pasted into Claude.ai's artifact sandbox
+- This constraint is intentional — the artifact must work as a single self-contained file loaded by `preview.html`
 
 ## Tool Selection Rules
 Claude Code has dedicated tools that are faster and never trigger permission prompts. Always prefer them:

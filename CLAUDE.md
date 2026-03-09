@@ -25,7 +25,7 @@ Each project has its own CLAUDE.md with full workflow details.
 - Git hooks path: `projects/linkedin-carousel/.githooks` (validates build ORDER + archives smoke artifacts)
 - No `package.json` or `node_modules` — zero-dep repo
 - `index.html` at root is the Freed Solutions landing page (GitHub Pages)
-- Do not edit `index.html` without confirming the email CTA status (may be placeholder while domain email is being set up)
+- Do not edit `index.html` without confirming the current CTA strategy (may change when Workspace email goes live)
 
 ## Landing Page
 - Hosted via GitHub Pages from repo root

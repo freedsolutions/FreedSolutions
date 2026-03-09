@@ -3,7 +3,7 @@
 Fractional data & systems consulting for the cannabis industry.
 
 **Website:** [freedsolutions.com](https://www.freedsolutions.com)
-**Contact:** adam@freedsolutions.com
+**Contact:** [Book a call](https://calendly.com/freedsolutions/30min)
 
 ## Repo Structure
 
