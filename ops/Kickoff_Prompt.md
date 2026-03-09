@@ -1,5 +1,7 @@
 # Kickoff Prompt — Paste this first in a fresh chat
 
+> **Status: CONSUMED** — This prompt was used to launch Phase A. The repo restructuring it describes was completed in commit `81ecf22`. Kept as historical reference for the original migration vision.
+
 ```
 I am migrating my professional identity end-to-end across three
 phases. This chat will cover Phase A. Here is the full context
