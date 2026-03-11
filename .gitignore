@@ -14,6 +14,7 @@ Thumbs.db
 
 # Environment
 .env
+client_secret_*.apps.googleusercontent.com.json
 
 # Dependencies (zero-dep project — defensive only)
 node_modules/
