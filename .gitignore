@@ -1,7 +1,7 @@
-# Brand assets (large binaries — kept local)
+# Brand assets (large binaries - keep most local)
 brand/*
-!brand/logo-1-purple.png
-!brand/logo-nav-purple-solid.png
+!brand/logo-square-purple-text.png
+!brand/logo-square-purple-no-text.png
 
 # OS
 .DS_Store
@@ -18,7 +18,7 @@ Thumbs.db
 .env
 client_secret_*.apps.googleusercontent.com.json
 
-# Dependencies (zero-dep project — defensive only)
+# Dependencies (zero-dep project - defensive only)
 node_modules/
 
 # Claude Code local settings (except version-controlled skills)
