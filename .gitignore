@@ -1,5 +1,7 @@
 # Brand assets (large binaries — kept local)
-brand/
+brand/*
+!brand/logo-1-purple.png
+!brand/logo-nav-purple-solid.png
 
 # OS
 .DS_Store

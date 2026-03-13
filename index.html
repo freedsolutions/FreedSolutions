@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Freed Solutions helps cannabis founders and operators build trustworthy seed-to-sale data systems rooted in integrity, transparency, and long-term resilience.">
+<meta property="og:title" content="Freed Solutions — Cannabis Data &amp; Operations Advisory">
+<meta property="og:description" content="Freed Solutions helps cannabis founders and operators build trustworthy seed-to-sale data systems rooted in integrity, transparency, and long-term resilience.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.freedsolutions.com/">
+<meta property="og:image" content="https://www.freedsolutions.com/brand/logo-1-purple.png">
+<meta property="og:image:alt" content="Freed Solutions logo mark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Freed Solutions — Cannabis Data &amp; Operations Advisory">
+<meta name="twitter:description" content="Freed Solutions helps cannabis founders and operators build trustworthy seed-to-sale data systems rooted in integrity, transparency, and long-term resilience.">
+<meta name="twitter:image" content="https://www.freedsolutions.com/brand/logo-1-purple.png">
+<meta name="twitter:image:alt" content="Freed Solutions logo mark">
 <title>Freed Solutions — Cannabis Data & Operations Advisory</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -56,8 +68,26 @@ nav {
   transition: all 0.4s;
 }
 nav .container { display: flex; justify-content: space-between; align-items: center; }
-.nav-logo { font-family: var(--serif); font-size: 1.35rem; color: var(--text-primary); text-decoration: none; letter-spacing: -0.02em; }
-.nav-logo span { color: var(--accent-light); }
+.nav-logo {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-family: var(--serif); font-size: 1.35rem; color: var(--text-primary);
+  text-decoration: none; letter-spacing: -0.02em;
+}
+.nav-logo-mark {
+  width: 60px; height: 60px;
+  display: block;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}
+.nav-logo-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  white-space: nowrap;
+}
+.nav-logo-wordmark span { color: var(--accent-light); }
 .nav-links { display: flex; gap: 2.25rem; align-items: center; }
 .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.02em; transition: color 0.3s; }
 .nav-links a:hover { color: var(--text-primary); }
@@ -387,9 +417,49 @@ section { padding: 6rem 0; position: relative; z-index: 1; }
 .cta-desc { font-size: 1.1rem; color: var(--text-secondary); max-width: 540px; margin: 0 auto 2.5rem; line-height: 1.7; }
 .cta-loc { color: var(--text-muted); font-size: 0.9rem; margin-top: 1.25rem; }
 .cta-reefer { color: var(--text-muted); font-size: 0.88rem; font-style: italic; margin-top: 2rem; }
+.cta-logo {
+  display: block;
+  width: 160px; height: 160px;
+  margin: 1.5rem auto 0;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.22);
+}
 
 /* Footer */
-footer { padding: 2.5rem 0; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+footer { padding: 2.75rem 0 3rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+footer .container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.footer-kicker {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+}
+.footer-copy,
+.footer-meta,
+.footer-tagline {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.footer-copy {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+.footer-meta {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+}
+.footer-tagline {
+  color: var(--text-primary);
+  font-size: 0.86rem;
+}
 
 /* Animations */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
@@ -431,6 +501,8 @@ footer { padding: 2.5rem 0; border-top: 1px solid var(--border); text-align: cen
   .container { padding: 0 1.25rem; }
   .hero { padding: 7rem 0 4rem; }
   section { padding: 4rem 0; }
+  .nav-logo { gap: 0.3rem; font-size: 1.2rem; }
+  .nav-logo-mark { width: 50px; height: 50px; }
   .process-grid { grid-template-columns: 1fr; }
   .exp-stats { grid-template-columns: 1fr; }
   .venn-wrap { width: 280px; height: 270px; }
@@ -461,7 +533,10 @@ footer { padding: 2.5rem 0; border-top: 1px solid var(--border); text-align: cen
 <!-- Nav -->
 <nav>
   <div class="container">
-    <a href="#" class="nav-logo">freed<span>solutions</span></a>
+    <a href="#" class="nav-logo">
+      <img src="brand/logo-nav-purple-solid.png" alt="" class="nav-logo-mark" width="512" height="512" decoding="async">
+      <span class="nav-logo-wordmark">freed<span>solutions</span></span>
+    </a>
     <div class="nav-links" id="navLinks">
       <a href="#about">About</a>
       <a href="#framework">Framework</a>
@@ -735,13 +810,17 @@ footer { padding: 2.5rem 0; border-top: 1px solid var(--border); text-align: cen
       <span class="engage-badge">Strategic Consulting</span>
     </div>
     <div class="cta-reefer">Not the right fit? I'll reefer a friend.</div>
+    <img src="brand/logo-1-purple.png" alt="Freed Solutions logo mark" class="cta-logo" width="2048" height="2048" loading="lazy" decoding="async">
   </div>
 </section>
 
 <!-- Footer -->
 <footer>
   <div class="container">
-    <p>&copy; 2025 Freed Solutions. All rights reserved. &nbsp;&middot;&nbsp; Clarity and confidence in every decision.</p>
+    <p class="footer-kicker">Freed Solutions</p>
+    <p class="footer-copy">Cannabis data, systems, and operations advisory based in Florence,&nbsp;Massachusetts.</p>
+    <p class="footer-meta">Published 2025 &nbsp;&middot;&nbsp; &copy; <span id="footerYear"></span> Freed Solutions &nbsp;&middot;&nbsp; All rights reserved.</p>
+    <p class="footer-tagline">Clarity and confidence in every decision.</p>
   </div>
 </footer>
 
@@ -759,6 +838,9 @@ document.querySelectorAll('.nav-links a').forEach(a => {
     document.getElementById('navLinks').classList.remove('open');
   });
 });
+
+const footerYear = document.getElementById('footerYear');
+if (footerYear) footerYear.textContent = new Date().getFullYear();
 </script>
 
 </body>
