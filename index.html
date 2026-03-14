@@ -478,9 +478,25 @@ footer .container {
   font-size: 0.8rem;
   letter-spacing: 0.01em;
 }
+.footer-meta a,
+.footer-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.3s, border-color 0.3s;
+}
+.footer-meta a:hover,
+.footer-links a:hover {
+  color: var(--text-primary);
+  border-color: rgba(255,255,255,0.25);
+}
 .footer-tagline {
   color: var(--text-primary);
   font-size: 0.86rem;
+}
+.footer-links {
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 /* Animations */
@@ -843,6 +859,7 @@ footer .container {
     <p class="footer-kicker">Freed Solutions</p>
     <p class="footer-copy">Cannabis data, systems, and operations advisory based in Northampton,&nbsp;Massachusetts.</p>
     <p class="footer-meta">Published 2025 &nbsp;&middot;&nbsp; &copy; <span id="footerYear"></span> Freed Solutions &nbsp;&middot;&nbsp; All rights reserved.</p>
+    <p class="footer-links"><a href="/privacy-policy/">Privacy Policy</a></p>
     <p class="footer-tagline">Clarity and confidence in every decision.</p>
   </div>
 </footer>
