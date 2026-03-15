@@ -117,7 +117,7 @@ After processing existing pages, check GCal for meetings that occurred since `lo
 After all Step 1 processing completes (regardless of whether changes were found):
 
 - Update the **Agent Config** page: set Last Successful Run to the current timestamp in ISO 8601 format with Eastern timezone offset (e.g., `2026-03-15T22:00:00-04:00`).
-- This timestamp is **shared with the Quick Sync Agent**. Whichever agent runs more recently sets the timestamp. The next agent (either one) uses it as the lookback start.
+- This timestamp determines the lookback window for the next run. Update it after all Step 1 processing completes, even if no changes were found.
 
 ---
 
@@ -168,7 +168,16 @@ Before creating a new Contact:
 
 Unknown contacts and domains are handled directly in their source databases. No Review Queue.
 
-**Unknown contacts:** Create a new Contact with Record Status = Draft. The contact appears in Adam's "Draft" filtered view on the Contacts DB.
+**Unknown contacts:** Create a new Contact with these properties:
+
+| Property | Value |
+|----------|-------|
+| Contact Name | Attendee display name from GCal |
+| Email | Attendee email address |
+| Company | Wire via Domain-Based Company Wiring (above) |
+| Record Status | Draft |
+
+All other properties (Phone, Pronouns, Nickname, LinkedIn, Role / Title, Secondary/Tertiary Email) are left blank — Adam fills them during Draft review. The contact appears in Adam's "Draft" filtered view on the Contacts DB.
 
 **Unknown domains:** When a new contact's email domain does not match any Company:
 
@@ -780,7 +789,7 @@ The agent processes meetings from **all configured calendars** with the same wir
 
 ## Shared Timestamp
 
-33. **Last Successful Run is shared** between this agent and the Quick Sync Agent. Both read/write the same Agent Config value. This is by design — they complement each other.
+33. **Last Successful Run** is used by this agent to determine the lookback window. The value is stored in Agent Config and updated at the end of every successful run.
 34. **Always update the timestamp** at the end of a successful run, even if no changes were found.
 
 ## Superseded Pages (Legacy)
@@ -837,7 +846,7 @@ After each run, produce a brief summary:
 
 Automated cutover tasks completed in Session 37b: Agent Config updated, old instruction pages deprecated ([DEPRECATED] prefix), Meetings DB migrated (126 events wired with Calendar Name, Location, Contacts, Series).
 
-**Adam's manual steps — completed S39 (2026-03-15):**
+**Adam's manual steps — completed S39–S40 (2026-03-15):**
 
 1. [x] Disable Meeting Sync nightly trigger (Notion Automations)
 2. [x] Disable Post-Meeting Wiring trigger (Notion Automations)
@@ -845,4 +854,4 @@ Automated cutover tasks completed in Session 37b: Agent Config updated, old inst
 4. [x] Configure Post-Meeting Agent triggers: (a) nightly 10 PM ET schedule, (b) reactive trigger on Meetings DB → "Meeting Title is edited" (uncheck "Trigger when page content edited")
 5. [x] Stop doing "Link existing page" before meetings — just start AI notes directly from Notion Calendar
 6. [x] Sweep the Delete view and trash any remaining [SUPERSEDED] stubs
-7. [ ] Verify first nightly run produces expected Output Summary *(pending — first real nightly run after cutover)*
+7. [x] Verify first run produces expected output *(validated S40 — test meeting "Test Meeting Notes & Agents" on 2026-03-15, all 4 steps passed: CRM wiring, Floppy parsing, AI action items, GCal sync-back)*
