@@ -59,6 +59,32 @@ Extract every checklist item under the **Action Items** heading. For each item, 
 2. **Who** is responsible? (look for names or context clues in the item text)
 3. **Is there a deadline mentioned?** (capture if present)
 
+## Step 2b: Group Related Action Items (CRITICAL)
+
+Before creating individual Action Items, review the full list of parsed items and **group items that share the same topic or deliverable into a single Action Item**.
+
+**Why this exists:** AI meeting summaries often split one real-world task into multiple granular checklist items. For example, a ConnectNexus walkthrough prep might produce 3 separate items ("find someone to do walkthrough", "send documentation", "set up demo environment") — but these are all sub-tasks of one deliverable: *prep the ConnectNexus walkthrough*. Creating 3 separate Action Items clutters Adam's task list and fragments what should be tracked as one unit of work.
+
+**Grouping rules:**
+
+1. **Same-topic test:** If two or more action items relate to the same project, deliverable, or outcome, they are candidates for grouping. Ask: "Would Adam track these as one task or separately?" When in doubt, group.
+2. **Same-contact test:** Grouped items should involve the same Contact (or no specific contact). Don't group items that involve different people unless they're truly part of the same deliverable.
+3. **Granularity threshold:** If an item is a meaningful standalone deliverable with its own timeline or owner, keep it separate. If it's a sub-step of a larger task (prep work, sending materials, scheduling), group it into the parent task.
+4. **How to consolidate:**
+   - **Task name:** Use a concise imperative that captures the overall deliverable (e.g., "Prep ConnectNexus walkthrough for Jake" instead of 3 separate items).
+   - **Description:** List the sub-tasks as bullet points within the Description field so nothing is lost. Include the original AI-generated item text for traceability.
+   - **Type / Contact / Company / Priority:** Inherit from the most representative item in the group. If items span Task and Follow Up types, default to Task (Adam owns the overall deliverable).
+
+**Example:**
+> AI summary produces:
+> - [ ] Adam to find someone to conduct a full ConnectNexus walkthrough
+> - [ ] Adam to send ConnectNexus documentation
+> - [ ] Set up demo environment for ConnectNexus walkthrough
+>
+> **Grouped as 1 Action Item:**
+> - Task name: "Prep ConnectNexus walkthrough for Jake"
+> - Description: "Sub-tasks: (1) Find someone to conduct walkthrough, (2) Send ConnectNexus docs, (3) Set up demo environment. From: Adam / Jake on 2026-03-10."
+
 ## Step 3: Route Each Action Item to the Action Items DB
 All action items go to the **Action Items DB**. Use the **Type** field to differentiate:
 
@@ -128,7 +154,7 @@ There is no Review Queue. Adam reviews action items directly in the **Action Ite
 2. **Do not create empty items.** If the AI summary has no action items section, or the section is empty, skip gracefully. Update nothing.
 3. **Contact matching (both Types)**: For both Tasks and Follow Ups, ONLY use the meeting's existing Contacts relation (wired by Agent 1 from GCal attendees). Match by name, nickname, or first name against the contacts already on the meeting. Do NOT search the full Contacts DB or flag unknown names from transcription — contact discovery is exclusively Agent 1's job via GCal attendee emails. If no match is found or the counterparty is ambiguous, leave the Contact field blank. One Contact per item — if multiple people are referenced, duplicate the item.
 4. **Strip source references**: Action items from Notion AI often include bracketed source references like `[00:14:23]` or `[source 3]`. Remove these from the task name.
-5. **One action item = one page.** Do not combine multiple items into a single To Do entry.
+5. **One deliverable = one page.** After grouping (Step 2b), each Action Item page should represent one trackable deliverable. Sub-tasks within a deliverable belong in the Description field, not as separate pages.
 6. **Meeting context in descriptions**: Always include a brief note like "From: \[Meeting Title\] on \[Date\]" in the Description field so the item has context even outside the relation.
 7. **If the meeting page has no Contacts wired** (e.g., a solo meeting or one that wasn't processed by Meeting Sync), still parse action items. Leave Contact fields blank on all items (both Tasks and Follow Ups). Still set Assignee to Adam on Tasks.
 8. **Never process child pages directly.** If the triggered page is a child/subpage of a Meetings DB entry (its ancestor path shows a parent-page before the data-source), skip it entirely. Only process direct DB entries in the Meetings DB.

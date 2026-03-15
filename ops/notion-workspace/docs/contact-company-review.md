@@ -30,7 +30,7 @@ The agent processes two queues:
 
 For each contact in the queue:
 1. Read the contact's **Email** value.
-2. Search the Contacts DB for any OTHER record (different page ID) where the **Email** or **Secondary Email** matches this contact's email.
+2. Search the Contacts DB for any OTHER record (different page ID) where the **Email**, **Secondary Email**, or **Tertiary Email** matches this contact's email.
 3. If a duplicate is found:
    - The **older record** (earlier creation date, or the one with `Record Status = Active`) is the canonical contact.
    - Log the duplicate pair for Adam's review: "DUPLICATE FOUND: \[this contact name\] (\[email\]) duplicates \[canonical contact name\] (\[canonical email\]). Recommend: re-wire meetings from duplicate to canonical, then deactivate duplicate."
@@ -38,18 +38,22 @@ For each contact in the queue:
    - **Skip enrichment** for this contact (don't waste effort enriching a duplicate).
 4. If no duplicate → proceed to Step A3.
 
-### Step A3: LinkedIn Lookup
+### Step A3: Enrichment Provider Lookup
 For each non-duplicate contact:
-1. **Search LinkedIn API by email** → retrieve: full name, current title/role, current company, LinkedIn profile URL.
-2. If LinkedIn returns a match:
+1. **Use the configured enrichment provider** to try to retrieve: full name, current title/role, current company, LinkedIn profile URL, or other clearly attributable professional profile data.
+2. Treat provider capability as dynamic:
+   - If the configured provider supports contact lookup, use it.
+   - If the configured provider is unavailable, restricted, or does not support this lookup shape, log that fact and continue to Step A4.
+   - Do not assume LinkedIn can search arbitrary people by email. That must be confirmed by the actual provider capabilities, not by workflow convention.
+3. If the provider returns a confident match:
    - Update the contact's **Name** (only if the current name looks like a placeholder — e.g., a single first name, an email prefix, or initials). If the existing name looks intentional (full first + last name), do NOT overwrite.
-   - Set **Role / Title** to the LinkedIn title (only if currently blank).
-   - Set **LinkedIn** to the profile URL (only if currently blank).
-   - If LinkedIn returns a company name that differs from the contact's current Company relation, log it: "LinkedIn shows \[contact name\] at \[LinkedIn company\], but Contacts DB shows \[current company\]. Adam to verify." Do NOT change the Company relation.
-3. If LinkedIn returns no match → go to Step A4.
+   - Set **Role / Title** to the provider's title result (only if currently blank).
+   - Set **LinkedIn** to the provider's profile URL (only if currently blank).
+   - If the provider returns a company name that differs from the contact's current Company relation, log it: "Provider shows \[contact name\] at \[provider company\], but Contacts DB shows \[current company\]. Adam to verify." Do NOT change the Company relation.
+4. If the provider returns no confident match → go to Step A4.
 
 ### Step A4: Web Search Fallback
-If LinkedIn did not return a result:
+If the enrichment provider did not return a result:
 1. **Web search** using the contact's email address and/or name + company domain.
 2. Look for: full name, title, company, LinkedIn URL, or other professional profiles.
 3. Apply the same update rules as Step A3 — only fill blank fields, don't overwrite intentional values.
@@ -75,8 +79,8 @@ For contacts where there is a suspected secondary email (currently documented in
 
 ### Step B2: Dedup Check
 For each company in the queue:
-1. Read the company's **Domains** value.
-2. Search the Companies DB for any OTHER record (different page ID) where the **Domains** property contains any of the same domains.
+1. Read the company's **Domains** and **Additional Domains** values.
+2. Search the Companies DB for any OTHER record (different page ID) where the **Domains** or **Additional Domains** property contains any of the same domains.
 3. If a duplicate domain match is found:
    - Log: "DUPLICATE COMPANY: \[this company\] shares domain \[domain\] with \[other company\]. Recommend merge."
    - **Skip enrichment** for this company.
@@ -118,11 +122,12 @@ This means the enrichment workflow is:
    - **Company name is a placeholder if**: it matches the domain pattern (contains a dot, e.g., "aiq.com", "elevatedadvisors.co").
 4. **Dedup check is mandatory.** Never skip Step A2 or B2. This is the safety net for bugs in upstream agents.
 5. **Log everything.** The output summary must capture every decision: what was enriched, what was skipped (and why), what duplicates were found, what couldn't be resolved.
-6. **Rate limiting.** If processing a large batch (20+ contacts), pause between LinkedIn API calls to avoid rate limits. Process in batches of 10 with a brief pause between batches.
+6. **Rate limiting.** If processing a large batch (20+ contacts), respect the configured provider's rate limits. If the provider has no known limits or is unavailable, proceed conservatively and rely on Step A4 for fallback.
 7. **Record Status (lifecycle).** Only process records where `Record Status = Draft`. Records with `Record Status = Inactive` are soft-deleted and should be skipped entirely.
 8. **Do NOT create new records.** This agent only updates existing Contacts and Companies. It never creates new pages in any database.
-9. **LinkedIn API availability.** If the LinkedIn API is unavailable or returns errors, fall back to web search for all contacts. Log: "LinkedIn API unavailable — using web search fallback for all contacts."
-10. **Company relation changes require Adam's review.** If enrichment reveals that a contact's company has changed (e.g., LinkedIn shows a different employer), do NOT update the Company relation. Log the discrepancy and let Adam decide.
+9. **Provider availability.** If the enrichment provider is unavailable, restricted, or returns errors, fall back to web search for all contacts. Log: "Enrichment provider unavailable — using web search fallback for all contacts."
+10. **Current LinkedIn constraint.** The current repo architecture does not assume that LinkedIn self-serve developer access can search arbitrary contacts by email or name. Any LinkedIn-backed enrichment must be gated by confirmed provider capabilities.
+11. **Company relation changes require Adam's review.** If enrichment reveals that a contact's company has changed (e.g., a provider or web result shows a different employer), do NOT update the Company relation. Log the discrepancy and let Adam decide.
 
 ---
 
@@ -139,10 +144,11 @@ This means the enrichment workflow is:
 
 | Property | Source | Update Rule |
 |---|---|---|
-| Name | LinkedIn / Web | Only if current name is a placeholder |
-| Role / Title | LinkedIn / Web | Only if currently blank |
-| LinkedIn | LinkedIn / Web | Only if currently blank |
-| Secondary Email | LinkedIn / Web / Manual confirmation | Only if currently blank and verified |
+| Name | Enrichment provider / Web | Only if current name is a placeholder |
+| Role / Title | Enrichment provider / Web | Only if currently blank |
+| LinkedIn | Enrichment provider / Web | Only if currently blank |
+| Secondary Email | Enrichment provider / Web / Manual confirmation | Only if currently blank and verified |
+| Tertiary Email | Enrichment provider / Web / Manual confirmation | Only if currently blank and verified |
 
 # Company Properties Updated by This Agent
 
@@ -152,6 +158,7 @@ This means the enrichment workflow is:
 | Industry | Web search | Only if currently blank and a clear match exists |
 | States | Web search | Only if currently blank |
 | Website | Web search | Only if currently blank |
+| Additional Domains | Web search / Merge workflow | Only if currently blank; merged/subsidiary domains |
 
 ---
 
@@ -161,7 +168,7 @@ After each run, produce a brief summary:
 **Phase A (Contact Enrichment):**
 - Contacts in queue: \[count\]
 - Duplicates found (skipped): \[count + details\]
-- Enriched via LinkedIn: \[count\]
+- Enriched via provider lookup: \[count\]
 - Enriched via web search fallback: \[count\]
 - No data found (manual review needed): \[count\]
 - Secondary emails verified: \[count\]

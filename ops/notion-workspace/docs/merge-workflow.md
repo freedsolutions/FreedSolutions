@@ -69,10 +69,60 @@ For now, this remains a **manual workflow**. If it starts happening frequently, 
 
 ---
 
+# Contact Merge (Email-Based Duplicates)
+
+When a duplicate Contact exists because Agent 1 or Quick Sync created a new contact from an email address that actually belongs to an existing contact (matched via Secondary Email or Tertiary Email that wasn't checked at creation time).
+
+**Example:** Agent creates placeholder Contact "Morgan" from `morgantmendoza@gmail.com`. Adam knows this is Morgan Carlone's personal email. The placeholder needs to be merged into the canonical Morgan Carlone record.
+
+## Step-by-Step
+
+### Step 1: Add the Email to the Canonical Contact
+
+Open the **canonical Contact** (e.g., "Morgan Carlone"). Set the email as **Secondary Email** (or **Tertiary Email** if Secondary is already populated).
+
+> **Why this is the critical step:** Once the email is on the canonical contact, all future agent dedup checks will catch it. Steps 2-3 are cleanup of existing records only.
+
+### Step 2: Re-wire Meetings and Action Items
+
+Find all Meetings and Action Items currently linked to the duplicate Contact. Update each record's **Contact** relation to point to the canonical Contact instead.
+
+**How to find them:** Open the duplicate Contact page — its backlinks / relation will show all linked Meetings and Action Items.
+
+### Step 3: Flag or Delete the Duplicate Contact
+
+Once all Meetings and Action Items have been re-wired:
+
+- Set the duplicate's **Record Status** to **Delete** (red).
+- Add a Notes flag: "MERGED → [Canonical Contact Name]. Ready for HARD DELETE per merge workflow."
+- Adam periodically sweeps the Delete view and trashes flagged records.
+
+---
+
+# Domain Field Reference
+
+Both merge workflows rely on correct domain data:
+
+- **Companies → Domains** (primary): comma-separated, no spaces. Used for agent matching (email domain → company lookup).
+- **Companies → Additional Domains**: merged/subsidiary/alternate domains. Comma-separated, no spaces, domains only — no full email addresses.
+- **Contacts → Email / Secondary Email / Tertiary Email**: All three fields are checked during dedup.
+
+When merging a company, add the merged domain to **Additional Domains** on the canonical company (not Domains) to preserve the distinction between primary and acquired domains. When merging a contact, add the duplicate's email to **Secondary Email** or **Tertiary Email** on the canonical contact.
+
+---
+
 # Quick Checklist
 
-- [ ] Domain added to real Company's Domains property
-- [ ] All Contacts re-wired from placeholder -> real Company
-- [ ] All Action Items re-wired from placeholder -> real Company
+## Company Merge
+- [ ] Domain added to real Company's Domains or Additional Domains property
+- [ ] All Contacts re-wired from placeholder → real Company
+- [ ] All Action Items re-wired from placeholder → real Company
 - [ ] Placeholder Company set to Record Status = Delete (or hard-deleted)
 - [ ] Spot-check: open real Company, verify Contacts and Action Items look correct
+
+## Contact Merge
+- [ ] Duplicate's email added to canonical Contact's Secondary/Tertiary Email
+- [ ] All Meetings re-wired from duplicate → canonical Contact
+- [ ] All Action Items re-wired from duplicate → canonical Contact
+- [ ] Duplicate Contact set to Record Status = Delete with Notes flag
+- [ ] Spot-check: open canonical Contact, verify Meetings and Action Items look correct
