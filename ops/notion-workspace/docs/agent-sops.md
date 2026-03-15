@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 35 (March 15, 2026)
+Last updated: Session 36 (March 15, 2026)
 
 ---
 
@@ -44,12 +44,15 @@ Claude Code reads `CLAUDE.md` from the project root automatically — no prompt 
 
 All agents are instruction pages under the Automation Hub. Each page contains the full workflow, business rules, safety rails, and database references for that agent.
 
-| Agent | Trigger | URL |
-| --- | --- | --- |
-| Meeting Sync | Nightly 10 PM ET + manual | Untitled |
-| Post-Meeting Wiring | After meetings with AI notes | Untitled |
-| Quick Sync | Manual trigger | Untitled |
-| Contact & Company Review | Manual (after other syncs) | Untitled |
+| Agent | Instruction Page | Trigger | Status |
+| --- | --- | --- | --- |
+| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + manual | Phase 1 (parallel) |
+| Meeting Sync | Meeting Sync Instructions | Nightly 10 PM ET + manual | Active (replaced by Post-Meeting Agent after cutover) |
+| Post-Meeting Wiring | Post-Meeting Wiring Instructions | After meetings with AI notes | Active (replaced by Post-Meeting Agent after cutover) |
+| Quick Sync | Quick Sync Instructions | Manual trigger | Active |
+| Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Active |
+
+**Naming convention:** Each agent has an **instruction page** under the Automation Hub containing its full workflow, business rules, and database references. The instruction page is named "[Agent Name] Instructions". The Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.
 
 **Adding new agents:** When a new agent instruction page is created, add it to this table, update `CLAUDE.md` in the project repo, and update the Notion Agent page.
 
@@ -83,7 +86,7 @@ Manual workflows that are not automated agents but document repeatable procedure
 
 ## Lifecycle State: Record Status (select)
 
-All 3 source DBs (Contacts, Companies, Action Items) use a single `Record Status` select with 4 options:
+All 4 source DBs (Contacts, Companies, Action Items, Meetings) use a single `Record Status` select with 4 options:
 
 - **Draft** (gray) — Agent-created, pending Adam's review
 - **Active** (green) — Approved and live, operational record
@@ -145,11 +148,26 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Attach File** — file attachment
 - **Wiring Check** (formula) — missing Company when Contact set, missing Source Meeting
 
+## Meetings DB Properties
+
+- **Meeting Title** (title) — event title from GCal (stripped of FW:/Fwd: prefixes)
+- **Calendar Event ID** (text) — GCal event ID, canonical identity for matching
+- **Calendar Name** (text) — source calendar display name, populated by the Post-Meeting Agent. Also serves as the "processed" signal (empty = not yet wired by agent)
+- **Date** (date) — event start + end, stored in Eastern timezone (not UTC)
+- **Contacts** (relation → Contacts DB) — attendees wired via email matching
+- **Companies** (rollup) — derived from Contacts' Company relations
+- **Action Items** (relation → Action Items DB) — parsed from AI meeting notes
+- **Series** (relation → Meetings DB, self) — links instances to their Series Parent
+- **Instances** (relation → Meetings DB, self) — reciprocal of Series
+- **Is Series Parent** (checkbox) — true only on the Series Parent page, not instances
+- **Location** (text) — event location from GCal, captured when present
+- **Record Status** (select: Draft/Active/Inactive/Delete) — added Session 36. Draft used for agent-created no-notes meeting records. Not set on Notion Calendar pages.
+
 ## Delete Handoff Pattern
 
 Claude (in any interface) cannot archive/trash individual Notion pages via MCP tools. When a record needs to be deleted:
 
-1. **Unwire Before Delete** — Claude clears ALL relation properties on the record (Company, Contact, Source Meeting, Action Items, Contacts — whichever apply to the database). Then clears the reciprocal relation on each formerly-linked record. Both sides must be explicitly unwired to prevent orphaned links. See the Relation Map in the [Merge Workflow](https://www.notion.so/323adb01222f811189c7c92eaac10ebb) for the full per-database breakdown.
+1. **Unwire Before Delete** — Claude clears ALL relation properties on the record (Company, Contact, Source Meeting, Action Items, Contacts, Series, Instances — whichever apply to the database). Then clears the reciprocal relation on each formerly-linked record. Both sides must be explicitly unwired to prevent orphaned links. See the Relation Map in the [Merge Workflow](https://www.notion.so/323adb01222f811189c7c92eaac10ebb) for the full per-database breakdown.
 2. Claude sets Record Status = Delete
 3. Claude adds a Contact Notes / Company Notes / Task Notes flag explaining why (e.g., "MERGED → Formul8. Ready for HARD DELETE per merge workflow")
 4. Adam periodically sweeps the Inactive/Delete view and trashes flagged records

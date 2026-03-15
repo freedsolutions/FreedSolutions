@@ -17,9 +17,10 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 |------|---------------|---------|
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions |
 | `docs/notion-agent-config.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Notion's built-in AI personality config |
-| `docs/meeting-sync.md` | `321adb01-222f-81a7-8d9d-e02cd6e91ff9` | Agent 1: nightly 10 PM ET + manual |
+| `docs/unified-post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing (replaces Agent 1 + Agent 2) |
+| `docs/meeting-sync.md` | `321adb01-222f-81a7-8d9d-e02cd6e91ff9` | Meeting Sync (legacy — replaced by Post-Meeting Agent after cutover) |
 | `docs/quick-sync.md` | `322adb01-222f-8196-99d8-c7f9a59cdb3b` | Manual calendar sync |
-| `docs/post-meeting-wiring.md` | `321adb01-222f-81a3-8c57-d29c85ae7b63` | Agent 2: after meetings with AI notes |
+| `docs/post-meeting-wiring.md` | `321adb01-222f-81a3-8c57-d29c85ae7b63` | Post-Meeting Wiring (legacy — replaced by Post-Meeting Agent after cutover) |
 | `docs/contact-company-review.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows |
 
@@ -76,10 +77,11 @@ Pause and ask before proceeding only when any of the following are true:
 
 ## Key Schema Conventions
 
-- **Record Status** (select on Contacts, Companies, Action Items): `Draft` → `Active` → `Inactive` → `Delete`
+- **Record Status** (select on Contacts, Companies, Action Items, Meetings): `Draft` → `Active` → `Inactive` → `Delete`
 - **Contacts DB:** Contact Name (title), Display Name (formula), Wiring Check (formula), Email, Secondary Email, Tertiary Email, Phone, Pronouns, Nickname, LinkedIn, Company, Role / Title, Record Status, Contact Notes
 - **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), Wiring Check (formula), Domains, Additional Domains, States (default: "All"), Website, Contacts, Action Items, Engagements, Tech Stack, Record Status, Company Notes
 - **Action Items DB:** Task Name (title), Type (formula), Icon (formula), Status, Priority, Record Status, Task Notes, Due Date, Assign Date (created_time), Contact, Company, Assignee, Source Meeting, Attach File, Wiring Check (formula)
+- **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Series, Instances, Is Series Parent, Location, Record Status
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email — all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) — both checked for dedup
 - **Delete handoff:** Claude sets Record Status = Delete + Notes field (Contact Notes / Company Notes / Task Notes) explaining why. Adam trashes from Delete view.

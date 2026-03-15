@@ -120,6 +120,48 @@ All existing rules carry forward: Contact matching from the meeting's Contacts (
 
 ---
 
+## Step 3: GCal Event Sync-Back (pre-cutover requirement)
+
+After Step 2 completes, push a condensed meeting summary back to the GCal event:
+
+1. Read the AI summary from the Notion meeting page
+2. Format a condensed version: TL;DR (2-3 sentences) + key decisions + action item titles
+3. Append a link to the full Notion meeting page
+4. Update the GCal event description via `gcal_update_event`
+
+**Why before cutover:** This ensures meeting intelligence is accessible from Google Calendar, not just Notion. GCal event descriptions have size limits — use a summary, not the full transcript.
+
+**Calendar Name field determines which calendar/event to update.** The agent already tracks which GCal calendar sourced the meeting.
+
+## Future: Post-Review Curation (design needed)
+
+A curated notes step that runs AFTER Adam reviews Draft action items, creating a structured permanent record:
+
+**Trigger:** After Adam has reviewed Drafts from a meeting (promoted to Active, deleted, or modified). Timing TBD — could be nightly check for meetings with finalized Action Items, or manual trigger.
+
+**Workflow:**
+1. Re-read the meeting page + finalized Action Items (Active, not Draft)
+2. Rewrite the meeting page content section with structured fields:
+   - **TL;DR** — 2-3 sentence summary of what mattered
+   - **Decisions Made** — extracted from discussion context, not action items
+   - **Action Items (final)** — only what Adam approved, with current status
+   - **Context/Notes** — structured, searchable content
+3. Push the curated summary to GCal event description (replaces the initial Step 3 summary with the final version)
+
+**Why this matters:** This closes the feedback loop. Raw AI transcription → Draft items → Adam's review → curated permanent record. The curated page becomes the knowledge base: "What did we decide about X?" is now searchable across all meeting records.
+
+**Downstream features this enables:**
+- **Meeting prep briefing:** "Last time we met with DMC, we decided X, open items are Y"
+- **Contact intelligence:** "Every meeting with Jake Gleeson in the last 3 months, summarized"
+- **Decision audit trail:** "When did we decide to switch from Alpine IQ?"
+- **Floppy integration:** Voice commands referencing prior decisions
+
+**Design questions for next session:**
+- Trigger mechanism: how does the agent know Adam is done reviewing?
+- Should curation preserve the original AI summary (toggle/archive) or replace it?
+- How much structure vs. freeform? (rigid template vs. intelligent formatting)
+- GCal description size limits — what fits?
+
 ## Future: Nightly Briefing (not in initial scope)
 
 A meeting prep briefing feature is planned but not part of the initial build. When implemented, it would run as a separate step after the unified agent completes:
@@ -134,28 +176,33 @@ A meeting prep briefing feature is planned but not part of the initial build. Wh
 
 ## Migration Plan
 
-**Phase 1: Build the unified agent** (no disruption)
-- Write the unified agent instruction page (Step 1 + Step 2)
-- Add lookback logic and Agent Config timestamp tracking
-- Test against real data without modifying existing system
+**Phase 1: Build the unified agent** (no disruption) — COMPLETE (Session 36)
+- Unified instruction page written (Step 1 + Step 2) — `docs/unified-post-meeting.md`
+- Notion page created under Automation Hub: `324adb01-222f-8168-a207-d66e81884454`
+- Meetings DB schema updated: Calendar Name, Location, Record Status added
+- Agent Config timestamp structure validated (shared with Quick Sync)
+- All docs updated (agent-sops.md, CLAUDE.md)
 
-**Phase 2: Run in parallel** (1 week)
-- Run the unified agent alongside existing Meeting Sync + Post-Meeting Wiring
-- Compare outputs — verify CRM wiring quality and Action Item parsing match
-- Verify no-notes meeting Draft records are created correctly
+**Phase 2: Parallel validation** — COMPLETE (Session 36)
+- Manual parallel run against Mon-Fri 3/9-3/13 (18 processable events)
+- Contact matching verified identical for spot-checked meetings
+- Edge case found + fixed: contacts merge (not overwrite) to preserve manual wiring
+- Calendar Name confirmed: "Adam - Business" from GCal API
+- Jon Orzech secondary email added (jorzech@iresinate.com) for dedup
 
-**Phase 3: Cut over**
-- Disable pre-stub creation (Phase A)
-- Disable reconciliation (Phase B) and orphan detection (Phase C)
-- Disable separate Post-Meeting Wiring Agent trigger
-- Remove the "Link existing page" requirement from Adam's workflow
-- Update all local docs (meeting-sync.md → unified agent doc, agent-sops.md, quick-sync.md)
-- Update CLAUDE.md and Agent Registry
+**Phase 3: Cut over** — IN PROGRESS
+- Build Step 3 (GCal event sync-back) before cutting over
+- Mark existing future stubs as [SUPERSEDED] + Record Status = Delete
+- Adam: disable Meeting Sync, Post-Meeting Wiring, Quick Sync triggers in Notion
+- Adam: configure Post-Meeting Agent as new nightly 10 PM ET trigger
+- Adam: stop doing "Link existing page" — just start AI notes directly
+- Deprecate old instruction pages (add notices)
+- Update Agent Registry, local docs, Quick Sync deprecation
 
 **Phase 4: Cleanup**
-- Delete or archive existing future stubs
-- Simplify the Meetings DB schema if any properties become unnecessary
-- Archive old Meeting Sync and Post-Meeting Wiring instruction pages
+- Adam trashes [SUPERSEDED] stubs from Delete view
+- Archive old Meeting Sync, Post-Meeting Wiring, Quick Sync instruction pages
+- Design post-review curation step (see "Future: Post-Review Curation" above)
 
 ---
 
