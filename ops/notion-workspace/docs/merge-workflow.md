@@ -9,6 +9,25 @@ A placeholder Company exists in the Companies DB for a domain that actually belo
 
 ---
 
+# Universal Rule: Unwire Before Delete
+
+**Applies to ALL delete scenarios** — merges, standalone deletes, junk record cleanup, any record moving to Record Status = Delete in any database.
+
+Before setting Record Status = Delete on any record, **clear all relation properties on that record AND clear the corresponding relation on each linked record**. Both sides must be explicitly unwired to prevent orphaned links.
+
+## Relation Map
+
+| Database | Relations to Clear on Record | Linked Records to Update (other side) |
+|----------|------------------------------|---------------------------------------|
+| **Contacts** | Company | Remove contact from Meeting.Contacts, ActionItem.Contact |
+| **Companies** | *(no outbound relations)* | Remove company from Contact.Company, ActionItem.Company |
+| **Action Items** | Contact, Company, Source Meeting | Remove action item from Meeting.Action Items |
+| **Meetings** | Action Items, Contacts | Remove meeting from ActionItem.Source Meeting |
+
+> **Why both sides?** Notion two-way relations auto-sync in the UI, but clearing one side via API doesn't always propagate cleanly. Explicitly clearing both sides guarantees no orphaned backlinks remain after Adam hard-deletes the record.
+
+---
+
 # Step-by-Step Merge Procedure
 
 ## Step 1: Add the Domain to the Real Company
@@ -39,8 +58,9 @@ Find all Action Items currently linked to the placeholder Company. Update each A
 
 Once all Contacts and Action Items have been re-wired:
 
-- Set the placeholder's **Record Status** to **Delete** (red). This flags it in the Delete view for Adam to hard-delete.
-- Alternatively, Adam can hard-delete it immediately from the Companies DB.
+1. **Verify the placeholder is fully unwired** — open the placeholder Company page and confirm all relation backlinks are empty (no Contacts, no Action Items still linked). This should already be true after Steps 2-3, but verify before proceeding. See [Unwire Before Delete](#universal-rule-unwire-before-delete).
+2. Set the placeholder's **Record Status** to **Delete** (red). This flags it in the Delete view for Adam to hard-delete.
+3. Alternatively, Adam can hard-delete it immediately from the Companies DB.
 
 **Why delete?** The placeholder's domain is now on the real Company. There is no dedup risk -- future agent runs will match the domain to the real Company. Keeping the placeholder would just be noise.
 
@@ -48,9 +68,9 @@ Once all Contacts and Action Items have been re-wired:
 
 # Edge Case: Enriched Placeholder
 
-If the placeholder Company has been **set to Active and enriched** (Adam added Industry, States, Notes, etc.) before realizing it's a duplicate:
+If the placeholder Company has been **set to Active and enriched** (Adam added Company Type, States, Company Notes, etc.) before realizing it's a duplicate:
 
-1. Transfer any enrichment data (Industry, States, Notes, Website) to the real Company before deleting.
+1. Transfer any enrichment data (Company Type, States, Company Notes, Website) to the real Company before deleting.
 1. Then proceed with Steps 1-4 as normal.
 
 This is unlikely but possible if Adam approves a placeholder before discovering the relationship.
@@ -93,9 +113,10 @@ Find all Meetings and Action Items currently linked to the duplicate Contact. Up
 
 Once all Meetings and Action Items have been re-wired:
 
-- Set the duplicate's **Record Status** to **Delete** (red).
-- Add a Notes flag: "MERGED → [Canonical Contact Name]. Ready for HARD DELETE per merge workflow."
-- Adam periodically sweeps the Delete view and trashes flagged records.
+1. **Verify the duplicate is fully unwired** — open the duplicate Contact page and confirm all relation backlinks are empty (no Meetings, no Action Items, no Company still linked). This should already be true after Step 2, but verify before proceeding. See [Unwire Before Delete](#universal-rule-unwire-before-delete).
+2. Set the duplicate's **Record Status** to **Delete** (red).
+3. Add a Contact Notes flag: "MERGED → [Canonical Contact Name]. Ready for HARD DELETE per merge workflow."
+4. Adam periodically sweeps the Delete view and trashes flagged records.
 
 ---
 
@@ -117,6 +138,7 @@ When merging a company, add the merged domain to **Additional Domains** on the c
 - [ ] Domain added to real Company's Domains or Additional Domains property
 - [ ] All Contacts re-wired from placeholder → real Company
 - [ ] All Action Items re-wired from placeholder → real Company
+- [ ] All relations on placeholder verified empty (Unwire Before Delete)
 - [ ] Placeholder Company set to Record Status = Delete (or hard-deleted)
 - [ ] Spot-check: open real Company, verify Contacts and Action Items look correct
 
@@ -124,5 +146,12 @@ When merging a company, add the merged domain to **Additional Domains** on the c
 - [ ] Duplicate's email added to canonical Contact's Secondary/Tertiary Email
 - [ ] All Meetings re-wired from duplicate → canonical Contact
 - [ ] All Action Items re-wired from duplicate → canonical Contact
-- [ ] Duplicate Contact set to Record Status = Delete with Notes flag
+- [ ] All relations on duplicate verified empty (Unwire Before Delete)
+- [ ] Duplicate Contact set to Record Status = Delete with Contact Notes flag
 - [ ] Spot-check: open canonical Contact, verify Meetings and Action Items look correct
+
+## Standalone Delete (Non-Merge)
+- [ ] All relation properties on the record cleared (see Relation Map above)
+- [ ] Reciprocal relations on linked records cleared (both sides unwired)
+- [ ] Record set to Record Status = Delete with Notes field (Contact Notes / Company Notes / Task Notes) explaining why
+- [ ] Adam sweeps Delete view and trashes flagged records

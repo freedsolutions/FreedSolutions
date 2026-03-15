@@ -23,7 +23,7 @@ The agent processes two queues:
 ### Step A1: Gather the Contact Queue
 - Query the **Contacts DB** for all pages where `Record Status = Draft`.
 - These are the pending contacts created by other agents that need enrichment.
-- Sort by Last Contacted (most recent first) to prioritize active relationships.
+- Sort by creation date (most recent first) to prioritize recently added records.
 
 ### Step A2: Dedup Check (CRITICAL — Run Before Any Enrichment)
 > **This step exists because of real bugs in Sessions 29 and 30.** Duplicates were created when attendee emails matched a contact's Secondary Email but the check only looked at the primary Email field. This step catches any remaining duplicates before enrichment makes them harder to clean up.
@@ -46,7 +46,7 @@ For each non-duplicate contact:
    - If the configured provider is unavailable, restricted, or does not support this lookup shape, log that fact and continue to Step A4.
    - Do not assume LinkedIn can search arbitrary people by email. That must be confirmed by the actual provider capabilities, not by workflow convention.
 3. If the provider returns a confident match:
-   - Update the contact's **Name** (only if the current name looks like a placeholder — e.g., a single first name, an email prefix, or initials). If the existing name looks intentional (full first + last name), do NOT overwrite.
+   - Update the contact's **Contact Name** (only if the current name looks like a placeholder — e.g., a single first name, an email prefix, or initials). If the existing name looks intentional (full first + last name), do NOT overwrite.
    - Set **Role / Title** to the provider's title result (only if currently blank).
    - Set **LinkedIn** to the provider's profile URL (only if currently blank).
    - If the provider returns a company name that differs from the contact's current Company relation, log it: "Provider shows \[contact name\] at \[provider company\], but Contacts DB shows \[current company\]. Adam to verify." Do NOT change the Company relation.
@@ -60,7 +60,7 @@ If the enrichment provider did not return a result:
 4. If web search finds nothing useful, log: "No enrichment data found for \[contact name\] (\[email\]). Manual review needed."
 
 ### Step A5: Secondary Email Verification
-For contacts where there is a suspected secondary email (currently documented in the handoff or Notes field):
+For contacts where there is a suspected secondary email (currently documented in the handoff or Contact Notes field):
 1. Check if the suspected email appears on LinkedIn or web results for this person.
 2. If confirmed → set the contact's **Secondary Email** field.
 3. If not confirmed → log: "Could not verify \[suspected email\] as secondary for \[contact name\]."
@@ -92,8 +92,8 @@ For each non-duplicate company:
 2. Look for: official company name, industry, location (state/region), website URL.
 3. Update the company record:
    - **Company Name**: Replace the domain placeholder with the real company name (e.g., "aiq.com" → "AIQ").
-   - **Industry**: Set if a clear match exists in the Industry select options. If no match, log it for Adam.
-   - **States**: Set if the company's operating states are identifiable.
+   - **Company Type**: Set if a clear match exists in the Company Type select options (Tech Stack, Operator, Network, Personal). If no match, log it for Adam.
+   - **States**: Set if the company's operating states are identifiable. Default to "All" when not explicitly known.
    - **Website**: Set to the company's primary website URL (only if currently blank).
 4. If web search finds nothing useful, log: "No enrichment data found for \[company domain\]. Manual review needed."
 
@@ -144,7 +144,7 @@ This means the enrichment workflow is:
 
 | Property | Source | Update Rule |
 |---|---|---|
-| Name | Enrichment provider / Web | Only if current name is a placeholder |
+| Contact Name | Enrichment provider / Web | Only if current name is a placeholder |
 | Role / Title | Enrichment provider / Web | Only if currently blank |
 | LinkedIn | Enrichment provider / Web | Only if currently blank |
 | Secondary Email | Enrichment provider / Web / Manual confirmation | Only if currently blank and verified |
@@ -155,8 +155,8 @@ This means the enrichment workflow is:
 | Property | Source | Update Rule |
 |---|---|---|
 | Company Name | Web search | Only if current name is a domain placeholder |
-| Industry | Web search | Only if currently blank and a clear match exists |
-| States | Web search | Only if currently blank |
+| Company Type | Web search | Only if currently blank and a clear match exists |
+| States | Web search | Only if currently blank (default: "All" when not explicitly known) |
 | Website | Web search | Only if currently blank |
 | Additional Domains | Web search / Merge workflow | Only if currently blank; merged/subsidiary domains |
 
@@ -180,5 +180,5 @@ After each run, produce a brief summary:
 - Duplicates found (skipped): \[count + details\]
 - Enriched via web search: \[count\]
 - No data found (manual review needed): \[count\]
-- Industry matches set: \[count\]
-- Industry mismatches logged (no select option): \[count\]
+- Company Type matches set: \[count\]
+- Company Type mismatches logged (no select option): \[count\]

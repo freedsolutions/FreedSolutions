@@ -40,7 +40,7 @@ Create a new page in the Meetings DB with these properties:
 - **Meeting Title**: Use the GCal event summary/title. If it starts with "FW:" or "Fwd:", strip that prefix. Trim whitespace.
 - **Calendar Event ID**: The GCal event ID string.
 - **Date**: Set with full datetime (is_datetime = 1). Use the event's start time as start and end time as end. Timezone is America/New_York.
-- **Contacts**: Wire contacts by matching attendee emails (see Contact Matching Rules below). After wiring, update each contact's **Last Contacted** date (see Last Contacted Update Rule below).
+- **Contacts**: Wire contacts by matching attendee emails (see Contact Matching Rules below).
 - **Series**: Link to a Series Parent if the event matches a pattern (see Series Registry below).
 - **Is Series Parent**: Always set to unchecked (No) for instances.
 
@@ -48,7 +48,7 @@ Create a new page in the Meetings DB with these properties:
 If a stub already exists for this Calendar Event ID:
 - **Title**: Always set Meeting Title to the normalized GCal summary (strip "FW:" / "Fwd:", trim whitespace). Do NOT append instance suffixes like "(Mar 16)". If the existing title has a suffix, overwrite it with the normalized title.
 - **Time**: If start or end time changed → update Date property (preserving Eastern timezone format per rule 7).
-- **Attendees**: If attendee list changed → re-run Contact Matching and update Contacts relation. Update **Last Contacted** on any newly wired contacts (see Last Contacted Update Rule below).
+- **Attendees**: If attendee list changed → re-run Contact Matching and update Contacts relation.
 - **ResponseStatus**: If Adam's responseStatus on the GCal event is no longer `accepted` (changed to `declined` or `tentative`), prepend "\[DECLINED\] " or "\[TENTATIVE\] " to the Meeting Title so it's visually flagged. Do not delete the stub.
 - If nothing changed → skip, no update needed.
 
@@ -195,21 +195,9 @@ When a new contact is created (or an existing contact has no Company relation), 
 
 Before creating a new Contact in the Contacts DB, the agent MUST check for duplicates:
 1. **Search by email first.** Query the Contacts DB for any existing record where `Email` or `Secondary Email` matches the attendee email. This means checking BOTH fields on every contact record — an attendee email might match a contact's Secondary Email, not their primary. If found → use the existing contact. Do NOT create a new one.
-2. **Search by name as a secondary check.** If no email match is found, search by name (case-insensitive). If a name match exists but with a different email, this may be the same person with a new address. Create the new contact anyway with `Record Status = Draft` and add a note in the contact's Notes field: "Possible duplicate — name matches existing contact \[name\] but with different email \[existing email\]." Adam will review both records via the Contacts DB "Draft" filtered view.
+2. **Search by name as a secondary check.** If no email match is found, search by Contact Name (case-insensitive). If a name match exists but with a different email, this may be the same person with a new address. Create the new contact anyway with `Record Status = Draft` and add a note in the contact's Contact Notes field: "Possible duplicate — name matches existing contact \[name\] but with different email \[existing email\]." Adam will review both records via the Contacts DB "Draft" filtered view.
 3. **Never create two contacts with the same email.** This is the hard rule. Email is the unique identifier for contacts.
 4. **All agent-created contacts must have Record Status = Draft.** When creating a new Contact (whether from a no-match scenario or a dedup name-match with different email), always set the Record Status select property to Draft. This is the staging gate — contacts exist immediately so meeting wiring works, but they are hidden from Adam's working views until he reviews and approves them. Adam reviews draft contacts directly in the Contacts DB via a "Draft" filtered view. Only Adam changes Record Status from Draft to Active. Record Status options: Draft (gray), Active (green), Inactive (yellow), Delete (red). Agents always set it to Draft on new records. Adam may later change Record Status to Inactive to soft-delete a record without removing it from the DB (so agents still find it for dedup).
-
-## Last Contacted Update Rule
-Whenever a contact is wired to a meeting stub (new stub creation in Step A3, or attendee change in Step A4), update the contact's **Last Contacted** property in the Contacts DB:
-1. Read the meeting stub's **Date** (start date only, not time — store as date, not datetime: `is_datetime=0`).
-2. Read the contact's current **Last Contacted** value.
-3. **If Last Contacted is empty** → set it to the meeting date.
-4. **If the meeting date is more recent** than the current Last Contacted → update it to the meeting date.
-5. **If the meeting date is older or equal** → do nothing (don't overwrite a more recent value).
-6. This applies to ALL contacts wired to the meeting, not just newly created ones.
-7. For Phase B reconciliation: only update Last Contacted if the contact was **newly wired** during this run (attendee list changed). Do not re-process contacts that were already wired and unchanged.
-
----
 
 ## Contact Quick-Reference Table
 This is a convenience reference ONLY. Always search the Contacts DB first.
