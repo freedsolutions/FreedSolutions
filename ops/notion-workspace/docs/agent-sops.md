@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 36 (March 15, 2026)
+Last updated: Session 37 (March 15, 2026)
 
 ---
 
@@ -46,10 +46,10 @@ All agents are instruction pages under the Automation Hub. Each page contains th
 
 | Agent | Instruction Page | Trigger | Status |
 | --- | --- | --- | --- |
-| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + manual | Phase 1 (parallel) |
-| Meeting Sync | Meeting Sync Instructions | Nightly 10 PM ET + manual | Active (replaced by Post-Meeting Agent after cutover) |
-| Post-Meeting Wiring | Post-Meeting Wiring Instructions | After meetings with AI notes | Active (replaced by Post-Meeting Agent after cutover) |
-| Quick Sync | Quick Sync Instructions | Manual trigger | Active |
+| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + manual | Active |
+| Meeting Sync | Meeting Sync Instructions | Nightly 10 PM ET + manual | Deprecated — replaced by Post-Meeting Agent (S37) |
+| Post-Meeting Wiring | Post-Meeting Wiring Instructions | After meetings with AI notes | Deprecated — replaced by Post-Meeting Agent (S37) |
+| Quick Sync | Quick Sync Instructions | Manual trigger | Deprecated — replaced by Post-Meeting Agent (S37) |
 | Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Active |
 
 **Naming convention:** Each agent has an **instruction page** under the Automation Hub containing its full workflow, business rules, and database references. The instruction page is named "[Agent Name] Instructions". The Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.

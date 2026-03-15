@@ -190,14 +190,14 @@ A meeting prep briefing feature is planned but not part of the initial build. Wh
 - Calendar Name confirmed: "Adam - Business" from GCal API
 - Jon Orzech secondary email added (jorzech@iresinate.com) for dedup
 
-**Phase 3: Cut over** — IN PROGRESS
-- Build Step 3 (GCal event sync-back) before cutting over
-- Mark existing future stubs as [SUPERSEDED] + Record Status = Delete
-- Adam: disable Meeting Sync, Post-Meeting Wiring, Quick Sync triggers in Notion
-- Adam: configure Post-Meeting Agent as new nightly 10 PM ET trigger
-- Adam: stop doing "Link existing page" — just start AI notes directly
-- Deprecate old instruction pages (add notices)
-- Update Agent Registry, local docs, Quick Sync deprecation
+**Phase 3: Cut over** — COMPLETE (Session 37)
+- Step 3 (GCal event sync-back) built and pushed to instruction page
+- 14 future stubs marked [SUPERSEDED] + Record Status = Delete (unwired per Delete Handoff Pattern)
+- Deprecation notices added to Meeting Sync, Post-Meeting Wiring, Quick Sync (local + Notion)
+- Agent Registry updated: Post-Meeting Agent → Active, legacy agents → Deprecated
+- Notion Agent config updated with new agent list
+- Cutover checklist added to instruction page for Adam's manual steps
+- **Remaining (Adam):** disable legacy triggers, configure Post-Meeting Agent trigger, stop "Link existing page", sweep Delete view
 
 **Phase 4: Cleanup**
 - Adam trashes [SUPERSEDED] stubs from Delete view

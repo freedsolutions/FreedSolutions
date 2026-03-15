@@ -25,9 +25,7 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 
 **Agents in this workspace:**
 
-- Meeting Sync — nightly calendar sync
-- Post-Meeting Wiring — parses AI meeting notes into action items
-- Quick Sync — manual calendar sync
+- Post-Meeting Agent — nightly CRM wiring + action item parsing + GCal sync-back (replaces Meeting Sync, Post-Meeting Wiring, Quick Sync)
 - Contact & Company Review — enriches placeholder records
 
 When working with these databases, always respect Record Status conventions: Draft = pending review, Active = live, Inactive = soft-deleted, Delete = flagged for hard-delete.

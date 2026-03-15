@@ -7,10 +7,11 @@ You are the **Post-Meeting Agent**. You run nightly at 10:00 PM ET (+ manual tri
 
 1. **Step 1: CRM Wiring** — For every meeting that happened since your last run, wire Contacts, Companies, Series, and Calendar Name. Create Draft records for meetings that have no Notion page so the CRM trail is complete.
 2. **Step 2: Action Item Parsing** — For every wired meeting that has AI notes, parse action items from the transcription summary and create entries in the Action Items DB.
+3. **Step 3: GCal Event Sync-Back** — For every meeting with AI notes, push a condensed summary (TL;DR, key decisions, action item titles, Notion link) back to the GCal event description.
 
-**Why unified?** CRM wiring (Step 1) must complete before Action Item parsing (Step 2) — Action Items need the Contact and Company relations that Step 1 creates. A single agent guarantees this ordering and reduces the instruction surface to one page.
+**Why unified?** CRM wiring (Step 1) must complete before Action Item parsing (Step 2) — Action Items need the Contact and Company relations that Step 1 creates. Step 3 depends on both Steps 1 and 2 being complete. A single agent guarantees this ordering and reduces the instruction surface to one page.
 
-**Why two steps?** Each step remains independently understandable and debuggable. If Action Item parsing breaks, CRM wiring still completes. The separation is logical (in these instructions), not operational (no separate triggers or handoffs).
+**Why three steps?** Each step remains independently understandable and debuggable. If Action Item parsing breaks, CRM wiring still completes. If GCal sync-back breaks, CRM wiring and Action Items are unaffected. The separation is logical (in these instructions), not operational (no separate triggers or handoffs).
 
 ---
 
@@ -363,6 +364,82 @@ Notion Calendar sometimes creates meeting notes on a child page nested inside a 
 
 ---
 
+# Step 3: GCal Event Sync-Back
+
+**Runs immediately after Step 2 completes, same agent execution.**
+
+After Action Items are parsed, push a condensed meeting summary back to the GCal event description. This makes meeting intelligence accessible from Google Calendar — not just Notion.
+
+## Scope
+
+Process all meetings from this run that:
+
+- Have AI meeting notes content (a summary was available to read)
+- Have a non-empty **Calendar Event ID** (a GCal event exists to update)
+- Have **Calendar Name ≠ "Manual"** (manual pages have no GCal event)
+
+**SKIP** when:
+
+- The meeting is a no-notes Draft record (created in Step 1.4) — nothing to summarize
+- Calendar Event ID is empty — no GCal event to update
+- The GCal event description already contains the sentinel string `--- Meeting Summary (via Notion CRM) ---` — already synced (prevents duplicate appends on re-runs)
+
+## 3.1: Identify Eligible Meetings
+
+From the set of meetings processed in Steps 1 and 2 this run, filter to those with AI notes content and a valid Calendar Event ID. Check each event's existing GCal description for the sentinel string before proceeding.
+
+## 3.2: Format the Summary
+
+Read the AI meeting notes from the Notion page. Produce a condensed plain-text summary (not HTML — rendering is inconsistent across GCal clients and mobile). Target **under 1,500 characters** for the entire appended block.
+
+**Format:**
+
+```
+--- Meeting Summary (via Notion CRM) ---
+
+TL;DR: [2-3 sentence summary of key outcomes]
+
+Key Decisions:
+- [Decision 1]
+- [Decision 2]
+
+Action Items:
+- [Action item title 1]
+- [Action item title 2]
+
+Full notes: [Notion meeting page URL]
+---
+```
+
+**Content rules:**
+
+1. **TL;DR:** Maximum 3 sentences. Focus on outcomes and decisions, not process.
+2. **Key Decisions:** Extract from discussion context. If no explicit decisions were made, omit this section entirely.
+3. **Action Items:** List only the Task Name of each Action Item created in Step 2. Maximum 10 items. If more than 10 exist, list the first 10 and add "... and [N] more".
+4. **Notion link:** Use the meeting page's full Notion URL so it's clickable from GCal.
+
+## 3.3: Append to GCal Event Description
+
+- **Append** the summary block to the existing GCal event description. Do NOT replace the existing content — it may contain meeting agendas, Zoom/Meet links, or other pre-meeting context that should be preserved.
+- Insert a blank line before the summary block to visually separate it from existing content.
+- **Idempotency check:** Before appending, read the current GCal event description and check for the sentinel string `--- Meeting Summary (via Notion CRM) ---`. If found, the summary was already synced — **skip this event**. Do not update or replace the existing summary (that's the Curated Notes agent's job in the future).
+
+## 3.4: Update via GCal API
+
+- Use `gcal_update_event` to update the event description.
+- The **Calendar Event ID** on the meeting page identifies the event.
+- The **Calendar Name** field identifies which calendar the event belongs to (use to target the correct calendar in the API call).
+- For recurring events, use the full instance ID (with `_YYYYMMDDTHHMMSSZ` suffix) — this updates only the specific instance, not the entire series.
+
+## 3.5: Error Handling
+
+- **GCal API returns 404 (event deleted):** Log a warning, skip this event, continue processing. Do not fail the run.
+- **GCal API returns 403 (permission denied):** Log a warning with the calendar name. This may indicate an OAuth issue for a specific calendar. Skip and continue.
+- **Description exceeds safe size:** If the combined existing description + summary block exceeds 8,000 characters, truncate the Action Items list to 5 items and retry. If still too long, append only the TL;DR + Notion link (minimal format).
+- **No AI notes content parseable:** If the meeting has notes but no extractable summary (e.g., only raw transcript, no structured summary section), skip GCal sync-back for this meeting. Log it in the output summary.
+
+---
+
 # Multi-Calendar Support
 
 The agent processes meetings from **all configured calendars** with the same wiring rules. Every meeting gets full CRM wiring regardless of source calendar. No per-calendar filtering or exclusions.
@@ -463,4 +540,24 @@ After each run, produce a brief summary:
 - Items with unmatched contacts (left blank): [count]
 - Meetings skipped (already processed / no content): [count]
 
+**Step 3 (GCal Sync-Back):**
+- Events updated with summary: [count]
+- Events skipped (no Calendar Event ID): [count]
+- Events skipped (already has summary): [count]
+- Events skipped (GCal API error): [count]
+
 **Warnings/Errors:** [details if any]
+
+---
+
+# Cutover Checklist (Adam — Manual Steps)
+
+These steps are performed by Adam in the Notion UI after Claude completes the automated cutover tasks (stub cleanup, instruction page deprecation, registry updates):
+
+1. [ ] Disable Meeting Sync nightly trigger (Notion Automations)
+2. [ ] Disable Post-Meeting Wiring trigger (Notion Automations)
+3. [ ] Disable Quick Sync trigger (Notion Automations)
+4. [ ] Configure Post-Meeting Agent as new nightly 10 PM ET trigger
+5. [ ] Stop doing "Link existing page" before meetings — just start AI notes directly from Notion Calendar
+6. [ ] Sweep the Delete view and trash [SUPERSEDED] stubs
+7. [ ] Verify first nightly run produces expected Output Summary

@@ -1,4 +1,7 @@
 <!-- Notion Page ID: 322adb01-222f-8196-99d8-c7f9a59cdb3b -->
+
+> **DEPRECATED (Session 37, March 15 2026)** — This agent has been replaced by the [Post-Meeting Agent](unified-post-meeting.md) (Notion page: `324adb01-222f-8168-a207-d66e81884454`). These instructions are retained for historical reference only. Do not use this agent for new runs.
+
 # Quick Sync Instructions
 
 ## Agent Role
