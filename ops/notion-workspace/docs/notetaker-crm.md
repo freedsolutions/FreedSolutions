@@ -4,6 +4,15 @@
 **Status:** Active — Session 38 (March 15, 2026)
 **Purpose:** Produce structured meeting summaries optimized for the Post-Meeting Agent's parsing pipeline and Floppy voice-command surfacing.
 
+## Input Channels
+
+The AI notetaker processes two input channels that influence the summary output:
+
+- **Voice commands** — "Hey Floppy" spoken during the meeting appears in the transcript. The notetaker surfaces these as `(Floppy)`-prefixed Action Items (Layer 1). The Post-Meeting Agent also parses them independently from the raw transcript (Layer 2).
+- **Typed notes** — Notes typed directly into Notion Calendar's notetaker panel during the meeting. These are treated as first-party input alongside the transcript, giving Adam a second channel to drive prescriptive Action Items without speaking aloud.
+
+Both channels feed into the same `### Action Items` section of the AI summary, which the Post-Meeting Agent parses in Steps 2.0–2.4.
+
 ---
 
 ## How to Apply
