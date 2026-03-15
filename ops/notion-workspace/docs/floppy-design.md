@@ -1,6 +1,6 @@
 # Floppy: Voice-Command CRM Agent
 
-**Status:** Design — Session 37b (March 15, 2026)
+**Status:** Implemented — Session 37b (March 15, 2026)
 **Integration point:** Post-Meeting Agent, Step 2.0 (before AI summary parsing)
 
 ---

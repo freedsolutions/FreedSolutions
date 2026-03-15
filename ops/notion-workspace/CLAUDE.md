@@ -18,11 +18,12 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions |
 | `docs/notion-agent-config.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Notion's built-in AI personality config |
 | `docs/unified-post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing (replaces Agent 1 + Agent 2) |
-| `docs/meeting-sync.md` | `321adb01-222f-81a7-8d9d-e02cd6e91ff9` | Meeting Sync (legacy — replaced by Post-Meeting Agent after cutover) |
-| `docs/quick-sync.md` | `322adb01-222f-8196-99d8-c7f9a59cdb3b` | Manual calendar sync |
-| `docs/post-meeting-wiring.md` | `321adb01-222f-81a3-8c57-d29c85ae7b63` | Post-Meeting Wiring (legacy — replaced by Post-Meeting Agent after cutover) |
+| `docs/meeting-sync.md` | `321adb01-222f-81a7-8d9d-e02cd6e91ff9` | [DEPRECATED] Meeting Sync — replaced by Post-Meeting Agent (S37) |
+| `docs/quick-sync.md` | `322adb01-222f-8196-99d8-c7f9a59cdb3b` | [DEPRECATED] Quick Sync — replaced by Post-Meeting Agent (S37) |
+| `docs/post-meeting-wiring.md` | `321adb01-222f-81a3-8c57-d29c85ae7b63` | [DEPRECATED] Post-Meeting Wiring — replaced by Post-Meeting Agent (S37) |
 | `docs/contact-company-review.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows |
+| `docs/floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) |
 
 ## Notion-Only Resources (access via MCP)
 
