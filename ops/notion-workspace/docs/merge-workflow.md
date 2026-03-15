@@ -3,7 +3,7 @@
 
 # When This Applies
 
-A placeholder Company exists in the Companies DB for a domain that actually belongs to an existing Company. This happens when an attendee's email domain (e.g., `subsidiary.com`) doesn't match any Company's Domains property, so Agent 1 or Quick Sync creates a placeholder. Later, Adam realizes the domain belongs to an existing Company (e.g., "Parent Corp" with domain `parentcorp.com`).
+A placeholder Company exists in the Companies DB for a domain that actually belongs to an existing Company. This happens when an attendee's email domain (e.g., `subsidiary.com`) doesn't match any Company's Domains property, so the Post-Meeting Agent creates a placeholder. Later, Adam realizes the domain belongs to an existing Company (e.g., "Parent Corp" with domain `parentcorp.com`).
 
 **Example:** Agent creates placeholder Company "subsidiary.com" (Record Status = Draft). Adam knows subsidiary.com is actually part of Parent Corp. The placeholder needs to be merged into Parent Corp.
 
@@ -91,7 +91,7 @@ For now, this remains a **manual workflow**. If it starts happening frequently, 
 
 # Contact Merge (Email-Based Duplicates)
 
-When a duplicate Contact exists because Agent 1 or Quick Sync created a new contact from an email address that actually belongs to an existing contact (matched via Secondary Email or Tertiary Email that wasn't checked at creation time).
+When a duplicate Contact exists because the Post-Meeting Agent created a new contact from an email address that actually belongs to an existing contact (matched via Secondary Email or Tertiary Email that wasn't checked at creation time).
 
 **Example:** Agent creates placeholder Contact "Morgan" from `morgantmendoza@gmail.com`. Adam knows this is Morgan Carlone's personal email. The placeholder needs to be merged into the canonical Morgan Carlone record.
 
