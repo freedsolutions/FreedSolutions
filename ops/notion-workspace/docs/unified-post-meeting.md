@@ -837,12 +837,12 @@ After each run, produce a brief summary:
 
 Automated cutover tasks completed in Session 37b: Agent Config updated, old instruction pages deprecated ([DEPRECATED] prefix), Meetings DB migrated (126 events wired with Calendar Name, Location, Contacts, Series).
 
-**Adam's remaining manual steps in Notion UI:**
+**Adam's manual steps — completed S39 (2026-03-15):**
 
-1. [ ] Disable Meeting Sync nightly trigger (Notion Automations)
-2. [ ] Disable Post-Meeting Wiring trigger (Notion Automations)
-3. [ ] Disable Quick Sync trigger (Notion Automations)
-4. [ ] Configure Post-Meeting Agent triggers: (a) nightly 10 PM ET schedule, (b) reactive trigger on Meetings DB → "Meeting Title is edited" (uncheck "Trigger when page content edited")
-5. [ ] Stop doing "Link existing page" before meetings — just start AI notes directly from Notion Calendar
-6. [ ] Sweep the Delete view and trash any remaining [SUPERSEDED] stubs
-7. [ ] Verify first nightly run produces expected Output Summary
+1. [x] Disable Meeting Sync nightly trigger (Notion Automations)
+2. [x] Disable Post-Meeting Wiring trigger (Notion Automations)
+3. [x] Disable Quick Sync trigger (Notion Automations)
+4. [x] Configure Post-Meeting Agent triggers: (a) nightly 10 PM ET schedule, (b) reactive trigger on Meetings DB → "Meeting Title is edited" (uncheck "Trigger when page content edited")
+5. [x] Stop doing "Link existing page" before meetings — just start AI notes directly from Notion Calendar
+6. [x] Sweep the Delete view and trash any remaining [SUPERSEDED] stubs
+7. [ ] Verify first nightly run produces expected Output Summary *(pending — first real nightly run after cutover)*
