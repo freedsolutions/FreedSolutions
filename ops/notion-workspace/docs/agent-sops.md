@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 34 (March 14, 2026)
+Last updated: Session 35 (March 15, 2026)
 
 ---
 
@@ -92,26 +92,67 @@ All 3 source DBs (Contacts, Companies, Action Items) use a single `Record Status
 
 Migrated from Approved + Active checkboxes in Session 32. Agents set new records to Draft. Only Adam moves records to Active. Agents may set records to Inactive or Delete per merge/dedup workflows.
 
-## Email Fields (Contacts)
+## Contacts DB Properties
 
+- **Contact Name** (title) — full name of the contact
+- **Display Name** (formula) — Contact Name + Pronouns when present
+- **Wiring Check** (formula) — missing Email → missing Company → missing Role / Title → ✅
 - **Email** — primary business email (used for calendar matching and dedup)
 - **Secondary Email** — alternate email (personal, old domain, etc.)
 - **Tertiary Email** — third email if needed
-- All agent dedup rules must check ALL email fields
+- **Phone** — phone number
+- **Pronouns** — pronouns
+- **Nickname** — informal name or alias
+- **LinkedIn** — LinkedIn profile URL
+- **Company** (relation → Companies DB)
+- **Role / Title** — job title or role
+- **Record Status** (select: Draft/Active/Inactive/Delete)
+- **Contact Notes** — freeform notes about the contact
+- All agent dedup rules must check ALL email fields (Email, Secondary Email, Tertiary Email)
 
-## Domain Fields (Companies)
+## Companies DB Properties
 
+- **Company Name** (title) — official company name
+- **Company Type** (select: Tech Stack, Operator, Network, Personal) — categorizes the company's relationship
+- **Wiring Check** (formula) — missing Domains → missing Company Type → ✅
 - **Domains** — primary business domains (comma-separated, no spaces). Used for agent matching: email domain → company lookup
 - **Additional Domains** — merged/subsidiary/alternate domains (comma-separated, no spaces, domains only — no full email addresses)
-- All agent dedup rules must check BOTH domain fields
+- **States** — operating states (default: "All" when not explicitly known)
+- **Website** — company website URL
+- **Contacts** (relation → Contacts DB)
+- **Action Items** (relation → Action Items DB)
+- **Engagements** (relation)
+- **Tech Stack** (relation)
+- **Record Status** (select: Draft/Active/Inactive/Delete)
+- **Company Notes** — freeform notes about the company
+- All agent dedup rules must check BOTH domain fields (Domains, Additional Domains)
+
+## Action Items DB Properties
+
+- **Task Name** (title) — concise imperative description of the action item
+- **Type** (formula) — auto-computed: Assignee = Adam → "Task", otherwise → "Follow Up"
+- **Icon** (formula) — 📝 for Task, ☝️ for Follow Up
+- **Status** (status: Not started, In progress, Done)
+- **Priority** (select: High/Low/Backburner)
+- **Record Status** (select: Draft/Active/Inactive/Delete)
+- **Task Notes** — full context, sub-tasks, meeting reference
+- **Due Date** (date)
+- **Assign Date** (created_time) — auto-populates with page creation date
+- **Contact** (relation → Contacts DB)
+- **Company** (relation → Companies DB)
+- **Assignee** (person)
+- **Source Meeting** (relation → Meetings DB)
+- **Attach File** — file attachment
+- **Wiring Check** (formula) — missing Company when Contact set, missing Source Meeting
 
 ## Delete Handoff Pattern
 
 Claude (in any interface) cannot archive/trash individual Notion pages via MCP tools. When a record needs to be deleted:
 
-1. Claude sets Record Status = Delete
-2. Claude adds a Notes flag explaining why (e.g., "MERGED → Formul8. Ready for HARD DELETE per merge workflow")
-3. Adam periodically sweeps the Inactive/Delete view and trashes flagged records
+1. **Unwire Before Delete** — Claude clears ALL relation properties on the record (Company, Contact, Source Meeting, Action Items, Contacts — whichever apply to the database). Then clears the reciprocal relation on each formerly-linked record. Both sides must be explicitly unwired to prevent orphaned links. See the Relation Map in the [Merge Workflow](https://www.notion.so/323adb01222f811189c7c92eaac10ebb) for the full per-database breakdown.
+2. Claude sets Record Status = Delete
+3. Claude adds a Contact Notes / Company Notes / Task Notes flag explaining why (e.g., "MERGED → Formul8. Ready for HARD DELETE per merge workflow")
+4. Adam periodically sweeps the Inactive/Delete view and trashes flagged records
 
 ---
 
@@ -120,12 +161,32 @@ Claude (in any interface) cannot archive/trash individual Notion pages via MCP t
 These apply to every Claude session, regardless of interface:
 
 1. **Read the Active handoff FIRST** — it has everything needed for context
-2. **Ask clarification questions BEFORE making changes**
-3. **For migrations or bulk operations:** audit current state → present plan → get Adam's approval → execute in phases with verification
-4. **Never create new DB records** unless explicitly instructed
-5. **Never change lifecycle state** (Approved/Active/Record Status) without explicit instruction
-6. **Log everything** — the session handoff is the system of record
-7. **Dedup checks are mandatory** — always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies
+2. **Standing approval applies to routine Notion work**. If Adam asks to update, sync, harden, document, or maintain the Notion workspace, execute the full read, edit, push, verify, and log loop without asking for step-by-step permission.
+3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches lifecycle state, creates new CRM DB records, or is a migration/bulk operation
+4. **For migrations or bulk operations:** audit current state → present plan → get Adam's approval → execute in phases with verification
+5. **Never create new DB records** unless explicitly instructed
+6. **Never change lifecycle state** (Approved/Active/Record Status) without explicit instruction. When Record Status is set to Delete (with explicit instruction), the **Unwire Before Delete** protocol in the Delete Handoff Pattern must be followed first
+7. **Log everything** — the session handoff is the system of record
+8. **Dedup checks are mandatory** — always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies
+
+## Standing Approval Scope
+
+Routine Notion work is pre-authorized once Adam requests it. This includes:
+
+- Reading mapped Notion pages and databases for context or verification
+- Editing local `docs/` files and `ops/notion-workspace/CLAUDE.md`
+- Pushing local instruction changes to their mapped Notion pages via MCP
+- Updating the Active Session Handoff and Session Archive as part of normal session maintenance
+- Duplicating and moving session handoff pages during the documented end-of-session flow
+- Adding logs, summaries, and verification notes needed to keep the workspace current
+
+Pause and ask before proceeding only when any of the following are true:
+
+- The request is ambiguous or conflicts with the local source-of-truth docs
+- The change would modify database schema, views, automations, or agent architecture
+- The change would create, merge, delete, or bulk-edit CRM records
+- The change would alter `Record Status` or other lifecycle controls
+- The operation is large enough that rollback would be difficult
 
 ---
 

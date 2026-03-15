@@ -7,7 +7,7 @@
 
 1. **Read local docs** — `ops/notion-workspace/docs/agent-sops.md` is the stable workflow reference.
 2. **Read the Active Session Handoff** via Notion MCP — page ID `323adb01-222f-81f1-bd4b-d0383d39d47a`.
-3. **Ask clarification questions BEFORE making changes.**
+3. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
 
 ## Local Docs
 
@@ -47,19 +47,42 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 ## Rules of Engagement
 
 1. **Read the Active Handoff FIRST** — it has full context for the current session.
-2. **Ask clarification questions BEFORE making changes.**
-3. **For migrations or bulk operations:** audit current state → present plan → get Adam's approval → execute in phases with verification between each.
-4. **Never create new DB records** unless explicitly instructed.
-5. **Never change Record Status** (Draft/Active/Inactive/Delete) without explicit instruction.
-6. **Log everything** — the session handoff is the system of record.
-7. **Dedup checks are mandatory** — always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies.
+2. **Standing approval applies to routine Notion work.** If Adam asks to update, sync, harden, document, or maintain the Notion workspace, execute the full read, edit, push, verify, and log loop without asking for step-by-step permission.
+3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches Record Status, creates new CRM DB records, or is a migration/bulk operation.
+4. **For migrations or bulk operations:** audit current state → present plan → get Adam's approval → execute in phases with verification between each.
+5. **Never create new DB records** unless explicitly instructed.
+6. **Never change Record Status** (Draft/Active/Inactive/Delete) without explicit instruction.
+7. **Log everything** — the session handoff is the system of record.
+8. **Dedup checks are mandatory** — always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies.
+
+## Standing Approval Scope
+
+Routine Notion work is pre-authorized once Adam requests it. This includes:
+
+- Reading mapped Notion pages and databases for context or verification
+- Editing local `docs/` files and `ops/notion-workspace/CLAUDE.md`
+- Pushing local instruction changes to their mapped Notion pages via MCP
+- Updating the Active Session Handoff and Session Archive as part of normal session maintenance
+- Duplicating and moving session handoff pages during the documented end-of-session flow
+- Adding logs, summaries, and verification notes needed to keep the workspace current
+
+Pause and ask before proceeding only when any of the following are true:
+
+- The request is ambiguous or conflicts with the local source-of-truth docs
+- The change would modify database schema, views, automations, or agent architecture
+- The change would create, merge, delete, or bulk-edit CRM records
+- The change would alter `Record Status` or other lifecycle controls
+- The operation is large enough that rollback would be difficult
 
 ## Key Schema Conventions
 
 - **Record Status** (select on Contacts, Companies, Action Items): `Draft` → `Active` → `Inactive` → `Delete`
+- **Contacts DB:** Contact Name (title), Display Name (formula), Wiring Check (formula), Email, Secondary Email, Tertiary Email, Phone, Pronouns, Nickname, LinkedIn, Company, Role / Title, Record Status, Contact Notes
+- **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), Wiring Check (formula), Domains, Additional Domains, States (default: "All"), Website, Contacts, Action Items, Engagements, Tech Stack, Record Status, Company Notes
+- **Action Items DB:** Task Name (title), Type (formula), Icon (formula), Status, Priority, Record Status, Task Notes, Due Date, Assign Date (created_time), Contact, Company, Assignee, Source Meeting, Attach File, Wiring Check (formula)
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email — all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) — both checked for dedup
-- **Delete handoff:** Claude sets Record Status = Delete + Notes explaining why. Adam trashes from Delete view.
+- **Delete handoff:** Claude sets Record Status = Delete + Notes field (Contact Notes / Company Notes / Task Notes) explaining why. Adam trashes from Delete view.
 - **Agent Config:** Runtime state (timestamps) shared between agents. Not documentation — agents read/write during execution.
 
 ## End-of-Session Protocol
@@ -73,7 +96,7 @@ At the end of every session, use Notion MCP tools to:
 ## Sync Convention
 
 - Local `docs/` files are the **source of truth** for instruction content.
-- When instructions change, edit the local file first, then push to Notion via MCP.
+- When instructions change, edit the local file first, then push to Notion via MCP in the same task unless Adam explicitly asks for a local-only draft.
 - Ephemeral/runtime data (sessions, agent config, CRM records) lives in Notion only.
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
 
