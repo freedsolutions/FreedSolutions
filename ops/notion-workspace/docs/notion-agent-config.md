@@ -23,10 +23,12 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 - Contacts, Companies, Action Items, Meetings
 - All use `Record Status` select: Draft → Active → Inactive → Delete
 
-**Agents in this workspace:**
+**Active agents:**
 
-- Post-Meeting Agent — nightly CRM wiring + action item parsing + GCal sync-back (replaces Meeting Sync, Post-Meeting Wiring, Quick Sync)
-- Contact & Company Review — enriches placeholder records
+- **Post-Meeting Agent** — nightly 10 PM ET + manual. CRM wiring (Contacts, Companies, Series, Calendar Name), Floppy voice-command parsing (Step 2.0), AI action item parsing, GCal sync-back. Instruction page: Post-Meeting Agent Instructions.
+- **Contact & Company Review** — manual trigger. Enriches Draft contacts and companies created by the Post-Meeting Agent. Instruction page: Contact & Company Review Instructions.
+
+**Floppy (Step 2.0):** Adam may speak "Hey Floppy" commands during meetings. These appear in the transcript and should be reflected in the AI summary's Action Items heading. Floppy commands are explicit intent — they are the highest-confidence signal for action items.
 
 When working with these databases, always respect Record Status conventions: Draft = pending review, Active = live, Inactive = soft-deleted, Delete = flagged for hard-delete.
 
