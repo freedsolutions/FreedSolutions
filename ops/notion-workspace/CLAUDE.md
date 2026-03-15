@@ -24,6 +24,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/contact-company-review.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows |
 | `docs/floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) |
+| `docs/notetaker-crm.md` | — | CRM-optimized Notion Calendar AI notetaker instructions (local only, paste into Calendar settings) |
 
 ## Notion-Only Resources (access via MCP)
 

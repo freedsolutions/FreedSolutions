@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 37b (March 15, 2026)
+Last updated: Session 38 (March 15, 2026)
 
 ---
 
@@ -51,6 +51,18 @@ All agents are instruction pages under the Automation Hub. Each page contains th
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Active |
+
+## Notetaker Profiles
+
+Custom instruction profiles for Notion Calendar's AI notetaker. Each profile is pasted into the notetaker's custom instructions field and optimizes the AI summary for a specific meeting type.
+
+| Profile | Local Doc | Purpose | Status |
+| --- | --- | --- | --- |
+| CRM-Optimized | `docs/notetaker-crm.md` | Default for business meetings. Structures Action Items for Post-Meeting Agent parsing. Surfaces "Hey Floppy" commands (Layer 1). | Active |
+| Strategy / Workshop | — | Longer brainstorm/planning sessions. Heavier on topic summaries. | Planned |
+| 1:1 / Check-in | — | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
+
+**Why notetaker profiles matter:** The Post-Meeting Agent parses the `### Action Items` heading from the AI summary. Custom notetaker instructions ensure the AI produces summaries in the exact format the agent expects — improving parse accuracy, action item quality, and Floppy command surfacing (Layer 1).
 
 **Naming convention:** Each agent has an **instruction page** under the Automation Hub containing its full workflow, business rules, and database references. The instruction page is named "[Agent Name] Instructions". The Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.
 
