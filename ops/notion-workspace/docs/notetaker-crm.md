@@ -1,7 +1,7 @@
 # CRM-Optimized Meeting Notetaker
 
 **Type:** Notion Calendar AI Notetaker Profile
-**Status:** Active — Session 38 (March 15, 2026)
+**Status:** Active — Session 38 (March 15, 2026), updated Session 39 (source reference format)
 **Purpose:** Produce structured meeting summaries optimized for the Post-Meeting Agent's parsing pipeline and Floppy voice-command surfacing.
 
 ## Input Channels
@@ -35,7 +35,7 @@ Notion's template has four sections: Context, Summary format (with named section
 
 > This is the most important section. Always place it first. Format every action item as a markdown checklist item: `- [ ] [Person name] to [action] [source reference]`. Lead with the person's name (first name as spoken). Use imperative voice: "send", "review", "schedule" — not "will send". Include deadlines when mentioned. One item per line — never combine two actions. Include source references in brackets. Do not editorialize — capture commitments, not hypotheticals. If the speaker assigns something to themselves, use their name explicitly, never "I" or "me".
 >
-> CRITICAL — "Hey Floppy" voice commands: Adam may say "Hey Floppy" (or "Hey, Floppy", "A Floppy", "Hey Floppi") followed by a command. These are the highest-priority items. Always include them as Action Items. Preserve Adam's exact wording. Place Floppy items FIRST in the list. Prefix with "(Floppy)": `- [ ] (Floppy) Adam to send Jake the ConnectNexus docs [00:14:23]`. If a Floppy command overlaps with an organically discussed item, keep both — the downstream agent handles dedup.
+> CRITICAL — "Hey Floppy" commands (voice AND typed notes): Adam may say "Hey Floppy" (or "Hey, Floppy", "A Floppy", "Hey Floppi") followed by a command, or type "Hey Floppy" followed by a command in the Notes panel. These are the highest-priority items. Always include them as Action Items. Preserve Adam's exact wording. Place Floppy items FIRST in the list. Prefix with "(Floppy)": `- [ ] (Floppy) Adam to send Jake the ConnectNexus docs [00:14:23]`. For items sourced from typed notes rather than voice, use `[Notes]` as the source reference instead of a timestamp: `- [ ] (Floppy) Adam to write LinkedIn post discussing the Dime podcast episode [Notes]`. If a Floppy command overlaps with an organically discussed item, keep both — the downstream agent handles dedup.
 
 ### Section 2: Key Decisions
 
@@ -62,9 +62,9 @@ Notion's template has four sections: Context, Summary format (with named section
 
 The Post-Meeting Agent (see [unified-post-meeting.md](unified-post-meeting.md)) parses the `### Action Items` heading to extract checklist items. It expects:
 
-- `- [ ]` markdown checklist format
+- `- [ ]` markdown checklist format (rendered as Notion `to_do` blocks)
 - Person names that match Contacts DB records (first name, full name, or nickname)
-- Source references in brackets (stripped during parsing)
+- Source references in brackets — both `[HH:MM:SS]` timestamps (voice) and `[Notes]` tags (typed notes) are valid formats, stripped during parsing
 - Clear imperative voice for the action
 
 The `(Floppy)` prefix serves **Layer 1** of the Floppy design (see [floppy-design.md](floppy-design.md)): by telling the notetaker to explicitly surface "Hey Floppy" commands, the AI summary already reflects Adam's voice commands before the Post-Meeting Agent's independent transcript parse (Layer 2) even runs. This makes the AI summary more prescriptive and the downstream Draft items faster to approve.

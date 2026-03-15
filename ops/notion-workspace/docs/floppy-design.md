@@ -1,6 +1,6 @@
 # Floppy: Voice-Command CRM Agent
 
-**Status:** Implemented — Session 37b (March 15, 2026)
+**Status:** Implemented — Session 37b (March 15, 2026), updated Session 39 (typed notes channel, summary-first parsing)
 **Integration point:** Post-Meeting Agent, Step 2.0 (before AI summary parsing)
 
 ---
@@ -13,22 +13,33 @@ The AI-generated meeting summary produces action items, but they aren't prescrip
 
 ### What Floppy does
 
-Floppy lets Adam **shape the meeting record in real-time** by speaking structured voice commands during meetings. By saying "Hey Floppy" followed by a command, Adam injects explicit, prescriptive intent directly into the transcript. This has a **layered effect**:
+Floppy lets Adam **shape the meeting record in real-time** through two input channels during meetings. This has a **layered effect**:
 
-1. **Layer 1 — AI summary influence.** Because Floppy commands are spoken aloud, they appear in the raw transcript. The AI summarizer picks them up and reflects them in its Action Items heading — often more accurately than it would from organic conversation alone. Floppy commands act as anchors that steer the AI's own output.
+1. **Layer 1 — AI summary influence.** Voice commands appear in the raw transcript and typed notes appear in the notetaker Notes panel. The AI summarizer picks up both channels and reflects them in its Action Items heading as `(Floppy)`-prefixed items — often more accurately than from organic conversation alone. Floppy commands act as anchors that steer the AI's own output.
 
-2. **Layer 2 — Direct agent parsing.** The Post-Meeting Agent independently parses Floppy commands from the `<transcript>` block as a validation and enrichment layer. This catches cases where the AI rephrased, consolidated, or dropped a command. The agent's Floppy parse is the authoritative version — the AI summary is a secondary signal.
+2. **Layer 2 — Direct agent parsing.** The Post-Meeting Agent reads `(Floppy)`-prefixed items from the AI summary as the primary extraction path, then scans the notes block and transcript as fallback layers. This catches cases where the AI rephrased, consolidated, or dropped a command. The agent's Floppy parse is the authoritative version.
 
-**The combined result:** Better AI summaries (Layer 1) + explicit backup parsing (Layer 2) = more prescriptive Draft items → faster approval → sharper GCal TL;DR. Adam shapes the entire downstream chain by speaking a few sentences during the meeting.
+**The combined result:** Better AI summaries (Layer 1) + explicit multi-source parsing (Layer 2) = more prescriptive Draft items → faster approval → sharper GCal TL;DR. Adam shapes the entire downstream chain by speaking or typing a few sentences during the meeting.
+
+### Input Channels
+
+Floppy supports two input channels. Both use the "Hey Floppy" prefix to signal intent.
+
+| Channel | How it works | Advantages | Limitations |
+|---------|-------------|------------|-------------|
+| **Voice** | Adam says "Hey Floppy" followed by a command during the meeting. Appears in the raw transcript. | Natural, fast, no context-switching from conversation. | Subject to STT transcription errors; no rich text or links; requires speaking aloud (not ideal in large group calls). |
+| **Typed notes** | Adam types "Hey Floppy" followed by a command in Notion Calendar's notetaker Notes panel. | Supports rich text with hyperlinks, precise formatting, dates, and references. Silent operation — works in large group calls without interrupting. No STT ambiguity. | Requires switching to the Notes panel; can't be done while actively speaking. |
+
+Both channels feed into the same `### Action Items` section of the AI summary (Layer 1), and the Post-Meeting Agent processes both in Step 2.0 (Layer 2).
 
 ### Where it runs
 
-Floppy parsing is **Step 2.0** — a new sub-step inserted before the existing AI summary parsing:
+Floppy parsing is **Step 2.0** — a sub-step before AI summary parsing:
 
 ```
 Step 1:   CRM Wiring (Contacts, Companies, Series, Calendar Name)
-Step 2.0: Floppy Command Parsing (from <transcript>)  ← NEW
-Step 2.1: AI Summary Action Item Parsing (from <summary>)
+Step 2.0: Floppy Command Parsing (summary-first, notes + transcript fallback)
+Step 2.1: AI Summary Action Item Parsing (non-Floppy items only)
 Step 2.2: Group Related Action Items (Floppy items excluded from grouping;
           AI items that duplicate Floppy items are skipped)
 Step 2.3: Route to Action Items DB
@@ -36,7 +47,7 @@ Step 2.4: Wire Back to Meeting (includes Floppy + AI items)
 Step 3:   GCal Event Sync-Back (Floppy items serve as anchor points for TL;DR)
 ```
 
-**Why before AI parsing:** Floppy items are the higher-confidence signal. By creating them first, Step 2.2 can compare AI-parsed items against existing Floppy items and skip duplicates. The Floppy version wins because it reflects Adam's exact words, not the AI's interpretation.
+**Why before AI parsing:** Floppy items are the higher-confidence signal. By creating them first, Step 2.2 can compare AI-parsed items against existing Floppy items and skip duplicates. The Floppy version wins because it reflects Adam's exact intent, not the AI's interpretation.
 
 ### Step 3 anchor point role
 
@@ -52,9 +63,13 @@ Floppy commands signal what mattered most in a meeting. When Step 3 composes the
 
 ### Primary trigger
 
-The canonical trigger is **"Hey Floppy"** spoken by Adam during a meeting. This is a new behavior Adam will adopt — it's not currently in use. The phrase was chosen because it's distinctive enough to avoid false positives in normal conversation and memorable enough to become habitual.
+The canonical trigger is **"Hey Floppy"** — either spoken by Adam during a meeting (appears in transcript) or typed in the Notion Calendar notetaker Notes panel. The phrase was chosen because it's distinctive enough to avoid false positives in normal conversation and memorable enough to become habitual.
 
-### STT variants to match
+**For typed notes:** The trigger is an exact text match — "Hey Floppy" at the start of a paragraph. No STT variants or regex needed.
+
+**For voice (transcript):** STT variants must be matched (see below).
+
+### STT variants to match (voice/transcript only)
 
 Speech-to-text engines produce inconsistent transcriptions. The parser must match all of these (case-insensitive):
 
@@ -168,7 +183,13 @@ Floppy parsing follows a three-stage pipeline: **detect → classify → extract
 
 ### Stage 1: Detect
 
-Scan the full `<transcript>` text for trigger phrase matches (Section 2 regex). For each match, capture the text from the trigger phrase to the command boundary (Section 5). This produces a list of raw command strings.
+Detection uses three sources in priority order (see unified-post-meeting.md Step 2.0.1 for full details):
+
+1. **AI Summary (primary):** Read `(Floppy)`-prefixed `to_do` blocks from the summary. These are already clean and structured.
+2. **Notes block (fallback):** Scan typed note paragraphs for "Hey Floppy" prefix (exact match). Capture any not already in the summary.
+3. **Transcript (fallback):** Scan for trigger phrase regex matches (Section 2). Capture any not already found in summary or notes.
+
+For transcript matches, capture from the trigger phrase to the command boundary (Section 5). This produces a list of raw command strings.
 
 ### Stage 2: Classify (Intent)
 
@@ -200,9 +221,11 @@ From the classified command, extract:
 
 ## 5. Command Boundary Detection
 
-The hardest parsing problem: where does a Floppy command end in a continuous transcript?
+**Typed notes:** Boundary detection is trivial — each paragraph in the Notes panel is a discrete command. No further boundary logic needed.
 
-### Boundary signals (in priority order)
+**Voice commands (transcript):** The hardest parsing problem — where does a Floppy command end in a continuous transcript?
+
+### Boundary signals (in priority order, transcript only)
 
 1. **Next trigger phrase** — another "Hey Floppy" starts a new command.
 2. **Speaker change** — a different speaker starts talking (if speaker labels are present).
@@ -277,6 +300,8 @@ If Tier 1 fails, search the entire Contacts DB. This is broader than AI action i
 | Assignee | Adam Freed (`30cd872b-594c-81b7-99dc-0002af0f255a`) | Leave blank |
 
 **Task Notes format for Floppy items:**
+
+Voice commands (from transcript):
 ```
 Source: Voice command (Hey Floppy)
 Transcript: "[raw command text from transcript]"
@@ -284,10 +309,18 @@ Timestamp: [HH:MM:SS] (if available)
 From: [Meeting Title] on [Date]
 ```
 
-The `Source: Voice command (Hey Floppy)` tag distinguishes Floppy items from AI-parsed items. This tag is used by:
+Typed notes (from notetaker Notes panel):
+```
+Source: Typed note (Hey Floppy)
+Content: "[typed note text]"
+Link: [URL if hyperlink present in rich text]
+From: [Meeting Title] on [Date]
+```
+
+The `Source:` tag (either variant) distinguishes Floppy items from AI-parsed items. The `(Hey Floppy)` substring is the canonical identifier used by:
 - **Step 2.2** to exclude Floppy items from grouping and to skip duplicate AI items
 - **Step 3** to identify anchor points for the GCal TL;DR
-- **Adam** to quickly identify voice-commanded items during Draft review
+- **Adam** to quickly identify Floppy items during Draft review and distinguish voice vs. typed origin
 
 ### Contact Note → Contacts DB
 
@@ -321,9 +354,9 @@ Because Floppy commands are spoken into the meeting, the AI summarizer often inc
 
 ### Layer 2: Agent reconciliation
 
-The agent parses Floppy commands independently from the transcript (Step 2.0) and AI items from the summary (Step 2.1). Reconciliation happens in Step 2.2:
+The agent parses Floppy commands from the summary, notes block, and transcript (Step 2.0), then parses non-Floppy AI items from the summary (Step 2.1). Reconciliation happens in Step 2.2:
 
-1. Read all Floppy items created in Step 2.0 (identified by `Source: Voice command (Hey Floppy)` in Task Notes).
+1. Read all Floppy items created in Step 2.0 (identified by `(Hey Floppy)` substring in the Task Notes `Source:` line).
 2. For each AI-parsed action item candidate, check if a Floppy item already covers the same deliverable (fuzzy match on Task Name + Contact).
 3. **If a match is found:** Skip the AI-parsed item — the Floppy version is more prescriptive. Log: "AI item '[title]' skipped — covered by Floppy command."
 4. **If no match:** Process the AI item normally (group, route, wire).
@@ -353,7 +386,7 @@ Contact Notes and Company Notes from Floppy don't overlap with AI parsing — St
 | **Company name not resolved** (for Company Note) | Do NOT append to any Company Notes. Instead, create a Task for Adam: "Review Floppy company note: [note text]. Could not resolve '[company name]'." |
 | **Due date unparseable** | Leave Due Date blank. Include the raw date text in Task Notes: "Mentioned deadline: '[raw text]' — could not resolve to date." |
 | **Duplicate trigger** (same command repeated in transcript) | If two triggers produce identical Task Name + Contact within the same meeting, keep only the first. Log: "Duplicate Floppy command skipped." |
-| **Transcript has no `<transcript>` block** | Skip Floppy parsing entirely. Log: "No transcript block found — Floppy parsing skipped." Step 2.1+ proceeds normally. |
+| **Page has no `transcription` block** | Skip Floppy parsing entirely. Log: "No transcription block found — Floppy parsing skipped." Step 2.1+ proceeds normally. |
 | **150-word cap reached** | Truncate command text. Flag in Task Notes: "Command truncated at 150-word limit — review for completeness." |
 
 ### Non-blocking principle
@@ -367,9 +400,9 @@ Floppy errors must never block the rest of Step 2. If Floppy parsing fails entir
 Add a **Step 2.0** section to the existing Output Summary format:
 
 ```
-**Step 2.0 (Floppy Voice Commands):**
+**Step 2.0 (Floppy Commands):**
 - Meetings with Floppy commands: [count]
-- Commands detected: [count]
+- Commands detected: [count] (voice: [count], typed: [count], summary-only: [count])
 - Tasks created: [count]
 - Follow Ups created: [count]
 - Contact Notes appended: [count]
@@ -379,6 +412,7 @@ Add a **Step 2.0** section to the existing Output Summary format:
 - Commands skipped (duplicate): [count]
 - Unresolved contacts (left blank): [count]
 - Unresolved companies (created as Task): [count]
+- Transcript fallback commands (not in AI summary): [count]
 ```
 
 This section appears between Step 1 and Step 2 in the output, matching execution order. The "AI items skipped" line specifically tracks the Layer 2 reconciliation — how many AI-parsed items were suppressed because Floppy already covered them.
@@ -414,4 +448,4 @@ Floppy is a new speaking behavior for Adam. The first few meetings will be a cal
 2. **Floppy for non-meeting contexts:** Could Floppy work outside of meeting transcripts (e.g., voice memos, Slack messages)? (Out of scope — meeting transcript only for now.)
 3. **Real-time acknowledgment:** Should Adam get feedback that Floppy captured a command? (Currently post-processed only. A future Slack/notification integration could confirm captures.)
 4. **STT custom vocabulary:** If Notion Calendar's STT engine supports custom vocabulary, "Floppy" should be added to improve recognition accuracy.
-5. **Floppy as a prompt for the AI summarizer:** Could the Post-Meeting Agent's Notion page instructions tell the AI to specifically look for "Hey Floppy" patterns? This would strengthen Layer 1 without any code changes.
+5. ~~**Floppy as a prompt for the AI summarizer:**~~ **Resolved (S38).** The CRM-Optimized notetaker profile (`notetaker-crm.md`) explicitly instructs the AI to surface "Hey Floppy" commands as `(Floppy)`-prefixed Action Items. This strengthens Layer 1 and is now the primary extraction source for Step 2.0.

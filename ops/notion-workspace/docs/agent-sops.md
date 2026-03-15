@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 38 (March 15, 2026)
+Last updated: Session 39 (March 15, 2026)
 
 ---
 
@@ -46,7 +46,7 @@ All agents are instruction pages under the Automation Hub. Each page contains th
 
 | Agent | Instruction Page | Trigger | Status |
 | --- | --- | --- | --- |
-| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + manual | Active |
+| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + reactive (on Meeting Title update) + manual | Active |
 | Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
@@ -58,7 +58,7 @@ Custom instruction profiles for Notion Calendar's AI notetaker. Each profile is 
 
 | Profile | Local Doc | Purpose | Status |
 | --- | --- | --- | --- |
-| CRM-Optimized | `docs/notetaker-crm.md` | Default for business meetings. Structures Action Items for Post-Meeting Agent parsing. Surfaces "Hey Floppy" commands (Layer 1). | Active |
+| CRM-Optimized | `docs/notetaker-crm.md` | Default for business meetings. Structures Action Items for Post-Meeting Agent parsing. Surfaces "Hey Floppy" commands from voice AND typed notes (Layer 1). | Active |
 | Strategy / Workshop | — | Longer brainstorm/planning sessions. Heavier on topic summaries. | Planned |
 | 1:1 / Check-in | — | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
 
@@ -164,7 +164,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 
 - **Meeting Title** (title) — event title from GCal (stripped of FW:/Fwd: prefixes)
 - **Calendar Event ID** (text) — GCal event ID, canonical identity for matching
-- **Calendar Name** (text) — source calendar display name, populated by the Post-Meeting Agent. Also serves as the "processed" signal (empty = not yet wired by agent)
+- **Calendar Name** (text) — source calendar display name, populated by the Post-Meeting Agent. Also serves as the "processed" signal (empty = not yet wired; "Pending" = notetaker page awaiting GCal match; "Manual" = manually created page)
 - **Date** (date) — event start + end, stored in Eastern timezone (not UTC)
 - **Contacts** (relation → Contacts DB) — attendees wired via email matching
 - **Companies** (rollup) — derived from Contacts' Company relations
