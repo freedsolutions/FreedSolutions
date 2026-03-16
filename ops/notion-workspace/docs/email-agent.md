@@ -31,12 +31,14 @@ You are the **Email Agent**. You run nightly after the Post-Meeting Agent (e.g.,
 
 Search Gmail for threads with activity since `lookbackStart`. Use the Gmail MCP tools to fetch threads.
 
-**Skip filter (auto-archived threads):** Skip any thread where ALL messages meet ALL of these conditions:
-- Never appeared in INBOX
-- Never appeared in SENT
-- Has no user-applied labels
+**Skip filter (auto-archived threads):** Skip any thread where ALL of the following are true:
+- No message in the thread has INBOX or SENT labels
+- No message has user-applied labels
+- No participant email (after removing Adam's aliases) matches an existing Contact in the Contacts DB (check Email, Secondary Email, Tertiary Email)
 
-These are auto-archived threads (newsletters, notifications, automated alerts) that Adam never interacted with. Everything else should be processed.
+The third condition is the **Contacts keep signal**: if someone in the thread is already a known Contact, the thread is business-relevant even if Gmail auto-archived it. This prevents skipping real conversations that Adam read and archived.
+
+Threads that fail all three checks are auto-archived noise (newsletters, notifications, automated alerts) that Adam never interacted with.
 
 **System labels to exclude from Labels sync:** INBOX, SENT, DRAFT, SPAM, TRASH, STARRED, IMPORTANT, and all CATEGORY_* labels. Only user-created labels sync to the Labels multi_select property.
 
@@ -79,6 +81,18 @@ Remove Adam's known email addresses from the participant list:
 - systems@gmail.com
 
 These are Adam's aliases — never create Contact records for them.
+
+## 2.2b: Exclude Known Bot Addresses
+
+Also remove known automated/no-reply senders from the participant list:
+- `*@notification.intuit.com` (QuickBooks reports)
+- `*@email.claude.com` (Anthropic product emails)
+- `*@feedback.google.com` (Google Workspace support)
+- `noreply@*`, `no-reply@*` (generic no-reply patterns)
+
+These are automated senders — never create Contact records for them. If a thread's only remaining participants are bots, skip CRM wiring entirely (the Email stub still exists for record-keeping).
+
+**Maintaining this list:** When the Email Agent encounters a new automated sender during a run, add it here and push the updated doc to Notion.
 
 ## 2.3: Contact Matching
 
@@ -163,9 +177,10 @@ After all threads are processed:
 2. **Never create duplicate Contacts** — always check Email, Secondary Email, and Tertiary Email across all existing Contacts before creating a Draft.
 3. **Never modify existing Email stubs** — if a Thread ID already exists in the DB, skip it entirely. Label updates and re-processing are not in v1 scope.
 4. **Adam's aliases are sacred** — never create Contact records for adam@freedsolutions.com, adam@primitivgroup.com, freedsolutions@gmail.com, or systems@gmail.com.
-5. **Draft everything** — all new records (Emails, Contacts, Action Items) start as Draft. Only Adam promotes to Active.
-6. **Dedup checks are mandatory** — always check ALL email fields for contacts, BOTH domain fields for companies.
-7. **Eastern timezone** — all dates stored in Eastern timezone, consistent with the rest of the CRM.
+5. **Bot addresses are excluded** — never create Contact records for known automated senders (see Step 2.2b). If a thread has only bot participants after alias/bot removal, skip CRM wiring.
+6. **Draft everything** — all new records (Emails, Contacts, Action Items) start as Draft. Only Adam promotes to Active.
+7. **Dedup checks are mandatory** — always check ALL email fields for contacts, BOTH domain fields for companies.
+8. **Eastern timezone** — all dates stored in Eastern timezone, consistent with the rest of the CRM.
 
 ---
 
