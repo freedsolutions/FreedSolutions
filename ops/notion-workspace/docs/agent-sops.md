@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 43 (March 16, 2026)
+Last updated: Session 43b (March 16, 2026)
 
 ---
 
@@ -23,16 +23,15 @@ Session — Archive
 
 The Active page always contains the latest session's handoff — what happened last time, current system status, priorities for the current session, schema reference, DB IDs, and the opening prompt.
 
-The Archive page contains the full history of every session, organized by phase, with a detailed entry per session.
+The Archive page contains the System Evolution Arc (one-liner per session) plus snapshot child pages (one per session). The snapshot IS the detailed session record.
 
 ## End-of-Session Protocol
 
 At the end of every session, regardless of interface:
 
-1. Add a session summary line to the **System Evolution Arc** section of the Archive page
-2. Add a detailed session entry to the Archive page (under the appropriate phase heading)
-3. Duplicate the Active page → move the duplicate as a child page under the Archive page
-4. Overwrite the Active page with the next session's handoff content (new summary, new priorities, updated schema, new opening prompt)
+1. Append a one-liner to the **System Evolution Arc** section of the Archive page
+2. Duplicate the Active page → move the duplicate as a child page under the Archive page (this snapshot is the detailed session record — no separate entry needed)
+3. Overwrite the Active page with the next session's handoff content (new summary, new priorities, updated schema, new opening prompt)
 
 ## Starting a New Session
 
@@ -130,7 +129,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Pronouns** — pronouns (Agent + Manual; used in Display Name)
 - **LinkedIn** — LinkedIn profile URL (Agent + Manual)
 - **Meetings** (relation → Meetings DB, synced dual) — all meetings this contact attended
-- **Created Date** (created_time) — auto-set on page creation
+- **Created Timestamp** (created_time) — auto-set on page creation
 - All agent dedup rules must check ALL email fields (Email, Secondary Email, Tertiary Email)
 
 ## Companies DB Properties
@@ -153,7 +152,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
   - `TRUE` — all checks pass (or Delete with all relations cleared)
   - Required fields (non-Delete): Company Name, Record Status, Company Type, Domains, States, Website, Contacts
   - Delete wiring check (in order): Contacts → Action Items → Engagements → Tech Stack
-- **Created Date** (created_time) — auto-set on page creation
+- **Created Timestamp** (created_time) — auto-set on page creation
 - All agent dedup rules must check BOTH domain fields (Domains, Additional Domains)
 
 ## Action Items DB Properties
@@ -193,14 +192,16 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Series** (relation → Meetings DB, self) — links instances to their Series Parent
 - **Instances** (relation → Meetings DB, self) — reciprocal of Series
 - **Is Series Parent** (checkbox) — true only on the Series Parent page
+- **Series Status** (rollup) — pulls Record Status from the linked Series Parent via the Series relation. Empty for standalone meetings. Used for cascade inactivation: when a Series Parent's Record Status = Inactive, all instances show Series Status = "Inactive" and are hidden from working views (Active, Weekly, Upcoming, Today) via filter.
 - **Location** (text) — event location from GCal
 - **QC** (formula) — Data quality signal with 3 possible states:
+  - **Series Parent carve-out** — when `Is Series Parent = true`, always returns `TRUE` (Series Parents are reference records, not real meetings — no field validation applies)
   - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contacts`). Safe-to-delete check takes priority. First non-empty relation wins.
   - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
   - `TRUE` — all checks pass (or Delete with all relations cleared)
   - Required fields (non-Delete): Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date
   - Delete wiring check (in order): Contacts → Action Items → Series → Instances
-- **Created Date** (created_time) — auto-set on page creation
+- **Created Timestamp** (created_time) — auto-set on page creation
 
 ## Delete Handoff Pattern
 

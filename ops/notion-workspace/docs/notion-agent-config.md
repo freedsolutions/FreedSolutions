@@ -23,7 +23,7 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 - Contacts (👤), Companies (💼), Action Items (✅), Meetings (📅)
 - All use `Record Status` select: Draft → Active → Inactive → Delete
 - All have `QC` formula: `TRUE` (pass) / `missing:fieldname` (fail) / `wired:PropertyName` (Delete-safe check) / `past_due` (Action Items only)
-- All have `Created Date` (created_time, auto-set)
+- Contacts, Companies, Meetings have `Created Timestamp` (created_time, auto-set); Action Items has `Created Date` (created_time, auto-set)
 
 **Active agents:**
 
@@ -48,3 +48,4 @@ You conduct systematic information gathering through targeted questions. You pro
 - *… add new preferences here …*
 - Schema hardening complete (Session 40+): Wiring Check → QC (TRUE/missing:X), Icon dropped and merged into Type, Assign Date → Created Date, Created Date added to all 4 DBs, Meetings ↔ Contacts dual relation, Display Name updated with Nickname/Pronouns, Agent+Manual fields expanded.
 - QC formula enhancements (Session 43): Added `wired:PropertyName` to all 4 DBs (fires when Record Status = Delete but relations are still populated — safe-to-delete check). Added `past_due` to Action Items (fires when Due Date < now() AND Status ≠ Done). Added `missing:task_status` check to Action Items. Delete-wiring check takes priority over missing-field checks.
+- Meetings DB hardening (Session 43): Added `Series Status` rollup (pulls Record Status from Series Parent via Series relation — used for cascade inactivation). QC formula enhanced with Series Parent carve-out (always returns `TRUE` when `Is Series Parent = true`). Series view created (filter: Is Series Parent = true). All non-Series views now exclude Series Parents. Working views (Active, Weekly, Upcoming, Today) filter `Series Status ≠ Inactive` for cascade inactivation. NULL Record Status backfilled to Active on all meetings. Created Timestamp renamed from Created Date on Meetings, Companies, Contacts DBs.
