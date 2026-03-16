@@ -27,6 +27,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/notetaker-crm.md` | — | CRM-optimized Notion Calendar AI notetaker instructions (local only, paste into Calendar settings) |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: post-review structured summary + GCal update (trigger: Meeting Record Status → Active) |
+| `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | Claude.ai planning context — lightweight CLAUDE.md for chat sessions |
 
 ## Notion-Only Resources (access via MCP)
 
@@ -105,6 +106,16 @@ At the end of every session, use Notion MCP tools to:
 - When instructions change, edit the local file first, then push to Notion via MCP in the same task unless Adam explicitly asks for a local-only draft.
 - Ephemeral/runtime data (sessions, agent config, CRM records) lives in Notion only.
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
+
+## Planning Output (Session Active)
+
+The Session — Active page may contain a **Planning Output** section written by Claude.ai during planning sessions. When present:
+
+1. **Read it during First Steps** — it contains agreed changes, decisions, and execution notes from the planning session.
+2. **Execute the listed changes** using standing approval — these have already been discussed and approved by Adam.
+3. **Mark changes as done** in the session log as they are completed.
+
+Planning happens in Claude.ai (via the `notion-session` skill); execution happens here in Claude Code. The Session — Active page is the shared handoff mechanism.
 
 ## Maintenance
 
