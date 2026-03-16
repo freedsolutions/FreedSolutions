@@ -1,6 +1,8 @@
 <!-- Notion Page ID: 323adb01-222f-8111-89c7-c92eaac10ebb -->
 # Merge Workflow
 
+Last synced: Session 51 (March 16, 2026)
+
 # When This Applies
 
 A placeholder Company exists in the Companies DB for a domain that actually belongs to an existing Company. This happens when an attendee's email domain (e.g., `subsidiary.com`) doesn't match any Company's Domains property, so the Post-Meeting Agent creates a placeholder. Later, Adam realizes the domain belongs to an existing Company (e.g., "Parent Corp" with domain `parentcorp.com`).
@@ -162,7 +164,7 @@ Ask: "Do employees at this company send email from this domain today?"
 
 ## Agent Behavior
 Both `Domains` and `Additional Domains` are checked during:
-- Contact → Company wiring (Post-Meeting Agent Step 1, Email Agent Step 2)
+- Contact → Company wiring (Post-Meeting Agent Step 1, Post-Email Agent Step 2)
 - Company dedup (Contact & Company Review Agent)
 - Merge Workflow domain checks
 

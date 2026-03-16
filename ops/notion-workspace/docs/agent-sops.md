@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 48 (March 16, 2026)
+Last synced: Session 51 (March 16, 2026)
 
 ---
 
@@ -45,14 +45,14 @@ All agents have an instruction page under the Automation Hub containing the full
 
 | Agent | Instruction Page | Trigger | Model | Status |
 | --- | --- | --- | --- | --- |
-| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + reactive (on Meeting Title update) + manual | Opus 4.6 | Active |
+| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + reactive (on Meeting Title update) + manual | Opus 4.6 | Live |
 | Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
-| Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Opus 4.6 | Active |
-| Delete Unwiring Agent | [Delete Unwiring Agent Instructions](https://www.notion.so/325adb01222f8103b4d9d5ce67f21de5) | Manual (automation pending) | Opus 4.6 | Active (manual trigger) |
-| Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Active |
-| Email Agent | Email Agent Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Active (manual trigger) |
+| Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Opus 4.6 | Active (manual) |
+| Delete Unwiring Agent | [Delete Unwiring Agent Instructions](https://www.notion.so/325adb01222f8103b4d9d5ce67f21de5) | Manual (automation pending) | Opus 4.6 | Active (manual) |
+| Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Live |
+| Post-Email Agent | Post-Email Agent Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live |
 
 Naming conventions:
 
@@ -117,7 +117,7 @@ Manual workflows that are not automated agents but document repeatable procedure
 All 5 source DBs (Contacts, Companies, Action Items, Meetings, Emails) use a single `Record Status` select with 4 options:
 
 - **Draft** (gray) — Agent-created, pending Adam's review
-- **Active** (green) — Approved and live, operational record
+- **Active** (green) — Reviewed and operational
 - **Inactive** (yellow) — Soft-deleted (deactivated duplicates, merged placeholders)
 - **Delete** (red) — Flagged for Adam to hard-delete from Notion
 
@@ -135,7 +135,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
   - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
   - `TRUE` — all checks pass (or Delete with all relations cleared)
   - Required fields (non-Delete): Contact Name, Record Status, Email, Company, Role/Title
-  - Delete wiring check (in order): Company → Meetings
+  - Delete wiring check (in order): Company → Meetings → Emails
 - **Contact Notes** — freeform notes (Agent appends via Floppy; Adam edits)
 - **Role / Title** — job title or role (Agent + Manual)
 - **Secondary Email** — alternate email (personal, old domain, etc.)
@@ -145,6 +145,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Pronouns** — pronouns (Agent + Manual; used in Display Name)
 - **LinkedIn** — LinkedIn profile URL (Agent + Manual)
 - **Meetings** (relation → Meetings DB, synced dual) — all meetings this contact attended
+- **Emails** (relation → Emails DB, synced dual) — all email threads involving this contact
 - **Created Timestamp** (created_time) — auto-set on page creation
 - All agent dedup rules must check ALL email fields (Email, Secondary Email, Tertiary Email)
 
@@ -233,7 +234,12 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Action Items** (relation → Action Items DB, synced from Action Items → Source Email)
 - **Labels** (multi_select) — Gmail user-created labels (system labels excluded)
 - **Email Notes** (text) — AI-generated 1–2 sentence thread summary
-- **QC** (formula) — Data quality signal (Adam-defined formula)
+- **QC** (formula) — Data quality signal with 3 possible states:
+  - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contacts`). Safe-to-delete check takes priority. First non-empty relation wins.
+  - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
+  - `TRUE` — all checks pass (or Delete with all relations cleared)
+  - Required fields (non-Delete): Email Subject, Record Status, Thread ID, Contacts, Date
+  - Delete wiring check (in order): Contacts → Action Items
 - **Created Timestamp** (created_time) — auto-set on page creation
 
 ## Delete Handoff Pattern
@@ -256,7 +262,7 @@ These apply to every Claude session, regardless of interface:
 3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches lifecycle state, creates new CRM DB records, or is a migration/bulk operation
 4. **For migrations or bulk operations:** audit current state → present plan → get Adam's approval → execute in phases with verification
 5. **Never create new DB records** unless explicitly instructed
-6. **Never change lifecycle state** (Approved/Active/Record Status) without explicit instruction. When Record Status is set to Delete (with explicit instruction), the **Unwire Before Delete** protocol in the Delete Handoff Pattern must be followed first
+6. **Never change lifecycle state** (Record Status: Draft/Active/Inactive/Delete) without explicit instruction. When Record Status is set to Delete (with explicit instruction), the **Unwire Before Delete** protocol in the Delete Handoff Pattern must be followed first
 7. **Log everything** — the session handoff is the system of record
 8. **Dedup checks are mandatory** — always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies
 9. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam — UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals. If there are no UI steps, Claude closes the loop by verifying via MCP.

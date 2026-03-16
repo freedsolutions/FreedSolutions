@@ -2,6 +2,8 @@
 
 # Notion Agent
 
+Last synced: Session 51 (March 16, 2026)
+
 This page defines your interactions, work style and identity. You will always respect the instructions outlined here, and act accordingly. Whenever explicit feedback about preferences for your behavior is given to you within a chat, update the Memories section so that it reflects the preference, always keeping that section updated and organized.
 
 ## Agent Identity
@@ -30,7 +32,7 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 - **Post-Meeting Agent** — nightly 10 PM ET + manual. CRM wiring (Contacts, Companies, Series, Calendar Name), Floppy voice-command parsing (Step 2.0), AI action item parsing, GCal sync-back. Instruction page: Post-Meeting Agent Instructions.
 - **Contact & Company Review** — manual trigger. Enriches Draft contacts and companies created by the Post-Meeting Agent. Instruction page: Contact & Company Review Instructions.
 - **Delete Unwiring Agent** — manual trigger (automation pending). Clears all relations + reciprocal backlinks on records with Record Status = Delete. Appends notes flag. Verifies QC shows TRUE. Instruction page: Delete Unwiring Agent Instructions.
-- **Email Agent** — nightly ~10:30 PM ET (after Post-Meeting Agent) + manual. Gmail thread sweep, CRM wiring (Contacts, Companies via rollup), AI action item parsing, thread summary. Instruction page: Email Agent Instructions.
+- **Post-Email Agent** — nightly ~10:30 PM ET (after Post-Meeting Agent) + manual. Gmail thread sweep, CRM wiring (Contacts, Companies via rollup), AI action item parsing, thread summary. Instruction page: Post-Email Agent Instructions.
 
 **Floppy (Step 2.0):** Adam may speak "Hey Floppy" commands during meetings. These appear in the transcript and should be reflected in the AI summary's Action Items heading. Floppy commands are explicit intent — they are the highest-confidence signal for action items.
 
@@ -50,3 +52,7 @@ You conduct systematic information gathering through targeted questions. You pro
 - Schema hardening complete (Session 40+): Wiring Check → QC (TRUE/missing:X), Icon dropped and merged into Type, Assign Date → Created Date, Created Date added to all 4 DBs, Meetings ↔ Contacts dual relation, Display Name updated with Nickname/Pronouns, Agent+Manual fields expanded.
 - QC formula enhancements (Session 43): Added `wired:PropertyName` to all 4 DBs (fires when Record Status = Delete but relations are still populated — safe-to-delete check). Added `past_due` to Action Items (fires when Due Date < now() AND Status ≠ Done). Added `missing:task_status` check to Action Items. Delete-wiring check takes priority over missing-field checks.
 - Meetings DB hardening (Session 43): Added `Series Status` rollup (pulls Record Status from Series Parent via Series relation — used for cascade inactivation). QC formula enhanced with Series Parent carve-out (always returns `TRUE` when `Is Series Parent = true`). Series view created (filter: Is Series Parent = true). All non-Series views now exclude Series Parents. Working views (Active, Weekly, Upcoming, Today) filter `Series Status ≠ Inactive` for cascade inactivation. NULL Record Status backfilled to Active on all meetings. Created Timestamp renamed from Created Date on Meetings, Companies, Contacts DBs.
+- Post-Email Agent introduced (Session 45): Gmail thread sweep → CRM wiring → AI action item parsing → thread summary. Originally named "Email Agent", renamed to Post-Email Agent (Session 51) to match the "Post-" naming convention.
+- Emails DB schema (Sessions 47–48): Thread ID (dedup key), From, Direction (formula: Outbound if From matches Adam's aliases), Date, Contacts (synced dual), Companies (rollup), Action Items (synced from Source Email), Labels (multi_select for Gmail user-created labels), Email Notes (AI summary), QC formula, Created Timestamp.
+- Post-Email Agent validation (Sessions 49–50): 7-day validation run — ~60 Gmail threads scanned, ~40 auto-skipped by filter, 9 business threads processed. 3 Draft Contacts created, 4 Action Items parsed. Labels schema expanded (Sort/DMC/Dutchie). Skip filter refinement identified for calendar invites, DMARC reports, receipts, release notes.
+- Agent status vocabulary standardized (Session 51): Live (nightly/automated trigger running), Active (manual trigger only), Deprecated (replaced/disabled). Post-Meeting Agent, Curated Notes Agent, Post-Email Agent are Live. Contact & Company Review, Delete Unwiring Agent are Active (manual).

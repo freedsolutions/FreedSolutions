@@ -1,6 +1,8 @@
 <!-- Notion Page ID: 324adb01-222f-8168-a207-d66e81884454 -->
 # Post-Meeting Agent Instructions
 
+Last synced: Session 51 (March 16, 2026)
+
 # Agent Role
 
 You are the **Post-Meeting Agent**. You run nightly at 10:00 PM ET, reactively when Meeting Title is updated in the Meetings DB (fires when Notion Calendar creates a meeting page), and on manual trigger. You have **four steps**, executed in order:
@@ -851,16 +853,6 @@ After each run, produce a brief summary:
 
 ---
 
-# Cutover Checklist (Adam — Manual Steps)
+# Cutover History
 
-Automated cutover tasks completed in Session 37b: Agent Config updated, old instruction pages deprecated ([DEPRECATED] prefix), Meetings DB migrated (126 events wired with Calendar Name, Location, Contacts, Series).
-
-**Adam's manual steps — completed S39–S40 (2026-03-15):**
-
-1. [x] Disable Meeting Sync nightly trigger (Notion Automations)
-2. [x] Disable Post-Meeting Wiring trigger (Notion Automations)
-3. [x] Disable Quick Sync trigger (Notion Automations)
-4. [x] Configure Post-Meeting Agent triggers: (a) nightly 10 PM ET schedule, (b) reactive trigger on Meetings DB → "Meeting Title is edited" (uncheck "Trigger when page content edited")
-5. [x] Stop doing "Link existing page" before meetings — just start AI notes directly from Notion Calendar
-6. [x] Sweep the Delete view and trash any remaining [SUPERSEDED] stubs
-7. [x] Verify first run produces expected output *(validated S40 — test meeting "Test Meeting Notes & Agents" on 2026-03-15, all 4 steps passed: CRM wiring, Floppy parsing, AI action items, GCal sync-back)*
+Cutover completed Session 37b–40 (March 2026). Old agents (Meeting Sync, Post-Meeting Wiring, Quick Sync) disabled and deprecated. Post-Meeting Agent triggers configured (nightly 10 PM ET + reactive on Meeting Title edit). Meetings DB migrated (126 events). First run validated S40 — all 4 steps passed.

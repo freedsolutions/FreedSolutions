@@ -6,7 +6,7 @@ Lightweight CLAUDE.md equivalent for Claude.ai chat sessions. Read by the `notio
 
 Local source-of-truth: `docs/claude-ai-context.md` (repo). Keep the Notion page in sync when the local file changes.
 
-Last synced: Session 48 (March 16, 2026)
+Last synced: Session 51 (March 16, 2026)
 
 ---
 
@@ -38,7 +38,7 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 | Contact & Company Instructions | `323adb01-222f-8126-9db8-df77be5a326f` | Enrichment agent for Draft contacts/companies |
 | Delete Unwiring Instructions | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Clears relations before hard delete |
 | Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | Curated meeting summary (trigger: Record Status → Active) |
-| Email Agent Instructions | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Email Agent (4-step: Gmail sweep → CRM wiring → AI parse → summary) |
+| Post-Email Agent Instructions | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent (4-step: Gmail sweep → CRM wiring → AI parse → summary) |
 | CRM-Optimized Notetaker | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker profile for Notion Calendar AI |
 
 ---
@@ -65,10 +65,10 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 | Agent | Trigger | Status |
 |---|---|---|
 | Post-Meeting Agent | Nightly 10 PM ET + reactive (Meeting Title update) | Live |
-| Contact & Company Review | Manual | Active |
-| Delete Unwiring Agent | Manual (automation pending) | Active |
+| Contact & Company Review | Manual | Active (manual) |
+| Delete Unwiring Agent | Manual (automation pending) | Active (manual) |
 | Curated Notes Agent | Record Status → Active (Meetings DB) | Live |
-| Email Agent | Nightly ~10:30 PM ET (after Post-Meeting Agent) | Active (manual trigger) |
+| Post-Email Agent | Nightly ~10:30 PM ET (after Post-Meeting Agent) | Live |
 
 **Model:** Opus 4.6 (all agents)
 
@@ -113,7 +113,7 @@ These rules apply to Claude.ai planning sessions:
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent instructions |
 | `docs/contact-company-review.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent instructions |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | CRM-Optimized notetaker profile |
-| `docs/email-agent.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Email Agent instructions |
+| `docs/post-email-agent.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent instructions |
 | `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | This file — Claude.ai planning context |
 
 Local docs are the source of truth. Push changes to Notion after editing locally.
