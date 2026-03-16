@@ -25,6 +25,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows |
 | `docs/floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) |
 | `docs/notetaker-crm.md` | — | CRM-optimized Notion Calendar AI notetaker instructions (local only, paste into Calendar settings) |
+| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records |
 
 ## Notion-Only Resources (access via MCP)
 

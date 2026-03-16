@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 40 (March 15, 2026)
+Last updated: Session 43 (March 16, 2026)
 
 ---
 
@@ -51,6 +51,7 @@ All agents are instruction pages under the Automation Hub. Each page contains th
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Active |
+| Delete Unwiring Agent | [Delete Unwiring Agent Instructions](https://www.notion.so/325adb01222f8103b4d9d5ce67f21de5) | Manual (automation pending) | Active (manual trigger) |
 
 ## Notetaker Profiles
 
@@ -114,7 +115,12 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Email** — primary business email (used for calendar matching and dedup)
 - **Company** (relation → Companies DB)
 - **Display Name** (formula) — if Nickname populated, replaces first name; appends (Pronouns) when present
-- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Contact Name, Record Status, Email, Company, Role/Title
+- **QC** (formula) — Data quality signal with 3 possible states:
+  - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Company`). Safe-to-delete check takes priority. First non-empty relation wins.
+  - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
+  - `TRUE` — all checks pass (or Delete with all relations cleared)
+  - Required fields (non-Delete): Contact Name, Record Status, Email, Company, Role/Title
+  - Delete wiring check (in order): Company → Meetings
 - **Contact Notes** — freeform notes (Agent appends via Floppy; Adam edits)
 - **Role / Title** — job title or role (Agent + Manual)
 - **Secondary Email** — alternate email (personal, old domain, etc.)
@@ -141,7 +147,12 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Engagements** (relation)
 - **Tech Stack** (relation)
 - **Company Notes** — freeform notes (Agent appends via Floppy; Adam edits)
-- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Company Name, Record Status, Company Type, Domains, States, Website, Contacts
+- **QC** (formula) — Data quality signal with 3 possible states:
+  - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contacts`). Safe-to-delete check takes priority. First non-empty relation wins.
+  - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
+  - `TRUE` — all checks pass (or Delete with all relations cleared)
+  - Required fields (non-Delete): Company Name, Record Status, Company Type, Domains, States, Website, Contacts
+  - Delete wiring check (in order): Contacts → Action Items → Engagements → Tech Stack
 - **Created Date** (created_time) — auto-set on page creation
 - All agent dedup rules must check BOTH domain fields (Domains, Additional Domains)
 
@@ -160,7 +171,14 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Source Meeting** (relation → Meetings DB, synced from Meetings → Action Items)
 - **Attach File** — file attachment (URLs from typed notes or AI summary)
 - **Created Date** (created_time) — auto-set on page creation (renamed from Assign Date)
-- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Task Name, Record Status, Status, Priority, Task Notes, Due Date, Source Meeting
+- **QC** (formula) — Data quality signal with 4 possible states:
+  - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contact`). Safe-to-delete check takes priority. First non-empty relation wins.
+  - `missing:fieldname` — Record Status ≠ Delete and a required field is empty. `missing:task_status` uses `format()` wrapper (STATUS type requires it).
+  - `past_due` — all required fields present AND Due Date < now() AND Status ≠ Done. Fires regardless of Record Status (except Delete, which routes to wired check first).
+  - `TRUE` — all checks pass (or Delete with all relations cleared)
+  - Required fields (non-Delete): Task Name, Record Status, Status (task), Priority, Due Date, Source Meeting
+  - Delete wiring check (in order): Contact → Source Meeting
+  - Note: Task Notes are NOT required. Status is checked via `empty(format(Status))` due to Notion STATUS type constraints.
 
 ## Meetings DB Properties
 
@@ -176,7 +194,12 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Instances** (relation → Meetings DB, self) — reciprocal of Series
 - **Is Series Parent** (checkbox) — true only on the Series Parent page
 - **Location** (text) — event location from GCal
-- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date
+- **QC** (formula) — Data quality signal with 3 possible states:
+  - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contacts`). Safe-to-delete check takes priority. First non-empty relation wins.
+  - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
+  - `TRUE` — all checks pass (or Delete with all relations cleared)
+  - Required fields (non-Delete): Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date
+  - Delete wiring check (in order): Contacts → Action Items → Series → Instances
 - **Created Date** (created_time) — auto-set on page creation
 
 ## Delete Handoff Pattern

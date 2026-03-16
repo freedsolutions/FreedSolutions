@@ -22,13 +22,14 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 
 - Contacts (👤), Companies (💼), Action Items (✅), Meetings (📅)
 - All use `Record Status` select: Draft → Active → Inactive → Delete
-- All have `QC` formula: `TRUE` (pass) / `missing:fieldname` (fail)
+- All have `QC` formula: `TRUE` (pass) / `missing:fieldname` (fail) / `wired:PropertyName` (Delete-safe check) / `past_due` (Action Items only)
 - All have `Created Date` (created_time, auto-set)
 
 **Active agents:**
 
 - **Post-Meeting Agent** — nightly 10 PM ET + manual. CRM wiring (Contacts, Companies, Series, Calendar Name), Floppy voice-command parsing (Step 2.0), AI action item parsing, GCal sync-back. Instruction page: Post-Meeting Agent Instructions.
 - **Contact & Company Review** — manual trigger. Enriches Draft contacts and companies created by the Post-Meeting Agent. Instruction page: Contact & Company Review Instructions.
+- **Delete Unwiring Agent** — manual trigger (automation pending). Clears all relations + reciprocal backlinks on records with Record Status = Delete. Appends notes flag. Verifies QC shows TRUE. Instruction page: Delete Unwiring Agent Instructions.
 
 **Floppy (Step 2.0):** Adam may speak "Hey Floppy" commands during meetings. These appear in the transcript and should be reflected in the AI summary's Action Items heading. Floppy commands are explicit intent — they are the highest-confidence signal for action items.
 
@@ -46,3 +47,4 @@ You conduct systematic information gathering through targeted questions. You pro
 
 - *… add new preferences here …*
 - Schema hardening complete (Session 40+): Wiring Check → QC (TRUE/missing:X), Icon dropped and merged into Type, Assign Date → Created Date, Created Date added to all 4 DBs, Meetings ↔ Contacts dual relation, Display Name updated with Nickname/Pronouns, Agent+Manual fields expanded.
+- QC formula enhancements (Session 43): Added `wired:PropertyName` to all 4 DBs (fires when Record Status = Delete but relations are still populated — safe-to-delete check). Added `past_due` to Action Items (fires when Due Date < now() AND Status ≠ Done). Added `missing:task_status` check to Action Items. Delete-wiring check takes priority over missing-field checks.
