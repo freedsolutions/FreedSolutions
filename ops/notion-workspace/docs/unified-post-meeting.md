@@ -81,7 +81,9 @@ Series: [Series name, or omit if none]
 
 If the page already has a CRM Wiring block (check for "📋 CRM Wiring" text), skip — do not duplicate.
 
-**Record Status on existing pages:** Do NOT set Record Status on pages that already exist in the Meetings DB (Notion Calendar pages, manually created pages). These are real meetings. Adam manages their Record Status.
+12. **Set Record Status = Draft on Notion Calendar pages** (those with a `transcription` block), if Record Status is currently **empty/null**. This enables the Curated Notes Agent trigger: Draft → Adam reviews Action Items → Adam sets Active → Curated Notes Agent runs. **Never overwrite an already-set Record Status** (Active, Inactive, Delete) — only set Draft when the field is empty. Do NOT set Record Status on manually created pages (no `transcription` block).
+
+**Record Status on existing pages:** Only set Record Status = Draft when processing a Notion Calendar page (has `transcription` block) with an empty Record Status. All other existing pages (manually created, or already having a Record Status) — Adam manages their Record Status.
 
 ## 1.4: Create Draft Records for No-Notes Meetings
 
@@ -772,7 +774,7 @@ The agent processes meetings from **all configured calendars** with the same wir
 15. **All agent-created records must have Record Status = Draft.** This applies to new Contacts, placeholder Companies, Action Items, and no-notes Meeting records.
 16. **Search ALL records regardless of Record Status** for dedup. Inactive records must still be found to prevent duplicates.
 17. **If an inactive contact is found by email**, reuse it and wire to the meeting. Do NOT change its Record Status — only Adam reactivates.
-18. **Do NOT set Record Status on existing Meeting pages.** Only set it on pages the agent creates (no-notes Draft records).
+18. **Record Status on existing Meeting pages:** Set Record Status = Draft on Notion Calendar pages (those with a `transcription` block) when Record Status is currently empty/null — this enables the Curated Notes Agent trigger. Never overwrite an already-set Record Status. Do not set Record Status on manually created pages.
 
 ## Action Item Property Hardening (Steps 2.0–2.4)
 

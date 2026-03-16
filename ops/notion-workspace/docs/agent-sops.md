@@ -51,6 +51,7 @@ All agents have an instruction page under the Automation Hub containing the full
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Active |
 | Delete Unwiring Agent | [Delete Unwiring Agent Instructions](https://www.notion.so/325adb01222f8103b4d9d5ce67f21de5) | Manual (automation pending) | Active (manual trigger) |
+| Curated Notes Agent | Curated Notes Agent Instructions | Property changed → Record Status = Active (Meetings DB) | Active |
 
 Naming conventions:
 
