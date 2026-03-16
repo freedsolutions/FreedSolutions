@@ -52,7 +52,7 @@ Find all Action Items currently linked to the placeholder Company. Update each A
 
 **How to find them:** Same approach -- check the placeholder Company's backlinks for Action Items.
 
-> **Order matters:** Do Contacts (Step 2) before Action Items (Step 3). Action Items derive their Company from the Contact's Company (per Agent 2 rules), so fixing Contacts first ensures any *new* Action Items created after the merge inherit the correct Company automatically.
+> **Order matters:** Do Contacts (Step 2) before Action Items (Step 3). Action Items derive their Company from the Contact's Company (per Post-Meeting Agent rules), so fixing Contacts first ensures any *new* Action Items created after the merge inherit the correct Company automatically.
 
 ## Step 4: Flag or Delete the Placeholder Company
 
