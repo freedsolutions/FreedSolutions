@@ -132,6 +132,43 @@ When merging a company, add the merged domain to **Additional Domains** on the c
 
 ---
 
+# Primary Domain vs. Additional Domains — Decision Rules
+
+When merging a company or discovering a new domain relationship, decide where the domain goes:
+
+## Domains (Primary)
+The `Domains` property contains the company's **primary business domains** — the domains used for day-to-day email and operations. These are what agents match against when wiring contacts to companies.
+
+Rules:
+- First domain listed is the **canonical** domain (used for display and conflict resolution)
+- All domains in this field are actively used for email by the company's employees
+- Example: `formul8.ai, staqs.io` — both are primary operational domains for Formul8
+
+## Additional Domains (Merged/Subsidiary/Alternate)
+The `Additional Domains` property contains domains that **belong to** the company but are not the primary operational domains. These are checked during dedup and contact wiring but are secondary.
+
+Rules:
+- Merged/absorbed company domains go here (e.g., `druckerdataworks.com` after Drucker Data Works merged into Formul8)
+- Sub-brand or affiliate domains go here (e.g., `elevatedadvisors.co` as a Formul8 affiliate)
+- Former/legacy domains go here (company rebranded but old domain still receives email)
+- Domains where employees don't actively send email but that are associated with the company
+
+## Decision Heuristic
+Ask: "Do employees at this company send email from this domain today?"
+- **Yes** → `Domains` (primary)
+- **No, but the domain is associated with the company** → `Additional Domains`
+- **No, and the domain is unrelated** → Do not add; may be a separate company
+
+## Agent Behavior
+Both `Domains` and `Additional Domains` are checked during:
+- Contact → Company wiring (Post-Meeting Agent Step 1)
+- Company dedup (Contact & Company Review Agent)
+- Merge Workflow domain checks
+
+The distinction is for Adam's operational clarity, not for agent matching logic. Agents treat both fields equally for matching purposes.
+
+---
+
 # Quick Checklist
 
 ## Company Merge
