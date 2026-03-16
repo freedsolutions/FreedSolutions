@@ -246,6 +246,19 @@ Pause and ask before proceeding only when any of the following are true:
 - The change would alter `Record Status` or other lifecycle controls
 - The operation is large enough that rollback would be difficult
 
+## Kickoff Conventions
+
+**Claude Code (terminal):** Use the custom slash command `/notion`. It reads `CLAUDE.md`, fetches the Active session page, and orients automatically. Behavior adapts to Claude Code's mode:
+
+- **Plan mode** → presents session briefing, asks what to tackle, discusses before executing
+- **Edit mode** → executes current session priorities with standing approval, pauses only per Rules of Engagement
+
+Additional context after `/notion` scopes the task in either mode (e.g., `/notion fix the QC formula`).
+
+**Claude.ai (planning chat):** Attach `CLAUDE.md` + relevant repo docs. Say "Fetch the Active session page and let's plan" or "...and let's review [topic]."
+
+No session numbers in kickoff prompts. The Active page heading contains the session number — Claude reads it and orients automatically.
+
 ---
 
 # Maintenance
