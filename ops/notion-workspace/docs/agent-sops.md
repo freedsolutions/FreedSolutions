@@ -58,7 +58,7 @@ Naming conventions:
 
 - Custom Agent (Notion settings): [Agent Name] — e.g., "Delete Unwiring Agent"
 - Instruction page (Notion, child of Automation Hub): [Agent Name] Instructions — e.g., "Delete Unwiring Agent Instructions"
-- Local doc (repo): docs/[kebab-case].md — e.g., docs/delete-unwiring.md
+- Local doc (repo): docs/[kebab-case]-agent.md — e.g., docs/delete-unwiring-agent.md
 - Model: lock all agents to a specific model (currently Opus 4.6) for consistent multi-step behavior
 
 Adding new agents: When a new agent is created:

@@ -17,16 +17,16 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 |------|---------------|---------|-----------|
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions | S51 |
 | `docs/notion-agent-config.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Notion's built-in AI personality config | S51 |
-| `docs/unified-post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing | S51 (local) |
+| `docs/post-meeting-agent.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing | S51 (local) |
 | `docs/meeting-sync.md` | `321adb01-222f-81a7-8d9d-e02cd6e91ff9` | [DEPRECATED] Meeting Sync — replaced by Post-Meeting Agent (S37) | — |
 | `docs/quick-sync.md` | `322adb01-222f-8196-99d8-c7f9a59cdb3b` | [DEPRECATED] Quick Sync — replaced by Post-Meeting Agent (S37) | — |
 | `docs/post-meeting-wiring.md` | `321adb01-222f-81a3-8c57-d29c85ae7b63` | [DEPRECATED] Post-Meeting Wiring — replaced by Post-Meeting Agent (S37) | — |
-| `docs/contact-company-review.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs | S51 |
+| `docs/contact-company-review-agent.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs | S51 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows | S51 |
 | `docs/floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) | — |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | CRM-optimized Notion Calendar AI notetaker instructions (paste into Calendar settings) | S51 |
-| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records | S51 |
-| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: post-review structured summary + GCal update (trigger: Meeting Record Status → Active) | S51 |
+| `docs/delete-unwiring-agent.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records | S51 |
+| `docs/curated-notes-agent.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: post-review structured summary + GCal update (trigger: Meeting Record Status → Active) | S51 |
 | `docs/post-email-agent.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: nightly Gmail sweep → CRM wiring → AI action item parse → thread summary | S51 |
 | `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | Claude.ai planning context — lightweight CLAUDE.md for chat sessions | S51 |
 

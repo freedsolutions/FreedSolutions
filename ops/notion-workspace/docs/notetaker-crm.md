@@ -62,7 +62,7 @@ Notion's template has four sections: Context, Summary format (with named section
 
 ## Why This Format
 
-The Post-Meeting Agent (see [unified-post-meeting.md](unified-post-meeting.md)) parses the `### Action Items` heading to extract checklist items. It expects:
+The Post-Meeting Agent (see [post-meeting-agent.md](post-meeting-agent.md)) parses the `### Action Items` heading to extract checklist items. It expects:
 
 - `- [ ]` markdown checklist format (rendered as Notion `to_do` blocks)
 - Person names that match Contacts DB records (first name, full name, or nickname)

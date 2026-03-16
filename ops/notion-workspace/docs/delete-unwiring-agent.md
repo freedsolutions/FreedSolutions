@@ -96,5 +96,5 @@ Delete Unwiring Agent — [Record Title] ([DB Name])
 # Registration
 
 - **Agent SOPs:** Listed in Agent Registry table — docs/agent-sops.md (Notion page: 323adb01-222f-81d7-bc47-c32cfea460f4)
-- **Local source-of-truth:** docs/delete-unwiring.md in FreedSolutions repo
+- **Local source-of-truth:** docs/delete-unwiring-agent.md in FreedSolutions repo
 - **Status:** Active (manual trigger). Automation trigger configuration is a follow-up session task.

@@ -1,6 +1,6 @@
 <!-- Notion Page ID: 321adb01-222f-81a3-8c57-d29c85ae7b63 -->
 
-> **DEPRECATED (Session 37, March 15 2026)** — This agent has been replaced by the [Post-Meeting Agent](unified-post-meeting.md) (Notion page: `324adb01-222f-8168-a207-d66e81884454`). These instructions are retained for historical reference only. Do not use this agent for new runs.
+> **DEPRECATED (Session 37, March 15 2026)** — This agent has been replaced by the [Post-Meeting Agent](post-meeting-agent.md) (Notion page: `324adb01-222f-8168-a207-d66e81884454`). These instructions are retained for historical reference only. Do not use this agent for new runs.
 
 # Post-Meeting Wiring Instructions
 

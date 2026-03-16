@@ -108,10 +108,10 @@ These rules apply to Claude.ai planning sessions:
 | Local File | Notion Page ID | Notes |
 |---|---|---|
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agent Registry, schema conventions |
-| `docs/unified-post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent instructions |
-| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent instructions |
-| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent instructions |
-| `docs/contact-company-review.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent instructions |
+| `docs/post-meeting-agent.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent instructions |
+| `docs/curated-notes-agent.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent instructions |
+| `docs/delete-unwiring-agent.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent instructions |
+| `docs/contact-company-review-agent.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent instructions |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | CRM-Optimized notetaker profile |
 | `docs/post-email-agent.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent instructions |
 | `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | This file — Claude.ai planning context |
