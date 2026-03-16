@@ -179,7 +179,7 @@ Unknown contacts and domains are handled directly in their source databases. No 
 
 **Nickname, Secondary Email, and Tertiary Email** are always left blank — Adam fills them during Draft review.
 
-**Role / Title, Phone, Pronouns, and LinkedIn** — populate when determinable from meeting context, email signatures, or web lookup. When uncertain, leave blank. The contact appears in Adam's "Draft" filtered view on the Contacts DB.
+**Role / Title, Phone, Pronouns, and LinkedIn** are Agent + Manual fields — populate when determinable from meeting context, email signatures, or web lookup. When uncertain, leave blank for Adam's manual review.
 
 **Unknown domains:** When a new contact's email domain does not match any Company:
 
@@ -188,9 +188,9 @@ Unknown contacts and domains are handled directly in their source databases. No 
    - **Company Name**: the domain (e.g., "newcompany.com")
    - **Domains**: the domain
    - **Record Status**: Draft
-   - **Company Type**: populate when clearly determinable — software/platform vendor → "Tech Stack"; cannabis operator → "Operator"; professional services/network contact → "Network"; personal → "Personal". When uncertain, leave blank.
-   - **States**: if Company Type is set to "Tech Stack", default to "All". Otherwise leave blank unless the company's geography is clear from context.
-   - **Website**: populate from web lookup when confident. Leave blank when uncertain.
+   - **Company Type**: populate when clearly determinable — software/platform vendor → "Tech Stack"; cannabis operator → "Operator"; professional services/network contact → "Network"; personal → "Personal". When uncertain, leave blank. (Agent + Manual)
+   - **States**: if Company Type is set to "Tech Stack", default to "All". Otherwise leave blank unless the company's geography is clear from context. (Agent + Manual)
+   - **Website**: populate from web lookup when confident. Leave blank when uncertain. (Agent + Manual)
 3. Wire the new contact's Company relation to this placeholder.
 
 **Generic email domains** do NOT get placeholder Companies. See Domain-Based Company Wiring rule 6 above.

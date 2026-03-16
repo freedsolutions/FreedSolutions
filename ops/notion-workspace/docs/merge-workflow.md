@@ -19,10 +19,10 @@ Before setting Record Status = Delete on any record, **clear all relation proper
 
 | Database | Relations to Clear on Record | Linked Records to Update (other side) |
 |----------|------------------------------|---------------------------------------|
-| **Contacts** | Company | Remove contact from Meeting.Contacts, ActionItem.Contact |
+| **Contacts** | Company, Meetings | Remove contact from Meeting.Contacts, ActionItem.Contact |
 | **Companies** | *(no outbound relations)* | Remove company from Contact.Company, ActionItem.Company |
 | **Action Items** | Contact, Company, Source Meeting | Remove action item from Meeting.Action Items |
-| **Meetings** | Action Items, Contacts | Remove meeting from ActionItem.Source Meeting |
+| **Meetings** | Action Items, Contacts | Remove meeting from ActionItem.Source Meeting, Contact.Meetings |
 
 > **Why both sides?** Notion two-way relations auto-sync in the UI, but clearing one side via API doesn't always propagate cleanly. Explicitly clearing both sides guarantees no orphaned backlinks remain after Adam hard-deletes the record.
 
@@ -105,9 +105,9 @@ Open the **canonical Contact** (e.g., "Morgan Carlone"). Set the email as **Seco
 
 ### Step 2: Re-wire Meetings and Action Items
 
-Find all Meetings and Action Items currently linked to the duplicate Contact. Update each record's **Contact** relation to point to the canonical Contact instead.
+Find all Meetings and Action Items currently linked to the duplicate Contact. Update each record's **Contact** relation to point to the canonical Contact instead. Since **Meetings** is now a synced dual relation on Contacts, both sides must be explicitly cleared: remove the duplicate Contact from each Meeting's **Contacts** relation, and clear the duplicate Contact's **Meetings** relation.
 
-**How to find them:** Open the duplicate Contact page — its backlinks / relation will show all linked Meetings and Action Items.
+**How to find them:** Open the duplicate Contact page — its Meetings and Action Items relations will show all linked records.
 
 ### Step 3: Flag or Delete the Duplicate Contact
 

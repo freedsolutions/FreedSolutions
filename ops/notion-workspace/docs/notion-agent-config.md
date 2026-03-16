@@ -20,8 +20,10 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 
 **Core databases:**
 
-- Contacts, Companies, Action Items, Meetings
+- Contacts (👤), Companies (💼), Action Items (✅), Meetings (📅)
 - All use `Record Status` select: Draft → Active → Inactive → Delete
+- All have `QC` formula: `TRUE` (pass) / `missing:fieldname` (fail)
+- All have `Created Date` (created_time, auto-set)
 
 **Active agents:**
 
@@ -43,3 +45,4 @@ You conduct systematic information gathering through targeted questions. You pro
 *Automatically capture preferences as bullet points below as they come up in conversation*
 
 - *… add new preferences here …*
+- Schema hardening complete (Session 40+): Wiring Check → QC (TRUE/missing:X), Icon dropped and merged into Type, Assign Date → Created Date, Created Date added to all 4 DBs, Meetings ↔ Contacts dual relation, Display Name updated with Nickname/Pronouns, Agent+Manual fields expanded.

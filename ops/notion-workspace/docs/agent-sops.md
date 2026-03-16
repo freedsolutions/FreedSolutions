@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 39 (March 15, 2026)
+Last updated: Session 40 (March 15, 2026)
 
 ---
 
@@ -110,70 +110,74 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 ## Contacts DB Properties
 
 - **Contact Name** (title) — full name of the contact
-- **Display Name** (formula) — Contact Name + Pronouns when present
-- **Wiring Check** (formula) — missing Email → missing Company → missing Role / Title → ✅
+- **Record Status** (select: Draft/Active/Inactive/Delete)
 - **Email** — primary business email (used for calendar matching and dedup)
+- **Company** (relation → Companies DB)
+- **Display Name** (formula) — if Nickname populated, replaces first name; appends (Pronouns) when present
+- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Contact Name, Record Status, Email, Company, Role/Title
+- **Contact Notes** — freeform notes (Agent appends via Floppy; Adam edits)
+- **Role / Title** — job title or role (Agent + Manual)
 - **Secondary Email** — alternate email (personal, old domain, etc.)
 - **Tertiary Email** — third email if needed
-- **Phone** — phone number
-- **Pronouns** — pronouns
-- **Nickname** — informal name or alias
-- **LinkedIn** — LinkedIn profile URL
-- **Company** (relation → Companies DB)
-- **Role / Title** — job title or role
-- **Record Status** (select: Draft/Active/Inactive/Delete)
-- **Contact Notes** — freeform notes about the contact
+- **Nickname** — informal name or alias (used by Display Name formula)
+- **Phone** — phone number (Agent + Manual)
+- **Pronouns** — pronouns (Agent + Manual; used in Display Name)
+- **LinkedIn** — LinkedIn profile URL (Agent + Manual)
+- **Meetings** (relation → Meetings DB, synced dual) — all meetings this contact attended
+- **Created Date** (created_time) — auto-set on page creation
 - All agent dedup rules must check ALL email fields (Email, Secondary Email, Tertiary Email)
 
 ## Companies DB Properties
 
 - **Company Name** (title) — official company name
-- **Company Type** (select: Tech Stack, Operator, Network, Personal) — categorizes the company's relationship
-- **Wiring Check** (formula) — missing Domains → missing Company Type → ✅
-- **Domains** — primary business domains (comma-separated, no spaces). Used for agent matching: email domain → company lookup
-- **Additional Domains** — merged/subsidiary/alternate domains (comma-separated, no spaces, domains only — no full email addresses)
-- **States** — operating states (default: "All" when not explicitly known)
-- **Website** — company website URL
-- **Contacts** (relation → Contacts DB)
-- **Action Items** (relation → Action Items DB)
+- **Record Status** (select: Draft/Active/Inactive/Delete)
+- **Company Type** (select: Tech Stack, Operator, Network, Personal) — Agent + Manual
+- **Domains** — primary business domains (comma-separated). Used for agent matching
+- **Additional Domains** — merged/subsidiary/alternate domains
+- **States** (multi_select) — operating states (Agent + Manual; Tech Stack → "All")
+- **Website** — company website URL (Agent + Manual)
+- **Contacts** (relation → Contacts DB, synced from Contacts → Company)
+- **Action Items** (relation → Action Items DB, synced from Action Items → Company)
 - **Engagements** (relation)
 - **Tech Stack** (relation)
-- **Record Status** (select: Draft/Active/Inactive/Delete)
-- **Company Notes** — freeform notes about the company
+- **Company Notes** — freeform notes (Agent appends via Floppy; Adam edits)
+- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Company Name, Record Status, Company Type, Domains, States, Website, Contacts
+- **Created Date** (created_time) — auto-set on page creation
 - All agent dedup rules must check BOTH domain fields (Domains, Additional Domains)
 
 ## Action Items DB Properties
 
 - **Task Name** (title) — concise imperative description of the action item
-- **Type** (formula) — auto-computed: Assignee = Adam → "Task", otherwise → "Follow Up"
-- **Icon** (formula) — 📝 for Task, ☝️ for Follow Up
-- **Status** (status: Not started, In progress, Done)
-- **Priority** (select: High/Low/Backburner)
 - **Record Status** (select: Draft/Active/Inactive/Delete)
+- **Type** (formula) — `📝 Task` when Assignee contains "Adam Freed"; `☝️ Follow Up` otherwise. Merged with former Icon property
+- **Status** (status: Not started, In progress, Blocked, Done)
+- **Priority** (select: High/Low/Backburner) — Agent defaults to Low when unknown
 - **Task Notes** — full context, sub-tasks, meeting reference
 - **Due Date** (date)
-- **Assign Date** (created_time) — auto-populates with page creation date
-- **Contact** (relation → Contacts DB)
-- **Company** (relation → Companies DB)
-- **Assignee** (person)
-- **Source Meeting** (relation → Meetings DB)
-- **Attach File** — file attachment
-- **Wiring Check** (formula) — missing Company when Contact set, missing Source Meeting
+- **Contact** (relation → Contacts DB) — Tasks: requestor; Follow Ups: person to follow up with
+- **Company** (relation → Companies DB, synced from Companies → Action Items)
+- **Assignee** (person) — Tasks: Adam; Follow Ups: blank
+- **Source Meeting** (relation → Meetings DB, synced from Meetings → Action Items)
+- **Attach File** — file attachment (URLs from typed notes or AI summary)
+- **Created Date** (created_time) — auto-set on page creation (renamed from Assign Date)
+- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Task Name, Record Status, Status, Priority, Task Notes, Due Date, Source Meeting
 
 ## Meetings DB Properties
 
-- **Meeting Title** (title) — event title from GCal (stripped of FW:/Fwd: prefixes)
+- **Meeting Title** (title) — event title from GCal
+- **Record Status** (select: Draft/Active/Inactive/Delete)
 - **Calendar Event ID** (text) — GCal event ID, canonical identity for matching
-- **Calendar Name** (text) — source calendar display name, populated by the Post-Meeting Agent. Also serves as the "processed" signal (empty = not yet wired; "Pending" = notetaker page awaiting GCal match; "Manual" = manually created page)
-- **Date** (date) — event start + end, stored in Eastern timezone (not UTC)
-- **Contacts** (relation → Contacts DB) — attendees wired via email matching
+- **Calendar Name** (text) — source calendar display name; also "processed" signal
+- **Date** (date) — event start + end, stored in Eastern timezone
+- **Contacts** (relation → Contacts DB, synced dual) — attendees wired via email matching
 - **Companies** (rollup) — derived from Contacts' Company relations
-- **Action Items** (relation → Action Items DB) — parsed from AI meeting notes
+- **Action Items** (relation → Action Items DB, synced from Action Items → Source Meeting)
 - **Series** (relation → Meetings DB, self) — links instances to their Series Parent
 - **Instances** (relation → Meetings DB, self) — reciprocal of Series
-- **Is Series Parent** (checkbox) — true only on the Series Parent page, not instances
-- **Location** (text) — event location from GCal, captured when present
-- **Record Status** (select: Draft/Active/Inactive/Delete) — added Session 36. Draft used for agent-created no-notes meeting records. Not set on Notion Calendar pages.
+- **Is Series Parent** (checkbox) — true only on the Series Parent page
+- **Location** (text) — event location from GCal
+- **QC** (formula) — `TRUE` when all required fields populated; `missing:fieldname` when any are empty. Required: Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date
+- **Created Date** (created_time) — auto-set on page creation
 
 ## Delete Handoff Pattern
 

@@ -147,6 +147,8 @@ This means the enrichment workflow is:
 | Contact Name | Enrichment provider / Web | Only if current name is a placeholder |
 | Role / Title | Enrichment provider / Web | Only if currently blank |
 | LinkedIn | Enrichment provider / Web | Only if currently blank |
+| Phone | Enrichment provider / Web | Only if currently blank (Agent + Manual) |
+| Pronouns | Enrichment provider / Web | Only if currently blank (Agent + Manual) |
 | Secondary Email | Enrichment provider / Web / Manual confirmation | Only if currently blank and verified |
 | Tertiary Email | Enrichment provider / Web / Manual confirmation | Only if currently blank and verified |
 
@@ -155,9 +157,9 @@ This means the enrichment workflow is:
 | Property | Source | Update Rule |
 |---|---|---|
 | Company Name | Web search | Only if current name is a domain placeholder |
-| Company Type | Web search | Only if currently blank and a clear match exists |
-| States | Web search | Only if currently blank (default: "All" when not explicitly known) |
-| Website | Web search | Only if currently blank |
+| Company Type | Web search | Only if currently blank and a clear match exists (Agent + Manual) |
+| States | Web search | Only if currently blank (default: "All" when not explicitly known) (Agent + Manual) |
+| Website | Web search | Only if currently blank (Agent + Manual) |
 | Additional Domains | Web search / Merge workflow | Only if currently blank; merged/subsidiary domains |
 
 ---
