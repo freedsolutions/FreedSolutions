@@ -1,5 +1,5 @@
 <!-- Notion Page ID: 325adb01-222f-8148-b544-f592271f34e3 -->
-# Curated Notes Agent Instructions
+# Curated Notes Instructions
 
 # Agent Role
 
