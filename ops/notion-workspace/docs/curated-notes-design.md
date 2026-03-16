@@ -105,15 +105,19 @@ The curated version uses **structured template with intelligent formatting** —
 
 ---
 
-## Open Questions (for future sessions)
+## Open Questions
 
-1. **Should curated notes update Contact Notes?** E.g., after curating a meeting with Jake Gleeson, add a summary line to Jake's Contact Notes. This would build per-contact intelligence over time but risks Contact Notes becoming too long.
+1. **Should curated notes update Contact Notes?**
+   **Status: Deferred** — not in current implementation. Revisit if per-contact decision history becomes a clear need.
 
-2. **Batch vs. per-meeting curation?** Current design is per-meeting (each meeting curated independently). An alternative is batch curation — "Here are 5 meetings from this week, produce a weekly digest." This is a different feature (weekly briefing) and probably shouldn't be conflated with per-meeting curation.
+2. **Batch vs. per-meeting curation?**
+   **Status: Resolved (S45)** — per-meeting curation via Record Status → Active trigger. Batch/weekly digest is a separate future feature and should not be conflated with per-meeting curation.
 
-3. **Integration with meeting prep briefing.** The curated notes become the input for future meeting prep ("Last time we met with DMC, we decided X"). The briefing feature (designed in the proposal as "Future: Nightly Briefing") would query curated meeting pages to produce next-day prep. This is a downstream consumer, not part of the curation agent itself.
+3. **Integration with meeting prep briefing.**
+   **Status: Parked** — future feature. Curated notes are the intended input for a briefing agent; the briefing agent itself is not yet designed.
 
-4. **Curation agent as Step 4 vs. separate agent?** Could be Step 4 of the unified Post-Meeting Agent, but the timing is different — it runs after Adam's review, not on the same night as Steps 1-3. Likely better as a separate agent with its own trigger and instruction page.
+4. **Curation agent as Step 4 vs. separate agent?**
+   **Status: Resolved (S45)** — separate agent confirmed. Timing difference makes Step 4 impractical (runs after Adam's review, not on the same night as Steps 1-3). Trigger = Record Status → Active on Meetings DB.
 
 ---
 
