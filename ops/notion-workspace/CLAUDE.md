@@ -60,6 +60,8 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 6. **Never change Record Status** (Draft/Active/Inactive/Delete) without explicit instruction.
 7. **Log everything** — the session handoff is the system of record.
 8. **Dedup checks are mandatory** — always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies.
+9. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam — UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals.
+10. **Verify content on sync, not just existence.** When marking a Notion page as "in sync" with a local doc, verify the actual content matches — not just that the page exists.
 
 ## Standing Approval Scope
 

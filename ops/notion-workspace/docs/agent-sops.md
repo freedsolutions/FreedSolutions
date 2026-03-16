@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 45 (March 16, 2026)
+Last updated: Session 47 (March 16, 2026)
 
 ---
 
@@ -240,6 +240,8 @@ These apply to every Claude session, regardless of interface:
 6. **Never change lifecycle state** (Approved/Active/Record Status) without explicit instruction. When Record Status is set to Delete (with explicit instruction), the **Unwire Before Delete** protocol in the Delete Handoff Pattern must be followed first
 7. **Log everything** — the session handoff is the system of record
 8. **Dedup checks are mandatory** — always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies
+9. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam — UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals. If there are no UI steps, Claude closes the loop by verifying via MCP.
+10. **Verify content on sync, not just existence.** When marking a Notion page as "in sync" with a local doc, verify the actual content matches — not just that the page exists. This is especially important for pages created Notion-first that later get a local source-of-truth file.
 
 ## Standing Approval Scope
 

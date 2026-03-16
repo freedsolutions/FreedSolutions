@@ -6,7 +6,7 @@ Lightweight CLAUDE.md equivalent for Claude.ai chat sessions. Read by the `notio
 
 Local source-of-truth: `docs/claude-ai-context.md` (repo). Keep the Notion page in sync when the local file changes.
 
-Last synced: Session 46 (March 16, 2026)
+Last synced: Session 47 (March 16, 2026)
 
 ---
 
@@ -82,6 +82,8 @@ These rules apply to Claude.ai planning sessions:
 5. **Never create new DB records** unless explicitly instructed.
 6. **Never change lifecycle state** (Record Status) without explicit instruction.
 7. **Fetch instruction pages on demand** — if discussing a specific agent, fetch its instruction page for full context rather than working from memory.
+8. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting large content, Settings changes). When a planning output includes a UI step: (a) explicitly tag it as "Adam — UI step", (b) do NOT mark it complete until Adam confirms, (c) do not assume completion from indirect signals like page existence.
+9. **Verify content on sync, not just existence.** When marking a page as "in sync" with a local doc, verify content matches — not just that the page exists.
 
 **What Claude.ai CAN do directly:**
 - Fetch and read any Notion page for review
