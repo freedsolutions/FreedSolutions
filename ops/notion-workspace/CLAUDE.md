@@ -26,6 +26,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) |
 | `docs/notetaker-crm.md` | — | CRM-optimized Notion Calendar AI notetaker instructions (local only, paste into Calendar settings) |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records |
+| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: post-review structured summary + GCal update (trigger: Meeting Record Status → Active) |
 
 ## Notion-Only Resources (access via MCP)
 
