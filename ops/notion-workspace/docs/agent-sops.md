@@ -41,7 +41,7 @@ Claude Code reads `CLAUDE.md` from the project root automatically — no prompt 
 
 # Agent Registry
 
-All agents are instruction pages under the Automation Hub. Each page contains the full workflow, business rules, safety rails, and database references for that agent.
+All agents have an instruction page under the Automation Hub containing the full workflow, business rules, safety rails, and database references. The instruction page is named "[Agent Name] Instructions". Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.
 
 | Agent | Instruction Page | Trigger | Status |
 | --- | --- | --- | --- |
@@ -51,6 +51,23 @@ All agents are instruction pages under the Automation Hub. Each page contains th
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Active |
 | Delete Unwiring Agent | [Delete Unwiring Agent Instructions](https://www.notion.so/325adb01222f8103b4d9d5ce67f21de5) | Manual (automation pending) | Active (manual trigger) |
+
+Naming conventions:
+
+- Custom Agent (Notion settings): [Agent Name] — e.g., "Delete Unwiring Agent"
+- Instruction page (Notion, child of Automation Hub): [Agent Name] Instructions — e.g., "Delete Unwiring Agent Instructions"
+- Local doc (repo): docs/[kebab-case].md — e.g., docs/delete-unwiring.md
+- Model: Opus 4.6 (lock to specific model for consistent multi-step behavior)
+
+Adding new agents: When a new agent is created:
+
+1. Create the instruction page under Automation Hub with title [Agent Name] Instructions
+2. Create the local doc at docs/[kebab-case].md with matching content
+3. Add to the Agent Registry table in docs/agent-sops.md
+4. Add to the Local Docs table in CLAUDE.md
+5. Update the Notion Agent page (docs/notion-agent-config.md) Active agents section
+6. Push all changed docs to Notion and verify
+7. Configure the Custom Agent in Notion settings (name, instruction page reference, model, trigger)
 
 ## Notetaker Profiles
 
@@ -63,10 +80,6 @@ Custom instruction profiles for Notion Calendar's AI notetaker. Each profile is 
 | 1:1 / Check-in | — | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
 
 **Why notetaker profiles matter:** The Post-Meeting Agent parses the `### Action Items` heading from the AI summary. Custom notetaker instructions ensure the AI produces summaries in the exact format the agent expects — improving parse accuracy, action item quality, and Floppy command surfacing (Layer 1).
-
-**Naming convention:** Each agent has an **instruction page** under the Automation Hub containing its full workflow, business rules, and database references. The instruction page is named "[Agent Name] Instructions". The Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.
-
-**Adding new agents:** When a new agent instruction page is created, add it to this table, update `CLAUDE.md` in the project repo, and update the Notion Agent page.
 
 ---
 
@@ -258,6 +271,8 @@ Additional context after `/notion` scopes the task in either mode (e.g., `/notio
 **Claude.ai (planning chat):** Attach `CLAUDE.md` + relevant repo docs. Say "Fetch the Active session page and let's plan" or "...and let's review [topic]."
 
 No session numbers in kickoff prompts. The Active page heading contains the session number — Claude reads it and orients automatically.
+
+**Commit convention:** After completing any task that changes local files (docs, configs, CLAUDE.md), commit and push to main. Concise commit message per logical task. Don't batch unrelated changes. Plan mode doesn't commit (nothing to commit). Edit mode commits after each completed task.
 
 ---
 
