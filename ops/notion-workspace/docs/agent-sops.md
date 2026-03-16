@@ -238,7 +238,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
   - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contacts`). Safe-to-delete check takes priority. First non-empty relation wins.
   - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
   - `TRUE` — all checks pass (or Delete with all relations cleared)
-  - Required fields (non-Delete): Email Subject, Record Status, Thread ID, Contacts, Date
+  - Required fields (non-Delete): Email Subject, Record Status, Thread ID, From, Date, Contacts
   - Delete wiring check (in order): Contacts → Action Items
 - **Created Timestamp** (created_time) — auto-set on page creation
 
