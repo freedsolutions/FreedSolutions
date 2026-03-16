@@ -41,24 +41,24 @@ Claude Code reads `CLAUDE.md` from the project root automatically — no prompt 
 
 # Agent Registry
 
-All agents have an instruction page under the Automation Hub containing the full workflow, business rules, safety rails, and database references. The instruction page is named "[Agent Name] Instructions". Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.
+All agents have an instruction page under the Automation Hub containing the full workflow, business rules, safety rails, and database references. Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.
 
 | Agent | Instruction Page | Trigger | Model | Status |
 | --- | --- | --- | --- | --- |
-| Post-Meeting Agent | Post-Meeting Agent Instructions | Nightly 10 PM ET + reactive (on Meeting Title update) + manual | Opus 4.6 | Live |
+| Post-Meeting Agent | Post-Meeting Instructions | Nightly 10 PM ET + reactive (on Meeting Title update) + manual | Opus 4.6 | Live |
 | Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
-| Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Opus 4.6 | Active (manual) |
-| Delete Unwiring Agent | [Delete Unwiring Agent Instructions](https://www.notion.so/325adb01222f8103b4d9d5ce67f21de5) | Manual (automation pending) | Opus 4.6 | Active (manual) |
+| Contact & Company Review | Contact & Company Instructions | Manual (after other syncs) | Opus 4.6 | Active (manual) |
+| Delete Unwiring Agent | Delete Unwiring Instructions | Manual (automation pending) | Opus 4.6 | Active (manual) |
 | Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Live |
-| Post-Email Agent | Post-Email Agent Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live |
+| Post-Email Agent | Post-Email Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live |
 
 Naming conventions:
 
 - Custom Agent (Notion settings): [Agent Name] — e.g., "Delete Unwiring Agent"
-- Instruction page (Notion, child of Automation Hub): [Agent Name] Instructions — e.g., "Delete Unwiring Agent Instructions"
-- Local doc (repo): docs/[kebab-case]-agent.md — e.g., docs/delete-unwiring-agent.md
+- Instruction page (Notion, child of Automation Hub): [Short Name] Instructions — e.g., "Delete Unwiring Instructions"
+- Local doc (repo): docs/[kebab-case].md — e.g., docs/delete-unwiring.md
 - Model: lock all agents to a specific model (currently Opus 4.6) for consistent multi-step behavior
 
 Adding new agents: When a new agent is created:

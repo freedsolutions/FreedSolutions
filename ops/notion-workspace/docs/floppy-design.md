@@ -183,7 +183,7 @@ Floppy parsing follows a three-stage pipeline: **detect → classify → extract
 
 ### Stage 1: Detect
 
-Detection uses three sources in priority order (see post-meeting-agent.md Step 2.0.1 for full details):
+Detection uses three sources in priority order (see post-meeting.md Step 2.0.1 for full details):
 
 1. **AI Summary (primary):** Read `(Floppy)`-prefixed `to_do` blocks from the summary. These are already clean and structured.
 2. **Notes block (fallback):** Scan typed note paragraphs for "Hey Floppy" prefix (exact match). Capture any not already in the summary.

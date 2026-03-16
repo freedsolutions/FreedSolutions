@@ -32,7 +32,7 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 - **Post-Meeting Agent** — nightly 10 PM ET + manual. CRM wiring (Contacts, Companies, Series, Calendar Name), Floppy voice-command parsing (Step 2.0), AI action item parsing, GCal sync-back. Instruction page: Post-Meeting Agent Instructions.
 - **Contact & Company Review** — manual trigger. Enriches Draft contacts and companies created by the Post-Meeting Agent. Instruction page: Contact & Company Review Instructions.
 - **Delete Unwiring Agent** — manual trigger (automation pending). Clears all relations + reciprocal backlinks on records with Record Status = Delete. Appends notes flag. Verifies QC shows TRUE. Instruction page: Delete Unwiring Agent Instructions.
-- **Post-Email Agent** — nightly ~10:30 PM ET (after Post-Meeting Agent) + manual. Gmail thread sweep, CRM wiring (Contacts, Companies via rollup), AI action item parsing, thread summary. Instruction page: Post-Email Agent Instructions.
+- **Post-Email Agent** — nightly ~10:30 PM ET (after Post-Meeting Agent) + manual. Gmail thread sweep, CRM wiring (Contacts, Companies via rollup), AI action item parsing, thread summary. Instruction page: Post-Email Instructions.
 
 **Floppy (Step 2.0):** Adam may speak "Hey Floppy" commands during meetings. These appear in the transcript and should be reflected in the AI summary's Action Items heading. Floppy commands are explicit intent — they are the highest-confidence signal for action items.
 

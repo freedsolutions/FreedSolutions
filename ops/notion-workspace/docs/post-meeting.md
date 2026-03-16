@@ -1,5 +1,5 @@
 <!-- Notion Page ID: 324adb01-222f-8168-a207-d66e81884454 -->
-# Post-Meeting Agent Instructions
+# Post-Meeting Instructions
 
 Last synced: Session 51 (March 16, 2026)
 
