@@ -52,6 +52,7 @@ All agents have an instruction page under the Automation Hub containing the full
 | Contact & Company Review | Contact & Company Review Instructions | Manual (after other syncs) | Opus 4.6 | Active |
 | Delete Unwiring Agent | [Delete Unwiring Agent Instructions](https://www.notion.so/325adb01222f8103b4d9d5ce67f21de5) | Manual (automation pending) | Opus 4.6 | Active (manual trigger) |
 | Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Active |
+| Email Agent | Email Agent Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Active (manual trigger) |
 
 Naming conventions:
 
@@ -103,6 +104,7 @@ Manual workflows that are not automated agents but document repeatable procedure
 | Action Items | `319adb01-222f-8059-bd33-000b029a2fdd` | ✅ |
 | Meetings | `31fadb01-222f-80c0-acf7-000b401a5756` | 📅 |
 | Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | ⚙️ |
+| Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` | 📧 |
 
 **Adam's Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
 
@@ -112,7 +114,7 @@ Manual workflows that are not automated agents but document repeatable procedure
 
 ## Lifecycle State: Record Status (select)
 
-All 4 source DBs (Contacts, Companies, Action Items, Meetings) use a single `Record Status` select with 4 options:
+All 5 source DBs (Contacts, Companies, Action Items, Meetings, Emails) use a single `Record Status` select with 4 options:
 
 - **Draft** (gray) — Agent-created, pending Adam's review
 - **Active** (green) — Approved and live, operational record
@@ -182,6 +184,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Company** (relation → Companies DB, synced from Companies → Action Items)
 - **Assignee** (person) — Tasks: Adam; Follow Ups: blank
 - **Source Meeting** (relation → Meetings DB, synced from Meetings → Action Items)
+- **Source Email** (relation → Emails DB, synced from Emails → Action Items)
 - **Attach File** — file attachment (URLs from typed notes or AI summary)
 - **Created Date** (created_time) — auto-set on page creation (renamed from Assign Date)
 - **QC** (formula) — Data quality signal with 4 possible states:
@@ -215,6 +218,22 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
   - `TRUE` — all checks pass (or Delete with all relations cleared)
   - Required fields (non-Delete): Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date
   - Delete wiring check (in order): Contacts → Action Items → Series → Instances
+- **Created Timestamp** (created_time) — auto-set on page creation
+
+## Emails DB Properties
+
+- **Email Subject** (title) — Gmail thread subject line
+- **Record Status** (select: Draft/Active/Inactive/Delete)
+- **Thread ID** (text) — Gmail thread ID, canonical identity for dedup
+- **From** (text) — sender email of the first message in the thread
+- **Direction** (formula) — Outbound if From matches Adam's aliases, Inbound otherwise
+- **Date** (date) — thread start date (first message timestamp)
+- **Contacts** (relation → Contacts DB, synced dual) — participants wired via email matching
+- **Companies** (rollup) — derived from Contacts' Company relations
+- **Action Items** (relation → Action Items DB, synced from Action Items → Source Email)
+- **Labels** (multi_select) — Gmail user-created labels (system labels excluded)
+- **Email Notes** (text) — AI-generated 1–2 sentence thread summary
+- **QC** (formula) — Data quality signal (Adam-defined formula)
 - **Created Timestamp** (created_time) — auto-set on page creation
 
 ## Delete Handoff Pattern

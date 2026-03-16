@@ -27,6 +27,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | CRM-optimized Notion Calendar AI notetaker instructions (paste into Calendar settings) |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: post-review structured summary + GCal update (trigger: Meeting Record Status → Active) |
+| `docs/email-agent.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Email Agent: nightly Gmail sweep → CRM wiring → AI action item parse → thread summary |
 | `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | Claude.ai planning context — lightweight CLAUDE.md for chat sessions |
 
 ## Notion-Only Resources (access via MCP)
@@ -47,6 +48,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | Action Items | `319adb01-222f-8059-bd33-000b029a2fdd` |
 | Meetings | `31fadb01-222f-80c0-acf7-000b401a5756` |
 | Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` |
+| Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` |
 
 **Adam's Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
 
@@ -84,11 +86,12 @@ Pause and ask before proceeding only when any of the following are true:
 
 ## Key Schema Conventions
 
-- **Record Status** (select on Contacts, Companies, Action Items, Meetings): `Draft` → `Active` → `Inactive` → `Delete`
+- **Record Status** (select on Contacts, Companies, Action Items, Meetings, Emails): `Draft` → `Active` → `Inactive` → `Delete`
 - **Contacts DB:** Contact Name (title), Display Name (formula), QC (formula), Email, Secondary Email, Tertiary Email, Phone, Pronouns, Nickname, LinkedIn, Company, Role / Title, Record Status, Contact Notes
 - **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), QC (formula), Domains, Additional Domains, States (default: "All"), Website, Contacts, Action Items, Engagements, Tech Stack, Record Status, Company Notes
-- **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Attach File, QC (formula)
+- **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Attach File, QC (formula)
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
+- **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Record Status, Email Notes, QC (formula), Created Timestamp
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email — all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) — both checked for dedup
 - **Delete handoff:** Claude sets Record Status = Delete + Notes field (Contact Notes / Company Notes / Task Notes) explaining why. Adam trashes from Delete view.

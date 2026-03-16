@@ -19,10 +19,11 @@ Before setting Record Status = Delete on any record, **clear all relation proper
 
 | Database | Relations to Clear on Record | Linked Records to Update (other side) |
 |----------|------------------------------|---------------------------------------|
-| **Contacts** | Company, Meetings | Remove contact from Meeting.Contacts, ActionItem.Contact |
+| **Contacts** | Company, Meetings, Emails | Remove contact from Meeting.Contacts, ActionItem.Contact, Email.Contacts |
 | **Companies** | *(no outbound relations)* | Remove company from Contact.Company, ActionItem.Company |
-| **Action Items** | Contact, Company, Source Meeting | Remove action item from Meeting.Action Items |
+| **Action Items** | Contact, Company, Source Meeting, Source Email | Remove action item from Meeting.Action Items, Email.Action Items |
 | **Meetings** | Action Items, Contacts | Remove meeting from ActionItem.Source Meeting, Contact.Meetings |
+| **Emails** | Contacts, Action Items | Remove email from Contact.Emails, ActionItem.Source Email |
 
 > **Why both sides?** Notion two-way relations auto-sync in the UI, but clearing one side via API doesn't always propagate cleanly. Explicitly clearing both sides guarantees no orphaned backlinks remain after Adam hard-deletes the record.
 
@@ -161,7 +162,7 @@ Ask: "Do employees at this company send email from this domain today?"
 
 ## Agent Behavior
 Both `Domains` and `Additional Domains` are checked during:
-- Contact → Company wiring (Post-Meeting Agent Step 1)
+- Contact → Company wiring (Post-Meeting Agent Step 1, Email Agent Step 2)
 - Company dedup (Contact & Company Review Agent)
 - Merge Workflow domain checks
 

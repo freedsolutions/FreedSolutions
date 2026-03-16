@@ -25,10 +25,11 @@ Based on the DB, identify which relation properties need to be cleared and which
 
 | Database | Relations to Clear on Record | Linked Records to Update (other side) |
 |----------|------------------------------|---------------------------------------|
-| **Contacts** | Company, Meetings | For each linked Meeting: remove this contact from Meeting.Contacts |
+| **Contacts** | Company, Meetings, Emails | For each linked Meeting: remove this contact from Meeting.Contacts. For each linked Email: remove this contact from Email.Contacts |
 | **Companies** | *(Contacts and Action Items are synced/inbound — clearing the outbound side on Contact/Action Item handles it)* | No outbound relations to clear on the Company itself, but verify no orphaned backlinks remain |
-| **Action Items** | Contact, Source Meeting | For each linked Meeting: remove this action item from Meeting.Action Items |
+| **Action Items** | Contact, Source Meeting, Source Email | For each linked Meeting: remove this action item from Meeting.Action Items. For each linked Email: remove this action item from Email.Action Items |
 | **Meetings** | Contacts, Action Items, Series, Instances | For each linked Contact: remove this meeting from Contact.Meetings. For each linked Action Item: remove this meeting from ActionItem.Source Meeting. For Series/Instances self-relations: clear both sides. |
+| **Emails** | Contacts, Action Items | For each linked Contact: remove this email from Contact.Emails. For each linked Action Item: remove this action item from ActionItem.Source Email |
 
 ## Step 3: Clear All Relation Properties on the Record
 
