@@ -120,7 +120,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Secondary Email** — alternate email (personal, old domain, etc.)
 - **Tertiary Email** — third email if needed
 - **Nickname** — informal name or alias (used by Display Name formula)
-- **Phone** — phone number (Agent + Manual)
+- **Phone** — US phone number, normalized to `(XXX) XXX-XXXX`. Strip dots, extra dashes, malformed parens on write. (Agent + Manual)
 - **Pronouns** — pronouns (Agent + Manual; used in Display Name)
 - **LinkedIn** — LinkedIn profile URL (Agent + Manual)
 - **Meetings** (relation → Meetings DB, synced dual) — all meetings this contact attended

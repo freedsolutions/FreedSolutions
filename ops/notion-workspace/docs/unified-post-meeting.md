@@ -181,6 +181,8 @@ Unknown contacts and domains are handled directly in their source databases. No 
 
 **Role / Title, Phone, Pronouns, and LinkedIn** are Agent + Manual fields — populate when determinable from meeting context, email signatures, or web lookup. When uncertain, leave blank for Adam's manual review.
 
+**Phone normalization:** When writing a Phone value, normalize to `(XXX) XXX-XXXX`. Strip dots, extra dashes, and malformed parens.
+
 **Unknown domains:** When a new contact's email domain does not match any Company:
 
 1. Check for an existing placeholder first — search Companies DB for any Company (any Record Status) where Domains or Additional Domains contains this domain. If found → wire the contact to it.

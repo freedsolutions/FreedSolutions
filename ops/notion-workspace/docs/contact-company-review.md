@@ -147,7 +147,7 @@ This means the enrichment workflow is:
 | Contact Name | Enrichment provider / Web | Only if current name is a placeholder |
 | Role / Title | Enrichment provider / Web | Only if currently blank |
 | LinkedIn | Enrichment provider / Web | Only if currently blank |
-| Phone | Enrichment provider / Web | Only if currently blank (Agent + Manual) |
+| Phone | Enrichment provider / Web | Only if currently blank; normalize to `(XXX) XXX-XXXX` on write (Agent + Manual) |
 | Pronouns | Enrichment provider / Web | Only if currently blank (Agent + Manual) |
 | Secondary Email | Enrichment provider / Web / Manual confirmation | Only if currently blank and verified |
 | Tertiary Email | Enrichment provider / Web / Manual confirmation | Only if currently blank and verified |
