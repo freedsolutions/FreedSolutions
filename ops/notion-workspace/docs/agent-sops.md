@@ -3,7 +3,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last updated: Session 47 (March 16, 2026)
+Last updated: Session 48 (March 16, 2026)
 
 ---
 
@@ -189,8 +189,8 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
   - `missing:fieldname` — Record Status ≠ Delete and a required field is empty. `missing:task_status` uses `format()` wrapper (STATUS type requires it).
   - `past_due` — all required fields present AND Due Date < now() AND Status ≠ Done. Fires regardless of Record Status (except Delete, which routes to wired check first).
   - `TRUE` — all checks pass (or Delete with all relations cleared)
-  - Required fields (non-Delete): Task Name, Record Status, Status (task), Priority, Due Date, Source Meeting
-  - Delete wiring check (in order): Contact → Source Meeting
+  - Required fields (non-Delete): Task Name, Record Status, Status (task), Priority, Due Date, Contact, Source Meeting
+  - Delete wiring check (in order): Contact → Company → Source Meeting
   - Note: Task Notes are NOT required. Status is checked via `empty(format(Status))` due to Notion STATUS type constraints.
 
 ## Meetings DB Properties
