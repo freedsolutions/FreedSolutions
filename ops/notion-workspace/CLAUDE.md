@@ -16,7 +16,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions | S51 |
-| `docs/notion-agent-config.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Notion's built-in AI personality config | S51 |
+| `docs/notion-agent.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Notion's built-in AI personality config | S51 |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing | S51 (local) |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs | S51 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows | S51 |
@@ -124,4 +124,4 @@ Planning happens in Claude.ai (via the `notion-session` skill); execution happen
 When adding new agents, workflows, or databases, update all three:
 1. The relevant doc in `ops/notion-workspace/docs/`
 2. Agent SOPs in Notion (push from `docs/agent-sops.md`)
-3. Notion Agent page (push from `docs/notion-agent-config.md`)
+3. Notion Agent page (push from `docs/notion-agent.md`)

@@ -67,7 +67,7 @@ Adding new agents: When a new agent is created:
 2. Create the local doc at docs/[kebab-case].md with matching content
 3. Add to the Agent Registry table in docs/agent-sops.md
 4. Add to the Local Docs table in CLAUDE.md
-5. Update the Notion Agent page (docs/notion-agent-config.md) Active agents section
+5. Update the Notion Agent page (docs/notion-agent.md) Active agents section
 6. Push all changed docs to Notion and verify
 7. Configure the Custom Agent in Notion settings (name, instruction page reference, model, trigger)
 
