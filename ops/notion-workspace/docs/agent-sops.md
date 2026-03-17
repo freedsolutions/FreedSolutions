@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 52 (March 17, 2026)
+Last synced: Session 53 (March 17, 2026)
 
 ---
 
@@ -44,16 +44,16 @@ Claude Code reads `CLAUDE.md` from the project root automatically — no prompt 
 
 All agents have an instruction page under the Automation Hub containing the full workflow, business rules, safety rails, and database references. Notion Custom Agents (configured separately in Agent Config) reference these instruction pages.
 
-| Agent | Instruction Page | Trigger | Model | Status |
-| --- | --- | --- | --- | --- |
-| Post-Meeting Agent | Post-Meeting Instructions | Nightly 10 PM ET + reactive (Record Status → Draft + page content edited, Meetings DB) + manual | Opus 4.6 | Live |
-| Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
-| Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
-| Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
-| Contact & Company Review | Contact & Company Instructions | Manual (@mention only) | Opus 4.6 | Active (manual) |
-| Delete Unwiring Agent | Delete Unwiring Instructions | Record Status → Delete (5 source DBs) + manual | Opus 4.6 | Live |
-| Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Live |
-| Post-Email Agent | Post-Email Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live |
+| Agent | Instruction Page | Trigger | Model | Status | Settings URL |
+| --- | --- | --- | --- | --- | --- |
+| Post-Meeting Agent | Post-Meeting Instructions | Nightly 10 PM ET + reactive (Record Status → Draft + page content edited, Meetings DB) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/321adb01222f805f8182009253dc57a7?wfv=settings) |
+| Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
+| Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
+| Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
+| Contact & Company Review | Contact & Company Instructions | Manual (@mention only) | Opus 4.6 | Active (manual) | [Settings](https://www.notion.so/agent/323adb01222f802cb5640092af74e84a?wfv=settings) |
+| Delete Unwiring Agent | Delete Unwiring Instructions | Record Status → Delete (5 source DBs) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f80d2844a0092e63da4ea?wfv=settings) |
+| Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f802e91290092cb71c17d?wfv=settings) |
+| Post-Email Agent | Post-Email Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f806da7960092bc6484d3?wfv=settings) |
 
 Naming conventions:
 
@@ -137,7 +137,7 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
   - Contacts → Can edit content
   - Agent Config → Can edit
   - Agent SOPs → Can view
-- **Connections:** Web access: On | NO calendar | NO mail
+- **Connections:** Web access: On | Calendar: adam@freedsolutions.com (Adam-Business: Read) | NO mail
 - **Model:** Opus 4.6
 
 ### Delete Unwiring Agent
