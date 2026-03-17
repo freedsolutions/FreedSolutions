@@ -1,4 +1,4 @@
-# CRM-Optimized Meeting Notetaker
+# Notetaker CRM
 
 Last synced: Session 51 (March 16, 2026)
 
@@ -19,7 +19,7 @@ Both channels feed into the same `### Action Items` section of the AI summary, w
 
 ## How to Apply
 
-Open the **AI Meeting Notes summary instructions** page in Notion Calendar and fill in each section as shown below. The page title should be **"CRM-Optimized"**.
+Open the **AI Meeting Notes summary instructions** page in Notion Calendar and fill in each section as shown below. The page title should be **"Notetaker CRM"**.
 
 Notion's template has four sections: Context, Summary format (with named section blocks), and Summary style. The content below maps directly to those sections.
 
@@ -73,11 +73,11 @@ The `(Floppy)` prefix serves **Layer 1** of the Floppy design (see [floppy-desig
 
 ## Notetaker Profiles Roadmap
 
-This is the first notetaker profile (**CRM-optimized**). Future profiles for different meeting types:
+This is the first notetaker profile (**Notetaker CRM**). Future profiles for different meeting types:
 
 | Profile | Use Case | Status |
 |---------|----------|--------|
-| **CRM-Optimized** (this doc) | Default for all business meetings. Structured for Post-Meeting Agent parsing. | Active |
+| **Notetaker CRM** (this doc) | Default for all business meetings. Structured for Post-Meeting Agent parsing. | Active |
 | **Strategy / Workshop** | Longer brainstorm or planning sessions. Heavier on topic summaries, lighter on action items. | Planned |
 | **1:1 / Check-in** | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
 

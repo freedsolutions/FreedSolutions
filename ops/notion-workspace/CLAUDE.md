@@ -21,7 +21,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs | S51 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows | S51 |
 | `docs/floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) | — |
-| `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | CRM-optimized Notion Calendar AI notetaker instructions (paste into Calendar settings) | S51 |
+| `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: Notion Calendar AI notetaker instructions (paste into Calendar settings) | S51 |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records | S51 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: post-review structured summary + GCal update (trigger: Meeting Record Status → Active) | S51 |
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: nightly Gmail sweep → CRM wiring → AI action item parse → thread summary | S51 |

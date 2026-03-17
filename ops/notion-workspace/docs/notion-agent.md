@@ -36,7 +36,7 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 
 **Floppy (Step 2.0):** Adam may speak "Hey Floppy" commands during meetings. These appear in the transcript and should be reflected in the AI summary's Action Items heading. Floppy commands are explicit intent — they are the highest-confidence signal for action items.
 
-**Meeting Notetaker Profiles:** The Notion Calendar AI notetaker uses custom instructions to produce CRM-optimized summaries. The active profile (CRM-Optimized) structures Action Items in a format the Post-Meeting Agent can parse directly and tells the notetaker to surface "Hey Floppy" commands with a `(Floppy)` prefix. Profile instructions are documented locally in `docs/notetaker-crm.md` and pasted into Notion Calendar's AI notetaker settings.
+**Meeting Notetaker Profiles:** The Notion Calendar AI notetaker uses custom instructions to produce CRM-optimized summaries. The active profile (Notetaker CRM) structures Action Items in a format the Post-Meeting Agent can parse directly and tells the notetaker to surface "Hey Floppy" commands with a `(Floppy)` prefix. Profile instructions are documented locally in `docs/notetaker-crm.md` and pasted into Notion Calendar's AI notetaker settings.
 
 When working with these databases, always respect Record Status conventions: Draft = pending review, Active = live, Inactive = soft-deleted, Delete = flagged for hard-delete.
 

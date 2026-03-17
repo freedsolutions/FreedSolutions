@@ -77,7 +77,7 @@ Custom instruction profiles for Notion Calendar's AI notetaker. Each profile is 
 
 | Profile | Local Doc | Purpose | Status |
 | --- | --- | --- | --- |
-| CRM-Optimized | `docs/notetaker-crm.md` | Default for business meetings. Structures Action Items for Post-Meeting Agent parsing. Surfaces "Hey Floppy" commands from voice AND typed notes (Layer 1). | Active |
+| Notetaker CRM | `docs/notetaker-crm.md` | Default for business meetings. Structures Action Items for Post-Meeting Agent parsing. Surfaces "Hey Floppy" commands from voice AND typed notes (Layer 1). | Active |
 | Strategy / Workshop | — | Longer brainstorm/planning sessions. Heavier on topic summaries. | Planned |
 | 1:1 / Check-in | — | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
 
