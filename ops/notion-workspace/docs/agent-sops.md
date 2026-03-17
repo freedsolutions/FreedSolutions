@@ -1,4 +1,5 @@
 <!-- Notion Page ID: 323adb01-222f-81d7-bc47-c32cfea460f4 -->
+
 # Agent SOPs
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.

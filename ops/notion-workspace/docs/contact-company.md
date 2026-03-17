@@ -1,6 +1,6 @@
 <!-- Notion Page ID: 323adb01-222f-8126-9db8-df77be5a326f -->
 
-# Contact & Company Review Instructions
+# Contact & Company Instructions
 
 Last synced: Session 51 (March 16, 2026)
 
