@@ -6,7 +6,7 @@ Lightweight CLAUDE.md equivalent for Claude.ai chat sessions. Read by the `notio
 
 Local source-of-truth: `docs/claude-ai-context.md` (repo). Keep the Notion page in sync when the local file changes.
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 52 (March 17, 2026)
 
 ---
 
@@ -64,9 +64,9 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 
 | Agent | Trigger | Status |
 |---|---|---|
-| Post-Meeting Agent | Nightly 10 PM ET + reactive (Meeting Title update) | Live |
-| Contact & Company Review | Manual | Active (manual) |
-| Delete Unwiring Agent | Manual (automation pending) | Active (manual) |
+| Post-Meeting Agent | Nightly 10 PM ET + reactive (Record Status → Draft + page content edited, Meetings DB) | Live |
+| Contact & Company Review | Manual (@mention only) | Active (manual) |
+| Delete Unwiring Agent | Record Status → Delete (5 source DBs) + manual | Live |
 | Curated Notes Agent | Record Status → Active (Meetings DB) | Live |
 | Post-Email Agent | Nightly ~10:30 PM ET (after Post-Meeting Agent) | Live |
 

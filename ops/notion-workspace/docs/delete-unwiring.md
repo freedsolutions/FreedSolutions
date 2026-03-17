@@ -2,7 +2,7 @@
 
 # Delete Unwiring Instructions
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 52 (March 17, 2026)
 
 # Agent Overview
 
@@ -98,4 +98,4 @@ Delete Unwiring Agent — [Record Title] ([DB Name])
 
 - **Agent SOPs:** Listed in Agent Registry table — docs/agent-sops.md (Notion page: 323adb01-222f-81d7-bc47-c32cfea460f4)
 - **Local source-of-truth:** docs/delete-unwiring.md in FreedSolutions repo
-- **Status:** Active (manual trigger). Automation trigger configuration is a follow-up session task.
+- **Status:** Live. Notion DB automation — fires when Record Status is changed to Delete on Contacts, Companies, Action Items, Meetings, or Emails DB.

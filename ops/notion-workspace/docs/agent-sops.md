@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 52 (March 17, 2026)
 
 ---
 
@@ -46,12 +46,12 @@ All agents have an instruction page under the Automation Hub containing the full
 
 | Agent | Instruction Page | Trigger | Model | Status |
 | --- | --- | --- | --- | --- |
-| Post-Meeting Agent | Post-Meeting Instructions | Nightly 10 PM ET + reactive (on Meeting Title update) + manual | Opus 4.6 | Live |
+| Post-Meeting Agent | Post-Meeting Instructions | Nightly 10 PM ET + reactive (Record Status → Draft + page content edited, Meetings DB) + manual | Opus 4.6 | Live |
 | Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). |
-| Contact & Company Review | Contact & Company Instructions | Manual (after other syncs) | Opus 4.6 | Active (manual) |
-| Delete Unwiring Agent | Delete Unwiring Instructions | Manual (automation pending) | Opus 4.6 | Active (manual) |
+| Contact & Company Review | Contact & Company Instructions | Manual (@mention only) | Opus 4.6 | Active (manual) |
+| Delete Unwiring Agent | Delete Unwiring Instructions | Record Status → Delete (5 source DBs) + manual | Opus 4.6 | Live |
 | Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Live |
 | Post-Email Agent | Post-Email Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live |
 
@@ -83,6 +83,77 @@ Custom instruction profiles for Notion Calendar's AI notetaker. Each profile is 
 | 1:1 / Check-in | — | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
 
 **Why notetaker profiles matter:** The Post-Meeting Agent parses the `### Action Items` heading from the AI summary. Custom notetaker instructions ensure the AI produces summaries in the exact format the agent expects — improving parse accuracy, action item quality, and Floppy command surfacing (Layer 1).
+
+## Trigger Configuration Reference
+
+Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers, page access, connections, and model are documented here. Any future agent config changes must update this section. Audit cadence: verify all agents against this spec whenever a new agent is added, an agent is renamed, or a DB is created.
+
+### Post-Meeting Agent
+
+- **Triggers:** Daily 10 PM | Property updated: Meetings → Record Status = Draft (page-content-edit: CHECKED) | @mention
+- **Notion Page Access:**
+  - Meetings → Can edit content
+  - Action Items → Can edit content
+  - Contacts → Can edit content
+  - Companies → Can edit content
+  - Agent Config → Can edit
+  - Post-Meeting Instructions → Can edit
+  - Agent SOPs → Can view
+- **Connections:** Calendar adam@freedsolutions.com (Adam-Business: Read and write) | Mail adam@freedsolutions.com (Read and draft) | Web access: On
+- **Model:** Opus 4.6
+
+### Post-Email Agent
+
+- **Triggers:** Daily 10:30 PM | @mention
+- **Notion Page Access:**
+  - Post-Email Instructions → Can edit
+  - Emails → Can edit content
+  - Contacts → Can edit content
+  - Companies → Can edit content
+  - Action Items → Can edit content
+  - Agent SOPs → Can view
+  - Agent Config → Can edit
+- **Connections:** Mail adam@freedsolutions.com (Read) | Web access: Off | NO calendar
+- **Model:** Opus 4.6
+
+### Curated Notes Agent
+
+- **Triggers:** Property updated: Meetings → Record Status = Active (page-content-edit: UNCHECKED) | @mention
+- **Notion Page Access:**
+  - Meetings → Can edit content
+  - Action Items → Can edit content
+  - Curated Notes Instructions → Can edit
+  - Agent SOPs → Can view
+  - Agent Config → Can edit
+- **Connections:** Calendar adam@freedsolutions.com (Adam-Business: Read) | Web access: On | NO mail
+- **Model:** Opus 4.6
+
+### Contact & Company Agent
+
+- **Triggers:** @mention only (NO scheduled, NO property-change, NO calendar-event triggers)
+- **Notion Page Access:**
+  - Contact & Company Instructions → Can edit
+  - Companies → Can edit content
+  - Contacts → Can edit content
+  - Agent Config → Can edit
+  - Agent SOPs → Can view
+- **Connections:** Web access: On | NO calendar | NO mail
+- **Model:** Opus 4.6
+
+### Delete Unwiring Agent
+
+- **Triggers:** Property updated on EACH of 5 DBs → Record Status = Delete (page-content-edit: UNCHECKED on all): Meetings | Companies | Action Items | Contacts | Emails | @mention
+- **Notion Page Access:**
+  - Delete Unwiring Instructions → Can edit
+  - Contacts → Can edit content
+  - Companies → Can edit content
+  - Action Items → Can edit content
+  - Meetings → Can edit content
+  - Emails → Can edit content
+  - Agent Config → Can edit
+  - Agent SOPs → Can view
+- **Connections:** Web access: Off | NO calendar | NO mail
+- **Model:** Opus 4.6
 
 ---
 

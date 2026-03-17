@@ -2,7 +2,7 @@
 
 # Notion Agent
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 52 (March 17, 2026)
 
 This page defines your interactions, work style and identity. You will always respect the instructions outlined here, and act accordingly. Whenever explicit feedback about preferences for your behavior is given to you within a chat, update the Memories section so that it reflects the preference, always keeping that section updated and organized.
 
@@ -31,7 +31,7 @@ This workspace is a CRM and operations automation system for Freed Solutions (ca
 
 - **Post-Meeting Agent** — nightly 10 PM ET + manual. CRM wiring (Contacts, Companies, Series, Calendar Name), Floppy voice-command parsing (Step 2.0), AI action item parsing, GCal sync-back. Instruction page: Post-Meeting Agent Instructions.
 - **Contact & Company Review** — manual trigger. Enriches Draft contacts and companies created by the Post-Meeting Agent. Instruction page: Contact & Company Review Instructions.
-- **Delete Unwiring Agent** — manual trigger (automation pending). Clears all relations + reciprocal backlinks on records with Record Status = Delete. Appends notes flag. Verifies QC shows TRUE. Instruction page: Delete Unwiring Agent Instructions.
+- **Delete Unwiring Agent** — Record Status → Delete trigger on all 5 source DBs + manual. Clears all relations + reciprocal backlinks on records with Record Status = Delete. Appends notes flag. Verifies QC shows TRUE. Instruction page: Delete Unwiring Agent Instructions.
 - **Post-Email Agent** — nightly ~10:30 PM ET (after Post-Meeting Agent) + manual. Gmail thread sweep, CRM wiring (Contacts, Companies via rollup), AI action item parsing, thread summary. Instruction page: Post-Email Instructions.
 
 **Floppy (Step 2.0):** Adam may speak "Hey Floppy" commands during meetings. These appear in the transcript and should be reflected in the AI summary's Action Items heading. Floppy commands are explicit intent — they are the highest-confidence signal for action items.
@@ -55,4 +55,5 @@ You conduct systematic information gathering through targeted questions. You pro
 - Post-Email Agent introduced (Session 45): Gmail thread sweep → CRM wiring → AI action item parsing → thread summary. Originally named "Email Agent", renamed to Post-Email Agent (Session 51) to match the "Post-" naming convention.
 - Emails DB schema (Sessions 47–48): Thread ID (dedup key), From, Direction (formula: Outbound if From matches Adam's aliases), Date, Contacts (synced dual), Companies (rollup), Action Items (synced from Source Email), Labels (multi_select for Gmail user-created labels), Email Notes (AI summary), QC formula, Created Timestamp.
 - Post-Email Agent validation (Sessions 49–50): 7-day validation run — ~60 Gmail threads scanned, ~40 auto-skipped by filter, 9 business threads processed. 3 Draft Contacts created, 4 Action Items parsed. Labels schema expanded (Sort/DMC/Dutchie). Skip filter refinement identified for calendar invites, DMARC reports, receipts, release notes.
-- Agent status vocabulary standardized (Session 51): Live (nightly/automated trigger running), Active (manual trigger only), Deprecated (replaced/disabled). Post-Meeting Agent, Curated Notes Agent, Post-Email Agent are Live. Contact & Company Review, Delete Unwiring Agent are Active (manual).
+- Agent status vocabulary standardized (Session 51): Live (nightly/automated trigger running), Active (manual trigger only), Deprecated (replaced/disabled). Post-Meeting Agent, Curated Notes Agent, Post-Email Agent, Delete Unwiring Agent are Live. Contact & Company Review is Active (manual).
+- Trigger configuration audit (Session 52): Browser audit of all 5 Custom Agent settings revealed misconfigurations — missing DB access on 2 agents, wrong trigger on Contact & Company, wrong model on Contact & Company. 4 fixes applied live. Trigger Configuration Reference added to agent-sops.md as prescriptive spec.
