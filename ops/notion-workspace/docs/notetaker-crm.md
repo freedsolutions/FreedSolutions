@@ -69,7 +69,7 @@ The Post-Meeting Agent (see [post-meeting.md](post-meeting.md)) parses the `### 
 - Source references in brackets — both `[HH:MM:SS]` timestamps (voice) and `[Notes]` tags (typed notes) are valid formats, stripped during parsing
 - Clear imperative voice for the action
 
-The `(Floppy)` prefix serves **Layer 1** of the Floppy design (see [floppy-design.md](floppy-design.md)): by telling the notetaker to explicitly surface "Hey Floppy" commands, the AI summary already reflects Adam's voice commands before the Post-Meeting Agent's independent transcript parse (Layer 2) even runs. This makes the AI summary more prescriptive and the downstream Draft items faster to approve.
+The `(Floppy)` prefix serves **Layer 1** of the Floppy design (see [_floppy-design.md](_floppy-design.md)): by telling the notetaker to explicitly surface "Hey Floppy" commands, the AI summary already reflects Adam's voice commands before the Post-Meeting Agent's independent transcript parse (Layer 2) even runs. This makes the AI summary more prescriptive and the downstream Draft items faster to approve.
 
 ## Notetaker Profiles Roadmap
 

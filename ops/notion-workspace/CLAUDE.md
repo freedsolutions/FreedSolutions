@@ -20,7 +20,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing | S51 (local) |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs | S51 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows | S51 |
-| `docs/floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) | — |
+| `docs/_floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) | — |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: Notion Calendar AI notetaker instructions (paste into Calendar settings) | S51 |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations + reciprocal links on Record Status = Delete records | S51 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: post-review structured summary + GCal update (trigger: Meeting Record Status → Active) | S51 |
