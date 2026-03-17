@@ -6,7 +6,7 @@ argument-hint: "[review|apply] [optional focus area]"
 
 # Codex Review
 
-Run a local Python script that packages the current git diff, project context files, and the full contents of changed files, then sends that bundle to the OpenAI Responses API for a structured review.
+Run a local Python script that packages the current git diff, project context files, and the full contents of changed files, then hands that bundle to the local Codex CLI for a structured review. The script reuses the saved Codex/ChatGPT login from `~/.codex/auth.json`, so it does not require `OPENAI_API_KEY`.
 
 ## Usage
 
@@ -35,6 +35,14 @@ Always run the local reviewer first from the repo root:
 ```text
 python scripts/codex_review.py --mode <review|apply> --output .claude/tmp/codex-review/latest.json [--focus "..."]
 ```
+
+The script shells out to `codex exec`, which needs network access. If it fails with a sandbox or connection error, rerun the same command with approval so Codex can reach its backend.
+
+Advanced overrides are available when needed:
+
+- `CODEX_REVIEW_CODEX_BIN` - point at a specific Codex CLI executable
+- `CODEX_REVIEW_AUTH_FILE` - point at a specific `auth.json`
+- `CODEX_REVIEW_MODEL` - force a specific Codex model instead of the CLI default
 
 If the script fails:
 

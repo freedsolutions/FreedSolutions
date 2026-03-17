@@ -6,15 +6,15 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from fnmatch import fnmatch
 from typing import Any
-from urllib import error, request
 
-API_URL = "https://api.openai.com/v1/responses"
-DEFAULT_MODEL = "gpt-5.2-codex"
+DEFAULT_MODEL = ""
 DEFAULT_CONFIG_PATH = Path(".claude/skills/codex-review/config.json")
 DEFAULT_OUTPUT_PATH = Path(".claude/tmp/codex-review/latest.json")
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
@@ -40,6 +40,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "**/*.pdf",
     ],
     "max_context_file_chars": 24000,
+    "max_changed_file_chars": 40000,
     "max_total_chars": 350000,
 }
 
@@ -143,6 +144,8 @@ Severity guidance:
 - low: minor issue, edge case, or polish-level review note
 
 The response must satisfy the provided JSON schema exactly.
+
+Return only raw JSON with no markdown fences or commentary.
 """
 
 
@@ -161,7 +164,7 @@ def main() -> int:
             "generated_at": now_iso(),
             "mode": args.mode,
             "focus": args.focus,
-            "model": args.model,
+            "model": args.model or "cli_default",
             "repo_root": str(repo_root),
             "base_ref": base_ref,
             "manifest": {
@@ -185,7 +188,7 @@ def main() -> int:
         return 0
 
     diff_text = get_tracked_diff(base_ref)
-    changed_file_blobs = collect_changed_file_blobs(repo_root, changed_entries)
+    changed_file_blobs = collect_changed_file_blobs(repo_root, changed_entries, config)
     context_blobs = collect_context_blobs(repo_root, changed_entries, config)
     prompt_text = build_prompt(
         args.mode,
@@ -204,6 +207,7 @@ def main() -> int:
                 "status": entry["status"],
                 "exists": entry["exists"],
                 "included_full_content": entry["included_full_content"],
+                "truncated": entry["truncated"],
                 "skipped_reason": entry["skipped_reason"],
             }
             for entry in changed_file_blobs
@@ -225,7 +229,7 @@ def main() -> int:
         "generated_at": now_iso(),
         "mode": args.mode,
         "focus": args.focus,
-        "model": args.model,
+        "model": args.model or "cli_default",
         "repo_root": str(repo_root),
         "base_ref": base_ref,
         "manifest": manifest,
@@ -256,16 +260,20 @@ def main() -> int:
         print(f"Report: {repo_root / args.output}")
         return 0
 
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        print("Missing OPENAI_API_KEY.", file=sys.stderr)
-        return 2
-
-    response_json = call_openai(api_key, args.model, prompt_text, repo_root.name)
-    review = extract_review(response_json)
+    review_result = run_codex_review(
+        args.model,
+        prompt_text,
+        repo_root,
+        args.codex_bin,
+        args.auth_file,
+    )
+    review = review_result["review"]
     report["review"] = review
-    report["usage"] = response_json.get("usage", {})
-    report["response_id"] = response_json.get("id")
+    report["runner"] = review_result["runner"]
+    if review_result.get("usage"):
+        report["usage"] = review_result["usage"]
+    if review_result.get("codex_cli"):
+        report["codex_cli"] = review_result["codex_cli"]
     write_json(repo_root / args.output, report)
     print_summary(repo_root / args.output, review)
     return 0
@@ -276,6 +284,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=["review", "apply"], default="review")
     parser.add_argument("--focus", default="", help="Optional review focus hint.")
     parser.add_argument("--model", default=os.environ.get("CODEX_REVIEW_MODEL", DEFAULT_MODEL))
+    parser.add_argument(
+        "--codex-bin",
+        default=os.environ.get("CODEX_REVIEW_CODEX_BIN", ""),
+        help="Optional path to the Codex CLI executable.",
+    )
+    parser.add_argument(
+        "--auth-file",
+        default=os.environ.get("CODEX_REVIEW_AUTH_FILE", ""),
+        help="Optional path to a Codex auth.json file.",
+    )
     parser.add_argument(
         "--config",
         default=str(DEFAULT_CONFIG_PATH),
@@ -366,13 +384,16 @@ def get_tracked_diff(base_ref: str) -> str:
 def collect_changed_file_blobs(
     repo_root: Path,
     changed_entries: list[dict[str, str]],
+    config: dict[str, Any],
 ) -> list[dict[str, Any]]:
+    max_chars = int(config["max_changed_file_chars"])
     blobs: list[dict[str, Any]] = []
     for entry in changed_entries:
         rel_path = entry["path"]
         path = repo_root / rel_path
         exists = path.exists() and path.is_file()
         included_full_content = False
+        truncated = False
         skipped_reason = ""
         content = ""
         if exists:
@@ -380,8 +401,13 @@ def collect_changed_file_blobs(
             if maybe_text is None:
                 skipped_reason = "binary_or_unreadable"
             else:
-                content = maybe_text
-                included_full_content = True
+                if len(maybe_text) > max_chars:
+                    content = maybe_text[:max_chars] + "\n\n[TRUNCATED FOR CHANGED FILE BUDGET]\n"
+                    truncated = True
+                    skipped_reason = "truncated_for_budget"
+                else:
+                    content = maybe_text
+                    included_full_content = True
         else:
             skipped_reason = "deleted_or_missing"
         blobs.append(
@@ -390,6 +416,7 @@ def collect_changed_file_blobs(
                 "status": entry["status"],
                 "exists": exists,
                 "included_full_content": included_full_content,
+                "truncated": truncated,
                 "skipped_reason": skipped_reason,
                 "language": fence_language(rel_path),
                 "content": content,
@@ -504,6 +531,10 @@ def build_prompt(
     lines.append(f"Base ref: {base_ref}")
     lines.append(f"Focus: {focus or 'general review'}")
     lines.append("")
+    lines.append("REQUIRED OUTPUT")
+    lines.append("Return only a JSON object matching this schema:")
+    lines.append(json.dumps(REVIEW_SCHEMA, indent=2))
+    lines.append("")
     lines.append("CHANGED FILES")
     for entry in changed_entries:
         lines.append(f"- {entry['status']} {entry['path'].replace('\\', '/')}")
@@ -531,7 +562,9 @@ def build_prompt(
     for blob in changed_file_blobs:
         lines.append(f"### {blob['path']}")
         lines.append(f"Status: {blob['status']}")
-        if blob["included_full_content"]:
+        if blob["content"]:
+            if blob["truncated"]:
+                lines.append("[CONTENT TRUNCATED FOR BUDGET]")
             lines.append(f"```{blob['language']}")
             lines.append(blob["content"])
             lines.append("```")
@@ -541,77 +574,294 @@ def build_prompt(
     return "\n".join(lines)
 
 
-def call_openai(api_key: str, model: str, prompt_text: str, repo_name: str) -> dict[str, Any]:
-    payload = {
-        "model": model,
-        "reasoning": {"effort": "medium"},
-        "prompt_cache_key": f"codex-review:{repo_name}:v1",
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "codex_review_report",
-                "strict": True,
-                "schema": REVIEW_SCHEMA,
-            }
-        },
-        "input": [
-            {
-                "role": "developer",
-                "content": [{"type": "input_text", "text": DEVELOPER_PROMPT}],
+def run_codex_review(
+    model: str,
+    prompt_text: str,
+    repo_root: Path,
+    codex_bin_override: str,
+    auth_file_override: str,
+) -> dict[str, Any]:
+    codex_bin = resolve_codex_bin(codex_bin_override)
+    auth_file = resolve_auth_file(auth_file_override)
+
+    with tempfile.TemporaryDirectory(prefix="codex-review-") as temp_dir_name:
+        temp_dir = Path(temp_dir_name)
+        temp_codex_home = temp_dir / "home"
+        temp_codex_home.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(auth_file, temp_codex_home / "auth.json")
+
+        last_message_path = temp_dir / "last-message.txt"
+        cmd = build_codex_command(codex_bin, model, last_message_path)
+
+        env = os.environ.copy()
+        env["CODEX_HOME"] = str(temp_codex_home)
+        completed = subprocess.run(
+            cmd,
+            input=build_codex_input(prompt_text),
+            capture_output=True,
+            cwd=repo_root,
+            env=env,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(format_codex_failure(completed))
+
+        if not last_message_path.exists():
+            raise RuntimeError("Codex CLI completed without writing the last agent message.")
+
+        review = extract_review_text(last_message_path.read_text(encoding="utf-8"))
+        result = {
+            "runner": "codex_cli_chatgpt_auth",
+            "review": review,
+            "codex_cli": {
+                "binary": str(codex_bin),
+                "model": model or "cli_default",
+                "auth": "codex_auth_json",
             },
-            {
-                "role": "user",
-                "content": [{"type": "input_text", "text": prompt_text}],
-            },
-        ],
-    }
-    body = json.dumps(payload).encode("utf-8")
-    req = request.Request(
-        API_URL,
-        data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
+        }
+        usage = extract_usage_from_jsonl(completed.stdout)
+        if usage:
+            result["usage"] = usage
+        return result
+
+
+def resolve_codex_bin(configured: str) -> Path:
+    configured = configured.strip()
+    if configured:
+        path = Path(configured).expanduser()
+        if path.exists():
+            return path
+        raise RuntimeError(f"Configured Codex CLI binary does not exist: {path}")
+
+    seen: set[str] = set()
+    for candidate_name in ("codex", "codex.exe", "codex.cmd", "codex.ps1"):
+        which = shutil.which(candidate_name)
+        if not which or which in seen:
+            continue
+        seen.add(which)
+        return Path(which)
+
+    windows_bin = windows_codex_binary()
+    if windows_bin:
+        return windows_bin
+
+    raise RuntimeError(
+        "Could not find the Codex CLI. Install @openai/codex or set CODEX_REVIEW_CODEX_BIN."
     )
-    try:
-        with request.urlopen(req, timeout=180) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except error.HTTPError as exc:
-        details = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"OpenAI API error {exc.code}: {details}") from exc
-    except error.URLError as exc:
-        raise RuntimeError(f"OpenAI API request failed: {exc}") from exc
 
 
-def extract_review(response_json: dict[str, Any]) -> dict[str, Any]:
-    if "error" in response_json:
-        raise RuntimeError(json.dumps(response_json["error"], indent=2))
-    text = response_json.get("output_text")
-    if not text:
-        parts: list[str] = []
-        for item in response_json.get("output", []):
-            if item.get("type") != "message":
-                continue
-            for content in item.get("content", []):
-                if content.get("type") == "output_text":
-                    parts.append(content.get("text", ""))
-                if content.get("type") == "refusal":
-                    raise RuntimeError(f"Model refusal: {content.get('refusal', '')}")
-        text = "\n".join(part for part in parts if part)
-    if not text:
-        raise RuntimeError("No output_text found in the OpenAI response.")
-    review = json.loads(text)
-    validate_review(review)
-    return review
+def windows_codex_binary() -> Path | None:
+    appdata = os.environ.get("APPDATA")
+    if not appdata:
+        return None
+    candidate = (
+        Path(appdata)
+        / "npm"
+        / "node_modules"
+        / "@openai"
+        / "codex"
+        / "bin"
+        / "codex-x86_64-pc-windows-msvc.exe"
+    )
+    if candidate.exists():
+        return candidate
+    return None
+
+
+def resolve_auth_file(configured: str) -> Path:
+    configured = configured.strip()
+    if configured:
+        path = Path(configured).expanduser()
+    else:
+        codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+        path = codex_home / "auth.json"
+    if not path.exists():
+        raise RuntimeError(
+            f"Could not find Codex auth at {path}. Run `codex login` first or set CODEX_REVIEW_AUTH_FILE."
+        )
+    return path
+
+
+def build_codex_input(prompt_text: str) -> str:
+    return "\n\n".join([DEVELOPER_PROMPT.strip(), prompt_text.strip()]) + "\n"
+
+
+def build_codex_command(codex_bin: Path, model: str, last_message_path: Path) -> list[str]:
+    base_args = [
+        "exec",
+        "--json",
+        "--color",
+        "never",
+        "--sandbox",
+        "read-only",
+        "--output-last-message",
+        str(last_message_path),
+    ]
+    if model:
+        base_args.extend(["--model", model])
+    base_args.append("-")
+
+    suffix = codex_bin.suffix.lower()
+    if suffix == ".ps1":
+        return [
+            "powershell.exe",
+            "-NoLogo",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(codex_bin),
+            *base_args,
+        ]
+    if suffix in {".cmd", ".bat"}:
+        return ["cmd.exe", "/d", "/s", "/c", subprocess.list2cmdline([str(codex_bin), *base_args])]
+    return [str(codex_bin), *base_args]
+
+
+def format_codex_failure(completed: subprocess.CompletedProcess[str]) -> str:
+    sections = [f"Codex CLI failed with exit code {completed.returncode}."]
+    stdout = tail_text(completed.stdout)
+    stderr = tail_text(completed.stderr)
+    if stdout:
+        sections.append("stdout:\n" + stdout)
+    if stderr:
+        sections.append("stderr:\n" + stderr)
+    return "\n\n".join(sections)
+
+
+def tail_text(value: str, max_lines: int = 40) -> str:
+    lines = [line for line in value.strip().splitlines() if line.strip()]
+    if not lines:
+        return ""
+    return "\n".join(lines[-max_lines:])
+
+
+def extract_review_text(raw_text: str) -> dict[str, Any]:
+    candidates: list[str] = []
+    stripped = raw_text.strip()
+    if stripped:
+        candidates.append(stripped)
+
+    unfenced = strip_code_fence(stripped)
+    if unfenced and unfenced not in candidates:
+        candidates.append(unfenced)
+
+    braced = extract_braced_json(stripped)
+    if braced and braced not in candidates:
+        candidates.append(braced)
+
+    for candidate in candidates:
+        try:
+            review = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        validate_review(review)
+        return review
+
+    raise RuntimeError("Codex CLI returned a response that was not valid review JSON.")
+
+
+def strip_code_fence(text: str) -> str:
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if len(lines) >= 3 and lines[-1].strip() == "```":
+        return "\n".join(lines[1:-1]).strip()
+    return text
+
+
+def extract_braced_json(text: str) -> str:
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char != "{":
+            continue
+        try:
+            _, end = decoder.raw_decode(text[index:])
+        except json.JSONDecodeError:
+            continue
+        return text[index : index + end]
+    return ""
+
+
+def extract_usage_from_jsonl(stdout: str) -> dict[str, Any] | None:
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        msg = event.get("msg")
+        if isinstance(msg, str) and msg.startswith("tokens used:"):
+            return {"codex_cli": msg[len("tokens used:") :].strip()}
+    return None
 
 
 def validate_review(review: dict[str, Any]) -> None:
+    if not isinstance(review, dict):
+        raise RuntimeError("Review payload must be a JSON object.")
+
     required = ["status", "summary", "safe_to_autofix", "issue_counts", "issues", "follow_up_tests"]
     for key in required:
         if key not in review:
             raise RuntimeError(f"Review missing required field: {key}")
+
+    if review["status"] not in {"pass", "fail"}:
+        raise RuntimeError("Review status must be `pass` or `fail`.")
+    if not isinstance(review["summary"], str):
+        raise RuntimeError("Review summary must be a string.")
+    if not isinstance(review["safe_to_autofix"], bool):
+        raise RuntimeError("Review safe_to_autofix must be a boolean.")
+
+    counts = review["issue_counts"]
+    if not isinstance(counts, dict):
+        raise RuntimeError("Review issue_counts must be an object.")
+    for key in ("critical", "high", "medium", "low"):
+        value = counts.get(key)
+        if not isinstance(value, int):
+            raise RuntimeError(f"Review issue_counts.{key} must be an integer.")
+
+    issues = review["issues"]
+    if not isinstance(issues, list):
+        raise RuntimeError("Review issues must be an array.")
+    valid_severities = {"critical", "high", "medium", "low"}
+    valid_categories = {
+        "bug",
+        "regression",
+        "security",
+        "performance",
+        "maintainability",
+        "test_gap",
+        "other",
+    }
+    for issue in issues:
+        if not isinstance(issue, dict):
+            raise RuntimeError("Each review issue must be an object.")
+        for key in ("severity", "category", "file", "line", "title", "detail", "recommendation"):
+            if key not in issue:
+                raise RuntimeError(f"Review issue missing required field: {key}")
+        if issue["severity"] not in valid_severities:
+            raise RuntimeError(f"Invalid review issue severity: {issue['severity']}")
+        if issue["category"] not in valid_categories:
+            raise RuntimeError(f"Invalid review issue category: {issue['category']}")
+        if not isinstance(issue["file"], str):
+            raise RuntimeError("Review issue file must be a string.")
+        if issue["line"] is not None and not isinstance(issue["line"], int):
+            raise RuntimeError("Review issue line must be an integer or null.")
+        for key in ("title", "detail", "recommendation"):
+            if not isinstance(issue[key], str):
+                raise RuntimeError(f"Review issue {key} must be a string.")
+
+    follow_up_tests = review["follow_up_tests"]
+    if not isinstance(follow_up_tests, list):
+        raise RuntimeError("Review follow_up_tests must be an array.")
+    if not all(isinstance(test, str) for test in follow_up_tests):
+        raise RuntimeError("Each follow_up_tests entry must be a string.")
 
 
 def estimate_tokens(text: str) -> int:
@@ -677,4 +927,7 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
+        raise SystemExit(2)
+    except Exception as exc:
+        print(f"Unexpected error: {exc}", file=sys.stderr)
         raise SystemExit(2)
