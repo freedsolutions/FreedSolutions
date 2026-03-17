@@ -22,6 +22,8 @@ ops/linkedin-crm-service/config/*.local.json
 
 # Dependencies (zero-dep project - defensive only)
 node_modules/
+__pycache__/
+*.pyc
 
 # Claude Code local settings (except version-controlled skills)
 .claude/*
