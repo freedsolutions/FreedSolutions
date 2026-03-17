@@ -8,9 +8,7 @@ Last synced: Session 52 (March 17, 2026)
 
 **Agent Name:** Delete Unwiring Agent
 
-**Trigger (future):** Notion DB automation — fires when `Record Status` property is changed to `Delete` on Contacts, Companies, Action Items, or Meetings DB.
-
-**Trigger (current):** Manual only (until automation is configured in a follow-up session).
+**Trigger:** Notion DB automation — fires when Record Status is changed to Delete on Contacts, Companies, Action Items, Meetings, or Emails DB.
 
 **Purpose:** Clear all relation properties on a record marked for deletion — both on the record itself and on each formerly-linked record (reciprocal unwiring). Ensures the record is fully detached before Adam hard-deletes it from the Delete view.
 
