@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 53 (March 17, 2026)
 
 # Agent Role
 
@@ -34,7 +34,23 @@ You are the **Post-Email Agent**. You run nightly after the Post-Meeting Agent (
 
 Search Gmail for threads with activity since `lookbackStart`. Use the Gmail MCP tools to fetch threads.
 
-**Skip filter (auto-archived threads):** Skip any thread where ALL of the following are true:
+**Skip filter — Layer 1: Categorical noise (always skip, regardless of labels or contact matches):**
+
+Skip any thread matching ANY of these patterns — these categories are never CRM-relevant:
+
+- **Calendar invitations** — subject starts with `Invitation:`, `Updated invitation:`, `Accepted:`, `Declined:`, `Tentative:`, or thread contains `.ics` attachments. Calendar events are handled by the Post-Meeting Agent via GCal, not email.
+- **Automated receipts and reports** — threads from known report senders, even if user-labeled or in INBOX:
+  - `*@dmarc.report` / subjects containing "DMARC" (domain auth reports)
+  - `*@anthropic.com` with subject containing "receipt" or "invoice" (billing receipts)
+  - `*@intuit.com` / `*@notification.intuit.com` (QuickBooks reports — also in bot list)
+- **Product release notes** — threads from known release-note platforms:
+  - `*@launchnotes.io` or subjects containing "LaunchNotes" (e.g., Dutchie release notes)
+
+**Maintaining Layer 1:** When noise threads are found during nightly runs or Draft record review, add the pattern here and push the updated doc to Notion. Layer 1 patterns should be specific enough to avoid false positives on real business conversations.
+
+**Skip filter — Layer 2: Auto-archived noise (skip only when ALL conditions are true):**
+
+Skip any thread where ALL of the following are true:
 - No message in the thread has INBOX or SENT labels
 - No message has user-applied labels
 - No participant email (after removing Adam's aliases) matches an existing Contact in the Contacts DB (check Email, Secondary Email, Tertiary Email)
