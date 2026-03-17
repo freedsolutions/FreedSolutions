@@ -87,6 +87,7 @@ These rules apply to Claude.ai planning sessions:
 7. **Fetch instruction pages on demand** — if discussing a specific agent, fetch its instruction page for full context rather than working from memory.
 8. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting large content, Settings changes). When a planning output includes a UI step: (a) explicitly tag it as "Adam — UI step", (b) do NOT mark it complete until Adam confirms, (c) do not assume completion from indirect signals like page existence.
 9. **Verify content on sync, not just existence.** When marking a page as "in sync" with a local doc, verify content matches — not just that the page exists.
+10. **For Notion workspace doc changes, Codex review happens before session-log updates.** Claude Code should push mapped docs, verify live Notion parity, run the Codex review gate, and only then update the Session — Active log or mark work complete.
 
 **What Claude.ai CAN do directly:**
 - Fetch and read any Notion page for review

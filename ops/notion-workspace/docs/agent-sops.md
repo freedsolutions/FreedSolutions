@@ -330,7 +330,7 @@ Claude (in any interface) cannot archive/trash individual Notion pages via MCP t
 These apply to every Claude session, regardless of interface:
 
 1. **Read the Active handoff FIRST** — it has everything needed for context
-2. **Standing approval applies to routine Notion work**. If Adam asks to update, sync, harden, document, or maintain the Notion workspace, execute the full read, edit, push, verify, and log loop without asking for step-by-step permission.
+2. **Standing approval applies to routine Notion work**. If Adam asks to update, sync, harden, document, or maintain the Notion workspace, execute the full read, edit, push, verify, review, and log loop without asking for step-by-step permission.
 3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches lifecycle state, creates new CRM DB records, or is a migration/bulk operation
 4. **For migrations or bulk operations:** audit current state → present plan → get Adam's approval → execute in phases with verification
 5. **Never create new DB records** unless explicitly instructed
@@ -371,6 +371,8 @@ Additional context after `/notion` scopes the task in either mode (e.g., `/notio
 **Claude.ai (planning chat):** Attach `CLAUDE.md` + relevant repo docs. Say "Fetch the Active session page and let's plan" or "...and let's review [topic]."
 
 No session numbers in kickoff prompts. The Active page heading contains the session number — Claude reads it and orients automatically.
+
+**Codex review gate for Notion workspace doc changes:** When a task changes local files under `ops/notion-workspace/`, use this order: edit local source-of-truth files → push mapped docs to Notion → re-fetch and verify live parity → run Codex review on the current worktree → update the Session — Active log → commit and push. Do not update the session log before the Codex review gate unless Adam explicitly asks for a pre-review draft note.
 
 **Commit convention:** After completing any task that changes local files (docs, configs, CLAUDE.md), commit and push to main. Concise commit message per logical task. Don't batch unrelated changes. Plan mode doesn't commit (nothing to commit). Edit mode commits after each completed task.
 

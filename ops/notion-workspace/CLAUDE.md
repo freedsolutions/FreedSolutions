@@ -52,7 +52,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 ## Rules of Engagement
 
 1. **Read the Active Handoff FIRST** — it has full context for the current session.
-2. **Standing approval applies to routine Notion work.** If Adam asks to update, sync, harden, document, or maintain the Notion workspace, execute the full read, edit, push, verify, and log loop without asking for step-by-step permission.
+2. **Standing approval applies to routine Notion work.** If Adam asks to update, sync, harden, document, or maintain the Notion workspace, execute the full read, edit, push, verify, review, and log loop without asking for step-by-step permission.
 3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches Record Status, creates new CRM DB records, or is a migration/bulk operation.
 4. **For migrations or bulk operations:** audit current state → present plan → get Adam's approval → execute in phases with verification between each.
 5. **Never create new DB records** unless explicitly instructed.
@@ -109,13 +109,26 @@ At the end of every session, use Notion MCP tools to:
 - Ephemeral/runtime data (sessions, agent config, CRM records) lives in Notion only.
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
 
+## Codex Review Gate
+
+For tasks that change local files in `ops/notion-workspace/`, use this order:
+
+1. Edit the local source-of-truth files.
+2. Push the mapped instruction docs to Notion via MCP when applicable.
+3. Re-fetch the updated Notion pages and verify live content parity with the local docs.
+4. Run the Codex review gate on the current worktree.
+5. Only after the review passes or its findings are explicitly accepted, update the Session — Active log.
+6. Then commit and push to `main`.
+
+Do **not** update the session log before the Codex review gate unless Adam explicitly asks for a draft log note before review.
+
 ## Planning Output (Session Active)
 
 The Session — Active page may contain a **Planning Output** section written by Claude.ai during planning sessions. When present:
 
 1. **Read it during First Steps** — it contains agreed changes, decisions, and execution notes from the planning session.
 2. **Execute the listed changes** using standing approval — these have already been discussed and approved by Adam.
-3. **Mark changes as done** in the session log as they are completed.
+3. **Mark changes as done** in the session log only after the Codex review gate passes (or Adam explicitly accepts the findings).
 
 Planning happens in Claude.ai (via the `notion-session` skill); execution happens here in Claude Code. The Session — Active page is the shared handoff mechanism.
 
