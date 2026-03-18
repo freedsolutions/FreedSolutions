@@ -1,6 +1,6 @@
 # Notetaker CRM
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 56 (March 18, 2026)
 
 **Type:** Notion Calendar AI Notetaker Profile
 **Status:** Active — Session 38 (March 15, 2026), updated Session 39 (source reference format)
@@ -8,12 +8,12 @@ Last synced: Session 51 (March 16, 2026)
 
 ## Input Channels
 
-The AI notetaker processes two input channels that influence the summary output:
+Action Items are **human-driven**. The Post-Meeting Agent does NOT mine the transcript for AI-inferred action items. There are exactly two canonical sources:
 
-- **Voice commands** — "Hey Floppy" spoken during the meeting appears in the transcript. The notetaker surfaces these as `(Floppy)`-prefixed Action Items (Layer 1). The Post-Meeting Agent also parses them independently from the raw transcript (Layer 2).
-- **Typed notes** — Notes typed directly into Notion Calendar's notetaker panel during the meeting. These are treated as first-party input alongside the transcript, giving Adam a second channel to drive prescriptive Action Items without speaking aloud.
+- **Typed notes (primary)** — Notes typed directly into Notion Calendar's notetaker panel during the meeting. Every non-Floppy line Adam types is treated as a candidate action item by the Post-Meeting Agent (Step 2.1). This is the primary input channel — Adam types what matters, and the agent captures it.
+- **Voice commands (secondary)** — "Hey Floppy" spoken during the meeting appears in the transcript. The notetaker surfaces these as `(Floppy)`-prefixed Action Items (Layer 1). The Post-Meeting Agent also parses them independently from the raw transcript (Layer 2 — Step 2.0).
 
-Both channels feed into the same `### Action Items` section of the AI summary, which the Post-Meeting Agent parses in Steps 2.0–2.4.
+The **transcript** is a conversation record only — used for TL;DR summary (Step 3) and Floppy voice command extraction, but NOT mined for action items. This eliminates AI-inferred noise and puts Adam in control of what becomes an Action Item.
 
 ---
 
@@ -38,6 +38,8 @@ Notion's template has four sections: Context, Summary format (with named section
 > This is the most important section. Always place it first. Format every action item as a markdown checklist item: `- [ ] [Person name] to [action] [source reference]`. Lead with the person's name (first name as spoken). Use imperative voice: "send", "review", "schedule" — not "will send". Include deadlines when mentioned. One item per line — never combine two actions. Include source references in brackets. Do not editorialize — capture commitments, not hypotheticals. If the speaker assigns something to themselves, use their name explicitly, never "I" or "me".
 >
 > CRITICAL — "Hey Floppy" commands (voice AND typed notes): Adam may say "Hey Floppy" (or "Hey, Floppy", "A Floppy", "Hey Floppi") followed by a command, or type "Hey Floppy" followed by a command in the Notes panel. These are the highest-priority items. Always include them as Action Items. Preserve Adam's exact wording. Place Floppy items FIRST in the list. Prefix with "(Floppy)": `- [ ] (Floppy) Adam to send Jake the ConnectNexus docs [00:14:23]`. For items sourced from typed notes rather than voice, use `[Notes]` as the source reference instead of a timestamp: `- [ ] (Floppy) Adam to write LinkedIn post discussing the Dime podcast episode [Notes]`. If a Floppy command overlaps with an organically discussed item, keep both — the downstream agent handles dedup.
+>
+> END-OF-MEETING RECAP: When the meeting is nearing its end (final 2-3 minutes, or when participants begin wrapping up), prompt Adam with a brief recap: "Before we wrap — any action items to capture?" This gives Adam a last chance to type or speak any remaining items. The Post-Meeting Agent parses typed Notes directly, so anything Adam types at this point becomes a candidate Action Item automatically.
 
 ### Section 2: Key Decisions
 
@@ -62,14 +64,13 @@ Notion's template has four sections: Context, Summary format (with named section
 
 ## Why This Format
 
-The Post-Meeting Agent (see [post-meeting.md](post-meeting.md)) parses the `### Action Items` heading to extract checklist items. It expects:
+The Post-Meeting Agent (see [post-meeting.md](post-meeting.md)) uses a **human-driven model** for Action Items:
 
-- `- [ ]` markdown checklist format (rendered as Notion `to_do` blocks)
-- Person names that match Contacts DB records (first name, full name, or nickname)
-- Source references in brackets — both `[HH:MM:SS]` timestamps (voice) and `[Notes]` tags (typed notes) are valid formats, stripped during parsing
-- Clear imperative voice for the action
+1. **Typed Notes (primary):** The agent parses ALL non-Floppy content from the Notes panel (Step 2.1). Every line Adam types becomes a candidate Action Item. The AI summary's `### Action Items` heading still captures Floppy items (Layer 1) but is no longer mined for AI-inferred items.
+2. **Floppy commands (secondary):** The `(Floppy)` prefix serves Layer 1 of the Floppy design — the AI summary surfaces "Hey Floppy" commands as structured `to_do` blocks. The Post-Meeting Agent reads these (Step 2.0 Source 1) and also independently parses the transcript (Layer 2).
+3. **Transcript:** Conversation record only — used for TL;DR summary and Floppy voice command extraction. NOT mined for action items.
 
-The `(Floppy)` prefix serves **Layer 1** of the Floppy design (see [_floppy-design.md](_floppy-design.md)): by telling the notetaker to explicitly surface "Hey Floppy" commands, the AI summary already reflects Adam's voice commands before the Post-Meeting Agent's independent transcript parse (Layer 2) even runs. This makes the AI summary more prescriptive and the downstream Draft items faster to approve.
+This means the notetaker's Action Items section is primarily a reflection of what Adam typed and spoke via Floppy — not AI-inferred commitments. The downstream agent trusts Adam's input over AI interpretation.
 
 ## Notetaker Profiles Roadmap
 

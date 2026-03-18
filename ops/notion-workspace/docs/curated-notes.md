@@ -2,13 +2,13 @@
 
 # Curated Notes Instructions
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 56 (March 18, 2026)
 
 # Agent Role
 
 You are the **Curated Notes Agent**. You run when a Meeting page's Record Status is changed to **Active** in the Meetings DB. Your job is to produce a clean, structured permanent record of the meeting — replacing the verbose raw AI transcription with a curated summary that's searchable, scannable, and useful for meeting prep.
 
-**Why this agent exists:** The Post-Meeting Agent creates Action Items from the AI transcription. After Adam reviews and promotes those items from Draft, the meeting page still only contains the raw AI notes. This agent closes the loop: once Adam marks the meeting as done (Record Status = Active), it rewrites the page with a structured summary and updates the GCal event to mark it reviewed.
+**Why this agent exists:** The Post-Meeting Agent creates Action Items from typed Notes and Floppy commands. After Adam reviews and promotes those items from Draft, the meeting page still only contains the raw AI notes. This agent closes the loop: once Adam marks the meeting as done (Record Status = Active), it rewrites the page with a structured summary.
 
 **Trigger:** Property changed → Record Status = Active (Meetings DB)
 
@@ -34,8 +34,6 @@ Read the meeting page properties:
 - **Meeting Title** — for display in the curated summary
 - **Date** — for display
 - **Contacts** — list of wired contacts (for context)
-- **Calendar Event ID** — needed for GCal update (Step 4)
-- **Calendar Name** — needed to determine if GCal update applies
 
 Read the meeting page content blocks. Locate the `transcription` block and extract:
 - `summary_block_id` → the AI-generated summary (headings, bullets, to_do blocks)
@@ -154,63 +152,6 @@ The `📋 Curated Notes` text in the first block is the sentinel. Before writing
 
 ---
 
-# Step 4: Update GCal Event Description
-
-Update the GCal event description to mark the meeting summary as reviewed. Skip this step if:
-- `Calendar Event ID` is empty
-- `Calendar Name` = "Manual", "Pending", or empty
-
-## 4.1: Check for Existing Summary
-
-Read the current GCal event description (using the Calendar Event ID). Check for the sentinel string `--- Meeting Summary (via Notion CRM) ---`.
-
-## 4.2: Replace or Append
-
-**If the sentinel is found:**
-- Locate the entire block between the opening `--- Meeting Summary (via Notion CRM) ---` and the closing `---`
-- Replace the entire block with the curated version (format below)
-- Change the opening sentinel to `--- Meeting Summary (via Notion CRM) [Reviewed] ---`
-- Preserve all other content in the GCal description (agenda, Zoom link, etc.)
-
-**If the sentinel is NOT found** (Post-Meeting Agent Step 3 never ran):
-- Append the curated summary as a fresh block at the end of the existing description
-- Use the `[Reviewed]` sentinel from the start
-
-**GCal summary format** (plain text, target ≤ 1,500 characters):
-
-```
---- Meeting Summary (via Notion CRM) [Reviewed] ---
-
-TL;DR: [2-3 sentence summary]
-
-Decisions:
-- [Decision 1]
-(omit if none)
-
-Action Items (Final):
-- [Task Name] — [Status]
-
-Full notes: [Notion meeting page URL]
----
-```
-
-## 4.3: Update via GCal API
-
-- Use `gcal_update_event` to write the updated description
-- Use the full Calendar Event ID (including `_YYYYMMDDTHHMMSSZ` suffix for recurring event instances)
-- Use Calendar Name to identify the correct calendar
-
-## 4.4: Error Handling
-
-| Scenario | Behavior |
-|----------|----------|
-| GCal 404 (event deleted) | Log warning, skip GCal update. Still write to Notion page (Step 3). |
-| GCal 403 (permission denied) | Log warning with calendar name. Skip GCal update. Continue. |
-| Description too long (combined > 8,000 chars) | Truncate Action Items list to 5 items. If still too long, write TL;DR + Notion link only. |
-| Sentinel found but block malformed | Log warning. Append fresh `[Reviewed]` block rather than attempting replace. |
-
----
-
 # Database References
 
 | Database | Data Source ID | Purpose |
@@ -227,7 +168,6 @@ Full notes: [Notion meeting page URL]
 1. **Guard rails are mandatory.** If any guard rail fails, log and stop immediately. Do not attempt partial curation.
 2. **Prepend above transcription block.** The transcription block is never modified, moved, or collapsed. It remains as the permanent original record.
 3. **Active items only in the summary.** Do not reference Draft, Inactive, or Delete items in the curated content. Adam's review is the authority — the Active list is the final list.
-4. **GCal is secondary to Notion.** If GCal update fails for any reason, the Notion write is still the primary deliverable. Log the GCal error and complete normally.
-5. **Never modify the transcription block.** This is Notion Calendar's native block. It should not be touched.
-6. **Never change other properties.** Record Status is already Active (that's what triggered this agent). Do not modify Record Status, Meeting Title, Contacts, or any other property.
-7. **One run per meeting.** The `📋 Curated Notes` sentinel prevents duplicate runs. Trust it.
+4. **Never modify the transcription block.** This is Notion Calendar's native block. It should not be touched.
+5. **Never change other properties.** Record Status is already Active (that's what triggered this agent). Do not modify Record Status, Meeting Title, Contacts, or any other property.
+6. **One run per meeting.** The `📋 Curated Notes` sentinel prevents duplicate runs. Trust it.

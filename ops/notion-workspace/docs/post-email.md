@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 
-Last synced: Session 53 (March 17, 2026)
+Last synced: Session 56 (March 18, 2026)
 
 # Agent Role
 
@@ -96,6 +96,7 @@ Collect all unique email addresses from the thread (From, To, CC across all mess
 Remove Adam's known email addresses from the participant list:
 - adam@freedsolutions.com
 - adam@primitivgroup.com
+- adamjfreed@gmail.com
 - freedsolutions@gmail.com
 - systems@gmail.com
 
@@ -150,15 +151,29 @@ Fetch the full thread content from Gmail (all messages).
 
 ## 3.2: AI Parsing
 
-Use AI to identify actionable items from the thread. Apply the same grouping rules as the Post-Meeting Agent:
+Use AI to identify actionable items from the thread:
 
-- **Group related items** — if multiple messages reference the same action, create one Action Item (not duplicates).
 - **Task vs Follow Up** — if Adam is the responsible party, the Action Item will be a Task (Assignee = Adam). If someone else is responsible, it's a Follow Up (Assignee = blank).
 - **Skip noise** — do not create Action Items for pleasantries, FYI-only content, or completed actions mentioned in past tense.
 
+## 3.2b: Consolidate Related Items (Sub-Task Grouping)
+
+After identifying candidate action items, run a consolidation pass:
+
+1. **Same-topic test:** If 2+ items share the same project, topic, or deliverable, they are candidates for grouping. Ask: "Would Adam track these as one task or separately?"
+2. **Same-contact test:** Grouped items should involve the same Contact. Don't group items involving different people unless they're truly part of the same deliverable.
+3. **Standalone items:** Items that don't match any group stay as single Action Items — no sub-tasks section added.
+
+**How to consolidate grouped items:**
+
+- **Task Name:** Concise imperative capturing the umbrella goal.
+- **Page body:** Add a `## Sub-tasks` heading followed by individual sub-items as `to_do` blocks (one per sub-item). This gives Adam a checklist within the Action Item page.
+- **Task Notes:** Include the original thread excerpts for each sub-item for traceability.
+- **Assignee / Contact / Company / Priority:** Inherit from the most representative item. If items span Task and Follow Up types, default to Assignee = Adam.
+
 ## 3.3: Create Action Items
 
-For each parsed action item, create a page in the **Action Items DB** (`319adb01-222f-8059-bd33-000b029a2fdd`) with:
+For each parsed action item (after consolidation), create a page in the **Action Items DB** (`319adb01-222f-8059-bd33-000b029a2fdd`) with:
 
 - **Task Name**: concise imperative description
 - **Record Status**: `Draft`
@@ -166,9 +181,12 @@ For each parsed action item, create a page in the **Action Items DB** (`319adb01
 - **Priority**: `Low` (default when unknown)
 - **Source Email**: relation to the Email stub
 - **Contact**: relation to the relevant Contact (the person requesting or responsible)
+- **Company**: look up the wired Contact's Company relation and set it on the Action Item. If the Contact has no Company, leave blank.
 - **Assignee**: Adam's Notion User ID (`30cd872b-594c-81b7-99dc-0002af0f255a`) for Tasks, blank for Follow Ups
 - **Task Notes**: context from the email thread (relevant excerpt or summary)
 - **Due Date**: extract from email content if explicitly mentioned, otherwise leave blank
+
+For grouped items, add a `## Sub-tasks` heading in the page body with `to_do` blocks for each sub-item.
 
 ---
 
@@ -195,7 +213,7 @@ After all threads are processed:
 1. **Never create duplicate Email stubs** — always dedup by Thread ID before creating.
 2. **Never create duplicate Contacts** — always check Email, Secondary Email, and Tertiary Email across all existing Contacts before creating a Draft.
 3. **Never modify existing Email stubs** — if a Thread ID already exists in the DB, skip it entirely. Label updates and re-processing are not in v1 scope.
-4. **Adam's aliases are sacred** — never create Contact records for adam@freedsolutions.com, adam@primitivgroup.com, freedsolutions@gmail.com, or systems@gmail.com.
+4. **Adam's aliases are sacred** — never create Contact records for adam@freedsolutions.com, adam@primitivgroup.com, adamjfreed@gmail.com, freedsolutions@gmail.com, or systems@gmail.com.
 5. **Bot addresses are excluded** — never create Contact records for known automated senders (see Step 2.2b). If a thread has only bot participants after alias/bot removal, skip CRM wiring.
 6. **Draft everything** — all new records (Emails, Contacts, Action Items) start as Draft. Only Adam promotes to Active.
 7. **Dedup checks are mandatory** — always check ALL email fields for contacts, BOTH domain fields for companies.
