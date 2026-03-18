@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 53 (March 17, 2026)
+Last synced: Session 55 (March 17, 2026)
 
 ---
 
@@ -99,7 +99,7 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
   - Agent Config → Can edit
   - Post-Meeting Instructions → Can edit
   - Agent SOPs → Can view
-- **Connections:** Calendar adam@freedsolutions.com (Adam-Business: Read and write) | Mail adam@freedsolutions.com (Read and draft) | Web access: On
+- **Connections:** Calendar adam@freedsolutions.com (Adam-Business: Read and write; Adam-Personal: Read — pending Adam sharing personal calendar to this account) | Mail adam@freedsolutions.com (Read and draft) | Web access: On
 - **Model:** Opus 4.6
 
 ### Post-Email Agent
@@ -274,7 +274,7 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Meeting Title** (title) — event title from GCal
 - **Record Status** (select: Draft/Active/Inactive/Delete)
 - **Calendar Event ID** (text) — GCal event ID, canonical identity for matching
-- **Calendar Name** (text) — source calendar display name; also "processed" signal
+- **Calendar Name** (select: Adam - Business, Adam - Personal, Manual, Pending) — source calendar; also "processed" signal
 - **Date** (date) — event start + end, stored in Eastern timezone
 - **Contacts** (relation → Contacts DB, synced dual) — attendees wired via email matching
 - **Companies** (rollup) — derived from Contacts' Company relations
@@ -289,7 +289,8 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
   - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contacts`). Safe-to-delete check takes priority. First non-empty relation wins.
   - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
   - `TRUE` — all checks pass (or Delete with all relations cleared)
-  - Required fields (non-Delete): Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date
+  - Required fields (non-Delete): Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date, Contacts
+  - `missing:Contacts` — Record Status ≠ Delete, not a Series Parent, and Contacts relation is empty. With the solo-event wiring rule, every meeting should have at least one Contact (Adam). An empty Contacts field means something went wrong. Label is `missing:Contacts` (not `missing:Companies`) because Companies is a derived rollup — fixing Contacts fixes Companies.
   - Delete wiring check (in order): Contacts → Action Items → Series → Instances
 - **Created Timestamp** (created_time) — auto-set on page creation
 

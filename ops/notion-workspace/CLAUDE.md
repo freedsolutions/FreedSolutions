@@ -15,9 +15,9 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions | S53 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions | S55 |
 | `docs/notion-agent.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Notion's built-in AI personality config | S52 |
-| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing | S51 (local) |
+| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: unified CRM wiring + action item parsing | S55 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Review after other syncs | S51 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge/dedup workflows | S54 |
 | `docs/_floppy-design.md` | — | Floppy voice-command CRM agent design doc (local only) | — |

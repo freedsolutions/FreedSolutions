@@ -2,7 +2,7 @@
 
 # Post-Meeting Instructions
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 55 (March 17, 2026)
 
 # Agent Role
 
@@ -67,7 +67,7 @@ For each unwired page from Step 1.2:
 4. **Run Contact Matching Rules** (see below) for each attendee email.
 5. **Merge Contacts relation** — read existing Contacts on the page, add GCal-derived contacts, write the union. **Never remove existing contacts** — Adam may have manually wired contacts who aren't in the GCal invite (e.g., in-person attendees). Deduplicate by page URL before writing.
 6. **Wire Series relation** if the Meeting Title matches a Series Registry pattern (see below).
-7. **Set Calendar Name** to the source calendar's display name (from GCal) or "Manual".
+7. **Set Calendar Name** to the matching select option for the source calendar (see Multi-Calendar Support table) or "Manual".
 8. **Set Location** if the GCal event has a `location` field — copy the value as-is. If Location is already populated on the page, do not overwrite.
 9. **Set Date** if not already populated — use the GCal event start/end times in Eastern timezone (see timezone rule in Important Rules).
 10. **Normalize Meeting Title (in-memory only)**: When reading the Meeting Title for Series matching or display, strip "FW:" / "Fwd:" prefixes and trim whitespace in memory. Do NOT write the normalized title back to the page — the "Property updated in Meetings" trigger is scoped to Meeting Title, and writing it would cause a re-trigger loop. Do NOT append instance suffixes like "(Mar 16)".
@@ -78,7 +78,7 @@ For each unwired page from Step 1.2:
 📋 CRM Wiring (via Post-Meeting Agent)
 Calendar: [Calendar Name] | Event ID: [Calendar Event ID]
 Date: [Date in readable format, e.g., "Mar 15, 2026 3:00–3:30 PM ET"]
-Contacts: [Contact names, comma-separated, or "none — solo event"]
+Contacts: [Contact names, comma-separated, or "Adam Freed (solo)"]
 Series: [Series name, or omit if none]
 ```
 
@@ -105,7 +105,7 @@ After processing existing pages, check GCal for meetings that occurred since `lo
 | Meeting Title | GCal event summary (strip FW:/Fwd:, trim whitespace) |
 | Calendar Event ID | GCal event ID (full instance ID for recurring events) |
 | Date | Event start + end, Eastern timezone, is_datetime = 1 |
-| Calendar Name | Source calendar display name |
+| Calendar Name | Source calendar select option |
 | Contacts | Wire via Contact Matching Rules (from GCal attendees) |
 | Series | Link to Series Parent if title matches a pattern |
 | Is Series Parent | No |
@@ -115,7 +115,7 @@ After processing existing pages, check GCal for meetings that occurred since `lo
 
 4. Apply the same Contact Matching, Domain-Based Company Wiring, and Unknown Handling rules as for existing pages (Step 1.3).
 
-**Solo events** (no attendees): Create the record with no Contacts wired. Calendar Name and other metadata are still populated. Do not flag anything.
+**Solo events** (no attendees remaining after the Emails to EXCLUDE filter): Wire **Adam Freed** as the sole Contact. The Default Company fallback chain handles Company assignment per calendar (Adam - Business → Freed Solutions, Adam - Personal → Personal). The exclude list is unchanged — Adam's emails are still excluded from attendee matching. The solo-event rule only fires when the attendee list is empty post-exclusion. Calendar Name and other metadata are still populated.
 
 ## 1.5: Update Last Successful Run Timestamp
 
@@ -723,16 +723,16 @@ The agent processes meetings from **all configured calendars** with the same wir
 | Calendar | Google Account | Calendar Name | Default Company | Status |
 |---|---|---|---|---|
 | Adam's primary | adam@freedsolutions.com | "Adam - Business" | Freed Solutions | Active |
-| Personal GCal | Separate or linked account | *(GCal display name)* | *(Personal — TBD)* | Pending OAuth |
+| Adam's personal | adamjfreed@gmail.com (shared to adam@freedsolutions.com) | "Adam - Personal" | Personal | Active |
 | Lynn's GCal | Separate account | *(GCal display name)* | *(TBD)* | Pending OAuth |
 | Shared GCal | Shared with Adam's account | *(GCal display name)* | *(TBD)* | Pending OAuth |
 | Client GCals | Separate Google accounts per client | *(GCal display name)* | *(TBD per client)* | Pending OAuth |
 
-**Calendar Name value:** The agent reads the calendar's display name from the GCal API (`summary` field) and writes it to the Calendar Name property. This enables calendar-based filtering in views.
+**Calendar Name value:** Calendar Name is a **select** property with fixed options: `Adam - Business`, `Adam - Personal`, `Manual`, `Pending`. The agent reads the calendar's display name from the GCal API (`summary` field) and writes the matching select option to the Calendar Name property. This enables calendar-based filtering in views.
 
 **Default Company:** When an Action Item has no Contact (or the Contact has no Company), the agent falls back to the calendar's Default Company. This ensures Adam-only tasks are always attributed — business tasks to "Freed Solutions," personal tasks to the personal company (once configured). See Action Item routing tables (Steps 2.0.6 and 2.3) for the full fallback chain. The agent resolves "Freed Solutions" by searching the Companies DB by Company Name (case-insensitive match).
 
-**For now, only Adam's primary calendar (adam@freedsolutions.com) is active.** Calendar Name = "Adam - Business", Default Company = "Freed Solutions". Additional calendars will be added as OAuth access is configured. The instruction page will be updated with each new calendar's Default Company mapping.
+**Two calendars are currently active.** Adam - Business (adam@freedsolutions.com, Default Company = "Freed Solutions") and Adam - Personal (adamjfreed@gmail.com shared to adam@freedsolutions.com, Default Company = "Personal"). Additional calendars will be added as OAuth access is configured. The instruction page will be updated with each new calendar's Default Company mapping.
 
 ---
 
@@ -769,7 +769,7 @@ The agent processes meetings from **all configured calendars** with the same wir
 10. **Do NOT create duplicate source DB records.** Before creating a Contact, search by email (all 3 fields). Before creating a placeholder Company, search by domain in Domains AND Additional Domains. Reuse existing records regardless of Record Status.
 11. **Secondary and Tertiary emails matter.** Always check all email fields. This is the #1 source of past duplicate issues.
 12. **Domain priority in multi-domain companies.** First domain in the Domains property is the primary/canonical domain. All domains are valid for matching.
-13. **Company wiring is mandatory on ALL Action Items.** Fallback chain: (1) Contact's Company, (2) meeting's other Contacts' Companies, (3) calendar Default Company (see Multi-Calendar Support). Every Action Item must have a Company — Adam-only tasks from the business calendar get "Freed Solutions", personal calendar tasks will get the personal company once configured.
+13. **Company wiring is mandatory on ALL Action Items.** Fallback chain: (1) Contact's Company, (2) meeting's other Contacts' Companies, (3) calendar Default Company (see Multi-Calendar Support). Every Action Item must have a Company — Adam-only tasks from the business calendar get "Freed Solutions", personal calendar tasks get "Personal".
 14. **Generic domain handling.** Gmail, Yahoo, Outlook, Hotmail, iCloud, AOL, Protonmail — check full email address against Domains/Additional Domains. No placeholder Companies for generic domains.
 
 ## Record Status & Lifecycle
