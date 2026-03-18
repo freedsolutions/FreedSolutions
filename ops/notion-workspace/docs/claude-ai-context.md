@@ -6,7 +6,7 @@ Lightweight CLAUDE.md equivalent for Claude.ai chat sessions. Read by the `notio
 
 Local source-of-truth: `docs/claude-ai-context.md` (repo). Keep the Notion page in sync when the local file changes.
 
-Last synced: Session 52 (March 17, 2026)
+Last synced: Session 57 (March 18, 2026)
 
 ---
 
@@ -34,10 +34,10 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 | Session — Active | `323adb01-222f-81f1-bd4b-d0383d39d47a` | Current session handoff (overwritten each session) |
 | Session — Archive | `323adb01-222f-81dd-a175-c17d8fd8c71a` | System Evolution Arc + session snapshots |
 | Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | Runtime state (Last Successful Run timestamp) |
-| Post-Meeting Instructions | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent (4-step: CRM wiring → Floppy → AI parse → GCal sync) |
+| Post-Meeting Instructions | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent (5-step: CRM wiring → Floppy → Notes parse → GCal sync → Curated Notes) |
 | Contact & Company Instructions | `323adb01-222f-8126-9db8-df77be5a326f` | Enrichment agent for Draft contacts/companies |
 | Delete Unwiring Instructions | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Clears relations before hard delete |
-| Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | Curated meeting summary (trigger: Record Status → Active) |
+| Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 4 |
 | Post-Email Instructions | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent (4-step: Gmail sweep → CRM wiring → AI parse → summary) |
 | Notetaker CRM | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker profile for Notion Calendar AI |
 
@@ -56,7 +56,9 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 
 **Record Status** (all 5 source DBs): Draft → Active → Inactive → Delete
 
-**QC formula** (all 4 DBs): `TRUE` (pass) / `missing:fieldname` (fail) / `wired:PropertyName` (Delete-safe check) / `past_due` (Action Items only)
+**QC formula** (all 5 source DBs): `TRUE` (pass) / `missing:fieldname` (fail) / `wired:PropertyName` (Delete-safe check) / `past_due` (Action Items only)
+
+**Meetings DB Automation** (not an agent): "Page added to Meetings" → sets Record Status = Draft + page icon = 🗓️. Instant, no agent credits.
 
 ---
 
@@ -64,11 +66,11 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 
 | Agent | Trigger | Status |
 |---|---|---|
-| Post-Meeting Agent | Nightly 10 PM ET + reactive (Record Status → Draft + page content edited, Meetings DB) | Live |
+| Post-Meeting Agent | Nightly 10 PM ET + Record Status → Active (Meetings DB) + manual | Live |
 | Contact & Company Review | Manual (@mention only) | Active (manual) |
 | Delete Unwiring Agent | Record Status → Delete (5 source DBs) + manual | Live |
-| Curated Notes Agent | Record Status → Active (Meetings DB) | Live |
-| Post-Email Agent | Nightly ~10:30 PM ET (after Post-Meeting Agent) | Live |
+| Curated Notes Agent | Record Status → Active (Meetings DB) | Deprecated (folded into Post-Meeting Agent S57) |
+| Post-Email Agent | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Live |
 
 **Model:** Opus 4.6 (all agents)
 
@@ -110,7 +112,7 @@ These rules apply to Claude.ai planning sessions:
 |---|---|---|
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agent Registry, schema conventions |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent instructions |
-| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent instructions |
+| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 4 |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent instructions |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent instructions |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM profile |

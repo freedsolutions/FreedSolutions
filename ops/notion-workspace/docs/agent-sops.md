@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 55 (March 17, 2026)
+Last synced: Session 57 (March 18, 2026)
 
 ---
 
@@ -46,13 +46,13 @@ All agents have an instruction page under the Automation Hub containing the full
 
 | Agent | Instruction Page | Trigger | Model | Status | Settings URL |
 | --- | --- | --- | --- | --- | --- |
-| Post-Meeting Agent | Post-Meeting Instructions | Nightly 10 PM ET + reactive (Record Status → Draft + page content edited, Meetings DB) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/321adb01222f805f8182009253dc57a7?wfv=settings) |
+| Post-Meeting Agent | Post-Meeting Instructions | Nightly 10 PM ET + Record Status → Active (Meetings DB) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/321adb01222f805f8182009253dc57a7?wfv=settings) |
 | Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
 | Contact & Company Review | Contact & Company Instructions | Manual (@mention only) | Opus 4.6 | Active (manual) | [Settings](https://www.notion.so/agent/323adb01222f802cb5640092af74e84a?wfv=settings) |
 | Delete Unwiring Agent | Delete Unwiring Instructions | Record Status → Delete (5 source DBs) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f80d2844a0092e63da4ea?wfv=settings) |
-| Curated Notes Agent | Curated Notes Instructions | Property changed → Record Status = Active (Meetings DB) | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f802e91290092cb71c17d?wfv=settings) |
+| Curated Notes Agent | Curated Notes Instructions | Disabled (was: Record Status = Active, Meetings DB) | Opus 4.6 | Deprecated (folded into Post-Meeting Agent S57) | [Settings](https://www.notion.so/agent/325adb01222f802e91290092cb71c17d?wfv=settings) |
 | Post-Email Agent | Post-Email Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f806da7960092bc6484d3?wfv=settings) |
 
 Naming conventions:
@@ -90,7 +90,7 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
 
 ### Post-Meeting Agent
 
-- **Triggers:** Daily 10 PM | Property updated: Meetings → Record Status = Draft (page-content-edit: CHECKED) | @mention
+- **Triggers:** Daily 10 PM | Property updated: Meetings → Record Status = Active (page-content-edit: UNCHECKED) | @mention
 - **Notion Page Access:**
   - Meetings → Can edit content
   - Action Items → Can edit content
@@ -101,6 +101,7 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
   - Agent SOPs → Can view
 - **Connections:** Calendar adam@freedsolutions.com (Adam-Business: Read and write; Adam-Personal: Read — pending Adam sharing personal calendar to this account) | Mail adam@freedsolutions.com (Read and draft) | Web access: On
 - **Model:** Opus 4.6
+- **Note:** S57 trigger overhaul — reactive "Meeting Title edited" trigger retired (caused duplicate stubs). Replaced with Record Status → Active. Nightly 10 PM remains as safety net for Draft pages (Steps 1–3 only). Active trigger runs full pipeline (Steps 1–4 including Curated Notes, folded from standalone Curated Notes Agent).
 
 ### Post-Email Agent
 
@@ -116,9 +117,10 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
 - **Connections:** Mail adam@freedsolutions.com (Read) | Web access: Off | NO calendar
 - **Model:** Opus 4.6
 
-### Curated Notes Agent
+### Curated Notes Agent — DEPRECATED (S57)
 
-- **Triggers:** Property updated: Meetings → Record Status = Active (page-content-edit: UNCHECKED) | @mention
+- **Status:** Deprecated — logic folded into Post-Meeting Agent Step 4 (S57). Trigger should be **disabled** in Notion UI (not deleted — available for rollback).
+- **Former Triggers:** Property updated: Meetings → Record Status = Active (page-content-edit: UNCHECKED) | @mention
 - **Notion Page Access:**
   - Meetings → Can edit content
   - Action Items → Can edit content
@@ -179,6 +181,14 @@ Manual workflows that are not automated agents but document repeatable procedure
 | Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` | 📧 |
 
 **Adam's Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
+
+## Meetings DB Automation
+
+A Notion DB automation (not an agent — no credits) runs on "Page added to Meetings":
+- Sets **Record Status** to Draft
+- Sets **page icon** to 🗓️
+
+This ensures every new meeting page starts in Draft with a consistent icon. The Post-Meeting Agent's Step 1.3 has a safety-net check for pages that pre-date the automation.
 
 ---
 
