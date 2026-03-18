@@ -2,7 +2,7 @@
 
 # Merge Workflow
 
-Last synced: Session 51 (March 16, 2026)
+Last synced: Session 54 (March 17, 2026)
 
 # When This Applies
 
@@ -16,19 +16,19 @@ A placeholder Company exists in the Companies DB for a domain that actually belo
 
 **Applies to ALL delete scenarios** — merges, standalone deletes, junk record cleanup, any record moving to Record Status = Delete in any database.
 
-Before setting Record Status = Delete on any record, **clear all relation properties on that record AND clear the corresponding relation on each linked record**. Both sides must be explicitly unwired to prevent orphaned links.
+Before setting Record Status = Delete on any record, **clear all relation properties on that record**. All CRM relations are synced dual — clearing one side auto-propagates to linked records (confirmed S54). Spot-check a linked record to verify propagation.
 
 ## Relation Map
 
-| Database | Relations to Clear on Record | Linked Records to Update (other side) |
-|----------|------------------------------|---------------------------------------|
-| **Contacts** | Company, Meetings, Emails | Remove contact from Meeting.Contacts, ActionItem.Contact, Email.Contacts |
-| **Companies** | *(no outbound relations)* | Remove company from Contact.Company, ActionItem.Company |
-| **Action Items** | Contact, Company, Source Meeting, Source Email | Remove action item from Meeting.Action Items, Email.Action Items |
-| **Meetings** | Action Items, Contacts | Remove meeting from ActionItem.Source Meeting, Contact.Meetings |
-| **Emails** | Contacts, Action Items | Remove email from Contact.Emails, ActionItem.Source Email |
+| Database | Relations to Clear on Record |
+|----------|------------------------------|
+| **Contacts** | Company, Meetings, Emails |
+| **Companies** | *(no outbound relations — Contacts and Action Items are inbound/synced)* |
+| **Action Items** | Contact, Company, Source Meeting, Source Email |
+| **Meetings** | Contacts, Action Items, Series, Instances |
+| **Emails** | Contacts, Action Items |
 
-> **Why both sides?** Notion two-way relations auto-sync in the UI, but clearing one side via API doesn't always propagate cleanly. Explicitly clearing both sides guarantees no orphaned backlinks remain after Adam hard-deletes the record.
+> **Synced dual relations (S54 finding):** Clearing a relation on one side (e.g., Contacts on a Meeting) automatically removes the reciprocal link (that Meeting from each Contact's Meetings). Explicit reciprocal clearing is no longer required — spot-check only.
 
 ---
 
@@ -107,17 +107,17 @@ Open the **canonical Contact** (e.g., "Morgan Carlone"). Set the email as **Seco
 
 > **Why this is the critical step:** Once the email is on the canonical contact, all future agent dedup checks will catch it. Steps 2-3 are cleanup of existing records only.
 
-### Step 2: Re-wire Meetings and Action Items
+### Step 2: Re-wire Meetings, Action Items, and Emails
 
-Find all Meetings and Action Items currently linked to the duplicate Contact. Update each record's **Contact** relation to point to the canonical Contact instead. Since **Meetings** is now a synced dual relation on Contacts, both sides must be explicitly cleared: remove the duplicate Contact from each Meeting's **Contacts** relation, and clear the duplicate Contact's **Meetings** relation.
+Find all Meetings, Action Items, and Emails currently linked to the duplicate Contact. Update each record's **Contact** relation to point to the canonical Contact instead. For Meetings: add the canonical Contact to each Meeting's **Contacts** relation (replacing the duplicate). For Emails: add the canonical Contact to each Email's **Contacts** relation (replacing the duplicate). Clearing the duplicate Contact's relations in Step 3 will auto-propagate via synced dual.
 
-**How to find them:** Open the duplicate Contact page — its Meetings and Action Items relations will show all linked records.
+**How to find them:** Open the duplicate Contact page — its Meetings, Action Items, and Emails relations will show all linked records.
 
 ### Step 3: Flag or Delete the Duplicate Contact
 
-Once all Meetings and Action Items have been re-wired:
+Once all Meetings, Action Items, and Emails have been re-wired:
 
-1. **Verify the duplicate is fully unwired** — open the duplicate Contact page and confirm all relation backlinks are empty (no Meetings, no Action Items, no Company still linked). This should already be true after Step 2, but verify before proceeding. See [Unwire Before Delete](#universal-rule-unwire-before-delete).
+1. **Verify the duplicate is fully unwired** — open the duplicate Contact page and confirm all relation backlinks are empty (no Meetings, no Action Items, no Emails, no Company still linked). This should already be true after Step 2, but verify before proceeding. See [Unwire Before Delete](#universal-rule-unwire-before-delete).
 2. Set the duplicate's **Record Status** to **Delete** (red).
 3. Add a Contact Notes flag: "MERGED → [Canonical Contact Name]. Ready for HARD DELETE per merge workflow."
 4. Adam periodically sweeps the Delete view and trashes flagged records.
@@ -187,12 +187,13 @@ The distinction is for Adam's operational clarity, not for agent matching logic.
 - [ ] Duplicate's email added to canonical Contact's Secondary/Tertiary Email
 - [ ] All Meetings re-wired from duplicate → canonical Contact
 - [ ] All Action Items re-wired from duplicate → canonical Contact
+- [ ] All Emails re-wired from duplicate → canonical Contact
 - [ ] All relations on duplicate verified empty (Unwire Before Delete)
 - [ ] Duplicate Contact set to Record Status = Delete with Contact Notes flag
-- [ ] Spot-check: open canonical Contact, verify Meetings and Action Items look correct
+- [ ] Spot-check: open canonical Contact, verify Meetings, Action Items, and Emails look correct
 
 ## Standalone Delete (Non-Merge)
 - [ ] All relation properties on the record cleared (see Relation Map above)
-- [ ] Reciprocal relations on linked records cleared (both sides unwired)
+- [ ] Spot-check: reciprocal relations auto-propagated (synced dual)
 - [ ] Record set to Record Status = Delete with Notes field (Contact Notes / Company Notes / Task Notes) explaining why
 - [ ] Adam sweeps Delete view and trashes flagged records

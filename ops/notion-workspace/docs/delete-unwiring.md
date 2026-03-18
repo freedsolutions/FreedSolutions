@@ -2,7 +2,7 @@
 
 # Delete Unwiring Instructions
 
-Last synced: Session 52 (March 17, 2026)
+Last synced: Session 54 (March 17, 2026)
 
 # Agent Overview
 
@@ -10,7 +10,7 @@ Last synced: Session 52 (March 17, 2026)
 
 **Trigger:** Notion DB automation — fires when Record Status is changed to Delete on Contacts, Companies, Action Items, Meetings, or Emails DB.
 
-**Purpose:** Clear all relation properties on a record marked for deletion — both on the record itself and on each formerly-linked record (reciprocal unwiring). Ensures the record is fully detached before Adam hard-deletes it from the Delete view.
+**Purpose:** Clear all relation properties on a record marked for deletion. All CRM relations are synced dual — clearing one side auto-propagates to the other. The agent clears the record's own relations and verifies linked records are clean. Ensures the record is fully detached before Adam hard-deletes it from the Delete view.
 
 ---
 
@@ -18,29 +18,31 @@ Last synced: Session 52 (March 17, 2026)
 
 ## Step 1: Identify the Record
 
-Read the page that triggered the agent. Determine which DB it belongs to (Contacts, Companies, Action Items, or Meetings).
+Read the page that triggered the agent. Determine which DB it belongs to (Contacts, Companies, Action Items, Meetings, or Emails).
 
 ## Step 2: Check the Relation Map
 
-Based on the DB, identify which relation properties need to be cleared and which reciprocal relations on linked records must also be unwired:
+Based on the DB, identify which relation properties need to be cleared on the record itself. All relations are synced dual — clearing the record's own relations auto-propagates to linked records.
 
-| Database | Relations to Clear on Record | Linked Records to Update (other side) |
-|----------|------------------------------|---------------------------------------|
-| **Contacts** | Company, Meetings, Emails | For each linked Meeting: remove this contact from Meeting.Contacts. For each linked Email: remove this contact from Email.Contacts |
-| **Companies** | *(Contacts and Action Items are synced/inbound — clearing the outbound side on Contact/Action Item handles it)* | No outbound relations to clear on the Company itself, but verify no orphaned backlinks remain |
-| **Action Items** | Contact, Source Meeting, Source Email | For each linked Meeting: remove this action item from Meeting.Action Items. For each linked Email: remove this action item from Email.Action Items |
-| **Meetings** | Contacts, Action Items, Series, Instances | For each linked Contact: remove this meeting from Contact.Meetings. For each linked Action Item: remove this meeting from ActionItem.Source Meeting. For Series/Instances self-relations: clear both sides. |
-| **Emails** | Contacts, Action Items | For each linked Contact: remove this email from Contact.Emails. For each linked Action Item: remove this action item from ActionItem.Source Email |
+| Database | Relations to Clear on Record |
+|----------|------------------------------|
+| **Contacts** | Company, Meetings, Emails |
+| **Companies** | *(no outbound relations — Contacts and Action Items are inbound/synced)* |
+| **Action Items** | Contact, Company, Source Meeting, Source Email |
+| **Meetings** | Contacts, Action Items, Series, Instances |
+| **Emails** | Contacts, Action Items |
+
+> **Why one-side clearing is sufficient:** All CRM relations are synced dual. Clearing Contacts on a Meeting automatically removes that Meeting from each Contact's Meetings relation (confirmed S54). This applies to all relation pairs: Contacts ↔ Meetings, Contacts ↔ Emails, Action Items ↔ Meetings (Source Meeting), Action Items ↔ Emails (Source Email), Contacts → Company (synced to Companies.Contacts), and Series ↔ Instances (self-relation).
 
 ## Step 3: Clear All Relation Properties on the Record
 
 Set each relation property listed in the Relation Map to empty/null on the triggering record.
 
-## Step 4: Clear Reciprocal Relations on Linked Records
+## Step 4: Verify Reciprocal Propagation
 
-For each formerly-linked record, remove the specific page reference from the corresponding relation property. Both sides must be explicitly unwired to prevent orphaned links.
+Spot-check 1-2 formerly-linked records to confirm the reciprocal relation was auto-cleared by Notion's synced dual propagation. If any linked record still shows the deleted record in its relation, manually remove the specific page reference.
 
-**Important:** Only remove the specific page reference — do not clear the entire relation property on the linked record.
+> **Fallback only:** Under normal conditions, Step 3 handles both sides. Manual reciprocal clearing should only be needed if Notion's sync fails (e.g., API timeout, eventual consistency delay).
 
 ## Step 5: Add a Notes Flag
 
@@ -52,6 +54,7 @@ Append to the appropriate Notes field:
 - Companies: append to **Company Notes**
 - Action Items: append to **Task Notes**
 - Meetings: no notes field — the agent logs completion but does not append notes
+- Emails: append to **Email Notes**
 
 ## Step 6: Verify
 
@@ -67,7 +70,7 @@ Re-fetch the record and confirm:
 - **Never delete/trash pages.** The agent unwires; Adam hard-deletes from the Delete view.
 - **Never create new records.**
 - **Idempotent.** If relations are already empty, the agent does nothing and logs "Already unwired."
-- **Non-destructive on linked records.** When clearing reciprocal relations, only remove the specific page reference — do not clear the entire relation property on the linked record.
+- **Rely on synced dual propagation.** Clearing the record's own relations auto-clears reciprocals on linked records. Only manually touch linked records if spot-check (Step 4) reveals propagation failure.
 
 ---
 
@@ -83,7 +86,7 @@ Re-fetch the record and confirm:
 ```
 Delete Unwiring Agent — [Record Title] ([DB Name])
 - Relations cleared on record: [list]
-- Reciprocal relations updated: [count]
+- Reciprocal propagation spot-check: [passed / manual fix needed on X]
 - Already empty (skipped): [list]
 - Errors: [details or "none"]
 - Notes flag appended: [yes/no]
