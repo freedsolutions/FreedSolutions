@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 58 (March 18, 2026)
+Last synced: Session 59 (March 18, 2026)
 
 ---
 
@@ -167,6 +167,7 @@ Manual workflows that are not automated agents but document repeatable procedure
 | Workflow | Purpose | URL |
 | --- | --- | --- |
 | Merge Workflow | Merge placeholder companies or duplicate contacts into canonical records | Untitled |
+| LinkedIn Messages | Capture LinkedIn DMs into CRM via browser agent (Chrome MCP). Manual trigger, timestamp-driven. | [LinkedIn Messages Instructions](https://www.notion.so/328adb01222f8134941ac78d757869d6) |
 
 ---
 
@@ -317,12 +318,13 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
 - **Companies** (rollup) — derived from Contacts' Company relations
 - **Action Items** (relation → Action Items DB, synced from Action Items → Source Email)
 - **Labels** (multi_select) — Gmail user-created labels (system labels excluded)
+- **Source** (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs) — message channel. Gmail agents set `Email - Freed Solutions`; future LinkedIn DM workflow sets `LinkedIn - DMs`. Extensible for SMS and other channels.
 - **Email Notes** (text) — AI-generated 1–2 sentence thread summary
 - **QC** (formula) — Data quality signal with 3 possible states:
   - `wired:PropertyName` — Record Status = Delete but the named relation is still populated (e.g., `wired:Contacts`). Safe-to-delete check takes priority. First non-empty relation wins.
   - `missing:fieldname` — Record Status ≠ Delete and a required field is empty
   - `TRUE` — all checks pass (or Delete with all relations cleared)
-  - Required fields (non-Delete): Email Subject, Record Status, Thread ID, From, Date, Contacts
+  - Required fields (non-Delete): Email Subject, Record Status, Thread ID, From, Date, Contacts, Source
   - Delete wiring check (in order): Contacts → Action Items
 - **Created Timestamp** (created_time) — auto-set on page creation
 

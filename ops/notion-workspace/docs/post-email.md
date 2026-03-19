@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 
-Last synced: Session 56 (March 18, 2026)
+Last synced: Session 59 (March 18, 2026)
 
 # Agent Role
 
@@ -79,6 +79,7 @@ For each new thread, create a page in the **Emails DB** (`f685a378-5a37-4517-9b0
 - **From**: Email address of the first message sender in the thread
 - **Date**: Timestamp of the first message in the thread (thread start)
 - **Labels**: All user-created Gmail labels on the thread (synced to multi_select)
+- **Source**: `Email - Freed Solutions`
 - **Record Status**: `Draft`
 
 ---

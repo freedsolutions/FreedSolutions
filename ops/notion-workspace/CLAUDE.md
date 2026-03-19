@@ -15,7 +15,7 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions | S58 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agents, workflows, databases, schema conventions | S59 |
 | `docs/notion-agent.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Notion's built-in AI personality config | S52 |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 5-step pipeline (CRM wiring → Floppy → Notes → GCal sync → Curated Notes) | S57 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment (Gmail + Calendar + LinkedIn + web) for Draft + Active QC gaps | S58 |
@@ -24,8 +24,9 @@ Local `docs/` files are the **source of truth** for instruction content. Each fi
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: Notion Calendar AI notetaker instructions (paste into Calendar settings) | S56 |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations on Record Status = Delete records (synced dual, one-side clearing) | S54 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 4 | S57 |
-| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: nightly Gmail sweep → CRM wiring → AI action item parse → thread summary | S56 |
-| `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | Claude.ai planning context — lightweight CLAUDE.md for chat sessions | S58 |
+| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: nightly Gmail sweep → CRM wiring → AI action item parse → thread summary | S59 |
+| `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | Claude.ai planning context — lightweight CLAUDE.md for chat sessions | S59 |
+| `docs/linkedin-messages.md` | `328adb01-222f-8134-941a-c78d757869d6` | LinkedIn Messages workflow: DM capture via browser agent (Chrome MCP) → CRM | S59 |
 
 ## Notion-Only Resources (access via MCP)
 
@@ -88,7 +89,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), QC (formula), Domains, Additional Domains, States (default: "All"), Website, Contacts, Action Items, Engagements, Tech Stack, Record Status, Company Notes
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Attach File, QC (formula)
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
-- **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Record Status, Email Notes, QC (formula), Created Timestamp
+- **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email — all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) — both checked for dedup
 - **Delete handoff:** Claude sets Record Status = Delete + Notes field (Contact Notes / Company Notes / Task Notes) explaining why. Adam trashes from Delete view.
