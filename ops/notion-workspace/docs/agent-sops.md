@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 59 (March 18, 2026)
+Last synced: Session 60 (March 19, 2026)
 
 ---
 
@@ -336,6 +336,39 @@ Claude (in any interface) cannot archive/trash individual Notion pages via MCP t
 2. Claude sets Record Status = Delete
 3. Claude adds a Contact Notes / Company Notes / Task Notes flag explaining why (e.g., "MERGED → Formul8. Ready for HARD DELETE per merge workflow")
 4. Adam periodically sweeps the Inactive/Delete view and trashes flagged records
+
+---
+
+# Convention: Always Create Company
+
+Agents that create Draft Contacts must always wire a Company — never leave Company blank on a new contact.
+
+**Rule:** When domain matching fails for a new Draft Contact (no Company in the Companies DB has the contact's email domain in Domains or Additional Domains), create a **Draft Company placeholder** with minimal properties:
+
+| Property | Value |
+|----------|-------|
+| Company Name | The unmatched domain (e.g., `ckblackgroup.com`) |
+| Domains | The domain |
+| Record Status | Draft |
+| States | All |
+
+Wire the Draft Contact to the new placeholder immediately. The Contact & Company Agent picks up Draft Companies in its Phase 1 queue and enriches them (Company Type, Website, States correction, etc.) automatically. States = All is intentionally set as a default on all placeholders regardless of eventual Company Type — the Contact & Company Agent corrects it during enrichment (e.g., Operators get actual geography, Networks get member states).
+
+**Same-run dedup:** If multiple contacts share an unmatched domain within the same agent run, the first contact triggers placeholder creation. Subsequent contacts match the just-created placeholder via normal domain lookup — no duplicate Companies.
+
+**Generic email domains** (gmail.com, yahoo.com, outlook.com, etc.) are exempt — do not create placeholder Companies for generic domains. See Domain-Based Company Wiring rules in the Post-Meeting and Post-Email instruction pages.
+
+**Applies to:** Post-Meeting Agent (Step 1 contact creation), Post-Email Agent (Step 2 contact creation), and any future agent that creates contacts.
+
+## Network-Type Companies: Additional Domains Guidance
+
+Network-type companies (committees, associations, industry groups) have members from many different email domains. Example: ASTM D37 has members with `@astm.org`, `@thespockofcannabis.com`, `@ckblackgroup.com` addresses.
+
+**Guidance:** When a Network-type company is identified, proactively add associated institutional domains to **Additional Domains**. These are not "owned" domains in the corporate sense — they are **wiring domains** that ensure future email/meeting participants from those institutions are auto-wired to the correct Network company.
+
+- The primary **Domains** field should contain the organization's own domain (e.g., `astm.org` for ASTM D37)
+- **Additional Domains** captures member organization domains for wiring purposes
+- Placeholder companies created by the "Always Create Company" rule may later be merged into a Network-type parent via the Merge Workflow
 
 ---
 

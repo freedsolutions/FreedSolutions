@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 
-Last synced: Session 59 (March 18, 2026)
+Last synced: Session 60 (March 19, 2026)
 
 # Agent Role
 
@@ -134,7 +134,16 @@ When creating a Draft Contact for an unmatched email:
 1. Extract the domain from the email address.
 2. Query Companies DB checking both **Domains** and **Additional Domains** fields.
 3. If a match is found, wire the Company relation on the new Draft Contact.
-4. If no match is found, leave Company empty — Adam will wire manually during review.
+4. If no match is found, create a **Draft Company placeholder** with:
+   - **Company Name**: the unmatched domain (e.g., `ckblackgroup.com`)
+   - **Domains**: the domain
+   - **Record Status**: Draft
+   - **States**: All
+5. Wire the new Draft Contact to the placeholder Company immediately.
+
+**Same-run dedup:** If multiple contacts in the same run share an unmatched domain, the first contact triggers placeholder creation. Subsequent contacts from the same domain match the just-created placeholder via the normal domain lookup in step 2 — no duplicate Companies.
+
+**Generic email domains** (gmail.com, yahoo.com, outlook.com, hotmail.com, icloud.com, aol.com, protonmail.com) — do NOT create placeholder Companies. Instead, check if the **full email address** appears in any Company's Domains or Additional Domains. If matched, wire. If not matched, leave Company empty — manual wiring required.
 
 ## 2.5: Wire Contacts on Email Stub
 

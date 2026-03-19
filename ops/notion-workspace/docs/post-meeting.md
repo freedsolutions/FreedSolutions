@@ -2,7 +2,7 @@
 
 # Post-Meeting Instructions
 
-Last synced: Session 57 (March 18, 2026)
+Last synced: Session 60 (March 19, 2026)
 
 # Agent Role
 
@@ -218,14 +218,14 @@ Unknown contacts and domains are handled directly in their source databases. No 
 **Unknown domains:** When a new contact's email domain does not match any Company:
 
 1. Check for an existing placeholder first — search Companies DB for any Company (any Record Status) where Domains or Additional Domains contains this domain. If found → wire the contact to it.
-2. If no match, create a **placeholder Company** with:
+2. If no match, create a **Draft Company placeholder** with minimal properties:
    - **Company Name**: the domain (e.g., "newcompany.com")
    - **Domains**: the domain
    - **Record Status**: Draft
-   - **Company Type**: populate when clearly determinable — software/platform vendor → "Tech Stack"; cannabis operator → "Operator"; professional services/network contact → "Network"; personal → "Personal". When uncertain, leave blank. (Agent + Manual)
-   - **States**: if Company Type is set to "Tech Stack", default to "All". Otherwise leave blank unless the company's geography is clear from context. (Agent + Manual)
-   - **Website**: populate from web lookup when confident. Leave blank when uncertain. (Agent + Manual)
-3. Wire the new contact's Company relation to this placeholder.
+   - **States**: All
+3. Wire the new contact's Company relation to this placeholder immediately.
+
+The Contact & Company Agent picks up Draft Companies in its Phase 1 queue and enriches them (Company Type, Website, etc.) automatically. See "Convention: Always Create Company" in Agent SOPs.
 
 **Generic email domains** do NOT get placeholder Companies. See Domain-Based Company Wiring rule 6 above.
 
