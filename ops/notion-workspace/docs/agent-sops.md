@@ -277,8 +277,8 @@ Migrated from Approved + Active checkboxes in Session 32. Agents set new records
   - `missing:fieldname` — Record Status ≠ Delete and a required field is empty. `missing:task_status` uses `format()` wrapper (STATUS type requires it).
   - `past_due` — all required fields present AND Due Date < today() AND Status ≠ Done. Fires regardless of Record Status (except Delete, which routes to wired check first).
   - `TRUE` — all checks pass (or Delete with all relations cleared)
-  - Required fields (non-Delete): Task Name, Record Status, Status (task), Priority, Due Date, Contact, Source Meeting
-  - Delete wiring check (in order): Contact → Company → Source Meeting
+  - Required fields (non-Delete): Task Name, Record Status, Status (task), Priority, Due Date, Contact, Company, Source Meeting or Source Email
+  - Delete wiring check (in order): Contact → Company → Source Meeting → Source Email
   - Note: Task Notes are NOT required. Status is checked via `empty(format(Status))` due to Notion STATUS type constraints.
 
 ## Meetings DB Properties
