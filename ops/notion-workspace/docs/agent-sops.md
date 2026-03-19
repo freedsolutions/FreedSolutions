@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 57 (March 18, 2026)
+Last synced: Session 58 (March 18, 2026)
 
 ---
 
@@ -50,7 +50,7 @@ All agents have an instruction page under the Automation Hub containing the full
 | Meeting Sync | [DEPRECATED] Meeting Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
 | Post-Meeting Wiring | [DEPRECATED] Post-Meeting Wiring Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
 | Quick Sync | [DEPRECATED] Quick Sync Instructions | Disabled | — | Deprecated — replaced by Post-Meeting Agent (S37). Cutover complete (S37b). | — |
-| Contact & Company Review | Contact & Company Instructions | Manual (@mention only) | Opus 4.6 | Active (manual) | [Settings](https://www.notion.so/agent/323adb01222f802cb5640092af74e84a?wfv=settings) |
+| Contact & Company Agent | Contact & Company Instructions | Nightly 11 PM ET + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/323adb01222f802cb5640092af74e84a?wfv=settings) |
 | Delete Unwiring Agent | Delete Unwiring Instructions | Record Status → Delete (5 source DBs) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f80d2844a0092e63da4ea?wfv=settings) |
 | Curated Notes Agent | Curated Notes Instructions | Disabled (was: Record Status = Active, Meetings DB) | Opus 4.6 | Deprecated (folded into Post-Meeting Agent S57) | [Settings](https://www.notion.so/agent/325adb01222f802e91290092cb71c17d?wfv=settings) |
 | Post-Email Agent | Post-Email Instructions | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Opus 4.6 | Live | [Settings](https://www.notion.so/agent/325adb01222f806da7960092bc6484d3?wfv=settings) |
@@ -132,15 +132,16 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
 
 ### Contact & Company Agent
 
-- **Triggers:** @mention only (NO scheduled, NO property-change, NO calendar-event triggers)
+- **Triggers:** Daily 11 PM ET | @mention
 - **Notion Page Access:**
   - Contact & Company Instructions → Can edit
   - Companies → Can edit content
   - Contacts → Can edit content
   - Agent Config → Can edit
   - Agent SOPs → Can view
-- **Connections:** Web access: On | Calendar: adam@freedsolutions.com (Adam-Business: Read) | NO mail
+- **Connections:** Web access: On | Calendar: adam@freedsolutions.com (Adam-Business: Read) | Mail: adam@freedsolutions.com (Read)
 - **Model:** Opus 4.6
+- **Note:** S58 hardening — upgraded from manual-only to nightly scheduled (11 PM ET, after Post-Meeting at 10 PM and Post-Email at 10:30 PM). Scope expanded from Draft-only to Draft + Active with QC gaps. Gmail connection added for email signature mining. Data sources: Gmail signatures → Calendar → LinkedIn (via web) → open web.
 
 ### Delete Unwiring Agent
 
