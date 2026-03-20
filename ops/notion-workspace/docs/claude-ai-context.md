@@ -19,7 +19,7 @@ This workspace is a CRM and operations automation system for **Freed Solutions**
 - **Notion Custom Agents** stay focused on narrow scheduled or reactive automation.
 - **Claude.ai** is optional planning and review space. It should point execution back to Claude Code or Codex when the task becomes multi-file, high-risk, or workflow-specific.
 
-All interfaces share the same Session - Active page as the handoff.
+For Claude Code and Codex work, the canonical handoff is `ops/notion-workspace/session-active.md`. The Notion `Session - Active` page is a lightweight mirror or pointer for chat-only surfaces.
 
 **Owner:** Adam Freed
 **Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
@@ -32,8 +32,8 @@ All interfaces share the same Session - Active page as the handoff.
 |---|---|---|
 | Automation Hub | `321adb01-222f-810f-8706-e53105950d86` | Root page for agent config and instructions |
 | Agent SOPs | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model and runtime baseline |
-| Session - Active | `323adb01-222f-81f1-bd4b-d0383d39d47a` | Current session handoff |
-| Session - Archive | `323adb01-222f-81dd-a175-c17d8fd8c71a` | System evolution arc and session snapshots |
+| Session - Active | `323adb01-222f-81f1-bd4b-d0383d39d47a` | Optional pointer or status mirror for the repo handoff |
+| Session - Archive | `323adb01-222f-81dd-a175-c17d8fd8c71a` | Legacy session history |
 | Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | Runtime timestamps and state markers |
 | Post-Meeting Instructions | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent |
 | Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | Manual-only QA reviewer |
@@ -87,7 +87,7 @@ These skills are published to `~/.codex/skills` from `ops/notion-workspace/scrip
 
 # Rules of Engagement (Chat Mode)
 
-1. Read the Active handoff first.
+1. Read the repo handoff first when it is available in the current surface. Otherwise use the Notion `Session - Active` page as a mirror and hand execution back to Claude Code or Codex.
 2. Plan by default, but hand off execution to Claude Code or Codex skills when the task becomes implementation-heavy.
 3. Treat `CLAUDE.md`, `docs/agent-sops.md`, and the workflow docs as the authoritative local sources.
 4. Do not assume a Claude.ai-only slash command or planning skill is available.

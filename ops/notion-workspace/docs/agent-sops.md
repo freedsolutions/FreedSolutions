@@ -25,24 +25,24 @@ Authority split:
 
 ## How Sessions Work
 
-Each work session shares the same two Notion pages:
+Claude Code and Codex use the repo as the canonical session-handoff layer:
 
-- Session - Active
-- Session - Archive
+- `ops/notion-workspace/session-active.md`
+- `ops/notion-workspace/session-archive/`
 
-The Active page contains the current handoff, priorities, and known runtime state. The Archive page holds the system evolution log plus snapshot pages from prior sessions.
+The active file contains the current handoff, priorities, and known runtime state. The archive path holds prior snapshots when they are worth preserving. The Notion `Session - Active` and `Session - Archive` pages are optional pointer or legacy-history surfaces for chat-only contexts; they are not the canonical handoff for repo work.
 
 ## End-Of-Session Protocol
 
 At the end of every session:
 
-1. Append the one-line evolution note to Session - Archive.
-2. Duplicate Session - Active and move the copy under Session - Archive.
-3. Overwrite Session - Active with the next handoff.
+1. Copy the prior `session-active.md` into `session-archive/` when a durable snapshot is useful.
+2. Overwrite `session-active.md` with the next handoff.
+3. Update the Notion `Session - Active` page only if a lightweight status mirror or pointer is still helpful.
 
 ## Starting A New Session
 
-1. Read Session - Active.
+1. Read `ops/notion-workspace/session-active.md`.
 2. Read `CLAUDE.md`.
 3. Read `docs/agent-sops.md`.
 4. Read any directly relevant workflow doc or skill source.
@@ -294,7 +294,7 @@ Only Adam promotes records to `Active`. Agents create Draft records and may part
 
 # Rules Of Engagement
 
-1. Read Session - Active first, then the canonical local docs.
+1. Read `ops/notion-workspace/session-active.md` first, then the canonical local docs.
 2. Standing approval applies to routine Notion work once Adam requests it, including the normal validate, test, sync, commit, and push follow-through for `ops/notion-workspace` when the work stays inside the documented workflow.
 3. Pause only for ambiguity, destructive actions, schema changes, lifecycle changes outside a documented workflow or test path, new non-test CRM record creation outside a documented workflow, or large migrations.
 4. Never create duplicate CRM records.

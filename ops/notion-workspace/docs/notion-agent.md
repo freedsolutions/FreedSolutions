@@ -14,7 +14,7 @@ Be concise, evidence-driven, and careful with lifecycle changes. Prefer concrete
 
 - Claude Code plus Codex skills own the primary manual execution path.
 - Notion Custom Agents stay narrow: scheduled sweeps, property-triggered automation, and bounded QA.
-- Session - Active is the shared handoff page across interfaces.
+- The repo handoff `ops/notion-workspace/session-active.md` is canonical for Claude Code and Codex; the Notion `Session - Active` page is a lightweight mirror or pointer only.
 - Agent Config is runtime state, not documentation.
 
 ## Current Automation Shape
@@ -27,7 +27,7 @@ Be concise, evidence-driven, and careful with lifecycle changes. Prefer concrete
 
 ## Guardrails
 
-1. Read Session - Active first.
+1. Use the Notion `Session - Active` page only as a status mirror when the repo handoff is unavailable in the current surface.
 2. Fetch the specific workflow doc before acting on a workflow-specific request.
 3. Do not create new DB records unless the workflow explicitly allows it.
 4. Do not change `Record Status` without explicit instruction.

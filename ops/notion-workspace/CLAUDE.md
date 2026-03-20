@@ -5,10 +5,11 @@
 
 ## First Steps - Every Session
 
-1. **Read the Active Session Handoff first** via Notion MCP - page ID `323adb01-222f-81f1-bd4b-d0383d39d47a`.
-2. **Read local docs** - `ops/notion-workspace/docs/agent-sops.md` is the stable workflow reference, then read the workflow-specific doc that matches the task.
-3. **Use the repo Codex skills for manual workflows** - `ops/notion-workspace/skills/` is the canonical source for the manual operator layer.
-4. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
+1. **Read the repo session handoff first** - `ops/notion-workspace/session-active.md` is the canonical active handoff for Claude Code and Codex work.
+2. **Check the Notion Session - Active page only as a pointer or drift check** via MCP - page ID `323adb01-222f-81f1-bd4b-d0383d39d47a`.
+3. **Read local docs** - `ops/notion-workspace/docs/agent-sops.md` is the stable workflow reference, then read the workflow-specific doc that matches the task.
+4. **Use the repo Codex skills for manual workflows** - `ops/notion-workspace/skills/` is the canonical source for the manual operator layer.
+5. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
 
 ## Local Docs
 
@@ -42,6 +43,15 @@ Repo skill sources live under `ops/notion-workspace/skills/`. Installed copies b
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
 
+## Session Files
+
+The repo is the canonical home for session handoff docs.
+
+| File or Path | Purpose |
+|--------------|---------|
+| `ops/notion-workspace/session-active.md` | Canonical active handoff, priorities, and next actions |
+| `ops/notion-workspace/session-archive/` | Archived handoff snapshots and session-history support files |
+
 ## Notion-Only Resources (access via MCP)
 
 | Resource | Type | ID |
@@ -66,7 +76,7 @@ Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills
 
 ## Rules of Engagement
 
-1. **Read the Active Handoff first** - it has full context for the current session.
+1. **Read the repo active handoff first** - `ops/notion-workspace/session-active.md` has the canonical current-session context.
 2. **Standing approval applies to routine Notion work and its normal follow-through.** If Adam asks to update, sync, harden, test, document, maintain, commit, or push `ops/notion-workspace`, execute the full read, edit, push, verify, review, log, commit, and push loop without asking for step-by-step permission when the work stays inside the documented workflow.
 3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches `Record Status` outside an explicitly documented workflow or test path, creates non-test CRM DB records, or is a migration/bulk operation.
 4. **For migrations or bulk operations:** audit current state -> present plan -> get Adam's approval -> execute in phases with verification between each.
@@ -87,7 +97,7 @@ Routine Notion work is pre-authorized once Adam requests it. This includes:
 - Editing local `docs/` files and `ops/notion-workspace/CLAUDE.md`
 - Pushing local instruction changes to their mapped Notion pages via MCP
 - Updating the Active Session Handoff and Session Archive as part of normal session maintenance
-- Duplicating and moving session handoff pages during the documented end-of-session flow
+- Updating `session-active.md`, archiving prior handoffs under `session-archive/`, and refreshing the Notion Session - Active pointer when helpful
 - Adding logs, summaries, and verification notes needed to keep the workspace current
 - Updating repo skill sources and validating them locally
 - Running documented smoke and regression tests with `[TEST]` records or disposable audit pages, including bounded cleanup
@@ -140,20 +150,43 @@ For tasks that change local files in `ops/notion-workspace/`, use this order:
 2. Push the mapped instruction docs to Notion via MCP when applicable.
 3. Re-fetch the updated Notion pages and verify live content parity with the local docs.
 4. Run the Codex review gate on the current worktree.
-5. Only after the review passes or its findings are explicitly accepted, update the Session - Active log.
+5. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md` and any optional Notion pointer note.
 6. Then commit and push to `main`.
 
-Do **not** update the session log before the Codex review gate unless Adam explicitly asks for a draft log note before review.
+Do **not** update the canonical handoff before the Codex review gate unless Adam explicitly asks for a draft note before review.
 
-## Planning Output (Session Active)
+## Planning Output (Repo Handoff)
 
-The Session - Active page may contain a **Planning Output** section from Claude.ai, Claude Code, or Codex. When present:
+`ops/notion-workspace/session-active.md` may contain a **Planning Output** section from Claude.ai, Claude Code, or Codex. When present:
 
 1. Read it during First Steps.
 2. Execute the listed changes using standing approval when they are already approved.
 3. Mark changes as done in the session log only after the Codex review gate passes (or Adam explicitly accepts the findings).
 
-The Session - Active page remains the shared handoff mechanism. Do not assume a Claude.ai-specific slash command or planning skill is present.
+The repo handoff remains the canonical shared mechanism for Claude Code and Codex work. The Notion Session - Active page is an optional pointer or status mirror only.
+
+## Current Follow-Up Queue (March 20, 2026)
+
+Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
+
+### P1 - Observe the next scheduled Post-Email run
+
+- Confirm bot-only or alias-only terminal threads remain `Inactive`
+- Confirm those terminal threads do not create Contacts, Companies, or Action Items on reprocessing
+- Confirm `Post-Email Agent Last Run` advances after a successful nightly run
+
+### P2 - Run the next Post-Meeting regression slice
+
+- Active trigger on a representative meeting
+- Manual recovery path on a partially processed meeting
+- Duplicate no-notes protection
+- Live `Calendar Name` schema assumptions stay accurate
+
+### P3 - Resolve LinkedIn workflow posture after service removal
+
+- `ops/linkedin-crm-service` is gone from the repo; do not assume that old service still exists
+- If the LinkedIn Messages workflow remains active, run one manual smoke and replace the Agent Config placeholder timestamp
+- If the workflow is being retired, archive or remove the remaining LinkedIn runtime references instead of leaving a placeholder path behind
 
 ## Maintenance
 
