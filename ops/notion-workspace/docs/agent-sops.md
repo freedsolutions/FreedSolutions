@@ -4,7 +4,7 @@
 
 The living reference document for Adam's Notion workspace automation system. Used by both Adam and Claude (in any interface — chat, Claude Code terminal, or Claude App) to maintain continuity across sessions.
 
-Last synced: Session 60 (March 19, 2026)
+Last synced: Session 61 (March 19, 2026)
 
 ---
 
@@ -99,9 +99,9 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
   - Agent Config → Can edit
   - Post-Meeting Instructions → Can edit
   - Agent SOPs → Can view
-- **Connections:** Calendar adam@freedsolutions.com (Adam-Business: Read and write; Adam-Personal: Read — pending Adam sharing personal calendar to this account) | Mail adam@freedsolutions.com (Read and draft) | Web access: On
+- **Connections:** Calendar adam@freedsolutions.com (Adam-Business: Read; Adam-Personal: Read — pending Adam sharing personal calendar to this account) | Mail adam@freedsolutions.com (Read) | Web access: On
 - **Model:** Opus 4.6
-- **Note:** S57 trigger overhaul — reactive "Meeting Title edited" trigger retired (caused duplicate stubs). Replaced with Record Status → Active. Nightly 10 PM remains as safety net for Draft pages (Steps 1–3 only). Active trigger runs full pipeline (Steps 1–4 including Curated Notes, folded from standalone Curated Notes Agent).
+- **Note:** S57 trigger overhaul — reactive "Meeting Title edited" trigger retired (caused duplicate stubs). Replaced with Record Status → Active. Nightly 10 PM remains as safety net for Draft pages (Steps 1–2 only). Active trigger runs full pipeline (Steps 1–3 including Curated Notes, folded from standalone Curated Notes Agent). S61: GCal and Gmail connections changed to read-only. GCal sync-back (Step 3) retired — write attempts caused approval prompts that blocked Action Item creation.
 
 ### Post-Email Agent
 
@@ -119,7 +119,7 @@ Prescriptive spec for the Notion UI Custom Agent settings. Each agent's triggers
 
 ### Curated Notes Agent — DEPRECATED (S57)
 
-- **Status:** Deprecated — logic folded into Post-Meeting Agent Step 4 (S57). Trigger should be **disabled** in Notion UI (not deleted — available for rollback).
+- **Status:** Deprecated — logic folded into Post-Meeting Agent Step 3 (S57, renumbered S61). Trigger should be **disabled** in Notion UI (not deleted — available for rollback).
 - **Former Triggers:** Property updated: Meetings → Record Status = Active (page-content-edit: UNCHECKED) | @mention
 - **Notion Page Access:**
   - Meetings → Can edit content

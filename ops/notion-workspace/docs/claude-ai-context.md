@@ -6,7 +6,7 @@ Lightweight CLAUDE.md equivalent for Claude.ai chat sessions. Read by the `notio
 
 Local source-of-truth: `docs/claude-ai-context.md` (repo). Keep the Notion page in sync when the local file changes.
 
-Last synced: Session 59 (March 18, 2026)
+Last synced: Session 61 (March 19, 2026)
 
 ---
 
@@ -34,10 +34,10 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 | Session — Active | `323adb01-222f-81f1-bd4b-d0383d39d47a` | Current session handoff (overwritten each session) |
 | Session — Archive | `323adb01-222f-81dd-a175-c17d8fd8c71a` | System Evolution Arc + session snapshots |
 | Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | Runtime state (Last Successful Run timestamp) |
-| Post-Meeting Instructions | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent (5-step: CRM wiring → Floppy → Notes parse → GCal sync → Curated Notes) |
+| Post-Meeting Instructions | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent (4-step: CRM wiring → Floppy → Notes parse → Curated Notes). GCal sync-back retired S61. |
 | Contact & Company Instructions | `323adb01-222f-8126-9db8-df77be5a326f` | Enrichment agent for Draft + Active contacts/companies with QC gaps |
 | Delete Unwiring Instructions | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Clears relations before hard delete |
-| Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 4 |
+| Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 3 |
 | Post-Email Instructions | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent (4-step: Gmail sweep → CRM wiring → AI parse → summary) |
 | Notetaker CRM | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker profile for Notion Calendar AI |
 
@@ -112,7 +112,7 @@ These rules apply to Claude.ai planning sessions:
 |---|---|---|
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agent Registry, schema conventions |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent instructions |
-| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 4 |
+| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 3 |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent instructions |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent instructions |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM profile |
