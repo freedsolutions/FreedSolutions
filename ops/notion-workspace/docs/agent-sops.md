@@ -16,8 +16,6 @@ Authority split:
 
 - `docs/agent-sops.md`: canonical workflow, trigger, permission, schema, and session rules
 - `CLAUDE.md`: bootstrap and execution contract for repo work
-- `docs/claude-ai-context.md`: optional planning companion for chat surfaces
-- `docs/notion-agent.md`: high-level mirror only, not the operational source of truth
 
 ---
 
@@ -28,17 +26,16 @@ Authority split:
 Claude Code and Codex use the repo as the canonical session-handoff layer:
 
 - `ops/notion-workspace/session-active.md`
-- `ops/notion-workspace/session-archive/`
 
-The active file contains the current handoff, priorities, and known runtime state. The archive path holds prior snapshots when they are worth preserving. The Notion `Session - Active` and `Session - Archive` pages are optional pointer or legacy-history surfaces for chat-only contexts; they are not the canonical handoff for repo work.
+The active file contains the current handoff, priorities, and known runtime state. Git history is the default archive. Legacy Notion session pages are not part of the normal operating loop for repo work.
 
 ## End-Of-Session Protocol
 
 At the end of every session:
 
-1. Copy the prior `session-active.md` into `session-archive/` when a durable snapshot is useful.
-2. Overwrite `session-active.md` with the next handoff.
-3. Update the Notion `Session - Active` page only if a lightweight status mirror or pointer is still helpful.
+1. Overwrite `session-active.md` with the next handoff.
+2. Rely on git history for archive and rollback by default.
+3. Touch legacy Notion session pages only when retiring or cleaning up old scaffolding.
 
 ## Starting A New Session
 
