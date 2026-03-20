@@ -96,6 +96,7 @@ If no issues are found, still state what you checked and any residual risk or co
 
 - Existing Thread ID with incomplete downstream processing
 - Bot-only or alias-only threads that still created contacts
+- Bot-only or alias-only threads left in `Draft` with a QC-only missing-contacts gap after they were explicitly classified
 - Action Items with missing Company or fallback Due Date note
 - Email stubs missing `Email Notes`
 

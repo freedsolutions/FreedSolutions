@@ -151,6 +151,7 @@ Cover these cases:
 
 - [ ] Existing partial Email record is resumed, not duplicated
 - [ ] Bot-only threads remain record-only with no Contacts or Action Items
+- [ ] Bot-only threads are marked `Inactive` after explicit classification so they do not linger as Draft QC gaps
 - [ ] Action Items never have blank Company
 - [ ] Due Date fallback note is present when no deadline was stated
 - [ ] Agent Config timestamp updates after success

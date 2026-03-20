@@ -58,6 +58,7 @@ For each remaining thread:
 3. If no record exists, create a new Draft Email page.
 4. If a record exists, inspect it before skipping:
    - **Complete**: Contacts are wired and `Email Notes` is populated. Skip creation and downstream work.
+   - **Complete (bot-only terminal state)**: `Email Notes` explicitly says the thread was bot-only or alias-only, no Contacts are wired, and `Record Status = Inactive`. Skip downstream work.
    - **Partial**: record exists but Contacts are empty, `Email Notes` is blank, or the thread was never fully processed. Reuse the existing page and resume from the missing step instead of creating a duplicate.
 
 Create or resume the Email record with:
@@ -104,6 +105,8 @@ If a thread has no human participants after alias and bot removal:
 - keep the Email record
 - do not create Contacts or Action Items
 - write `Email Notes`: `Bot-only thread. CRM wiring skipped.`
+- set `Record Status = Inactive` after writing the note, unless Adam has already moved the record to `Delete`
+- treat the record as a terminal processed state, not a partial-run candidate
 
 ## 2.3: Contact matching
 
@@ -199,7 +202,7 @@ For every processed or resumed Email record:
 1. Never create duplicate Email records. Thread ID is the canonical key.
 2. Never skip an existing Thread ID blindly. First decide whether it is complete or partial.
 3. Always check all three contact email fields for dedup.
-4. Keep all new records in `Draft`.
+4. Keep all new actionable or manual-review records in `Draft`. Bot-only or alias-only terminal stubs may be moved to `Inactive` once they are explicitly annotated.
 5. Do not create Action Items with a blank Company.
 6. Do not leave `Email Notes` blank on a processed thread.
 7. Treat runtime drift explicitly. If live permissions or required page access are missing, log it and stop the affected step.

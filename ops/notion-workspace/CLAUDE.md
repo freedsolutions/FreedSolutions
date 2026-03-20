@@ -67,13 +67,13 @@ Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills
 ## Rules of Engagement
 
 1. **Read the Active Handoff first** - it has full context for the current session.
-2. **Standing approval applies to routine Notion work.** If Adam asks to update, sync, harden, document, or maintain the Notion workspace, execute the full read, edit, push, verify, review, and log loop without asking for step-by-step permission.
-3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches Record Status, creates new CRM DB records, or is a migration/bulk operation.
+2. **Standing approval applies to routine Notion work and its normal follow-through.** If Adam asks to update, sync, harden, test, document, maintain, commit, or push `ops/notion-workspace`, execute the full read, edit, push, verify, review, log, commit, and push loop without asking for step-by-step permission when the work stays inside the documented workflow.
+3. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches `Record Status` outside an explicitly documented workflow or test path, creates non-test CRM DB records, or is a migration/bulk operation.
 4. **For migrations or bulk operations:** audit current state -> present plan -> get Adam's approval -> execute in phases with verification between each.
 5. **Use repo skill sources for manual operator work.** Task-specific manual workflows belong in `ops/notion-workspace/skills/`, not in ad hoc slash-command notes.
 6. **`docs/notion-agent.md` is not a workflow authority.** If it conflicts with `CLAUDE.md`, `docs/agent-sops.md`, or the workflow docs, the local operating docs win.
-7. **Never create new DB records** unless explicitly instructed.
-8. **Never change Record Status** (Draft/Active/Inactive/Delete) without explicit instruction.
+7. **Never create new CRM DB records** unless explicitly instructed, except bounded `[TEST]` records or disposable audit pages required by the documented playbooks.
+8. **Never change `Record Status`** (`Draft`/`Active`/`Inactive`/`Delete`) without explicit instruction, except when the local workflow doc explicitly prescribes that exact bounded state transition as part of a validated run, cleanup step, or terminal no-op classification.
 9. **Log everything** - the session handoff is the system of record.
 10. **Dedup checks are mandatory** - always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies.
 11. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam - UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals.
@@ -90,13 +90,16 @@ Routine Notion work is pre-authorized once Adam requests it. This includes:
 - Duplicating and moving session handoff pages during the documented end-of-session flow
 - Adding logs, summaries, and verification notes needed to keep the workspace current
 - Updating repo skill sources and validating them locally
+- Running documented smoke and regression tests with `[TEST]` records or disposable audit pages, including bounded cleanup
+- Applying safe runtime repairs that bring live agent settings, runtime state, or individual records back into alignment with the local workflow docs
+- Staging, committing, and pushing `ops/notion-workspace` changes after validation and review, so long as unrelated work is not swept into the change
 
 Pause and ask before proceeding only when any of the following are true:
 
 - The request is ambiguous or conflicts with the local source-of-truth docs
 - The change would modify database schema, views, automations, or agent architecture
-- The change would create, merge, delete, or bulk-edit CRM records
-- The change would alter `Record Status` or other lifecycle controls
+- The change would create, merge, delete, or bulk-edit non-test CRM records
+- The change would alter `Record Status` or other lifecycle controls outside the documented workflow or test path
 - The operation is large enough that rollback would be difficult
 
 ## Key Schema Conventions

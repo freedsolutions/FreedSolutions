@@ -146,7 +146,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Model: Opus 4.6
 - Notes:
   - Existing stubs must be eligible for recovery if prior runs stopped after partial work.
-  - Bot-only threads may be summarized and skipped without creating CRM wiring or action items.
+  - Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items, then moved to `Inactive` once annotated so they do not linger as Draft QC gaps.
   - Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
 
 ## Curated Notes Agent
@@ -288,16 +288,17 @@ Only Adam promotes records to `Active`. Agents create Draft records and may part
 - `Thread ID` is the canonical email-thread identity
 - `Source` must be populated
 - Existing email stubs may be healed in place when prior runs only completed part of the workflow
+- Bot-only or alias-only email stubs should not remain operational Draft records after classification; once `Email Notes` explicitly marks that state, they should move to `Inactive`
 
 ---
 
 # Rules Of Engagement
 
 1. Read Session - Active first, then the canonical local docs.
-2. Standing approval applies to routine Notion work once Adam requests it.
-3. Pause only for ambiguity, destructive actions, schema changes, lifecycle changes, new CRM record creation outside a documented workflow, or large migrations.
+2. Standing approval applies to routine Notion work once Adam requests it, including the normal validate, test, sync, commit, and push follow-through for `ops/notion-workspace` when the work stays inside the documented workflow.
+3. Pause only for ambiguity, destructive actions, schema changes, lifecycle changes outside a documented workflow or test path, new non-test CRM record creation outside a documented workflow, or large migrations.
 4. Never create duplicate CRM records.
-5. Never change `Record Status` outside the explicit workflow rules or Adam's direct instruction.
+5. Never change `Record Status` outside the explicit workflow rules, documented test path, or Adam's direct instruction.
 6. Verify live parity after pushing a local doc to Notion.
 7. Keep docs, skills, and runtime behavior aligned. Do not accept silent drift as normal.
 

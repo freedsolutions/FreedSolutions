@@ -8,7 +8,6 @@ FreedSolutions/
 |- projects/
 |  |- linkedin-carousel/   # LinkedIn carousel slide designer
 |- ops/                    # Migration prompts, internal ops, and private service scaffolds
-|  |- linkedin-crm-service/  # LinkedIn OAuth intake service
 |  |- notion-workspace/      # Notion CRM automation docs + workflow config
 |- brand/                  # Brand assets - local only (.gitignore)
 ```
@@ -22,11 +21,6 @@ Each project has its own CLAUDE.md or README with workflow details.
 - Source: `projects/linkedin-carousel/src/`
 - Hooks: `git config core.hooksPath projects/linkedin-carousel/.githooks`
 
-**LinkedIn CRM Service** -> `ops/linkedin-crm-service/README.md`
-- Start: `node ops/linkedin-crm-service/src/server.js`
-- Tests: `node --test ops/linkedin-crm-service/test/*.test.js`
-- Notes: private backend scaffold only; keep secrets and deployment outside GitHub Pages
-
 **Notion Workspace** -> `ops/notion-workspace/CLAUDE.md`
 - Docs: `ops/notion-workspace/docs/`
 - Notes: instruction docs are local source of truth; CRM data and sessions stay in Notion (via MCP)
@@ -35,7 +29,6 @@ Each project has its own CLAUDE.md or README with workflow details.
 - Direct push to `main`
 - Git hooks path: `projects/linkedin-carousel/.githooks` (validates build ORDER + archives smoke artifacts)
 - No `package.json` or `node_modules` at the repo root - zero-dep repo
-- Exception: `ops/linkedin-crm-service/` is its own zero-dependency Node service with a local `package.json`
 - `index.html` at root is the Freed Solutions landing page (GitHub Pages)
 - Do not edit `index.html` without confirming the current CTA strategy (may change when Workspace email goes live)
 
