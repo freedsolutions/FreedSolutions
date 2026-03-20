@@ -1,0 +1,7 @@
+interface:
+  display_name: "Notion Agent Test"
+  short_description: "Run Notion agent smoke and regression tests"
+  default_prompt: "Use $notion-agent-test to run a smoke test for this Notion workflow or agent."
+
+policy:
+  allow_implicit_invocation: true

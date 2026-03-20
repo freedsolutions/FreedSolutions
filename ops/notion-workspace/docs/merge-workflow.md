@@ -2,198 +2,89 @@
 
 # Merge Workflow
 
-Last synced: Session 54 (March 17, 2026)
+Last synced: Session 62 (March 20, 2026)
 
 # When This Applies
 
-A placeholder Company exists in the Companies DB for a domain that actually belongs to an existing Company. This happens when an attendee's email domain (e.g., `subsidiary.com`) doesn't match any Company's Domains property, so the Post-Meeting Agent creates a placeholder. Later, Adam realizes the domain belongs to an existing Company (e.g., "Parent Corp" with domain `parentcorp.com`).
-
-**Example:** Agent creates placeholder Company "subsidiary.com" (Record Status = Draft). Adam knows subsidiary.com is actually part of Parent Corp. The placeholder needs to be merged into Parent Corp.
+Use this workflow when a placeholder Company or duplicate Contact should be merged into the canonical record without leaving stale wiring behind.
 
 ---
 
 # Universal Rule: Unwire Before Delete
 
-**Applies to ALL delete scenarios** — merges, standalone deletes, junk record cleanup, any record moving to Record Status = Delete in any database.
+Before setting any record to `Record Status = Delete`, clear the relevant relations first and verify the reciprocal links are gone.
 
-Before setting Record Status = Delete on any record, **clear all relation properties on that record**. All CRM relations are synced dual — clearing one side auto-propagates to linked records (confirmed S54). Spot-check a linked record to verify propagation.
-
-## Relation Map
-
-| Database | Relations to Clear on Record |
-|----------|------------------------------|
-| **Contacts** | Company, Meetings, Emails |
-| **Companies** | *(no outbound relations — Contacts and Action Items are inbound/synced)* |
-| **Action Items** | Contact, Company, Source Meeting, Source Email |
-| **Meetings** | Contacts, Action Items, Series, Instances |
-| **Emails** | Contacts, Action Items |
-
-> **Synced dual relations (S54 finding):** Clearing a relation on one side (e.g., Contacts on a Meeting) automatically removes the reciprocal link (that Meeting from each Contact's Meetings). Explicit reciprocal clearing is no longer required — spot-check only.
+Use the relation map from the current Delete Unwiring workflow and spot-check the result.
 
 ---
 
-# Step-by-Step Merge Procedure
+# Company Merge Workflow
 
-## Step 1: Add the Domain to the Real Company
+## Step 1: Decide Where The Domain Belongs
 
-Open the **real Company** (e.g., "Parent Corp") in the Companies DB. Edit the **Domains** property to include the new domain.
+Use these rules:
 
-**Before:** `parentcorp.com`
+- `Domains`
+  - primary operational domains
+  - employees actively send email from them today
+- `Additional Domains`
+  - merged domains
+  - subsidiary domains
+  - legacy domains
+  - alternate domains kept for matching and dedup
 
-**After:** `parentcorp.com, subsidiary.com`
+Promotion rule:
 
-> **Why this is the critical step:** Once the domain is added, all future agent runs will automatically match `subsidiary.com` to "Parent Corp." Steps 2-4 are cleanup of existing records only.
+- if the merged domain becomes a current day-to-day operating domain, add it to `Domains`
+- otherwise add it to `Additional Domains`
 
-## Step 2: Re-wire Contacts to the Real Company
+Do not treat every merged domain as primary by default.
 
-Find all Contacts currently linked to the placeholder Company. Update each Contact's **Company** relation to point to the real Company instead.
+## Step 2: Update The Canonical Company
 
-**How to find them:** Open the placeholder Company page -- its backlinks / relation will show all linked Contacts.
+Add the domain to the correct field on the canonical Company.
 
-## Step 3: Re-wire Action Items to the Real Company
+## Step 3: Rewire Contacts
 
-Find all Action Items currently linked to the placeholder Company. Update each Action Item's **Company** relation to point to the real Company.
+Move all Contacts from the duplicate Company to the canonical Company.
 
-**How to find them:** Same approach -- check the placeholder Company's backlinks for Action Items.
+## Step 4: Rewire Action Items
 
-> **Order matters:** Do Contacts (Step 2) before Action Items (Step 3). Action Items derive their Company from the Contact's Company (per Post-Meeting Agent rules), so fixing Contacts first ensures any *new* Action Items created after the merge inherit the correct Company automatically.
+Move any Action Items still wired to the duplicate Company to the canonical Company.
 
-## Step 4: Flag or Delete the Placeholder Company
+## Step 5: Delete-Safe Cleanup
 
-Once all Contacts and Action Items have been re-wired:
+Once the duplicate Company is fully unwired:
 
-1. **Verify the placeholder is fully unwired** — open the placeholder Company page and confirm all relation backlinks are empty (no Contacts, no Action Items still linked). This should already be true after Steps 2-3, but verify before proceeding. See [Unwire Before Delete](#universal-rule-unwire-before-delete).
-2. Set the placeholder's **Record Status** to **Delete** (red). This flags it in the Delete view for Adam to hard-delete.
-3. Alternatively, Adam can hard-delete it immediately from the Companies DB.
-
-**Why delete?** The placeholder's domain is now on the real Company. There is no dedup risk -- future agent runs will match the domain to the real Company. Keeping the placeholder would just be noise.
-
----
-
-# Edge Case: Enriched Placeholder
-
-If the placeholder Company has been **set to Active and enriched** (Adam added Company Type, States, Company Notes, etc.) before realizing it's a duplicate:
-
-1. Transfer any enrichment data (Company Type, States, Company Notes, Website) to the real Company before deleting.
-1. Then proceed with Steps 1-4 as normal.
-
-This is unlikely but possible if Adam approves a placeholder before discovering the relationship.
+1. verify backlinks are empty
+2. set `Record Status = Delete`
+3. add a note explaining the merge target
 
 ---
 
-# Frequency
+# Contact Merge Workflow
 
-This is expected to be **rare**. The scenario only arises when:
+## Step 1: Preserve The Duplicate Email
 
-- A new attendee has an email at a subsidiary/alternate domain
-- That domain isn't already listed on the parent Company
-- The agents create a placeholder before Adam adds the domain
+Add the duplicate email to the canonical Contact as `Secondary Email` or `Tertiary Email`.
 
-For now, this remains a **manual workflow**. If it starts happening frequently, it could be partially automated (e.g., a merge button or agent helper).
+## Step 2: Rewire Meetings, Emails, And Action Items
 
----
+Move all relations from the duplicate Contact to the canonical Contact.
 
-# Contact Merge (Email-Based Duplicates)
+## Step 3: Delete-Safe Cleanup
 
-When a duplicate Contact exists because the Post-Meeting Agent created a new contact from an email address that actually belongs to an existing contact (matched via Secondary Email or Tertiary Email that wasn't checked at creation time).
+Once the duplicate Contact is fully unwired:
 
-**Example:** Agent creates placeholder Contact "Morgan" from `morgantmendoza@gmail.com`. Adam knows this is Morgan Carlone's personal email. The placeholder needs to be merged into the canonical Morgan Carlone record.
-
-## Step-by-Step
-
-### Step 1: Add the Email to the Canonical Contact
-
-Open the **canonical Contact** (e.g., "Morgan Carlone"). Set the email as **Secondary Email** (or **Tertiary Email** if Secondary is already populated).
-
-> **Why this is the critical step:** Once the email is on the canonical contact, all future agent dedup checks will catch it. Steps 2-3 are cleanup of existing records only.
-
-### Step 2: Re-wire Meetings, Action Items, and Emails
-
-Find all Meetings, Action Items, and Emails currently linked to the duplicate Contact. Update each record's **Contact** relation to point to the canonical Contact instead. For Meetings: add the canonical Contact to each Meeting's **Contacts** relation (replacing the duplicate). For Emails: add the canonical Contact to each Email's **Contacts** relation (replacing the duplicate). Clearing the duplicate Contact's relations in Step 3 will auto-propagate via synced dual.
-
-**How to find them:** Open the duplicate Contact page — its Meetings, Action Items, and Emails relations will show all linked records.
-
-### Step 3: Flag or Delete the Duplicate Contact
-
-Once all Meetings, Action Items, and Emails have been re-wired:
-
-1. **Verify the duplicate is fully unwired** — open the duplicate Contact page and confirm all relation backlinks are empty (no Meetings, no Action Items, no Emails, no Company still linked). This should already be true after Step 2, but verify before proceeding. See [Unwire Before Delete](#universal-rule-unwire-before-delete).
-2. Set the duplicate's **Record Status** to **Delete** (red).
-3. Add a Contact Notes flag: "MERGED → [Canonical Contact Name]. Ready for HARD DELETE per merge workflow."
-4. Adam periodically sweeps the Delete view and trashes flagged records.
+1. verify backlinks are empty
+2. set `Record Status = Delete`
+3. add a merge note that names the canonical Contact
 
 ---
 
-# Domain Field Reference
+# Quick Rules
 
-Both merge workflows rely on correct domain data:
-
-- **Companies → Domains** (primary): comma-separated, no spaces. Used for agent matching (email domain → company lookup).
-- **Companies → Additional Domains**: merged/subsidiary/alternate domains. Comma-separated, no spaces, domains only — no full email addresses.
-- **Contacts → Email / Secondary Email / Tertiary Email**: All three fields are checked during dedup.
-
-When merging a company, add the merged domain to **Additional Domains** on the canonical company (not Domains) to preserve the distinction between primary and acquired domains. When merging a contact, add the duplicate's email to **Secondary Email** or **Tertiary Email** on the canonical contact.
-
----
-
-# Primary Domain vs. Additional Domains — Decision Rules
-
-When merging a company or discovering a new domain relationship, decide where the domain goes:
-
-## Domains (Primary)
-The `Domains` property contains the company's **primary business domains** — the domains used for day-to-day email and operations. These are what agents match against when wiring contacts to companies.
-
-Rules:
-- First domain listed is the **canonical** domain (used for display and conflict resolution)
-- All domains in this field are actively used for email by the company's employees
-- Example: `formul8.ai, staqs.io` — both are primary operational domains for Formul8
-
-## Additional Domains (Merged/Subsidiary/Alternate)
-The `Additional Domains` property contains domains that **belong to** the company but are not the primary operational domains. These are checked during dedup and contact wiring but are secondary.
-
-Rules:
-- Merged/absorbed company domains go here (e.g., `druckerdataworks.com` after Drucker Data Works merged into Formul8)
-- Sub-brand or affiliate domains go here (e.g., `elevatedadvisors.co` as a Formul8 affiliate)
-- Former/legacy domains go here (company rebranded but old domain still receives email)
-- Domains where employees don't actively send email but that are associated with the company
-
-## Decision Heuristic
-Ask: "Do employees at this company send email from this domain today?"
-- **Yes** → `Domains` (primary)
-- **No, but the domain is associated with the company** → `Additional Domains`
-- **No, and the domain is unrelated** → Do not add; may be a separate company
-
-## Agent Behavior
-Both `Domains` and `Additional Domains` are checked during:
-- Contact → Company wiring (Post-Meeting Agent Step 1, Post-Email Agent Step 2)
-- Company dedup (Contact & Company Review Agent)
-- Merge Workflow domain checks
-
-The distinction is for Adam's operational clarity, not for agent matching logic. Agents treat both fields equally for matching purposes.
-
----
-
-# Quick Checklist
-
-## Company Merge
-- [ ] Domain added to real Company's Domains or Additional Domains property
-- [ ] All Contacts re-wired from placeholder → real Company
-- [ ] All Action Items re-wired from placeholder → real Company
-- [ ] All relations on placeholder verified empty (Unwire Before Delete)
-- [ ] Placeholder Company set to Record Status = Delete (or hard-deleted)
-- [ ] Spot-check: open real Company, verify Contacts and Action Items look correct
-
-## Contact Merge
-- [ ] Duplicate's email added to canonical Contact's Secondary/Tertiary Email
-- [ ] All Meetings re-wired from duplicate → canonical Contact
-- [ ] All Action Items re-wired from duplicate → canonical Contact
-- [ ] All Emails re-wired from duplicate → canonical Contact
-- [ ] All relations on duplicate verified empty (Unwire Before Delete)
-- [ ] Duplicate Contact set to Record Status = Delete with Contact Notes flag
-- [ ] Spot-check: open canonical Contact, verify Meetings, Action Items, and Emails look correct
-
-## Standalone Delete (Non-Merge)
-- [ ] All relation properties on the record cleared (see Relation Map above)
-- [ ] Spot-check: reciprocal relations auto-propagated (synced dual)
-- [ ] Record set to Record Status = Delete with Notes field (Contact Notes / Company Notes / Task Notes) explaining why
-- [ ] Adam sweeps Delete view and trashes flagged records
+1. `Domains` is for active operational domains.
+2. `Additional Domains` is for merged, subsidiary, alternate, and legacy domains.
+3. Both domain fields are used for matching and dedup.
+4. Always preserve the canonical dedup signal before deleting the duplicate record.

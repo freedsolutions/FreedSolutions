@@ -2,23 +2,24 @@
 
 <!-- Notion Page ID: 325adb01-222f-8144-9c87-e0412a17d5ef -->
 
-Lightweight CLAUDE.md equivalent for Claude.ai chat sessions. Read by the `notion-session` skill to orient Claude before planning work.
+Lightweight planning context for Claude.ai chat sessions.
 
-Local source-of-truth: `docs/claude-ai-context.md` (repo). Keep the Notion page in sync when the local file changes.
+Local source-of-truth: `docs/claude-ai-context.md` (repo).
 
-Last synced: Session 61 (March 19, 2026)
+Last updated: March 20, 2026
 
 ---
 
 # Workspace Context
 
-This workspace is a CRM and operations automation system for **Freed Solutions** (cannabis consulting). The system is managed through a structured session workflow with Claude and documented in the Automation Hub.
+This workspace is a CRM and operations automation system for **Freed Solutions**.
 
-**Interfaces:**
-- **Claude Code (terminal)** — executes code changes via `/notion` slash command. Reads local `CLAUDE.md` automatically.
-- **Claude.ai (chat)** — plans and discusses changes. Reads this page via the `notion-session` skill.
+**Execution model:**
+- **Claude Code + Codex skills** are the primary manual execution layer for high-judgment work, local edits, migrations, and verification.
+- **Notion Custom Agents** stay focused on narrow scheduled or reactive automation.
+- **Claude.ai** is optional planning and review space. It should point execution back to Claude Code or Codex when the task becomes multi-file, high-risk, or workflow-specific.
 
-Both interfaces share the same Session — Active page as the handoff mechanism.
+All interfaces share the same Session - Active page as the handoff.
 
 **Owner:** Adam Freed
 **Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
@@ -29,36 +30,32 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 
 | Page | ID | Purpose |
 |---|---|---|
-| Automation Hub | `321adb01-222f-810f-8706-e53105950d86` | Root page for all agent config and instructions |
-| Agent SOPs | `323adb01-222f-81d7-bc47-c32cfea460f4` | Living reference — agents, workflows, schema, rules |
-| Session — Active | `323adb01-222f-81f1-bd4b-d0383d39d47a` | Current session handoff (overwritten each session) |
-| Session — Archive | `323adb01-222f-81dd-a175-c17d8fd8c71a` | System Evolution Arc + session snapshots |
-| Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | Runtime state (Last Successful Run timestamp) |
-| Post-Meeting Instructions | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent (4-step: CRM wiring → Floppy → Notes parse → Curated Notes). GCal sync-back retired S61. |
-| Contact & Company Instructions | `323adb01-222f-8126-9db8-df77be5a326f` | Enrichment agent for Draft + Active contacts/companies with QC gaps |
-| Delete Unwiring Instructions | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Clears relations before hard delete |
-| Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 3 |
-| Post-Email Instructions | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent (4-step: Gmail sweep → CRM wiring → AI parse → summary) |
-| Notetaker CRM | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker profile for Notion Calendar AI |
+| Automation Hub | `321adb01-222f-810f-8706-e53105950d86` | Root page for agent config and instructions |
+| Agent SOPs | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model and runtime baseline |
+| Session - Active | `323adb01-222f-81f1-bd4b-d0383d39d47a` | Current session handoff |
+| Session - Archive | `323adb01-222f-81dd-a175-c17d8fd8c71a` | System evolution arc and session snapshots |
+| Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | Runtime timestamps and state markers |
+| Post-Meeting Instructions | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent |
+| Curated Notes Instructions | `325adb01-222f-8148-b544-f592271f34e3` | Manual-only QA reviewer |
+| Contact & Company Instructions | `323adb01-222f-8126-9db8-df77be5a326f` | Contact and company enrichment |
+| Post-Email Instructions | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent |
+| Delete Unwiring Instructions | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete unwiring workflow |
 
 ---
 
 # Database Quick Reference
 
-| Database | Data Source ID | Icon |
-|---|---|---|
-| Contacts | `fd06740b-ea9f-401f-9083-ebebfb85653c` | 👤 |
-| Companies | `796deadb-b5f0-4adc-ac06-28e94c90db0e` | 💼 |
-| Action Items | `319adb01-222f-8059-bd33-000b029a2fdd` | ✅ |
-| Meetings | `31fadb01-222f-80c0-acf7-000b401a5756` | 📅 |
-| Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | ⚙️ |
-| Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` | 📫 |
+| Database | Data Source ID |
+|---|---|
+| Contacts | `fd06740b-ea9f-401f-9083-ebebfb85653c` |
+| Companies | `796deadb-b5f0-4adc-ac06-28e94c90db0e` |
+| Action Items | `319adb01-222f-8059-bd33-000b029a2fdd` |
+| Meetings | `31fadb01-222f-80c0-acf7-000b401a5756` |
+| Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` |
+| Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` |
 
-**Record Status** (all 5 source DBs): Draft → Active → Inactive → Delete
-
-**QC formula** (all 5 source DBs): `TRUE` (pass) / `missing:fieldname` (fail) / `wired:PropertyName` (Delete-safe check) / `past_due` (Action Items only)
-
-**Meetings DB Automation** (not an agent): "Page added to Meetings" → sets Record Status = Draft + page icon = 🗓️. Instant, no agent credits.
+**Record Status**: Draft -> Active -> Inactive -> Delete
+**Calendar Name** live options: `Adam - Business`, `Adam - Personal`
 
 ---
 
@@ -66,68 +63,67 @@ Both interfaces share the same Session — Active page as the handoff mechanism.
 
 | Agent | Trigger | Status |
 |---|---|---|
-| Post-Meeting Agent | Nightly 10 PM ET + Record Status → Active (Meetings DB) + manual | Live |
+| Post-Meeting Agent | Nightly 10 PM ET + Record Status -> Active + manual | Live |
+| Post-Email Agent | Nightly about 10:30 PM ET + manual | Live |
 | Contact & Company Agent | Nightly 11 PM ET + manual | Live |
-| Delete Unwiring Agent | Record Status → Delete (5 source DBs) + manual | Live |
-| Curated Notes Agent | Record Status → Active (Meetings DB) | Deprecated (folded into Post-Meeting Agent S57) |
-| Post-Email Agent | Nightly ~10:30 PM ET (after Post-Meeting Agent) + manual | Live |
+| Delete Unwiring Agent | Record Status -> Delete across 5 DBs + manual | Live |
+| Curated Notes Agent | Manual `@mention` only | Live - QA reviewer |
 
-**Model:** Opus 4.6 (all agents)
+**Model baseline:** Opus 4.6
+
+---
+
+# Codex Skills
+
+Use the repo skill sources under `ops/notion-workspace/skills/` when planning hands off to manual execution:
+
+- `notion-action-item`
+- `notion-agent-config`
+- `notion-agent-test`
+
+These skills are published to `~/.codex/skills` from `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
 
 ---
 
 # Rules of Engagement (Chat Mode)
 
-These rules apply to Claude.ai planning sessions:
+1. Read the Active handoff first.
+2. Plan by default, but hand off execution to Claude Code or Codex skills when the task becomes implementation-heavy.
+3. Treat `CLAUDE.md`, `docs/agent-sops.md`, and the workflow docs as the authoritative local sources.
+4. Do not assume a Claude.ai-only slash command or planning skill is available.
+5. Pause only for ambiguity, destructive work, schema changes, lifecycle changes, new DB record creation, or migration/bulk work.
+6. Never change `Record Status` without explicit instruction.
+7. Fetch instruction pages on demand when discussing a specific agent.
+8. Tag any remaining browser-only work as `Adam - UI step` unless it is fully executed and verified in the same task.
+9. For doc changes, Claude Code should push mapped docs, verify parity, run the Codex review gate, and only then update the session log.
 
-1. **Read the Active handoff FIRST** — it has current priorities and system status.
-2. **Planning mode by default.** Present the briefing, ask what to tackle, discuss before recommending execution.
-3. **Code changes are planned here, executed in Claude Code.** When a plan is finalized, update the Session — Active page with the plan so Claude Code can pick it up.
-4. **Only pause for confirmation** when the task is ambiguous, destructive, schema-changing, touches lifecycle state, creates new DB records, or is a migration/bulk operation.
-5. **Never create new DB records** unless explicitly instructed.
-6. **Never change lifecycle state** (Record Status) without explicit instruction.
-7. **Fetch instruction pages on demand** — if discussing a specific agent, fetch its instruction page for full context rather than working from memory.
-8. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting large content, Settings changes). When a planning output includes a UI step: (a) explicitly tag it as "Adam — UI step", (b) do NOT mark it complete until Adam confirms, (c) do not assume completion from indirect signals like page existence.
-9. **Verify content on sync, not just existence.** When marking a page as "in sync" with a local doc, verify content matches — not just that the page exists.
-10. **For Notion workspace doc changes, Codex review happens before session-log updates.** Claude Code should push mapped docs, verify live Notion parity, run the Codex review gate, and only then update the Session — Active log or mark work complete.
+**Good Claude.ai tasks**
+- Review plans
+- Compare workflow options
+- Draft instruction-page content
+- Analyze runtime drift or schema proposals
 
-**What Claude.ai CAN do directly:**
-- Fetch and read any Notion page for review
-- Search Notion workspace for context
-- Draft instruction page content, agent designs, schema changes
-- Update the Session Active page with new priorities
-- Light Notion edits (updating text, appending notes) when appropriate
-
-**What should go to Claude Code:**
-- Multi-file local doc changes + git commits
-- Bulk Notion operations (migrations, sweeps)
-- Agent instruction page rewrites (local source-of-truth → push to Notion)
-- Schema changes requiring formula updates
+**Push to Claude Code or Codex**
+- Multi-file repo edits
+- Codex skill updates
+- Bulk Notion operations
+- Browser-driven agent config changes
+- Regression testing and review-gated sync work
 
 ---
 
-# Local Docs ↔ Notion Mapping
+# Local Docs -> Notion Mapping
 
 | Local File | Notion Page ID | Notes |
 |---|---|---|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Agent Registry, schema conventions |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent instructions |
-| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | DEPRECATED S57 — folded into Post-Meeting Agent Step 3 |
-| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent instructions |
-| `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent instructions |
+| `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes QA reviewer |
+| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring instructions |
+| `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company instructions |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM profile |
-| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent instructions |
-| `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | This file — Claude.ai planning context |
+| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email instructions |
+| `docs/notion-agent.md` | `321adb01-222f-8033-ad89-c3f889ae4dec` | Supporting mirror only |
+| `docs/claude-ai-context.md` | `325adb01-222f-8144-9c87-e0412a17d5ef` | This file |
 
 Local docs are the source of truth. Push changes to Notion after editing locally.
-
----
-
-# Maintenance
-
-Update this page whenever:
-- A new agent is added → update Agent Registry table
-- A new database is created → update Database Quick Reference
-- A new local doc mapping is established → update Local Docs table
-- Planning rules evolve → update Rules of Engagement section
-- Session workflow changes → update as needed

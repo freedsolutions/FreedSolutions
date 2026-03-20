@@ -2,167 +2,121 @@
 
 # LinkedIn Messages Workflow
 
-Last synced: Session 59 (March 18, 2026)
+Last updated: March 20, 2026
 
-# Overview
-
-Manual workflow for capturing LinkedIn DM conversations into the CRM. Uses a browser agent (Chrome MCP) with Adam's signed-in LinkedIn session to read messages, create/reuse Contacts and Companies, and log conversation summaries to the Emails DB with `Source = LinkedIn - DMs`.
-
-This workflow is **manual-only in v1** — Adam triggers it on demand. Its behavior is deterministic and timestamp-driven so it can later be automated without changing CRM rules.
-
-**Three-phase roadmap:**
-1. **Goal 1 (this doc): Message capture** — LinkedIn DMs → CRM records + notes
-2. **Goal 2: Enrichment via LinkedIn** — upgrade Contact & Company Agent to use authenticated LinkedIn for profile lookups (replaces web search fallback)
-3. **Goal 3: Connection invites** — send LinkedIn invites to confirmed CRM matches (Adam-in-the-loop approval)
+This workflow is **manual-only**. It captures LinkedIn DMs into the CRM without guessing identity.
 
 ---
 
-# Prerequisites
+# Goal
 
-- Adam is signed into LinkedIn in Chrome
-- Chrome MCP (browser agent) is available
-- Notion MCP is available for CRM read/write
+Each LinkedIn conversation should map to:
 
----
-
-# State Management
-
-## Runtime Timestamp
-
-- **Agent Config** field: `Last Successful LinkedIn Message Review` (ISO 8601)
-- Separate from Post-Meeting / Post-Email timestamps — no shared state
-- Updated only after a fully successful run
-- If missing or malformed: default to 7 days ago (safety-net maximum)
+- one Email record in the Emails DB with `Source = LinkedIn - DMs`
+- one Contact relation, matched safely by LinkedIn URL or high-confidence identity confirmation
 
 ---
 
-# Step-by-Step Workflow
+# Runtime state
 
-## Step 1: Read LinkedIn Messages
+Preferred runtime key:
 
-1. Open LinkedIn messaging via Chrome MCP.
-2. Read conversations with activity since `Last Successful LinkedIn Message Review`.
-3. For each conversation, extract:
-   - **Participant name** (LinkedIn display name)
-   - **Participant headline** (current role/company)
-   - **Participant profile URL** (linkedin.com/in/...)
-   - **Conversation snippet** — most recent messages (enough for a 1–3 sentence summary)
-   - **Conversation date** — timestamp of most recent message
+- `Last Successful LinkedIn Message Review`
 
-## Step 2: Contact Matching & Creation
+If the key is missing from Agent Config:
 
-For each LinkedIn conversation participant (excluding Adam):
-
-### 2.1: Match by LinkedIn URL
-
-1. Query Contacts DB for any record where **LinkedIn** field matches the participant's profile URL.
-2. If matched → use this Contact. Proceed to Step 3.
-
-### 2.2: Match by Name + Company (fuzzy)
-
-If no LinkedIn URL match:
-
-1. Search Contacts DB for records where **Contact Name** matches the participant's LinkedIn display name.
-2. If a name match is found:
-   - If the matched Contact has no LinkedIn URL → set the LinkedIn field to the participant's profile URL.
-   - If the matched Contact has a DIFFERENT LinkedIn URL → create a new Draft Contact (possible different person with same name). Add note: `Possible duplicate: name matches [existing contact name] but LinkedIn URLs differ.`
-3. If no name match → proceed to 2.3.
-
-### 2.3: Create Draft Contact
-
-If no match by LinkedIn URL or name:
-
-- **Contact Name**: LinkedIn display name
-- **Email**: leave blank (LinkedIn doesn't expose emails)
-- **LinkedIn**: participant's profile URL
-- **Role / Title**: participant's headline (if available)
-- **Record Status**: `Draft`
-- **Company**: attempt company matching (see 2.4)
-- **Contact Notes**: `[YYYY-MM-DD] Created from LinkedIn DM conversation.`
-
-### 2.4: Company Matching (for new Contacts)
-
-1. Extract company name from participant's LinkedIn headline (e.g., "VP Sales at Acme Corp" → "Acme Corp").
-2. Search Companies DB by **Company Name** (fuzzy match).
-3. If a match is found → wire the Company relation.
-4. If no match → leave Company blank. Do NOT create placeholder companies from LinkedIn data alone (no domain available for dedup).
+- default to 7 days ago
+- log the missing runtime key explicitly
+- do not treat the absence as success or as permission to backfill all history
 
 ---
 
-## Step 3: Create Email Record (Message Stub)
+# Step 1: Read recent conversations
 
-For each LinkedIn conversation, create a page in the **Emails DB** (`f685a378-5a37-4517-9b0c-d2928be4af4d`):
+Using the signed-in browser session:
 
-- **Email Subject**: `LinkedIn DM: [Participant Name]` (or conversation topic if identifiable)
-- **Thread ID**: LinkedIn conversation URL or unique conversation identifier (canonical identity for dedup)
-- **From**: participant's LinkedIn profile URL (since there's no email address)
-- **Date**: timestamp of the most recent message in the conversation
-- **Source**: `LinkedIn - DMs`
-- **Contacts**: wire to the matched/created Contact
-- **Record Status**: `Draft`
-- **Email Notes**: 1–3 sentence summary of the conversation
-
-### Dedup Rule
-
-Before creating, check if a record with the same **Thread ID** already exists in the Emails DB. If so, skip — do not overwrite.
+1. Open LinkedIn Messages.
+2. Read conversations with activity since the runtime timestamp.
+3. Extract:
+   - conversation URL or thread identifier
+   - participant display name
+   - participant headline
+   - participant profile URL
+   - latest message text
+   - latest conversation timestamp
 
 ---
 
-## Step 4: Update Timestamp
+# Step 2: Match or create the Contact safely
 
-After all conversations are processed successfully:
+## 2.1: Match by LinkedIn URL
 
-1. Update `Last Successful LinkedIn Message Review` in Agent Config to the current timestamp.
-2. Log a summary: conversations processed, new Contacts created, existing Contacts matched, Email stubs created.
+This is the primary key. If a Contact already has the same LinkedIn URL, reuse it.
 
----
+## 2.2: Match by name plus company evidence
 
-# Important Rules
+If no LinkedIn URL match exists:
 
-1. **Never create duplicate records** — always dedup by LinkedIn URL (Contacts) and Thread ID (Emails) before creating.
-2. **LinkedIn URL is the primary key for LinkedIn-sourced contacts.** Unlike email-sourced contacts (keyed by email), LinkedIn contacts may not have an email address.
-3. **Do not create placeholder Companies from LinkedIn alone.** LinkedIn company names are unreliable for matching (no domain for dedup). Only wire to existing Companies with matching names.
-4. **Draft everything** — all new records start as Draft. Only Adam promotes to Active.
-5. **Append-only notes** — never overwrite existing Contact Notes or Email Notes.
-6. **Failed runs do not advance the timestamp** — if the browser agent errors mid-run, the timestamp stays at its previous value so the next run reprocesses.
-7. **No backfill on first run** — if the timestamp is missing, default to 7 days ago. Do not attempt to process the entire LinkedIn message history.
+1. Search Contacts for the same or normalized contact name.
+2. Only treat an existing Contact as the same person when the company or headline evidence also aligns.
+3. If the name matches but the company evidence is weak or conflicting, do **not** auto-set the LinkedIn URL. Report ambiguity instead.
 
----
+## 2.3: Create a Draft Contact
 
-# Future: Goal 2 — Enrichment via LinkedIn
+Create a new Draft Contact only when:
 
-Upgrade the Contact & Company Agent (Step 2.5 in `contact-company.md`) to use authenticated LinkedIn access via Chrome MCP instead of web search fallback:
+- the LinkedIn URL is unique
+- no confident existing Contact match exists
 
-- For contacts missing a LinkedIn URL: search LinkedIn by name + company using Adam's signed-in session
-- Confirm identity by matching role/title and company
-- Set the LinkedIn URL field on confirmed matches
-- Extract current role/title if the Contact's Role / Title field is blank
+Set:
 
-This builds the LinkedIn URL mapping needed for Goal 3.
+- Contact Name
+- Record Status = Draft
+- LinkedIn = participant profile URL
+- Company only when an existing Company confidently matches the headline
+- Contact Notes = `Created by LinkedIn DM capture from [conversation URL]`
 
----
-
-# Future: Goal 3 — Connection Invites
-
-For CRM contacts with a confirmed LinkedIn URL match where Adam is NOT already connected:
-
-1. Present a batch of candidates to Adam for review
-2. Adam approves/rejects each candidate
-3. For approved candidates, the browser agent sends a LinkedIn connection request
-4. Log the invite in Contact Notes: `[YYYY-MM-DD] LinkedIn connection invite sent.`
-
-**High-confidence matching required** — only propose invites for contacts where:
-- LinkedIn URL is confirmed (not guessed)
-- Contact is Active (not Draft)
-- Adam has had at least one meeting or email exchange with the contact
+Do **not** create placeholder Companies from LinkedIn alone.
 
 ---
 
-# Database References
+# Step 3: Create or update the Email record
 
-| Database | Data Source ID | Usage |
-| --- | --- | --- |
-| Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` | LinkedIn DM stubs created here (Source = LinkedIn - DMs) |
-| Contacts | `fd06740b-ea9f-401f-9083-ebebfb85653c` | Match/create contacts from LinkedIn participants |
-| Companies | `796deadb-b5f0-4adc-ac06-28e94c90db0e` | Company matching (name-based, no domain) |
-| Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` | Last Successful LinkedIn Message Review timestamp |
+Thread identity is the conversation URL or stable LinkedIn thread ID.
+
+## 3.1: New thread
+
+Create a Draft Email record with:
+
+| Property | Value |
+|---|---|
+| Email Subject | `LinkedIn DM - [Participant Name]` |
+| Thread ID | conversation identifier |
+| From | participant profile URL |
+| Date | timestamp of the latest message |
+| Contacts | linked Contact |
+| Source | `LinkedIn - DMs` |
+| Record Status | `Draft` |
+| Email Notes | concise current-state summary |
+
+## 3.2: Existing thread
+
+Do **not** skip an existing Thread ID blindly.
+
+If the Email record already exists:
+
+- update `Date` when a newer message is present
+- refresh `Email Notes` to reflect the current state
+- confirm the Contacts relation still points at the correct Contact
+
+This workflow is incremental. Existing conversation records must stay current.
+
+---
+
+# Hard rules
+
+1. LinkedIn URL is the strongest identity key for LinkedIn-sourced contacts.
+2. Same-name matches without company or headline confirmation are ambiguous, not safe wins.
+3. Do not create placeholder Companies from LinkedIn alone.
+4. Failed runs do not advance the runtime timestamp.
+5. Missing runtime state defaults to a 7-day window and an explicit drift note.

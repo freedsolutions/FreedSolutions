@@ -1,0 +1,7 @@
+interface:
+  display_name: "Notion Agent Config"
+  short_description: "Audit Notion Custom Agent settings"
+  default_prompt: "Use $notion-agent-config to audit or update this Notion Custom Agent configuration."
+
+policy:
+  allow_implicit_invocation: true

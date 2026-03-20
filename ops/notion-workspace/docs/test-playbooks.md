@@ -1,114 +1,178 @@
-# Agent Test Playbooks
+# Automation Test Playbooks
 
-Step-by-step test procedures for each Notion Custom Agent.
+Step-by-step validation procedures for Codex skills, Notion Custom Agents, and manual workflows.
+
+---
+
+## Codex skill validation
+
+Run before publishing:
+
+1. `python C:\Users\adamj\.codex\skills\.system\skill-creator\scripts\quick_validate.py ops/notion-workspace/skills/notion-action-item`
+2. `python C:\Users\adamj\.codex\skills\.system\skill-creator\scripts\quick_validate.py ops/notion-workspace/skills/notion-agent-config`
+3. `python C:\Users\adamj\.codex\skills\.system\skill-creator\scripts\quick_validate.py ops/notion-workspace/skills/notion-agent-test`
+4. Publish with `ops/notion-workspace/scripts/publish-codex-skills.ps1`
+5. Forward-test each skill on one realistic task without preloading the intended answer
 
 ---
 
 ## Post-Meeting Agent
 
 ### Trigger
-Property change: Meetings → Record Status = Draft + page-content-edit CHECKED
+
+- Scheduled nightly sweep
+- Property change: Meetings -> `Record Status = Active`
+- Manual `@mention`
 
 ### Setup
-1. Create a meeting page: `[TEST] Agent Smoke Test — [date]`
-2. Set Calendar Event ID: `test-event-[timestamp]`, Date: today
-3. Add body content simulating an AI summary with `### Action Items` and `### Attendees`
+
+1. Create or identify a `[TEST]` meeting page with transcription-like content and typed notes.
+2. For property-trigger testing, leave the page in `Draft`.
+3. For duplicate protection testing, create a matching no-notes scenario in the same date window.
 
 ### Fire
-1. Edit the page body (satisfies page-content-edit)
-2. Set Record Status = Draft via `notion-update-page`
+
+- **Active-path test**: set `Record Status = Active`
+- **Nightly-path proxy**: use `Run agent` or wait for the nightly sweep
+- **Manual test**: `@Post-Meeting Agent` on the page
 
 ### Verify
-- [ ] Action Items created with Source Meeting → test meeting
-- [ ] Contacts matched or created from attendee emails
-- [ ] Calendar Name populated on the meeting page
-- [ ] Agent Config → Last Successful Run timestamp updated
+
+- [ ] CRM wiring block added once
+- [ ] Contacts and Companies wired correctly
+- [ ] No duplicate no-notes meeting created
+- [ ] Curated summary added only on Active/manual path
+- [ ] Agent Config `Last Successful Run` updated
 
 ### Cleanup
-Set test meeting + created Action Items + created Contacts → Record Status = Delete
+
+Set test records to `Delete` only after verifying downstream unwiring expectations.
 
 ---
 
 ## Curated Notes Agent
 
 ### Trigger
-Property change: Meetings → Record Status = Active (page-content-edit UNCHECKED)
+
+- Manual `@mention` only
 
 ### Setup
-Use an existing Draft meeting that has been processed by Post-Meeting Agent (has body content)
+
+Use one meeting page, one email page, or a mixed audit page containing explicit record links.
 
 ### Fire
-Set Record Status = Active via `notion-update-page` (do NOT edit page body)
+
+Mention the agent with a bounded audit request such as:
+`@Curated Notes Agent Audit this meeting for duplicate risk, partial runs, and schema drift.`
 
 ### Verify
-- [ ] Meeting page body updated with curated notes
-- [ ] Action Items count unchanged (no duplicates)
-- [ ] Original content preserved
+
+- [ ] The response is an audit report, not a new CRM record
+- [ ] No `Record Status` changes occur
+- [ ] No new Action Items, Contacts, or Companies are created
+- [ ] Findings reference concrete evidence from the reviewed records
 
 ### Cleanup
-Revert Record Status if needed. No new records to clean up.
+
+Remove only disposable test notes if needed.
 
 ---
 
 ## Delete Unwiring Agent
 
 ### Trigger
-Property change: Record Status = Delete on any of 5 DBs (page-content-edit UNCHECKED)
+
+Property change: `Record Status = Delete` on any of the five source DBs
 
 ### Setup
-1. Create test contact: `[TEST] Delete Agent Test Contact`, Email: `deletetest@example.com`
-2. Wire to an existing Active company
+
+1. Create a `[TEST]` record with live relations.
+2. Document the expected reciprocal relations before firing.
 
 ### Fire
-Set test contact's Record Status = Delete via `notion-update-page`
+
+Set the test record to `Delete`.
 
 ### Verify
-- [ ] All relations on test contact cleared (Company, Meetings, Emails)
-- [ ] Reciprocal side cleared (company no longer lists test contact)
-- [ ] Contact Notes contain deletion explanation
-- [ ] Record Status = Delete (unchanged)
+
+- [ ] All direct relations clear
+- [ ] Reciprocal relations clear
+- [ ] Notes explain why the record is ready for hard delete
+- [ ] QC converges to `TRUE`
 
 ### Cleanup
-Adam hard-deletes from Notion UI
+
+Adam hard-deletes from the UI when appropriate.
 
 ---
 
 ## Contact & Company Agent
 
 ### Trigger
-@mention ONLY
+
+- Scheduled nightly run
+- Manual `@mention`
 
 ### Setup
-Navigate to a test contact page with minimal data (name + email)
 
-### Fire
-In page body, type: `@Contact & Company Agent Please enrich this contact`
+Use:
+
+- a Draft contact with sparse fields
+- a placeholder company that still has a raw domain name
+- an Active record with a QC gap that has been waiting in backlog
 
 ### Verify
-- [ ] Contact fields enriched (Company, Role/Title, LinkedIn)
-- [ ] If new company created → Record Status = Draft, Domains populated
-- [ ] No duplicate companies (check by domain)
 
-### Cleanup
-Revert test contact or set Record Status = Delete
+- [ ] Placeholder company corrected when evidence exists
+- [ ] `States = All` corrected when better evidence exists
+- [ ] Verified alternate domains appended to `Additional Domains`
+- [ ] Older unresolved records are not starved by newer ones
+- [ ] Company mismatch cases are flagged, not silently rewired
 
 ---
 
 ## Post-Email Agent
 
 ### Trigger
-Scheduled (10:30 PM ET) + @mention
+
+- Scheduled about 10:30 PM ET
+- Manual `@mention`
 
 ### Setup
-For @mention test: navigate to any workspace page
 
-### Fire
-Type: `@Post-Email Agent Process any new email threads from today`
+Cover these cases:
+
+- bot-only thread
+- generic-domain thread
+- existing Thread ID with missing `Email Notes`
+- thread with an action item but no explicit due date
 
 ### Verify
-- [ ] New Email stubs in Emails DB with Thread ID
-- [ ] Contacts wired via email matching
-- [ ] Agent Config → Post-Email Agent Last Run updated
 
-### Cleanup
-Set any test email stubs → Record Status = Delete
+- [ ] Existing partial Email record is resumed, not duplicated
+- [ ] Bot-only threads remain record-only with no Contacts or Action Items
+- [ ] Action Items never have blank Company
+- [ ] Due Date fallback note is present when no deadline was stated
+- [ ] Agent Config timestamp updates after success
+
+---
+
+## LinkedIn Messages workflow
+
+### Trigger
+
+- Manual run only
+
+### Setup
+
+Use:
+
+- one new LinkedIn conversation
+- one existing conversation with new messages
+- one same-name ambiguous contact case
+
+### Verify
+
+- [ ] Existing Thread ID records update instead of being skipped
+- [ ] LinkedIn URL is not written on ambiguous same-name matches
+- [ ] Missing runtime timestamp defaults to a 7-day window and is logged
