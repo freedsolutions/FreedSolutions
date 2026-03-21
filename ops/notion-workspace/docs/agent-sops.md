@@ -136,16 +136,17 @@ This section is the canonical desired state for Notion Custom Agent settings.
   - Agent Config -> Can edit
   - Agent SOPs -> Can view
 - Connections:
-  - Mail: runtime may still show `adam@freedsolutions.com` and `adamjfreed@gmail.com`, but the current operating scope is `adam@freedsolutions.com` only
+  - Mail: runtime may show `adam@freedsolutions.com` and `adamjfreed@gmail.com`, and both are currently in scope for the live agent
   - Current runtime scope may include inbox-modify and draft permissions. Inbox-modify is acceptable for marking terminal threads read after successful processing, but the workflow must not send mail.
   - Web access: Off
   - No calendar access
 - Model: Opus 4.6
 - Notes:
   - Existing stubs must be eligible for recovery if prior runs stopped after partial work.
-  - Routed Gmail labels are part of the intake contract: `Primitiv/PRI_Outlook` for forwarded Outlook mail, `Primitiv/PRI_Teams` for Teams notifications, `LinkedIn` for LinkedIn message notifications, and `DMC/DMC_GMail` for DMC routed company mail.
+  - Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv/PRI_Outlook` for forwarded Outlook mail, `Primitiv/PRI_Teams` for Teams notifications, `LinkedIn` for LinkedIn message notifications, and `DMC/DMC_GMail` for DMC routed company mail.
   - `Action Items` and any `Action Items/...` child label are temporary manual-queue labels. Ignore them for automated intake until Adam explicitly enables a dedicated workflow.
   - Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
+  - `adamjfreed@gmail.com` stays in live sweep scope, but its Gmail labels are currently out of scope for routing. Treat personal-mailbox messages as standard email unless Adam explicitly adds a mailbox-specific routing contract later.
   - Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
   - Long term, domain-aligned company labels are encouraged because they make inbox-zero routing and CRM automation more deterministic.
   - Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.

@@ -112,7 +112,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Attach File, QC (formula)
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
-- **Email routing labels:** `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `Action Items` and any `Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth. Teams notifications currently keep the mailbox-derived `Source` until the live schema gains a dedicated Teams option.
+- **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `Action Items` and any `Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications currently keep the mailbox-derived `Source` until the live schema gains a dedicated Teams option.
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) - both checked for dedup
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
@@ -177,9 +177,11 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 
 ### P3 - Unify chat-notification intake under Post-Email
 
-- Keep routed Gmail labels aligned with the workflow: `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, and `LinkedIn`
+- Keep routed Gmail labels aligned with the workflow: `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, `LinkedIn`, and `DMC/DMC_GMail`
 - Teach Post-Email to treat Teams and LinkedIn notifications as bot wrappers around human conversations, not bot-only terminal mail
 - Keep `docs/linkedin-messages.md` as a manual fallback only for recovery or backfill when notification email content is insufficient
+- Keep `adamjfreed@gmail.com` in live sweep scope while leaving its labels out of routing until Adam explicitly adds a personal-mailbox routing contract
+- Long-term cleanup: add deterministic Gmail labels to every stable source or known domain so routing can converge toward fully automated inbox-zero handling
 
 ## Maintenance
 
