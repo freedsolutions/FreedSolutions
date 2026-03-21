@@ -149,6 +149,8 @@ Cover these cases:
 - `Primitiv/PRI_Outlook` forwarded email
 - `Primitiv/PRI_Teams` notification with a real follow-up
 - `LinkedIn` notification with enough participant detail to wire CRM safely
+- `DMC/DMC_GMail` routed company-mail thread that should process as standard email
+- `Action Items`-labeled manual-queue thread that should remain untouched
 
 ### Verify
 
@@ -157,6 +159,8 @@ Cover these cases:
 - [ ] Bot-only threads are marked `Inactive` after explicit classification so they do not linger as Draft QC gaps
 - [ ] Teams and LinkedIn notification wrappers are not misclassified as bot-only just because the sender is automated
 - [ ] Routed labels are preserved on the Email record
+- [ ] `DMC/DMC_GMail` routes into normal CRM email processing rather than being treated like a chat-notification wrapper
+- [ ] `Action Items` or `Action Items/...` queue labels are ignored, left unread, and do not create or update CRM records
 - [ ] Terminally processed threads are marked read, while ambiguous threads stay unread
 - [ ] Action Items never have blank Company
 - [ ] Due Date fallback note is present when no deadline was stated

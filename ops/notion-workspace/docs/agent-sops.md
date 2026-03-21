@@ -136,15 +136,18 @@ This section is the canonical desired state for Notion Custom Agent settings.
   - Agent Config -> Can edit
   - Agent SOPs -> Can view
 - Connections:
-  - Mail: `adam@freedsolutions.com` and `adamjfreed@gmail.com`
+  - Mail: runtime may still show `adam@freedsolutions.com` and `adamjfreed@gmail.com`, but the current operating scope is `adam@freedsolutions.com` only
   - Current runtime scope may include inbox-modify and draft permissions. Inbox-modify is acceptable for marking terminal threads read after successful processing, but the workflow must not send mail.
   - Web access: Off
   - No calendar access
 - Model: Opus 4.6
 - Notes:
   - Existing stubs must be eligible for recovery if prior runs stopped after partial work.
-  - Routed Gmail labels are part of the intake contract: `Primitiv/PRI_Outlook` for forwarded Outlook mail, `Primitiv/PRI_Teams` for Teams notifications, and `LinkedIn` for LinkedIn message notifications.
+  - Routed Gmail labels are part of the intake contract: `Primitiv/PRI_Outlook` for forwarded Outlook mail, `Primitiv/PRI_Teams` for Teams notifications, `LinkedIn` for LinkedIn message notifications, and `DMC/DMC_GMail` for DMC routed company mail.
+  - `Action Items` and any `Action Items/...` child label are temporary manual-queue labels. Ignore them for automated intake until Adam explicitly enables a dedicated workflow.
   - Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
+  - Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
+  - Long term, domain-aligned company labels are encouraged because they make inbox-zero routing and CRM automation more deterministic.
   - Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
   - Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items, then moved to `Inactive` once annotated so they do not linger as Draft QC gaps.
   - Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
