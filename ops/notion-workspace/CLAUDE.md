@@ -12,7 +12,7 @@
 
 ## Local Docs
 
-Local `docs/` files are the source of truth for instruction content. Each file maps to a Notion page.
+Local `docs/` files are the source of truth for instruction content. Most workflow docs map to Notion instruction pages; local-only fallback and test docs stay in the repo.
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
@@ -20,12 +20,12 @@ Local `docs/` files are the source of truth for instruction content. Each file m
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> Notes -> curated summary). Uses live `Calendar Name` options only. | 2026-03-20 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-20 |
-| `docs/_floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
+| `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | S56 |
 | `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations on `Record Status = Delete` records | S54 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-20 |
-| `docs/linkedin-messages.md` | `328adb01-222f-8134-941a-c78d757869d6` | LinkedIn Messages workflow: DM capture with timestamp recovery, safe identity matching, and thread updates | 2026-03-20 |
+| `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | 2026-03-20 |
 | `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | 2026-03-20 |
 
 ## Codex Skills
@@ -112,6 +112,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Attach File, QC (formula)
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
+- **Email routing labels:** `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake. Labels are the canonical intake-route truth. Teams notifications currently keep the mailbox-derived `Source` until the live schema gains a dedicated Teams option.
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) - both checked for dedup
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
@@ -174,11 +175,11 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Duplicate no-notes protection
 - Live `Calendar Name` schema assumptions stay accurate
 
-### P3 - Resolve LinkedIn workflow posture after service removal
+### P3 - Unify chat-notification intake under Post-Email
 
-- `ops/linkedin-crm-service` is gone from the repo; do not assume that old service still exists
-- If the LinkedIn Messages workflow remains active, run one manual smoke and replace the Agent Config placeholder timestamp
-- If the workflow is being retired, archive or remove the remaining LinkedIn runtime references instead of leaving a placeholder path behind
+- Keep routed Gmail labels aligned with the workflow: `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, and `LinkedIn`
+- Teach Post-Email to treat Teams and LinkedIn notifications as bot wrappers around human conversations, not bot-only terminal mail
+- Keep `docs/linkedin-messages.md` as a manual fallback only for recovery or backfill when notification email content is insufficient
 
 ## Maintenance
 

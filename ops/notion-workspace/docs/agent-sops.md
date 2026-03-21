@@ -74,7 +74,7 @@ Naming conventions:
 
 | Workflow | Purpose | URL |
 | --- | --- | --- |
-| LinkedIn Messages | Capture LinkedIn DMs into CRM via manual browser workflow | [LinkedIn Messages Instructions](https://www.notion.so/328adb01222f8134941ac78d757869d6) |
+| LinkedIn Messages | Local fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | `ops/notion-workspace/docs/linkedin-messages.md` |
 | Merge Workflow | Merge duplicates and run delete-safe cleanup | [Merge Workflow](https://www.notion.so/323adb01222f811189c7c92eaac10ebb) |
 
 ## Codex Skills
@@ -137,12 +137,15 @@ This section is the canonical desired state for Notion Custom Agent settings.
   - Agent SOPs -> Can view
 - Connections:
   - Mail: `adam@freedsolutions.com` and `adamjfreed@gmail.com`
-  - Current runtime scope may include inbox-modify and draft permissions. Workflow behavior remains read-heavy and must not send mail.
+  - Current runtime scope may include inbox-modify and draft permissions. Inbox-modify is acceptable for marking terminal threads read after successful processing, but the workflow must not send mail.
   - Web access: Off
   - No calendar access
 - Model: Opus 4.6
 - Notes:
   - Existing stubs must be eligible for recovery if prior runs stopped after partial work.
+  - Routed Gmail labels are part of the intake contract: `Primitiv/PRI_Outlook` for forwarded Outlook mail, `Primitiv/PRI_Teams` for Teams notifications, and `LinkedIn` for LinkedIn message notifications.
+  - Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
+  - Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
   - Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items, then moved to `Inactive` once annotated so they do not linger as Draft QC gaps.
   - Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
 
@@ -259,6 +262,14 @@ Only Adam promotes records to `Active`. Agents create Draft records and may part
 - Dedup across `Email`, `Secondary Email`, and `Tertiary Email`
 - `Company` is the primary operational relation
 - `LinkedIn`, `Phone`, `Pronouns`, and `Role / Title` are fill-in fields and may be updated by enrichment workflows
+
+## Normalization rules
+
+These apply when writing or matching LinkedIn URLs, emails, or domains across any workflow.
+
+- **LinkedIn URL**: canonical form is `https://www.linkedin.com/in/<slug>` (or `/company/<slug>` for companies). Strip query parameters, fragments, and trailing slashes before storing or comparing.
+- **Email**: lowercase and trim whitespace before storing or comparing.
+- **Domain**: extract hostname from a full URL (strip scheme, path, query). Compare against both `Domains` and `Additional Domains`.
 
 ## Companies
 

@@ -112,7 +112,7 @@ If no issues are found, still state what you checked and any residual risk or co
 - Same-name ambiguity handled as a confident match
 - LinkedIn URL written without company or headline confirmation
 - Existing Thread ID skipped instead of updated
-- Missing LinkedIn runtime timestamp handled silently
+- Gmail-labeled LinkedIn notification intake treated as primary but left unresolved without an explicit recovery note
 
 ---
 

@@ -1,10 +1,12 @@
-<!-- Notion Page ID: 328adb01-222f-8134-941a-c78d757869d6 -->
-
 # LinkedIn Messages Workflow
 
 Last updated: March 20, 2026
 
-This workflow is **manual-only**. It captures LinkedIn DMs into the CRM without guessing identity.
+This workflow is **manual-only**. It is the fallback recovery path for LinkedIn DMs when Gmail notification intake is missing, insufficient, or needs manual backfill.
+
+Primary intake for LinkedIn conversations should now arrive through the Post-Email workflow via Gmail notifications labeled `LinkedIn`.
+
+This doc exists for the cases where the notification email does not carry enough identity, thread, or action detail and a signed-in browser review is still needed.
 
 ---
 
@@ -17,27 +19,33 @@ Each LinkedIn conversation should map to:
 
 ---
 
-# Runtime state
+# Runtime posture
 
-Preferred runtime key:
+Primary runtime state belongs to the Post-Email workflow:
 
-- `Last Successful LinkedIn Message Review`
+- `Post-Email Agent Last Run`
 
-If the key is missing from Agent Config:
+This fallback workflow does **not** own a separate scheduled timestamp.
 
-- default to 7 days ago
-- log the missing runtime key explicitly
-- do not treat the absence as success or as permission to backfill all history
+Use it when:
+
+- a `LinkedIn` notification email was too thin to wire safely
+- a LinkedIn conversation needs manual recovery or backfill
+- Adam explicitly requests a browser-based LinkedIn review
 
 ---
 
-# Step 1: Read recent conversations
+# Step 1: Open the target conversation
 
-Using the signed-in browser session:
+Using the signed-in browser session, open the specific LinkedIn conversation that needs recovery.
 
-1. Open LinkedIn Messages.
-2. Read conversations with activity since the runtime timestamp.
-3. Extract:
+Sources for the target can include:
+
+- a Gmail thread labeled `LinkedIn`
+- a CRM Email record that still needs manual recovery
+- an explicit LinkedIn thread URL provided by Adam
+
+Then extract:
    - conversation URL or thread identifier
    - participant display name
    - participant headline
@@ -115,8 +123,37 @@ This workflow is incremental. Existing conversation records must stay current.
 
 # Hard rules
 
-1. LinkedIn URL is the strongest identity key for LinkedIn-sourced contacts.
-2. Same-name matches without company or headline confirmation are ambiguous, not safe wins.
-3. Do not create placeholder Companies from LinkedIn alone.
-4. Failed runs do not advance the runtime timestamp.
-5. Missing runtime state defaults to a 7-day window and an explicit drift note.
+1. Primary LinkedIn intake should flow through Post-Email using Gmail notifications labeled `LinkedIn`.
+2. LinkedIn URL is the strongest identity key for LinkedIn-sourced contacts.
+3. Same-name matches without company or headline confirmation are ambiguous, not safe wins.
+4. Do not create placeholder Companies from LinkedIn alone.
+5. This fallback workflow does not own a separate scheduled timestamp.
+
+---
+
+# LinkedIn capability guardrails
+
+These guardrails apply to any workflow or agent that touches LinkedIn data.
+
+## Current capabilities
+
+| Capability | Notes |
+|---|---|
+| LinkedIn notification email intake | Primary path via Post-Email and the `LinkedIn` Gmail label |
+| Manual DM capture via browser session | This fallback workflow |
+| LinkedIn-aware web search for enrichment | Contact & Company Agent, evidence source #4 |
+| Manual or web-search enrichment fallback | Default path when LinkedIn data is insufficient |
+
+## Not available — do not assume
+
+| Capability | Why |
+|---|---|
+| Arbitrary contact lookup by email | Requires confirmed LinkedIn partner product access |
+| People search by name + company | Requires confirmed LinkedIn partner product access |
+| Browser scraping or automation | Out of scope |
+
+## Design rules
+
+1. Do not assume LinkedIn API access you have not confirmed.
+2. Treat LinkedIn self-serve developer access as lower-capability by default.
+3. If LinkedIn partner access is later approved, add it as a new enrichment source rather than weakening existing guardrails.

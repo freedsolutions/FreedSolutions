@@ -21,10 +21,9 @@ FreedSolutions/
 ### Projects
 
 - **[LinkedIn Carousel](projects/linkedin-carousel/)** - A single-page React app that renders LinkedIn carousel slides to HTML5 Canvas for pixel-accurate export. See its own [CLAUDE.md](projects/linkedin-carousel/CLAUDE.md) for development workflow.
-- **[LinkedIn CRM Service](ops/linkedin-crm-service/)** - A private Node service scaffold for LinkedIn OAuth to Notion CRM intake and approval. Keep this deployed separately from the static site.
 
 ### Global Assets
 
 - `index.html` - Landing page deployed via GitHub Pages
 - `brand/` - Logo, resumes, and other brand assets (local only, not tracked)
-- `ops/` - Internal operations, migration prompts, automation scripts, and private service scaffolds
+- `ops/` - Internal operations, migration prompts, and automation/workflow docs

@@ -146,34 +146,40 @@ Cover these cases:
 - generic-domain thread
 - existing Thread ID with missing `Email Notes`
 - thread with an action item but no explicit due date
+- `Primitiv/PRI_Outlook` forwarded email
+- `Primitiv/PRI_Teams` notification with a real follow-up
+- `LinkedIn` notification with enough participant detail to wire CRM safely
 
 ### Verify
 
 - [ ] Existing partial Email record is resumed, not duplicated
 - [ ] Bot-only threads remain record-only with no Contacts or Action Items
 - [ ] Bot-only threads are marked `Inactive` after explicit classification so they do not linger as Draft QC gaps
+- [ ] Teams and LinkedIn notification wrappers are not misclassified as bot-only just because the sender is automated
+- [ ] Routed labels are preserved on the Email record
+- [ ] Terminally processed threads are marked read, while ambiguous threads stay unread
 - [ ] Action Items never have blank Company
 - [ ] Due Date fallback note is present when no deadline was stated
 - [ ] Agent Config timestamp updates after success
 
 ---
 
-## LinkedIn Messages workflow
+## LinkedIn Messages fallback workflow
 
 ### Trigger
 
-- Manual run only
+- Manual recovery only
 
 ### Setup
 
 Use:
 
-- one new LinkedIn conversation
-- one existing conversation with new messages
+- one Gmail-thread-backed LinkedIn conversation where notification email was insufficient
+- one existing CRM conversation with new LinkedIn messages
 - one same-name ambiguous contact case
 
 ### Verify
 
 - [ ] Existing Thread ID records update instead of being skipped
 - [ ] LinkedIn URL is not written on ambiguous same-name matches
-- [ ] Missing runtime timestamp defaults to a 7-day window and is logged
+- [ ] The workflow is only used as fallback after notification-email intake proved insufficient or unavailable

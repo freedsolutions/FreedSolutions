@@ -23,7 +23,7 @@ Each project has its own CLAUDE.md or README with workflow details.
 
 **Notion Workspace** -> `ops/notion-workspace/CLAUDE.md`
 - Docs: `ops/notion-workspace/docs/`
-- Notes: instruction docs are local source of truth; CRM data and sessions stay in Notion (via MCP)
+- Notes: instruction docs and session handoff are local source of truth; CRM data stays in Notion (via MCP)
 
 ## Repo-Level Rules
 - Direct push to `main`
