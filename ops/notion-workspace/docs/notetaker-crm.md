@@ -1,5 +1,7 @@
 # Notetaker CRM
 
+> Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
+
 Last synced: Session 56 (March 18, 2026)
 
 **Type:** Notion Calendar AI Notetaker Profile

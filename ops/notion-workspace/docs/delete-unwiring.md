@@ -2,6 +2,8 @@
 
 # Delete Unwiring Instructions
 
+> Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
+
 Last synced: Session 54 (March 17, 2026)
 
 # Agent Overview

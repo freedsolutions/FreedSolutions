@@ -14,6 +14,9 @@
 
 Local `docs/` files are the source of truth for instruction content. Most workflow docs map to Notion instruction pages; local-only fallback and test docs stay in the repo.
 
+For every doc that maps to a live Notion page, keep a visible banner directly under the H1:
+`> Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.`
+
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-20 |

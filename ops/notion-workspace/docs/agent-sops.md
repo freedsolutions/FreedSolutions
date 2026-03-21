@@ -2,6 +2,8 @@
 
 # Agent SOPs
 
+> Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
+
 The canonical operating spec for Adam's Notion workspace automation system.
 
 Last synced: Session 62 (March 20, 2026)
@@ -313,6 +315,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 5. Never change `Record Status` outside the explicit workflow rules, documented test path, or Adam's direct instruction.
 6. Verify live parity after pushing a local doc to Notion.
 7. Keep docs, skills, and runtime behavior aligned. Do not accept silent drift as normal.
+8. Every repo doc that maps to a live Notion page must include a visible `Live Notion doc` banner directly under the H1.
 
 ## Kickoff Conventions
 
