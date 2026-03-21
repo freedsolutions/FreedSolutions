@@ -84,8 +84,6 @@ Naming conventions:
 | Skill | Source Path | Purpose |
 | --- | --- | --- |
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Execute a single Action Item end to end |
-| `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Custom Agent settings |
-| `notion-agent-test` | `ops/notion-workspace/skills/notion-agent-test/` | Run agent and workflow tests |
 
 Skill publish workflow:
 
@@ -328,8 +326,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.
 
 - For Action Item execution: use `notion-action-item`
-- For Custom Agent audits and config work: use `notion-agent-config`
-- For testing: use `notion-agent-test`
+- For Custom Agent audits, config work, and testing: use Claude Code directly against the local docs and live Notion workspace
 
 Optional planning chat surfaces can still help think through a problem, but they are not the authoritative workflow owner and do not replace the repo-backed source files.
 

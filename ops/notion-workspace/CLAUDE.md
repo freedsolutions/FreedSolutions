@@ -38,8 +38,6 @@ Repo skill sources live under `ops/notion-workspace/skills/`. Installed copies b
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through delivery and approval |
-| `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent browser settings against the local spec |
-| `notion-agent-test` | `ops/notion-workspace/skills/notion-agent-test/` | Run smoke and regression tests for Notion Custom Agents and workflows |
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
 

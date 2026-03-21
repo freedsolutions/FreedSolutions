@@ -9,10 +9,8 @@ Step-by-step validation procedures for Codex skills, Notion Custom Agents, and m
 Run before publishing:
 
 1. `python C:\Users\adamj\.codex\skills\.system\skill-creator\scripts\quick_validate.py ops/notion-workspace/skills/notion-action-item`
-2. `python C:\Users\adamj\.codex\skills\.system\skill-creator\scripts\quick_validate.py ops/notion-workspace/skills/notion-agent-config`
-3. `python C:\Users\adamj\.codex\skills\.system\skill-creator\scripts\quick_validate.py ops/notion-workspace/skills/notion-agent-test`
-4. Publish with `ops/notion-workspace/scripts/publish-codex-skills.ps1`
-5. Forward-test each skill on one realistic task without preloading the intended answer
+2. Publish with `ops/notion-workspace/scripts/publish-codex-skills.ps1`
+3. Forward-test each skill on one realistic task without preloading the intended answer
 
 ---
 
