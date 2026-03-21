@@ -24,6 +24,14 @@ Run before publishing:
 - Run once with a pre-loaded context bundle whose page ID does not exist, or whose supplied URL/UUID points at a different Action Item, and confirm the skill reports the mismatch and stops before execution.
 - Run once with a standard Notion URL or UUID and confirm the pre-execution summary matches the classic fetch-first path.
 
+### notion-active-sesson regression checks
+
+- Invoke the skill with a kickoff request such as "Review `ops/notion-workspace` and propose the next scaffolding updates"; confirm it reads `session-active.md`, `CLAUDE.md`, and `docs/agent-sops.md` before branching wider.
+- Confirm the skill uses a small targeted swarm for repo discovery when the kickoff task is not trivial.
+- Confirm the kickoff summary names the active priorities, likely touched files, and validation path instead of returning a vague backlog dump.
+- Confirm the skill asks only the minimum high-impact questions and does so in plain chat rather than depending on a special AskUserQuestion tool.
+- Confirm the skill does not recreate the retired Notion session-handoff ritual or invent a second handoff surface.
+
 ## Notion sync parity
 
 Run for every repo doc changed in the session that maps to a live Notion instruction page:

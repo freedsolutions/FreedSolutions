@@ -83,6 +83,7 @@ Naming conventions:
 
 | Skill | Source Path | Purpose |
 | --- | --- | --- |
+| `notion-active-sesson` | `ops/notion-workspace/skills/notion-active-sesson/` | Kick off the repo handoff, surface priorities, and route into the next scaffolding or workflow step |
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Execute a single Action Item end to end |
 
 Skill publish workflow:
@@ -326,6 +327,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.
 
+- For repo bootstrap, priority review, or planned scaffolding kickoff: use `notion-active-sesson`
 - For Action Item execution: use `notion-action-item`
 - For Custom Agent audits, config work, and testing: use Claude Code directly against the local docs and live Notion workspace
 

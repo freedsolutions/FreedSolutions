@@ -37,6 +37,7 @@ Repo skill sources live under `ops/notion-workspace/skills/`. Installed copies b
 
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
+| `notion-active-sesson` | `ops/notion-workspace/skills/notion-active-sesson/` | Kick off the repo handoff, surface priorities, and route the session into the next scaffolding or workflow step |
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through delivery and approval |
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
