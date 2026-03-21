@@ -294,6 +294,10 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 
 ## Action Items
 
+- `Company` represents the owning or execution business context for the work item; it is not automatically the counterparty's employer
+- `Contact` carries the counterparty person when one is involved
+- For Adam-owned, pre-seeded, or otherwise internally-originated work, default `Company` to the source calendar, mailbox, or explicit business context unless the source text clearly names another beneficiary company or account
+- Use the counterparty's company as `Company` only when the item is genuinely tracking that counterparty's commitment, deliverable, or follow-up
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists
 - `Due Date` should be set whenever the source text contains an explicit or relative deadline that can be resolved
 

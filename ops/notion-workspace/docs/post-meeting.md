@@ -470,10 +470,19 @@ If Tier 1 fails, search the entire Contacts DB. Floppy commands are explicit int
 | Task Notes | See Floppy Task Notes format below | See Floppy Task Notes format below |
 | Due Date | **MUST set if any date/deadline is mentioned.** Resolve relative dates against the meeting date (see 2.0.4). If a command says "by Friday", "due 3/16", "next Tuesday", "end of week", "tomorrow" — resolve to an absolute date and set it. Only leave blank if genuinely no date was mentioned. | Same |
 | Contact | Resolved Contact (Tier 1 or Tier 2), or blank | Same |
-| Company | **Fallback chain:** (1) Contact's Company if Contact is resolved, (2) if no Contact or Contact has no Company, use the meeting's calendar Default Company (see Multi-Calendar Support table). Never leave blank — every Action Item should have a Company. | Same |
+| Company | Apply the Company ownership rule below. Never leave blank — every Action Item should have a Company. | Same |
 | Source Meeting | Wire to source meeting page | Wire to source meeting page |
 | Assignee | Adam Freed (`30cd872b-594c-81b7-99dc-0002af0f255a`) | Leave blank |
 | Attach File | If the command's rich text contains a hyperlink URL (from typed notes) or references a specific URL, set this property with the URL. This makes links clickable from the Action Item page. If no URL, leave blank. | Same |
+
+### Company ownership rule for Action Items
+
+- `Company` is the owning or execution context for the work item. `Contact` is the counterparty.
+- If the command or typed note explicitly names the beneficiary company or account, use that company.
+- Otherwise, for Adam-owned, pre-seeded, or internally-originated work, use the meeting calendar's Default Company.
+- Use the counterparty's company only when the item primarily tracks that counterparty's commitment, deliverable, or follow-up.
+- If a counterparty-owned follow-up has no resolved Contact company, derive from the meeting's other Contacts only when the context is still clear.
+- If no trustworthy company can be derived from context, fall back to the meeting calendar's Default Company rather than leaving the field blank.
 
 **Floppy Task Notes format:**
 
@@ -652,7 +661,7 @@ All action items go to the **Action Items DB**. The **Type** property is a formu
 | Task Notes | Full context from the typed note + "From: [Meeting Title] on [Date]". Include source tag: `Source: Typed note`. Include any referenced URLs for traceability. | Full context + meeting reference. Include source tag. Include any referenced URLs for traceability. |
 | Due Date | **MUST set if any date/deadline is mentioned** in the note text. Resolve relative dates against the meeting date: "Friday" → next Friday, "end of week" → Friday, "next Tuesday" → Tuesday after meeting date. Only leave blank if genuinely no deadline was mentioned. | Same |
 | Contact | Wire to the relevant counterparty using ONLY the meeting's existing Contacts relation (wired in Step 1). Match by name, nickname, or first name. If ambiguous or no clear counterparty, leave blank. One Contact per item — if multiple people, duplicate the item. | Same — match from meeting's Contacts. If no match, leave blank. |
-| Company | **Fallback chain:** (1) Contact's Company from the Contacts DB, (2) if no Contact matched, derive from the meeting's other Contacts — use context from the action item to pick the right Company, (3) if no Contacts on the meeting or no Company derivable, use the meeting's calendar Default Company (see Multi-Calendar Support table). Never leave blank — every Action Item should have a Company. | Same fallback chain. Company must always be set. |
+| Company | Apply the Company ownership rule above. Company must always be set. | Same rule. Company must always be set. |
 | Source Meeting | Wire to the source meeting page | Wire to the source meeting page |
 | Assignee | Adam Freed (Notion user ID: `30cd872b-594c-81b7-99dc-0002af0f255a`) | Leave blank |
 | Record Status | "Draft" | "Draft" |
@@ -887,7 +896,7 @@ The agent processes meetings from **all configured calendars** with the same wir
 10. **Do NOT create duplicate source DB records.** Before creating a Contact, search by email (all 3 fields). Before creating a placeholder Company, search by domain in Domains AND Additional Domains. Reuse existing records regardless of Record Status.
 11. **Secondary and Tertiary emails matter.** Always check all email fields. This is the #1 source of past duplicate issues.
 12. **Domain priority in multi-domain companies.** First domain in the Domains property is the primary/canonical domain. All domains are valid for matching.
-13. **Company wiring is mandatory on ALL Action Items.** Fallback chain: (1) Contact's Company, (2) meeting's other Contacts' Companies, (3) calendar Default Company (see Multi-Calendar Support). Every Action Item must have a Company — Adam-only tasks from the business calendar get "Freed Solutions", personal calendar tasks get "Personal".
+13. **Company wiring is mandatory on ALL Action Items.** `Company` is the owning or execution context for the work item, not a blind mirror of the counterparty's employer. Use explicit beneficiary company context first, then the source calendar's Default Company for Adam-owned or pre-seeded internal work, and use the counterparty's company only when the item truly tracks that counterparty's commitment or deliverable.
 14. **Generic domain handling.** Gmail, Yahoo, Outlook, Hotmail, iCloud, AOL, Protonmail — check full email address against Domains/Additional Domains. No placeholder Companies for generic domains.
 
 ## Record Status & Lifecycle

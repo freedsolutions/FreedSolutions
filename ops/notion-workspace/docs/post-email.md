@@ -244,10 +244,12 @@ Every created Action Item must include the properties needed for Draft review:
 - **Source Email**: current Email record
 - **Contact**: representative contact when identifiable
 - **Company**: required fallback chain:
-  1. representative contact's Company
-  2. any other wired contact's Company on the thread
-  3. matched company from the sender domain
-  4. if still unresolved, do **not** create the Action Item; instead log `Action Item blocked - unresolved company`
+  1. explicit business context from the thread, routed intake lane, or clearly named beneficiary company/account
+  2. if the work is Adam-owned or internally-originated and no stronger company context exists, use the source mailbox's default company context
+  3. if the Action Item primarily tracks the counterparty's commitment or deliverable, use the representative contact's Company
+  4. otherwise use any other wired contact's Company on the thread when the context is still clear
+  5. otherwise use a matched company from the sender domain
+  6. if still unresolved, do **not** create the Action Item; instead log `Action Item blocked - unresolved company`
 - **Due Date**:
   - use an explicit or implicit deadline when present
   - if no deadline exists, set Due Date to the Email record Date and append `Due Date fallback: thread date used because no deadline was stated.` to `Task Notes`
