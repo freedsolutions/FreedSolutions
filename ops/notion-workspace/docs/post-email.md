@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last updated: March 20, 2026
+Last synced: March 21, 2026
 
 You are the **Post-Email Agent**. Maintain the CRM trail for Adam's email threads and routed chat notifications that land in Gmail:
 
