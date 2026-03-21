@@ -2,10 +2,10 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: Session 56 (March 18, 2026)
+Last synced: March 21, 2026
 
 **Type:** Notion Calendar AI Notetaker Profile
-**Status:** Active — Session 38 (March 15, 2026), updated Session 39 (source reference format)
+**Status:** Active — original rollout in Session 38 (March 15, 2026); source reference format updated in Session 39; metadata refreshed March 21, 2026
 **Purpose:** Produce structured meeting summaries optimized for the Post-Meeting Agent's parsing pipeline and Floppy voice-command surfacing.
 
 ## Input Channels
@@ -23,13 +23,13 @@ The **transcript** is a conversation record only — used for TL;DR summary (Ste
 
 Open the **AI Meeting Notes summary instructions** page in Notion Calendar and fill in each section as shown below. The page title should be **"Notetaker CRM"**.
 
-Notion's template has four sections: Context, Summary format (with named section blocks), and Summary style. The content below maps directly to those sections.
+Notion's template has three relevant sections here: Context, Summary format (with named section blocks), and Summary style. The content below maps directly to those sections.
 
 ---
 
 ## Context
 
-> This is a CRM-optimized notetaker for business meetings. The summary will be parsed by an automated Post-Meeting Agent that creates action items, wires CRM contacts, and syncs back to Google Calendar. The meeting host is Adam. Structure output precisely as described below.
+> This is a CRM-optimized notetaker for business meetings. The summary will be parsed by an automated Post-Meeting Agent that creates action items and wires CRM contacts. The meeting host is Adam. Structure output precisely as described below.
 
 ---
 
@@ -39,9 +39,11 @@ Notion's template has four sections: Context, Summary format (with named section
 
 > This is the most important section. Always place it first. Format every action item as a markdown checklist item: `- [ ] [Person name] to [action] [source reference]`. Lead with the person's name (first name as spoken). Use imperative voice: "send", "review", "schedule" — not "will send". Include deadlines when mentioned. One item per line — never combine two actions. Include source references in brackets. Do not editorialize — capture commitments, not hypotheticals. If the speaker assigns something to themselves, use their name explicitly, never "I" or "me".
 >
+> Do not mirror ordinary typed Notes into this section unless they are explicit "Hey Floppy" commands. The Post-Meeting Agent already reads non-Floppy typed Notes directly.
+>
 > CRITICAL — "Hey Floppy" commands (voice AND typed notes): Adam may say "Hey Floppy" (or "Hey, Floppy", "A Floppy", "Hey Floppi") followed by a command, or type "Hey Floppy" followed by a command in the Notes panel. These are the highest-priority items. Always include them as Action Items. Preserve Adam's exact wording. Place Floppy items FIRST in the list. Prefix with "(Floppy)": `- [ ] (Floppy) Adam to send Jake the ConnectNexus docs [00:14:23]`. For items sourced from typed notes rather than voice, use `[Notes]` as the source reference instead of a timestamp: `- [ ] (Floppy) Adam to write LinkedIn post discussing the Dime podcast episode [Notes]`. If a Floppy command overlaps with an organically discussed item, keep both — the downstream agent handles dedup.
 >
-> END-OF-MEETING RECAP: When the meeting is nearing its end (final 2-3 minutes, or when participants begin wrapping up), prompt Adam with a brief recap: "Before we wrap — any action items to capture?" This gives Adam a last chance to type or speak any remaining items. The Post-Meeting Agent parses typed Notes directly, so anything Adam types at this point becomes a candidate Action Item automatically.
+> END-OF-MEETING RECAP: Treat this as an operator reminder near the end of the meeting, not a guaranteed live Notion prompt. If live prompting is possible, ask Adam, "Before we wrap - any action items to capture?" If live prompting is not supported, Adam should type any remaining items into Notes during wrap-up. The Post-Meeting Agent parses typed Notes directly, so anything Adam types at this point becomes a candidate Action Item automatically.
 
 ### Section 2: Key Decisions
 
@@ -66,7 +68,7 @@ Notion's template has four sections: Context, Summary format (with named section
 
 ## Why This Format
 
-The Post-Meeting Agent (see [post-meeting.md](post-meeting.md)) uses a **human-driven model** for Action Items:
+The Post-Meeting Agent follows a **human-driven model** for Action Items. The live instruction page is **Post-Meeting Instructions**, and the repo source is `ops/notion-workspace/docs/post-meeting.md`.
 
 1. **Typed Notes (primary):** The agent parses ALL non-Floppy content from the Notes panel (Step 2.1). Every line Adam types becomes a candidate Action Item. The AI summary's `### Action Items` heading still captures Floppy items (Layer 1) but is no longer mined for AI-inferred items.
 2. **Floppy commands (secondary):** The `(Floppy)` prefix serves Layer 1 of the Floppy design — the AI summary surfaces "Hey Floppy" commands as structured `to_do` blocks. The Post-Meeting Agent reads these (Step 2.0 Source 1) and also independently parses the transcript (Layer 2).
@@ -84,4 +86,4 @@ This is the first notetaker profile (**Notetaker CRM**). Future profiles for dif
 | **Strategy / Workshop** | Longer brainstorm or planning sessions. Heavier on topic summaries, lighter on action items. | Planned |
 | **1:1 / Check-in** | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
 
-Each profile will be a separate doc with its own instruction text, registered in agent-sops.md.
+Each profile will be a separate doc with its own instruction text, registered in `agent-sops.md`.

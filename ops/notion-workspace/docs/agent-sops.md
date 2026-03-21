@@ -89,7 +89,7 @@ Skill publish workflow:
 
 1. Edit the canonical skill source in the repo.
 2. Validate with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`.
-3. Publish to `~/.codex/skills` with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
+3. Publish to `$CODEX_HOME/skills` (default: `~/.codex/skills`) with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
 
 ---
 
@@ -137,7 +137,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
   - Agent SOPs -> Can view
 - Connections:
   - Mail: runtime may show `adam@freedsolutions.com` and `adamjfreed@gmail.com`, and both are currently in scope for the live agent
-  - Current runtime scope may include inbox-modify and draft permissions. Inbox-modify is acceptable for marking terminal threads read after successful processing, but the workflow must not send mail.
+  - Expected mail permission set is `Read` plus inbox-modify only for marking terminal threads read after successful processing. `Send` and `Draft` should stay off; treat any broader runtime scope as config drift and log it during agent audits.
   - Web access: Off
   - No calendar access
 - Model: Opus 4.6
@@ -193,7 +193,8 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Connections:
   - Web access: On
   - Calendar: Read only
-  - Mail runtime may currently allow broader mailbox scope than the workflow needs. The workflow must not send mail or mutate inbox state as part of enrichment.
+  - Mail: keep least-privilege scope. The intended runtime is `adam@freedsolutions.com` with read-only access; re-verify during config audits.
+  - The workflow must not send mail or mutate inbox state as part of enrichment.
 - Model: Opus 4.6
 - Notes:
   - Queue fairness matters. Old Draft and QC-gap records must not starve behind newer ones.

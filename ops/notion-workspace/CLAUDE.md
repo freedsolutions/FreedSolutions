@@ -24,8 +24,8 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-20 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
-| `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | S56 |
-| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations on `Record Status = Delete` records | S54 |
+| `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
+| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations on `Record Status = Delete` records | 2026-03-17 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-21 |
 | `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
@@ -33,13 +33,15 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 ## Codex Skills
 
-Repo skill sources live under `ops/notion-workspace/skills/`. Installed copies belong in `~/.codex/skills`.
+Repo skill sources live under `ops/notion-workspace/skills/`. Installed copies belong in `$CODEX_HOME/skills` (default: `~/.codex/skills`; Windows default: `C:\Users\adamj\.codex\skills`).
 
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through delivery and approval |
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
+
+The `Notion Page ID` values in the local-doc table below are the canonical page mapping. Individual repo docs may also carry a local `<!-- Notion Page ID: ... -->` comment for convenience, but that comment is optional and must never appear in a live Notion page.
 
 ## Session Files
 
@@ -131,21 +133,22 @@ At the end of every session:
 ## Sync Convention
 
 - Local `docs/` files are the source of truth for instruction content.
-- When instructions change, edit the local file first, then push to Notion via MCP in the same task unless Adam explicitly asks for a local-only draft.
+- When instructions change, edit the local file first, then push to Notion via MCP in the same task unless Adam explicitly asks for a local-only draft. Do not paste the repo-only `<!-- Notion Page ID: ... -->` comment into the live Notion page.
 - Ephemeral/runtime data (agent config, CRM records, live automation state) lives in Notion only.
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
-- Skill sources follow the same rule: edit the repo copy first, validate, then publish installed copies to `~/.codex/skills`.
+- Skill sources follow the same rule: edit the repo copy first, validate, then publish installed copies to `$CODEX_HOME/skills` (default: `~/.codex/skills`).
 
 ## Codex Review Gate
 
 For tasks that change local files in `ops/notion-workspace/`, use this order:
 
 1. Edit the local source-of-truth files.
-2. Push the mapped instruction docs to Notion via MCP when applicable.
-3. Re-fetch the updated Notion pages and verify live content parity with the local docs.
-4. Run the Codex review gate on the current worktree.
-5. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
-6. Then commit and push to `main`.
+2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
+3. Re-fetch the updated Notion pages and first confirm the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment.
+4. Save the fetched live page body to a temp file and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>` to verify deterministic sync parity.
+5. Run the Codex review gate on the current worktree.
+6. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
+7. Then commit and push to `main`.
 
 Do **not** update the canonical handoff before the Codex review gate unless Adam explicitly asks for a draft note before review.
 
@@ -159,7 +162,7 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 20, 2026)
+## Current Follow-Up Queue (March 21, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 
@@ -195,4 +198,4 @@ When changing a manual workflow skill:
 
 1. Update the canonical repo skill under `ops/notion-workspace/skills/`
 2. Validate it with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`
-3. Publish the installed copy to `~/.codex/skills`
+3. Publish the installed copy to `$CODEX_HOME/skills` (default: `~/.codex/skills`)

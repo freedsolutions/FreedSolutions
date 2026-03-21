@@ -2,8 +2,14 @@
 
 ## Resolution
 
-- Accept a Notion URL, raw UUID, or Action Item title.
-- Fetch the page immediately.
+- Accept a Notion URL, raw UUID, Action Item title, or a pre-loaded Action Item context bundle.
+- If the user provides a pre-loaded Action Item context bundle, it should identify the page by URL or page ID and include the current Task Name plus whatever status, relations, notes, or attachment context is already known.
+- Verify that any supplied bundle, URL, and UUID all resolve to the same Action Item page before proceeding.
+- If the bundle page does not exist or the identifiers disagree, stop and report the mismatch.
+- If the bundle is valid, use it as the starting record and refresh this minimum field set before risky work: `Task Name`, `Task Notes`, `Status`, `Priority`, `Due Date`, `Record Status`, `Assignee`, `Contact`, `Company`, `Source Meeting`, `Source Email`, and `Attach File`.
+- Treat copied notes, relation summaries, and attachment details as stale when they came from an earlier session, have no capture timestamp, include placeholder values, or the user indicates the record may have changed. Re-fetch only the stale pieces you need.
+- If title search returns multiple candidate Action Items, pause and ask the user to disambiguate before fetching related context or doing work.
+- Otherwise fetch the page immediately.
 - Extract the Task Name, Task Notes, Status, Priority, Due Date, Record Status, Assignee, Contact, Company, Source Meeting, Source Email, Attach File, and page body.
 
 ## Compact Summary Template
@@ -67,3 +73,14 @@ Fetch only what the current task needs.
 - Google Sheets content still needs an export.
 - Attached file URLs may not be directly fetchable.
 - Cannabis operations tasks often need domain-aware interpretation; clarify only where it changes the output materially.
+
+## Regression Checks
+
+- Complete pre-loaded context bundle vs. standard URL or UUID path: confirm the pre-execution summary matches after any minimal refresh.
+- Pre-loaded context bundle with stale status or relations: confirm the skill refreshes the minimum required field set before risky work.
+- Pre-loaded context bundle with stale notes or attachments: confirm only the stale fields are refreshed before execution.
+- Pre-loaded context bundle with missing required fields: pause and fetch the missing data before execution.
+- Pre-loaded context bundle with no capture timestamp: confirm copied notes, relations, and attachments are treated as stale and refreshed as needed.
+- Pre-loaded context bundle with a missing or mismatched page ID, URL, or UUID: confirm the skill reports the mismatch and stops before execution.
+- Standard URL or UUID path: confirm the skill still performs an initial fetch and produces the same pre-execution summary.
+- Title search with multiple matching Action Items: confirm the skill asks for disambiguation instead of selecting one arbitrarily.

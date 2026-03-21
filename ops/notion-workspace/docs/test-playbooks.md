@@ -8,9 +8,32 @@ Step-by-step validation procedures for Codex skills, Notion Custom Agents, and m
 
 Run before publishing:
 
-1. `python C:\Users\adamj\.codex\skills\.system\skill-creator\scripts\quick_validate.py ops/notion-workspace/skills/notion-action-item`
+1. `python "$CODEX_HOME/skills/.system/skill-creator/scripts/quick_validate.py" ops/notion-workspace/skills/notion-action-item`
 2. Publish with `ops/notion-workspace/scripts/publish-codex-skills.ps1`
-3. Forward-test each skill on one realistic task without preloading the intended answer
+3. Confirm the installed copy in `$CODEX_HOME/skills/notion-action-item/SKILL.md` reflects the repo contract before treating the publish as complete. On this workstation, the default resolves to `C:\Users\adamj\.codex\skills\notion-action-item\SKILL.md`.
+4. Forward-test each skill on one realistic task without preloading the intended answer
+
+### notion-action-item regression checks
+
+- Run once with a complete pre-loaded context bundle and once with only a URL or UUID for the same Action Item; confirm the pre-execution summary matches after any minimal refresh.
+- Run once with a title search that returns multiple matching Action Items and confirm the skill stops for disambiguation instead of choosing one arbitrarily.
+- Run once with a pre-loaded context bundle missing a required field and confirm the skill fetches the missing data before any risky action.
+- Run once with a pre-loaded context bundle containing stale status or relations and confirm the skill refreshes the minimum required field set before execution.
+- Run once with a pre-loaded context bundle containing stale notes or attachments and confirm only the stale fields are refreshed before execution.
+- Run once with a pre-loaded context bundle that has no capture timestamp and confirm copied notes, relations, and attachments are treated as stale and refreshed as needed.
+- Run once with a pre-loaded context bundle whose page ID does not exist, or whose supplied URL/UUID points at a different Action Item, and confirm the skill reports the mismatch and stops before execution.
+- Run once with a standard Notion URL or UUID and confirm the pre-execution summary matches the classic fetch-first path.
+
+## Notion sync parity
+
+Run for every repo doc changed in the session that maps to a live Notion instruction page:
+
+1. Confirm the local doc's embedded `<!-- Notion Page ID: ... -->` comment, when present, matches the mapped page ID listed in `ops/notion-workspace/CLAUDE.md`.
+2. Push the updated local doc to the mapped Notion page.
+3. Re-fetch the live page via MCP immediately after the update.
+4. Assert the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment. If it does, treat the sync as failed.
+5. Save the fetched live page body to a temp file and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>`.
+6. Resolve any drift before marking the doc synced in `CLAUDE.md` or the handoff.
 
 ---
 
@@ -150,6 +173,8 @@ Cover these cases:
 - `DMC/DMC_GMail` routed company-mail thread that should process as standard email
 - `adamjfreed@gmail.com` thread with personal-mailbox labels that should still process as standard email
 - `Action Items`-labeled manual-queue thread that should remain untouched
+
+Before running the workflow, verify the live mail connections keep least privilege. `Send` and `Draft` should stay off. If inbox-modify is available, use it only for marking terminal threads read; if it is unavailable, log the drift and confirm the workflow still avoids send or draft behavior.
 
 ### Verify
 
