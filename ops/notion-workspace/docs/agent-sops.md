@@ -282,6 +282,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - `Domains` holds primary operational domains
 - `Additional Domains` holds merged, subsidiary, alternate, or legacy domains
 - Both domain fields are used for matching and dedup
+- `Emails` and `Meetings` are company-side rollups from `Contacts`; if those look empty, verify the `Meeting -> Contacts -> Contact -> Company` and `Email -> Contacts -> Contact -> Company` chains before assuming the source records failed to wire
 - Placeholder companies default to `States = All`, but enrichment may replace that placeholder value when stronger evidence exists
 
 ## Meetings
@@ -305,6 +306,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 
 - `Thread ID` is the canonical email-thread identity
 - `Source` must be populated
+- Company-side visibility for emails comes from the `Companies.Emails` rollup via `Contacts -> Emails`, not from a direct Company relation on the Emails DB
 - Existing email stubs may be healed in place when prior runs only completed part of the workflow
 - Bot-only or alias-only email stubs should not remain operational Draft records after classification; once `Email Notes` explicitly marks that state, they should move to `Inactive`
 
