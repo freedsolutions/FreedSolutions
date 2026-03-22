@@ -143,11 +143,23 @@ Naming conventions:
 <td>`ops/notion-workspace/skills/notion-action-item/`</td>
 <td>Execute a single Action Item end to end</td>
 </tr>
+<tr>
+<td>`notion-agent-config`</td>
+<td>`ops/notion-workspace/skills/notion-agent-config/`</td>
+<td>Audit or update Notion Custom Agent settings against the local config spec</td>
+</tr>
+<tr>
+<td>`notion-agent-test`</td>
+<td>`ops/notion-workspace/skills/notion-agent-test/`</td>
+<td>Run smoke or regression tests for Notion Custom Agents using the local playbooks</td>
+</tr>
 </table>
+`notion-active-sesson` intentionally keeps its historical spelling for compatibility. Do not create a second `notion-active-session` copy unless we deliberately migrate the skill name.
 Skill publish workflow:
 1. Edit the canonical skill source in the repo.
 2. Validate with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`.
 3. Publish to `$CODEX_HOME/skills` (default: `~/.codex/skills`) with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
+4. Sync the Claude skill copy in `.claude/skills/` with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.
 ---
 # Trigger Configuration Reference
 This section is the canonical desired state for Notion Custom Agent settings.
@@ -363,7 +375,9 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.
 - For repo bootstrap, priority review, or planned scaffolding kickoff: use `notion-active-sesson`
 - For Action Item execution: use `notion-action-item`
-- For Custom Agent audits, config work, and testing: use Claude Code directly against the local docs and live Notion workspace
+- For Custom Agent config audits or edits: use `notion-agent-config`
+- For Custom Agent smoke or regression testing: use `notion-agent-test`
+- For broader Notion workspace work without a matching skill: use Claude Code directly against the local docs and live Notion workspace
 Optional planning chat surfaces can still help think through a problem, but they are not the authoritative workflow owner and do not replace the repo-backed source files.
 ---
 # Maintenance

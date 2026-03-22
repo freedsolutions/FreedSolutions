@@ -8,10 +8,13 @@ Step-by-step validation procedures for Codex skills, Notion Custom Agents, and m
 
 Run before publishing:
 
-1. `python "$CODEX_HOME/skills/.system/skill-creator/scripts/quick_validate.py" ops/notion-workspace/skills/notion-action-item`
-2. Publish with `ops/notion-workspace/scripts/publish-codex-skills.ps1`
-3. Confirm the installed copy in `$CODEX_HOME/skills/notion-action-item/SKILL.md` reflects the repo contract before treating the publish as complete. On this workstation, the default resolves to `C:\Users\adamj\.codex\skills\notion-action-item\SKILL.md`.
-4. Forward-test each skill on one realistic task without preloading the intended answer
+1. Validate the changed repo skills with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`.
+2. Publish the changed Codex copies with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
+3. Sync the Claude skill copies with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.
+4. Validate the Claude skill copies with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 -ValidateOnly`.
+5. Confirm the installed copy in `$CODEX_HOME/skills/<skill-name>/SKILL.md` reflects the repo contract. On this workstation, the default resolves to `C:\Users\adamj\.codex\skills\<skill-name>\SKILL.md`.
+6. Confirm `.claude/skills/<skill-name>/` mirrors the repo skill directory, including `SKILL.md` plus any `references/`, `agents/`, `scripts/`, or `assets/` files the skill needs.
+7. Forward-test each changed skill on one realistic task without preloading the intended answer.
 
 ### notion-action-item regression checks
 
@@ -32,12 +35,24 @@ Run before publishing:
 - Confirm the skill asks only the minimum high-impact questions and does so in plain chat rather than depending on a special AskUserQuestion tool.
 - Confirm the skill does not recreate the retired Notion session-handoff ritual or invent a second handoff surface.
 
+### notion-agent-config regression checks
+
+- Run the skill on a no-op audit of one live agent and confirm it reads `docs/agent-sops.md` before opening the browser.
+- Confirm it uses the documented direct Settings URL instead of wandering through the Notion sidebar.
+- Confirm it captures current-state evidence and reports drift explicitly instead of silently changing unclear settings.
+
+### notion-agent-test regression checks
+
+- Run the skill on one bounded `[TEST]` scenario and confirm it follows the matching section in `docs/test-playbooks.md`.
+- Confirm it checks Recent Activity plus downstream Notion state instead of relying on a single signal.
+- Confirm the final report includes trigger method, pass/fail checkpoints, issues found, and cleanup status.
+
 ## Notion sync parity
 
 Run for every repo doc changed in the session that maps to a live Notion instruction page:
 
 1. Confirm the local doc's embedded `<!-- Notion Page ID: ... -->` comment, when present, matches the mapped page ID listed in `ops/notion-workspace/CLAUDE.md`.
-2. Push the updated local doc to the mapped Notion page.
+2. Push the updated local doc to the mapped Notion page, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
 3. Re-fetch the live page via MCP immediately after the update.
 4. Assert the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment. If it does, treat the sync as failed.
 5. Save the fetched live page body to a temp file and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>`.

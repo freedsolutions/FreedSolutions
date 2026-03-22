@@ -23,10 +23,12 @@ client_secret_*.apps.googleusercontent.com.json
 node_modules/
 __pycache__/
 *.pyc
+ops/notion-workspace/.tmp/
 
 # Claude Code local settings (except version-controlled skills)
 .claude/*
 !.claude/skills/
+!.claude/skills/**
 
 # Playwright smoke test artifacts
 .playwright-mcp/

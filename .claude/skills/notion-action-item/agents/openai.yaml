@@ -1,0 +1,7 @@
+interface:
+  display_name: "Notion Action Item"
+  short_description: "Execute a wired Notion Action Item"
+  default_prompt: "Use $notion-action-item to work this Action Item from its Notion URL, ID, or title."
+
+policy:
+  allow_implicit_invocation: true

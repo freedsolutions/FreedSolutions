@@ -33,14 +33,17 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 ## Codex Skills
 
-Repo skill sources live under `ops/notion-workspace/skills/`. Installed copies belong in `$CODEX_HOME/skills` (default: `~/.codex/skills`; Windows default: `C:\Users\adamj\.codex\skills`).
+Repo skill sources live under `ops/notion-workspace/skills/`. They are the canonical source for both Codex and Claude. Installed Codex copies belong in `$CODEX_HOME/skills` (default: `~/.codex/skills`; Windows default: `C:\Users\adamj\.codex\skills`). Claude should use synced skill copies under `.claude/skills/` produced from the repo with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.
 
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
 | `notion-active-sesson` | `ops/notion-workspace/skills/notion-active-sesson/` | Kick off the repo handoff, surface priorities, and route the session into the next scaffolding or workflow step |
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through delivery and approval |
+| `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent settings against the local config spec |
+| `notion-agent-test` | `ops/notion-workspace/skills/notion-agent-test/` | Run smoke or regression tests for Notion Custom Agents using the local playbooks |
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
+`notion-active-sesson` intentionally keeps its historical spelling for compatibility. Do not create a second `notion-active-session` copy unless we decide to run an explicit rename migration.
 
 The `Notion Page ID` values in the local-doc table below are the canonical page mapping. Individual repo docs may also carry a local `<!-- Notion Page ID: ... -->` comment for convenience, but that comment is optional and must never appear in a live Notion page.
 
@@ -147,9 +150,10 @@ For tasks that change local files in `ops/notion-workspace/`, use this order:
 2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
 3. Re-fetch the updated Notion pages and first confirm the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment.
 4. Save the fetched live page body to a temp file and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>` to verify deterministic sync parity.
-5. Run the Codex review gate on the current worktree.
-6. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
-7. Then commit and push to `main`.
+5. If the task changed repo skill sources or `.claude/skills/`, run `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 -ValidateOnly` to confirm the Claude copies still mirror the canonical repo skills.
+6. Run the Codex review gate on the current worktree.
+7. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
+8. Then commit and push to `main`.
 
 Do **not** update the canonical handoff before the Codex review gate unless Adam explicitly asks for a draft note before review.
 
@@ -200,3 +204,4 @@ When changing a manual workflow skill:
 1. Update the canonical repo skill under `ops/notion-workspace/skills/`
 2. Validate it with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`
 3. Publish the installed copy to `$CODEX_HOME/skills` (default: `~/.codex/skills`)
+4. Sync the Claude skill copy in `.claude/skills/` with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`
