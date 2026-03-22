@@ -23,6 +23,8 @@ Read `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.
    - Treat live settings as runtime truth for risk assessment.
    - Treat the local docs as the target state unless the user explicitly approves a new direction.
 5. Apply changes one agent at a time.
+   - Clear, safe runtime repairs that bring live settings back to the documented baseline are `UNGATED`.
+   - Use `HARDENED_GATE` before fixing unclear drift, redefining the local spec, or making agent-architecture, permission, or model changes not plainly dictated by the current docs.
    - Save before navigating away.
    - Re-open any property-trigger dialog to verify the final state.
 6. Report drift explicitly.
@@ -32,8 +34,18 @@ Read `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.
 
 - Never navigate away with unsaved changes.
 - Always capture before and after evidence for live config changes.
-- Do not silently "fix" runtime drift when the spec is unclear.
+- Do not silently "fix" runtime drift when the spec is unclear; use `HARDENED_GATE`.
 - Treat instruction-page content edits as a separate Notion MCP task, not a browser settings task.
+
+## Gate Protocol
+
+Use the shared gate taxonomy from `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.md`.
+
+| Operation | Gate | Notes |
+| --- | --- | --- |
+| Read the spec, navigate to settings, capture current state, compare runtime to the documented target state, and apply clear safe runtime repairs that restore that baseline | `UNGATED` | Save and verify each logical change set. Adam confirmation still applies only to marking a UI-only step complete. |
+| Unclear drift, agent-architecture changes, permission or model changes not plainly dictated by the current docs, and any repo doc edit | `HARDENED_GATE` | Ask a compact question and re-ask if the reply is empty or unclear. |
+| Schema, destructive, bulk, or out-of-contract lifecycle changes triggered by the requested repair | `GOVERNANCE_GATE` | Follow the existing Rules of Engagement. |
 
 ## Read Next
 

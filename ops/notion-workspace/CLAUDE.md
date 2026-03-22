@@ -19,7 +19,7 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-21 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-22 |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> Notes -> curated summary). Uses live `Calendar Name` options only. | 2026-03-21 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-20 |
@@ -38,7 +38,7 @@ Repo skill sources live under `ops/notion-workspace/skills/`. They are the canon
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
 | `notion-active-sesson` | `ops/notion-workspace/skills/notion-active-sesson/` | Kick off the repo handoff, surface priorities, and route the session into the next scaffolding or workflow step |
-| `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through delivery and approval |
+| `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through deliverable creation and bounded target updates |
 | `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent settings against the local config spec |
 | `notion-agent-test` | `ops/notion-workspace/skills/notion-agent-test/` | Run smoke or regression tests for Notion Custom Agents using the local playbooks |
 
@@ -89,6 +89,18 @@ The repo is the canonical home for session handoff docs.
 10. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam - UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals.
 11. **Verify content on sync, not just existence.** When marking a Notion page as "in sync" with a local doc, verify the actual content matches - not just that the page exists.
 
+## Skill Gate Protocol
+
+Repo-backed Notion skills use this shared gate taxonomy:
+
+| Gate | Meaning |
+|------|---------|
+| `UNGATED` | Proceed without pausing. |
+| `HARDENED_GATE` | Ask one compact decision-shaped question using native structured questioning when available; otherwise use a deterministic short chat halt. If the reply is empty, unclear, or ambiguous, re-ask before proceeding. Never treat silence as approval. |
+| `GOVERNANCE_GATE` | Use the same pause mechanism as `HARDENED_GATE`, but only when the existing Rules of Engagement require a pause. |
+
+When a repo-backed skill is executing autonomously, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
+
 ## Standing Approval Scope
 
 Routine Notion work is pre-authorized once Adam requests it. This includes:
@@ -102,6 +114,8 @@ Routine Notion work is pre-authorized once Adam requests it. This includes:
 - Running documented smoke and regression tests with `[TEST]` records or disposable audit pages, including bounded cleanup
 - Applying safe runtime repairs that bring live agent settings, runtime state, or individual records back into alignment with the local workflow docs
 - Staging, committing, and pushing `ops/notion-workspace` changes after validation and review, so long as unrelated work is not swept into the change
+
+Inside an autonomous repo-backed skill run, repo/code mutations still require `HARDENED_GATE` before the first edit. Once that gate is satisfied, continue the approved change set autonomously unless a later `GOVERNANCE_GATE` is triggered.
 
 Pause and ask before proceeding only when any of the following are true:
 
@@ -146,6 +160,8 @@ At the end of every session:
 
 For tasks that change local files in `ops/notion-workspace/`, use this order:
 
+If an autonomous repo-backed skill is executing the change, satisfy the required `HARDENED_GATE` before the first repo mutation, then follow the close-out order below.
+
 1. Edit the local source-of-truth files.
 2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
 3. Re-fetch the updated Notion pages and first confirm the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment.
@@ -167,7 +183,7 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 21, 2026)
+## Current Follow-Up Queue (March 22, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 

@@ -25,14 +25,19 @@ Run before publishing:
 - Run once with a pre-loaded context bundle containing stale notes or attachments and confirm only the stale fields are refreshed before execution.
 - Run once with a pre-loaded context bundle that has no capture timestamp and confirm copied notes, relations, and attachments are treated as stale and refreshed as needed.
 - Run once with a pre-loaded context bundle whose page ID does not exist, or whose supplied URL/UUID points at a different Action Item, and confirm the skill reports the mismatch and stops before execution.
-- Run once with a standard Notion URL or UUID and confirm the pre-execution summary matches the classic fetch-first path.
+- Run once with a standard Notion URL or UUID plus an explicit execution request and confirm the pre-execution summary matches the classic fetch-first path while bounded target note/content/`Status` updates do not require an extra approval loop.
+- Run once with an attempted `Record Status` change outside a documented workflow or test path and confirm the skill triggers `GOVERNANCE_GATE` instead of applying it.
+- Run once with unclear outbound recipients or outbound content and confirm the skill triggers the shared `HARDENED_GATE`.
+- Run once with an empty or ambiguous gate response and confirm the skill re-asks before proceeding.
 
 ### notion-active-sesson regression checks
 
 - Invoke the skill with a kickoff request such as "Review `ops/notion-workspace` and propose the next scaffolding updates"; confirm it reads `session-active.md`, `CLAUDE.md`, and `docs/agent-sops.md` before branching wider.
-- Confirm the skill uses a small targeted swarm for repo discovery when the kickoff task is not trivial.
+- Confirm the skill uses local or parallel repo discovery by default and does not assume delegation support.
 - Confirm the kickoff summary names the active priorities, likely touched files, and validation path instead of returning a vague backlog dump.
-- Confirm the skill asks only the minimum high-impact questions and does so in plain chat rather than depending on a special AskUserQuestion tool.
+- Confirm the skill asks only the minimum high-impact questions and does so through the shared `HARDENED_GATE` model, using native structured questioning when available and a deterministic chat halt otherwise.
+- Confirm the skill uses `HARDENED_GATE` before repo file edits by naming the intended files and change types.
+- Run once with an empty or ambiguous gate response and confirm the skill re-asks before proceeding.
 - Confirm the skill does not recreate the retired Notion session-handoff ritual or invent a second handoff surface.
 
 ### notion-agent-config regression checks
@@ -40,12 +45,14 @@ Run before publishing:
 - Run the skill on a no-op audit of one live agent and confirm it reads `docs/agent-sops.md` before opening the browser.
 - Confirm it uses the documented direct Settings URL instead of wandering through the Notion sidebar.
 - Confirm it captures current-state evidence and reports drift explicitly instead of silently changing unclear settings.
+- Confirm clear safe runtime repairs can proceed without a new approval loop, while unclear drift triggers `HARDENED_GATE`.
 
 ### notion-agent-test regression checks
 
 - Run the skill on one bounded `[TEST]` scenario and confirm it follows the matching section in `docs/test-playbooks.md`.
 - Confirm it checks Recent Activity plus downstream Notion state instead of relying on a single signal.
 - Confirm the final report includes trigger method, pass/fail checkpoints, issues found, and cleanup status.
+- Confirm bounded `[TEST]` setup, cleanup, and reporting stay `UNGATED`, while out-of-playbook moves would trigger `HARDENED_GATE` or `GOVERNANCE_GATE`.
 
 ## Notion sync parity
 

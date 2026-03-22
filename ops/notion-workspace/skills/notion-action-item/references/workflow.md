@@ -8,7 +8,7 @@
 - If the bundle page does not exist or the identifiers disagree, stop and report the mismatch.
 - If the bundle is valid, use it as the starting record and refresh this minimum field set before risky work: `Task Name`, `Task Notes`, `Status`, `Priority`, `Due Date`, `Record Status`, `Assignee`, `Contact`, `Company`, `Source Meeting`, `Source Email`, and `Attach File`.
 - Treat copied notes, relation summaries, and attachment details as stale when they came from an earlier session, have no capture timestamp, include placeholder values, or the user indicates the record may have changed. Re-fetch only the stale pieces you need.
-- If title search returns multiple candidate Action Items, pause and ask the user to disambiguate before fetching related context or doing work.
+- If title search returns multiple candidate Action Items, use `HARDENED_GATE` to ask the user to disambiguate before fetching related context or doing work.
 - Otherwise fetch the page immediately.
 - Extract the Task Name, Task Notes, Status, Priority, Due Date, Record Status, Assignee, Contact, Company, Source Meeting, Source Email, Attach File, and page body.
 
@@ -49,23 +49,23 @@ Fetch only what the current task needs.
 | Analysis or data work | `.xlsx` | Create the file in the workspace |
 | Written deliverable | `.docx`, `.pdf`, or `.md` | Create the file in the workspace |
 | Email draft | Gmail draft | Create via Gmail MCP when recipients are clear |
-| Notion content update | Direct page edit | Update after approval |
+| Notion content update | Direct page edit on the target Action Item | Treat as routine follow-through after an explicit execution request |
+| Target Action Item `Status` update | Direct property update | Keep it bounded to the target record and requested task |
 | Presentation | `.pptx` | Create the file in the workspace |
 | Research summary | Inline response | Keep it concise and concrete |
 
-## Approval Gates
+## Gate Protocol
 
-1. Present the deliverable first.
-2. Iterate until approved.
-3. Draft the follow-up email when needed.
-4. Ask before any Notion status or lifecycle update.
+- `UNGATED`: present the deliverable, iterate when the user asks for revisions, and perform bounded target Action Item note/content/`Status` updates that fit the explicit execution request.
+- `HARDENED_GATE`: use for ambiguous identity, unclear business intent, missing source data that changes execution, unclear outbound recipients/content, or any repo file edit. Re-ask if the reply is empty or unclear.
+- `GOVERNANCE_GATE`: use when `Record Status`, schema, destructive or bulk work, or unrelated-record mutations would invoke the existing Rules of Engagement.
 
 ## Rules
 
 - Follow the wiring.
-- Ask before acting on real ambiguity.
+- Use `HARDENED_GATE` before acting on real ambiguity.
 - Create real deliverables.
-- Set `Record Status` only after approval.
+- Set `Record Status` only when the request or a documented workflow/test path already authorizes that exact lifecycle move; otherwise use `GOVERNANCE_GATE`.
 - Keep changes scoped to the target Action Item unless the user expands scope.
 
 ## Known Limitations
@@ -82,5 +82,7 @@ Fetch only what the current task needs.
 - Pre-loaded context bundle with missing required fields: pause and fetch the missing data before execution.
 - Pre-loaded context bundle with no capture timestamp: confirm copied notes, relations, and attachments are treated as stale and refreshed as needed.
 - Pre-loaded context bundle with a missing or mismatched page ID, URL, or UUID: confirm the skill reports the mismatch and stops before execution.
-- Standard URL or UUID path: confirm the skill still performs an initial fetch and produces the same pre-execution summary.
+- Standard URL or UUID path plus an explicit execution request: confirm the skill still performs an initial fetch, produces the same pre-execution summary, and can perform bounded target note/content/`Status` updates without an extra approval loop.
 - Title search with multiple matching Action Items: confirm the skill asks for disambiguation instead of selecting one arbitrarily.
+- Unclear outbound recipient or outbound content: confirm the skill uses `HARDENED_GATE` before proceeding.
+- Empty or ambiguous reply to a required gate question: confirm the skill re-asks before proceeding.

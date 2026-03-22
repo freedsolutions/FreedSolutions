@@ -34,6 +34,16 @@ Read `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/docs/agent-sops.md`
 - Do not skip cleanup on partial failures.
 - Treat runtime timestamps and activity history as evidence, not assumptions.
 
+## Gate Protocol
+
+Use the shared gate taxonomy from `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.md`.
+
+| Operation | Gate | Notes |
+| --- | --- | --- |
+| Bounded `[TEST]` setup, trigger, monitoring, verification, cleanup, and reporting that stay inside the documented playbook | `UNGATED` | Follow the playbook exactly and keep the blast radius small. |
+| Any repo file edit and any test move that falls outside the documented playbook | `HARDENED_GATE` | Ask a compact question and re-ask if the reply is empty or unclear. |
+| Non-test record creation, destructive cleanup beyond the playbook, schema changes, or lifecycle mutations outside documented test paths | `GOVERNANCE_GATE` | Follow the existing Rules of Engagement. |
+
 ## Read Next
 
 - Read [workflow.md](references/workflow.md) for the generic E2E testing pattern and report template.

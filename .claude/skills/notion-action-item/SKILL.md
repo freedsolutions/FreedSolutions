@@ -1,6 +1,6 @@
 ---
 name: notion-action-item
-description: Execute a Notion Action Item end-to-end from its URL, UUID, title, or a pre-loaded context bundle using CRM wiring, related records, and explicit approval gates. Use when the user wants an Action Item worked, its meeting or email context reviewed, a deliverable produced, or the record closed after confirmation.
+description: Execute a Notion Action Item end-to-end from its URL, UUID, title, or a pre-loaded context bundle using CRM wiring, related records, and the shared gate taxonomy. Use when the user wants an Action Item worked, its meeting or email context reviewed, or a deliverable produced and the target record updated.
 ---
 
 <!-- Generated from ops/notion-workspace/skills/notion-action-item/. Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
@@ -13,7 +13,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 
 1. Resolve the Action Item from the user input.
    - Accept a Notion URL, UUID, title search, or a pre-loaded Action Item context bundle.
-   - If title search returns multiple plausible matches, stop and ask the user to disambiguate. Do not choose arbitrarily.
+   - If title search returns multiple plausible matches, use `HARDENED_GATE` to ask the user to disambiguate. Do not choose arbitrarily.
    - If the user already provided the target record and wiring context, use that as the starting point and refresh the minimum required field set defined in `references/workflow.md` before risky work.
    - Otherwise fetch the record immediately before doing any work from memory.
 2. Summarize the record before execution.
@@ -24,14 +24,15 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 4. Gather extra context only when needed.
    - Use Gmail, Calendar, web, or uploaded files when the task actually depends on them.
    - Ask for exported CSV/XLSX files when the work depends on Google Sheets contents.
-5. Confirm the deliverable only when material ambiguity remains.
+5. Use `HARDENED_GATE` only when material ambiguity remains.
    - Do not ask for confirmation that can be resolved from the data.
-   - Do pause before acting on unclear business intent, missing source data, or risky outbound work.
+   - Use `HARDENED_GATE` before acting on unclear business intent, missing source data that changes execution, or risky outbound work.
 6. Produce the real deliverable.
    - Prefer actual files, Gmail drafts, or direct Notion edits over describing what you would do.
    - Show reasoning for analytical work before the final artifact.
 7. Close the loop carefully.
-   - Wait for explicit approval before updating the Action Item's Status, Record Status, or notes.
+   - Update target Action Item notes/content and bounded `Status` changes as routine follow-through after an explicit execution request.
+   - Use `GOVERNANCE_GATE` for `Record Status` changes unless the request or a documented workflow/test path already authorizes that exact lifecycle move.
    - Do not modify unrelated CRM records.
 
 ## Guardrails
@@ -43,8 +44,19 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 - If the bundle page ID does not exist, or if a supplied URL or UUID points at a different Action Item than the bundle, stop and surface the mismatch before doing any work.
 - Treat wiring as authoritative unless the user explicitly overrides it.
 - Do not create Contacts, Companies, or Meetings from this skill.
-- Do not change `Record Status` without explicit approval.
-- Treat deliverable review and Notion updates as separate approval gates.
+- Use `HARDENED_GATE` for ambiguous title resolution, mismatched page identity, unclear outbound recipients/content, and repo file edits.
+- Keep bounded target Action Item updates inside the requested task `UNGATED`; do not treat deliverable review and target-page updates as separate approval loops.
+- Do not change `Record Status` outside `GOVERNANCE_GATE`.
+
+## Gate Protocol
+
+Use the shared gate taxonomy from `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.md`.
+
+| Operation | Gate | Notes |
+| --- | --- | --- |
+| Resolve by URL or UUID, minimal refresh, wiring-first context, external context gathering, deliverable creation, target Action Item notes/content updates, and bounded `Status` updates after an explicit execution request | `UNGATED` | Keep changes scoped to the target Action Item. |
+| Ambiguous title disambiguation, unclear business intent, missing source data that changes execution, mismatched pre-loaded context, unclear outbound recipients/content, and any repo file edit | `HARDENED_GATE` | Ask one compact decision-shaped question and re-ask if the reply is empty or unclear. |
+| `Record Status` changes unless already authorized by the request or a documented workflow/test path; schema, destructive, bulk, or unrelated-record mutations | `GOVERNANCE_GATE` | Follow the existing Rules of Engagement. |
 
 ## Read Next
 

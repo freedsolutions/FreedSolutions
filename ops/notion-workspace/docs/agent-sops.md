@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 21, 2026
+Last synced: March 22, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -339,7 +339,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Existing email stubs may be healed in place when prior runs only completed part of the workflow
 - Bot-only or alias-only email stubs should not remain operational Draft records after classification; once `Email Notes` explicitly marks that state, they should move to `Inactive`
 ---
-# Rules Of Engagement
+# Rules of Engagement
 1. Read `ops/notion-workspace/session-active.md` first, then the canonical local docs.
 2. Standing approval applies to routine Notion work once Adam requests it, including the normal validate, test, sync, commit, and push follow-through for `ops/notion-workspace` when the work stays inside the documented workflow.
 3. Pause only for ambiguity, destructive actions, schema changes, lifecycle changes outside a documented workflow or test path, new non-test CRM record creation outside a documented workflow, or large migrations.
@@ -348,6 +348,29 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 6. Verify live parity after pushing a local doc to Notion.
 7. Keep docs, skills, and runtime behavior aligned. Do not accept silent drift as normal.
 8. Every repo doc that maps to a live Notion page must include a visible `Live Notion doc` banner directly under the H1.
+## Skill Gate Protocol
+Repo-backed Notion skills use this shared gate taxonomy:
+
+<table header-row="true">
+<tr>
+<td>Gate</td>
+<td>Meaning</td>
+</tr>
+<tr>
+<td>`UNGATED`</td>
+<td>Proceed without pausing.</td>
+</tr>
+<tr>
+<td>`HARDENED_GATE`</td>
+<td>Ask one compact decision-shaped question using native structured questioning when available; otherwise use a deterministic short chat halt. If the reply is empty, unclear, or ambiguous, re-ask before proceeding. Never treat silence as approval.</td>
+</tr>
+<tr>
+<td>`GOVERNANCE_GATE`</td>
+<td>Use the same pause mechanism as `HARDENED_GATE`, but only when the existing Rules of Engagement require a pause.</td>
+</tr>
+</table>
+
+Inside an autonomous repo-backed skill run, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
 ## Kickoff Conventions
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.
 - For repo bootstrap, priority review, or planned scaffolding kickoff: use `notion-active-sesson`
