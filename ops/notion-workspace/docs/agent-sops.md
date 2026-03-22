@@ -65,7 +65,7 @@ At the end of every session:
 <td>Delete Unwiring Instructions</td>
 <td>`Record Status = Delete` on Meetings, Companies, Action Items, Contacts, and Emails + `@mention`</td>
 <td>Opus 4.6</td>
-<td>Live</td>
+<td>Live (pending P1 decommission test)</td>
 <td>[Settings](https://www.notion.so/agent/325adb01222f80d2844a0092e63da4ea?wfv=settings)</td>
 </tr>
 <tr>
@@ -75,30 +75,6 @@ At the end of every session:
 <td>Opus 4.6</td>
 <td>Active (manual QA reviewer)</td>
 <td>[Settings](https://www.notion.so/agent/325adb01222f802e91290092cb71c17d?wfv=settings)</td>
-</tr>
-<tr>
-<td>Meeting Sync</td>
-<td>\[DEPRECATED\] Meeting Sync Instructions</td>
-<td>Disabled</td>
-<td>-</td>
-<td>Deprecated</td>
-<td>-</td>
-</tr>
-<tr>
-<td>Post-Meeting Wiring</td>
-<td>\[DEPRECATED\] Post-Meeting Wiring Instructions</td>
-<td>Disabled</td>
-<td>-</td>
-<td>Deprecated</td>
-<td>-</td>
-</tr>
-<tr>
-<td>Quick Sync</td>
-<td>\[DEPRECATED\] Quick Sync Instructions</td>
-<td>Disabled</td>
-<td>-</td>
-<td>Deprecated</td>
-<td>-</td>
 </tr>
 </table>
 Naming conventions:
@@ -259,6 +235,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Queue fairness matters. Old Draft and QC-gap records must not starve behind newer ones.
 	- Placeholder correction is allowed when evidence is stronger than the placeholder default.
 ## Delete Unwiring Agent
+- Transitional status: this agent is still live while P1 validates whether built-in Notion trash/archive can replace relation unwiring without creating unacceptable CRM noise. Do not assume trash-first is the active default until that validation passes and the agent is disabled.
 - Triggers:
 	- Meetings property trigger: `Record Status = Delete`
 	- Companies property trigger: `Record Status = Delete`

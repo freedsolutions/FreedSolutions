@@ -123,7 +123,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) - both checked for dedup
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
-- **Delete handoff:** Claude sets Record Status = Delete + Notes field (Contact Notes / Company Notes / Task Notes) explaining why. Adam trashes from Delete view.
+- **Delete handoff:** Current live path is transitional. Claude sets `Record Status = Delete` plus the relevant notes field (Contact Notes / Company Notes / Task Notes) explaining why. Treat that as the Delete Unwiring handoff until P1 proves trash-first is clean enough to retire unwiring. Adam can trash from the Delete view only when the active workflow or test explicitly calls for that step.
 - **Agent Config:** Runtime state (timestamps) shared between agents. Not documentation - agents read/write during execution.
 
 ## End-of-Session Protocol
@@ -171,26 +171,59 @@ The repo handoff remains the canonical shared mechanism for Claude Code and Code
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 
-### P1 - Observe the next scheduled Post-Email run
+### P1 - Decommission Delete Unwiring in favor of built-in trash/archive
+
+- Validate one sacrificial live delete path across a small relation chain and confirm trashed records do not create unacceptable CRM noise in views, rollups, or reciprocal links
+- If the live test is acceptable, disable the Delete Unwiring agent and retire its trigger-first operating model
+- Rewrite delete guidance so `Record Status = Delete` means "ready for trash" instead of "trigger relation cleanup"
+- Keep permanent delete as Adam's manual step after Notion trash/archive
+
+### P2 - Update docs and workflow references after the delete simplification
+
+- Update `docs/delete-unwiring.md`, `docs/merge-workflow.md`, `docs/agent-sops.md`, and `CLAUDE.md`
+- Remove instructions that require relation unwiring before trash
+- Preserve a short operator note about manual permanent delete from Notion trash when Adam is ready
+
+### P3 - Validate the first scheduled Post-Email run under the current intake model
+
+- Confirm the live agent respects the current mailbox contract:
+  - `adam@freedsolutions.com` labels participate in routing
+  - `adamjfreed@gmail.com` stays in sweep scope, but its labels do not
+- Confirm `Action Items` and `Action Items/...` remain ignored as manual queue labels
+- Confirm `DMC/DMC_GMail` processes as standard email rather than as a chat wrapper
+
+### P4 - Validate the next scheduled Post-Email run for correctness and recovery
 
 - Confirm bot-only or alias-only terminal threads remain `Inactive`
 - Confirm those terminal threads do not create Contacts, Companies, or Action Items on reprocessing
 - Confirm `Post-Email Agent Last Run` advances after a successful nightly run
+- Confirm `Primitiv/PRI_Teams` notifications are not misclassified as bot-only mail
+- Confirm `LinkedIn` notifications route into CRM safely when the notification contains enough identity and action detail
+- Confirm terminally processed threads are marked read, while unresolved threads stay unread
 
-### P2 - Run the next Post-Meeting regression slice
+### P5 - Apply the new Company ownership rule to older Action Items where needed
+
+- Review historical edge cases like Jon Orzech / Resinate and flip `Company` only where the work item is clearly Adam-owned or otherwise internally-owned
+- Use `Company = owning/execution context`, `Contact = counterparty` as the review lens
+
+### P6 - Decide whether a dedicated Teams source option is worth a schema change
+
+- Current docs keep Teams notifications on the mailbox-derived `Source`
+- Labels carry the Teams channel identity for now
+- If reporting or filtering needs improve with a dedicated source value, add it intentionally rather than overloading the current schema
+
+### P7 - Normalize Gmail label coverage over time
+
+- Add deterministic Gmail labels to every stable source or known domain that should flow into CRM automatically
+- Keep company and domain naming aligned with Notion where practical
+- Treat this as the path toward fully automated inbox-zero handling for known sources
+
+### P8 - Run the next Post-Meeting regression slice
 
 - Active trigger on a representative meeting
 - Manual recovery path on a partially processed meeting
 - Duplicate no-notes protection
 - Live `Calendar Name` schema assumptions stay accurate
-
-### P3 - Unify chat-notification intake under Post-Email
-
-- Keep routed Gmail labels aligned with the workflow: `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, `LinkedIn`, and `DMC/DMC_GMail`
-- Teach Post-Email to treat Teams and LinkedIn notifications as bot wrappers around human conversations, not bot-only terminal mail
-- Keep `docs/linkedin-messages.md` as a manual fallback only for recovery or backfill when notification email content is insufficient
-- Keep `adamjfreed@gmail.com` in live sweep scope while leaving its labels out of routing until Adam explicitly adds a personal-mailbox routing contract
-- Long-term cleanup: add deterministic Gmail labels to every stable source or known domain so routing can converge toward fully automated inbox-zero handling
 
 ## Maintenance
 
