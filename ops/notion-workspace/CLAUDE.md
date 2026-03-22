@@ -101,6 +101,18 @@ Repo-backed Notion skills use this shared gate taxonomy:
 
 When a repo-backed skill is executing autonomously, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
 
+## Local Client Approval Baseline
+
+The shared `UNGATED` / `HARDENED_GATE` / `GOVERNANCE_GATE` taxonomy is the repo workflow contract, not a local client-approval bypass. A task marked `UNGATED` means "no extra workflow pause" inside the documented process; Claude or Codex can still surface routine MCP approval prompts if the local session is launched without the expected client baseline.
+
+For routine `ops/notion-workspace` work on this workstation:
+
+- **Claude project baseline** lives in `.claude/settings.json` and `.claude/settings.local.json`. Keep the required Notion-workspace namespaces aligned between both files: `mcp__notion__*`, `mcp__google-workspace__*`, `mcp__playwright__*`, plus any still-used legacy MCP namespaces that are not covered by those wildcards. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
+- **Project MCP surface** lives in `.mcp.json`. Keep `playwright` there. Do not add the Notion MCP server to `.mcp.json` unless the local client proves the same remote-server registration path is stable for project-scoped use; until then, Notion remains configured in the user's local client config.
+- **Codex local baseline** should use a dedicated `ops_notion_workspace` profile in `~/.codex/config.toml` with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, while preserving the existing `mcp_servers` entries.
+- **Preferred Windows launch path** is `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd`, or the equivalent `codex.cmd -p ops_notion_workspace -C <repo-root>`. That is the supported low-friction launch for routine Notion-workspace sessions.
+- **Repo gates still apply** after the local client baseline is in place. Repo/code mutations inside autonomous repo-backed skills still require `HARDENED_GATE`, and schema, destructive, bulk, or out-of-contract lifecycle moves still require `GOVERNANCE_GATE`.
+
 ## Standing Approval Scope
 
 Routine Notion work is pre-authorized once Adam requests it. This includes:
