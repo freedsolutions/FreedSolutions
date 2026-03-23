@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 22, 2026
+Last synced: March 23, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -110,8 +110,8 @@ Naming conventions:
 <td>Purpose</td>
 </tr>
 <tr>
-<td>`notion-active-sesson`</td>
-<td>`ops/notion-workspace/skills/notion-active-sesson/`</td>
+<td>`notion-active-session`</td>
+<td>`ops/notion-workspace/skills/notion-active-session/`</td>
 <td>Kick off the repo handoff, surface priorities, and route into the next scaffolding or workflow step</td>
 </tr>
 <tr>
@@ -130,12 +130,13 @@ Naming conventions:
 <td>Run smoke or regression tests for Notion Custom Agents using the local playbooks</td>
 </tr>
 </table>
-`notion-active-sesson` intentionally keeps its historical spelling for compatibility. Do not create a second `notion-active-session` copy unless we deliberately migrate the skill name.
 Skill publish workflow:
 1. Edit the canonical skill source in the repo.
 2. Validate with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`.
 3. Publish to `$CODEX_HOME/skills` (default: `~/.codex/skills`) with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
 4. Sync the Claude skill copy in `.claude/skills/` with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.
+5. If a skill is renamed, treat it as a migration: remove or rename any stale `$CODEX_HOME/skills/<old-name>/` and `.claude/skills/<old-name>/` copies, then confirm the old path is gone before closing the task.
+6. After a rename, run `ops/notion-workspace/scripts/test-skill-rename-cleanup.ps1 -OldName <old-name> -NewName <new-name>` and resolve any reported matches or stale paths unless Adam explicitly asked for a deprecated compatibility shim.
 ---
 # Trigger Configuration Reference
 This section is the canonical desired state for Notion Custom Agent settings.
@@ -315,8 +316,9 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - **Domain**: extract hostname from a full URL (strip scheme, path, query). Compare against both `Domains` and `Additional Domains`.
 ## Companies
 - `Domains` holds primary operational domains
-- `Additional Domains` holds merged, subsidiary, alternate, or legacy domains
+- `Additional Domains` holds merged, subsidiary, alternate, or legacy domains — and may also hold **full sender email addresses** for platform companies where the domain itself is too broad for reliable matching (e.g., `workspace@google.com` instead of `google.com`)
 - Both domain fields are used for matching and dedup
+- When matching, check extracted domains against both fields first. If no domain match is found, also check the **full sender email address** against `Additional Domains` to catch platform-company sender-level entries
 - `Emails` and `Meetings` are company-side rollups from `Contacts`; if those look empty, verify the `Meeting -> Contacts -> Contact -> Company` and `Email -> Contacts -> Contact -> Company` chains before assuming the source records failed to wire
 - Placeholder companies default to `States = All`, but enrichment may replace that placeholder value when stronger evidence exists
 ## Meetings
@@ -373,7 +375,7 @@ Repo-backed Notion skills use this shared gate taxonomy:
 Inside an autonomous repo-backed skill run, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
 ## Kickoff Conventions
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.
-- For repo bootstrap, priority review, or planned scaffolding kickoff: use `notion-active-sesson`
+- For repo bootstrap, priority review, or planned scaffolding kickoff: use `notion-active-session`
 - For Action Item execution: use `notion-action-item`
 - For Custom Agent config audits or edits: use `notion-agent-config`
 - For Custom Agent smoke or regression testing: use `notion-agent-test`

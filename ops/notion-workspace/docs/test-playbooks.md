@@ -15,6 +15,7 @@ Run before publishing:
 5. Confirm the installed copy in `$CODEX_HOME/skills/<skill-name>/SKILL.md` reflects the repo contract. On this workstation, the default resolves to `C:\Users\adamj\.codex\skills\<skill-name>\SKILL.md`.
 6. Confirm `.claude/skills/<skill-name>/` mirrors the repo skill directory, including `SKILL.md` plus any `references/`, `agents/`, `scripts/`, or `assets/` files the skill needs.
 7. Forward-test each changed skill on one realistic task without preloading the intended answer.
+8. If a skill was renamed, run `ops/notion-workspace/scripts/test-skill-rename-cleanup.ps1 -OldName <old-name> -NewName <new-name>` after publish and sync.
 
 ## Local client approval baseline
 
@@ -58,15 +59,17 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 - Run once with unclear outbound recipients or outbound content and confirm the skill triggers the shared `HARDENED_GATE`.
 - Run once with an empty or ambiguous gate response and confirm the skill re-asks before proceeding.
 
-### notion-active-sesson regression checks
+### notion-active-session regression checks
 
 - Invoke the skill with a kickoff request such as "Review `ops/notion-workspace` and propose the next scaffolding updates"; confirm it reads `session-active.md`, `CLAUDE.md`, and `docs/agent-sops.md` before branching wider.
+- Run `ops/notion-workspace/scripts/test-skill-rename-cleanup.ps1 -OldName <old-name> -NewName notion-active-session` and confirm it reports no lingering matches or stale skill paths when the rename is meant to be complete.
 - Confirm the skill uses local or parallel repo discovery by default and does not assume delegation support.
 - Confirm the kickoff summary names the active priorities, likely touched files, and validation path instead of returning a vague backlog dump.
 - Confirm the skill asks only the minimum high-impact questions and does so through the shared `HARDENED_GATE` model, using native structured questioning when available and a deterministic chat halt otherwise.
 - Confirm the skill uses `HARDENED_GATE` before repo file edits by naming the intended files and change types.
 - Run once with an empty or ambiguous gate response and confirm the skill re-asks before proceeding.
 - Confirm the skill does not recreate the retired Notion session-handoff ritual or invent a second handoff surface.
+- Confirm the published Codex skill lives at `$CODEX_HOME/skills/notion-active-session/` and the stale retired-skill path is absent after a full rename.
 
 ### notion-agent-config regression checks
 

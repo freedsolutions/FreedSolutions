@@ -1,9 +1,9 @@
 ---
-name: notion-active-sesson
+name: notion-active-session
 description: Kick off `ops/notion-workspace` work by reading the canonical handoff, repo contract, and agent SOPs, then using local or parallel repo discovery, the shared gate taxonomy, and repo-first updates to route the next scaffolding, documentation, or skill changes.
 ---
 
-# Notion Active Sesson
+# Notion Active Session
 
 Read `ops/notion-workspace/session-active.md`, `ops/notion-workspace/CLAUDE.md`, and `ops/notion-workspace/docs/agent-sops.md` first when they exist in the workspace.
 

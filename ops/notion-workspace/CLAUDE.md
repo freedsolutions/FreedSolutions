@@ -37,13 +37,12 @@ Repo skill sources live under `ops/notion-workspace/skills/`. They are the canon
 
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
-| `notion-active-sesson` | `ops/notion-workspace/skills/notion-active-sesson/` | Kick off the repo handoff, surface priorities, and route the session into the next scaffolding or workflow step |
+| `notion-active-session` | `ops/notion-workspace/skills/notion-active-session/` | Kick off the repo handoff, surface priorities, and route the session into the next scaffolding or workflow step |
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through deliverable creation and bounded target updates |
 | `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent settings against the local config spec |
 | `notion-agent-test` | `ops/notion-workspace/skills/notion-agent-test/` | Run smoke or regression tests for Notion Custom Agents using the local playbooks |
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
-`notion-active-sesson` intentionally keeps its historical spelling for compatibility. Do not create a second `notion-active-session` copy unless we decide to run an explicit rename migration.
 
 The `Notion Page ID` values in the local-doc table above are the canonical page mapping. Individual repo docs may also carry a local `<!-- Notion Page ID: ... -->` comment for convenience, but that comment is optional and must never appear in a live Notion page.
 
@@ -107,7 +106,7 @@ The shared `UNGATED` / `HARDENED_GATE` / `GOVERNANCE_GATE` taxonomy is the repo 
 
 For routine `ops/notion-workspace` work on this workstation:
 
-- **Claude project baseline** lives in `.claude/settings.json` and `.claude/settings.local.json`. Keep the required Notion-workspace namespaces aligned between both files: `mcp__notion__*`, `mcp__google-workspace__*`, `mcp__playwright__*`, plus any still-used legacy MCP namespaces that are not covered by those wildcards. If Claude needs local shell access for `notion-active-sesson` kickoff discovery, keep that workstation-side shell baseline minimal and treat it as support for the exact repo-scoped discovery forms below, not as blanket approval to run those command names against arbitrary paths. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
+- **Claude project baseline** lives in `.claude/settings.json` and `.claude/settings.local.json`. Keep the required Notion-workspace namespaces aligned between both files: `mcp__notion__*`, `mcp__google-workspace__*`, `mcp__playwright__*`, plus any still-used legacy MCP namespaces that are not covered by those wildcards. If Claude needs local shell access for `notion-active-session` kickoff discovery, keep that workstation-side shell baseline minimal and treat it as support for the exact repo-scoped discovery forms below, not as blanket approval to run those command names against arbitrary paths. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
 - **Repo-scoped discovery only.** Launch discovery from the repo root and keep read-only shell enumeration scoped to repo paths. Prefer exact repo-scoped forms such as `rg --files ops/notion-workspace`, `rg --no-follow -F <text> ops/notion-workspace`, and repo-rooted file reads under `ops/notion-workspace`.
 - **PowerShell fallback shape.** If `rg` is unavailable, use explicit repo-scoped PowerShell fallback commands such as `Get-ChildItem -Path ops/notion-workspace -Recurse -File -Force | Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) }` for enumeration and pipe that result into `Select-String -SimpleMatch -Pattern <text>` for text search. Do not recurse against absolute paths, parent directories, or uncontrolled roots.
 - **Discovery path enforcement.** Kickoff discovery should normalize candidate paths against the repo root, reject absolute paths and `..` segments that escape the repo, and refuse discovery when the repo root cannot be resolved cleanly.
@@ -151,7 +150,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
 - **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `Action Items` and any `Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications currently keep the mailbox-derived `Source` until the live schema gains a dedicated Teams option.
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
-- **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary) - both checked for dedup
+- **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary/sender-level) - both checked for dedup. `Additional Domains` may also hold full sender email addresses for platform companies where the domain is too broad (e.g., `workspace@google.com` for Google). When matching, check domains first, then fall back to full sender email address against `Additional Domains`.
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
 - **Delete handoff:** Current live path is transitional. Claude sets `Record Status = Delete` plus the relevant notes field (Contact Notes / Company Notes / Task Notes) explaining why. Treat that as the Delete Unwiring handoff until P1 proves trash-first is clean enough to retire unwiring. Adam can trash from the Delete view only when the active workflow or test explicitly calls for that step.
 - **Agent Config:** Runtime state (timestamps) shared between agents. Not documentation - agents read/write during execution.
@@ -199,7 +198,7 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 22, 2026)
+## Current Follow-Up Queue (March 23, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 

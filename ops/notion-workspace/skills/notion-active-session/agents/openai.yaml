@@ -1,0 +1,7 @@
+interface:
+  display_name: "Notion Active Session"
+  short_description: "Kick off ops/notion-workspace work"
+  default_prompt: "Use $notion-active-session to read the current handoff, fan out repo discovery, ask the key kickoff questions, and plan the next scaffolding updates."
+
+policy:
+  allow_implicit_invocation: true

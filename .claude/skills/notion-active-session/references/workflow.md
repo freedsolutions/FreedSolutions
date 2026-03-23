@@ -1,4 +1,4 @@
-# Notion Active Sesson Workflow
+# Notion Active Session Workflow
 
 ## Kickoff Inputs
 
