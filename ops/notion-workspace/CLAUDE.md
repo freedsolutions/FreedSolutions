@@ -158,7 +158,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Attach File, QC (formula)
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
-- **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `Action Items` and any `Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications currently keep the mailbox-derived `Source` until the live schema gains a dedicated Teams option.
+- **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `Action Items` and any `Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications keep the mailbox-derived `Source`; the `Labels` multi_select carries the routing metadata instead of a dedicated Teams source option.
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary/sender-level) - both checked for dedup. `Additional Domains` may also hold full sender email addresses for platform companies where the domain is too broad (e.g., `workspace@google.com` for Google). When matching, check domains first, then fall back to full sender email address against `Additional Domains`.
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
@@ -233,11 +233,11 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Confirm `LinkedIn` notifications route into CRM safely when the notification contains enough identity and action detail
 - Confirm terminally processed threads are marked read, while unresolved threads stay unread
 
-### P3 - Decide whether a dedicated Teams source option is worth a schema change
+### P3 - Align Notion Labels multi_select options with Gmail labels
 
-- Current docs keep Teams notifications on the mailbox-derived `Source`
-- Labels carry the Teams channel identity for now
-- If reporting or filtering needs improve with a dedicated source value, add it intentionally rather than overloading the current schema
+- Gmail routing labels (`Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, `DMC/DMC_GMail`) need corresponding Notion options
+- Company label mismatches to resolve: `Happy Buyers`/`Happy Cabbage`, `Perk Studios`/`Perk`, `Deeproots`/`Deep Roots`, `Good Day Farms`/`Good Day Farm`, `Brand Therapy`/`Florian P`
+- Decide convention: match Gmail exactly, or keep friendly Notion names and document the mapping
 
 ### P4 - Normalize Gmail label coverage over time
 
