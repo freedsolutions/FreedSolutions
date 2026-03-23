@@ -19,13 +19,13 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-23 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-22 |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> Notes -> curated summary). Uses live `Calendar Name` options only. | 2026-03-21 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
-| `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-20 |
+| `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-22 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
-| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent: clears relations on `Record Status = Delete` records | 2026-03-17 |
+| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent (Retired): relation map reference and current trash-first delete path | 2026-03-22 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-21 |
 | `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
@@ -152,7 +152,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary/sender-level) - both checked for dedup. `Additional Domains` may also hold full sender email addresses for platform companies where the domain is too broad (e.g., `workspace@google.com` for Google). When matching, check domains first, then fall back to full sender email address against `Additional Domains`.
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
-- **Delete handoff:** Current live path is transitional. Claude sets `Record Status = Delete` plus the relevant notes field (Contact Notes / Company Notes / Task Notes) explaining why. Treat that as the Delete Unwiring handoff until P1 proves trash-first is clean enough to retire unwiring. Adam can trash from the Delete view only when the active workflow or test explicitly calls for that step.
+- **Delete path:** Set `Record Status = Delete` plus the relevant notes field (Contact Notes / Company Notes / Task Notes) explaining why, then trash the record (or trash directly if the record is already annotated). Notion automatically clears reciprocal synced-dual relations on linked records. Permanent delete from Notion trash is Adam's manual step.
 - **Agent Config:** Runtime state (timestamps) shared between agents. Not documentation - agents read/write during execution.
 
 ## End-of-Session Protocol
@@ -198,24 +198,11 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 23, 2026)
+## Current Follow-Up Queue (March 22, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 
-### P1 - Decommission Delete Unwiring in favor of built-in trash/archive
-
-- Validate one sacrificial live delete path across a small relation chain and confirm trashed records do not create unacceptable CRM noise in views, rollups, or reciprocal links
-- If the live test is acceptable, disable the Delete Unwiring agent and retire its trigger-first operating model
-- Rewrite delete guidance so `Record Status = Delete` means "ready for trash" instead of "trigger relation cleanup"
-- Keep permanent delete as Adam's manual step after Notion trash/archive
-
-### P2 - Update docs and workflow references after the delete simplification
-
-- Update `docs/delete-unwiring.md`, `docs/merge-workflow.md`, `docs/agent-sops.md`, and `CLAUDE.md`
-- Remove instructions that require relation unwiring before trash
-- Preserve a short operator note about manual permanent delete from Notion trash when Adam is ready
-
-### P3 - Validate the first scheduled Post-Email run under the current intake model
+### P1 - Validate the first scheduled Post-Email run under the current intake model
 
 - Confirm the live agent respects the current mailbox contract:
   - `adam@freedsolutions.com` labels participate in routing
@@ -223,7 +210,7 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Confirm `Action Items` and `Action Items/...` remain ignored as manual queue labels
 - Confirm `DMC/DMC_GMail` processes as standard email rather than as a chat wrapper
 
-### P4 - Validate the next scheduled Post-Email run for correctness and recovery
+### P2 - Validate the next scheduled Post-Email run for correctness and recovery
 
 - Confirm bot-only or alias-only terminal threads remain `Inactive`
 - Confirm those terminal threads do not create Contacts, Companies, or Action Items on reprocessing
@@ -232,24 +219,24 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Confirm `LinkedIn` notifications route into CRM safely when the notification contains enough identity and action detail
 - Confirm terminally processed threads are marked read, while unresolved threads stay unread
 
-### P5 - Apply the new Company ownership rule to older Action Items where needed
+### P3 - Apply the new Company ownership rule to older Action Items where needed
 
 - Review historical edge cases like Jon Orzech / Resinate and flip `Company` only where the work item is clearly Adam-owned or otherwise internally-owned
 - Use `Company = owning/execution context`, `Contact = counterparty` as the review lens
 
-### P6 - Decide whether a dedicated Teams source option is worth a schema change
+### P4 - Decide whether a dedicated Teams source option is worth a schema change
 
 - Current docs keep Teams notifications on the mailbox-derived `Source`
 - Labels carry the Teams channel identity for now
 - If reporting or filtering needs improve with a dedicated source value, add it intentionally rather than overloading the current schema
 
-### P7 - Normalize Gmail label coverage over time
+### P5 - Normalize Gmail label coverage over time
 
 - Add deterministic Gmail labels to every stable source or known domain that should flow into CRM automatically
 - Keep company and domain naming aligned with Notion where practical
 - Treat this as the path toward fully automated inbox-zero handling for known sources
 
-### P8 - Run the next Post-Meeting regression slice
+### P6 - Run the next Post-Meeting regression slice
 
 - Active trigger on a representative meeting
 - Manual recovery path on a partially processed meeting

@@ -4,19 +4,11 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: Session 62 (March 20, 2026)
+Last synced: March 22, 2026
 
 # When This Applies
 
 Use this workflow when a placeholder Company or duplicate Contact should be merged into the canonical record without leaving stale wiring behind.
-
----
-
-# Universal Rule: Unwire Before Delete
-
-Before setting any record to `Record Status = Delete`, clear the relevant relations first and verify the reciprocal links are gone.
-
-Use the relation map from the current Delete Unwiring workflow and spot-check the result.
 
 ---
 
@@ -54,13 +46,13 @@ Move all Contacts from the duplicate Company to the canonical Company.
 
 Move any Action Items still wired to the duplicate Company to the canonical Company.
 
-## Step 5: Delete-Safe Cleanup
+## Step 5: Cleanup
 
-Once the duplicate Company is fully unwired:
+Once the duplicate Company has no remaining contacts or action items:
 
-1. verify backlinks are empty
-2. set `Record Status = Delete`
-3. add a note explaining the merge target
+1. set `Record Status = Delete`
+2. add a note explaining the merge target
+3. trash the record — Notion automatically clears any remaining reciprocal links
 
 ---
 
@@ -74,13 +66,13 @@ Add the duplicate email to the canonical Contact as `Secondary Email` or `Tertia
 
 Move all relations from the duplicate Contact to the canonical Contact.
 
-## Step 3: Delete-Safe Cleanup
+## Step 3: Cleanup
 
-Once the duplicate Contact is fully unwired:
+Once the duplicate Contact has no remaining relations:
 
-1. verify backlinks are empty
-2. set `Record Status = Delete`
-3. add a merge note that names the canonical Contact
+1. set `Record Status = Delete`
+2. add a merge note that names the canonical Contact
+3. trash the record — Notion automatically clears any remaining reciprocal links
 
 ---
 

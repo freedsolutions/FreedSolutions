@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 23, 2026
+Last synced: March 22, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -63,9 +63,9 @@ At the end of every session:
 <tr>
 <td>Delete Unwiring Agent</td>
 <td>Delete Unwiring Instructions</td>
-<td>`Record Status = Delete` on Meetings, Companies, Action Items, Contacts, and Emails + `@mention`</td>
+<td>`@mention` only (property triggers removed March 22, 2026)</td>
 <td>Opus 4.6</td>
-<td>Live (pending P1 decommission test)</td>
+<td>Retired</td>
 <td>[Settings](https://www.notion.so/agent/325adb01222f80d2844a0092e63da4ea?wfv=settings)</td>
 </tr>
 <tr>
@@ -236,15 +236,10 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Queue fairness matters. Old Draft and QC-gap records must not starve behind newer ones.
 	- Placeholder correction is allowed when evidence is stronger than the placeholder default.
 ## Delete Unwiring Agent
-- Transitional status: this agent is still live while P1 validates whether built-in Notion trash/archive can replace relation unwiring without creating unacceptable CRM noise. Do not assume trash-first is the active default until that validation passes and the agent is disabled.
+- Retired (March 22, 2026). Live testing confirmed Notion trash automatically clears reciprocal synced-dual relations. The unwiring step is redundant.
 - Triggers:
-	- Meetings property trigger: `Record Status = Delete`
-	- Companies property trigger: `Record Status = Delete`
-	- Action Items property trigger: `Record Status = Delete`
-	- Contacts property trigger: `Record Status = Delete`
-	- Emails property trigger: `Record Status = Delete`
-	- `page-content-edit`: unchecked on all
-	- `@mention`
+	- All property triggers removed
+	- `@mention` only (retained for manual re-activation if needed)
 - Notion page access:
 	- Delete Unwiring Instructions -\> Can edit
 	- Meetings -\> Can edit content
@@ -304,7 +299,7 @@ All five source databases use the same `Record Status` select:
 - `Active`
 - `Inactive`
 - `Delete`
-Only Adam promotes records to `Active`. Agents create Draft records and may participate in delete-safe cleanup only when explicitly instructed by the workflow.
+Only Adam promotes records to `Active`. Agents create Draft records. To delete a record, set `Record Status = Delete` and trash it — Notion automatically clears reciprocal relations. Permanent delete from Notion trash is Adam's manual step.
 ## Contacts
 - Dedup across `Email`, `Secondary Email`, and `Tertiary Email`
 - `Company` is the primary operational relation
