@@ -45,7 +45,7 @@ Repo skill sources live under `ops/notion-workspace/skills/`. They are the canon
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
 `notion-active-sesson` intentionally keeps its historical spelling for compatibility. Do not create a second `notion-active-session` copy unless we decide to run an explicit rename migration.
 
-The `Notion Page ID` values in the local-doc table below are the canonical page mapping. Individual repo docs may also carry a local `<!-- Notion Page ID: ... -->` comment for convenience, but that comment is optional and must never appear in a live Notion page.
+The `Notion Page ID` values in the local-doc table above are the canonical page mapping. Individual repo docs may also carry a local `<!-- Notion Page ID: ... -->` comment for convenience, but that comment is optional and must never appear in a live Notion page.
 
 ## Session Files
 
@@ -107,7 +107,11 @@ The shared `UNGATED` / `HARDENED_GATE` / `GOVERNANCE_GATE` taxonomy is the repo 
 
 For routine `ops/notion-workspace` work on this workstation:
 
-- **Claude project baseline** lives in `.claude/settings.json` and `.claude/settings.local.json`. Keep the required Notion-workspace namespaces aligned between both files: `mcp__notion__*`, `mcp__google-workspace__*`, `mcp__playwright__*`, plus any still-used legacy MCP namespaces that are not covered by those wildcards. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
+- **Claude project baseline** lives in `.claude/settings.json` and `.claude/settings.local.json`. Keep the required Notion-workspace namespaces aligned between both files: `mcp__notion__*`, `mcp__google-workspace__*`, `mcp__playwright__*`, plus any still-used legacy MCP namespaces that are not covered by those wildcards. If Claude needs local shell access for `notion-active-sesson` kickoff discovery, keep that workstation-side shell baseline minimal and treat it as support for the exact repo-scoped discovery forms below, not as blanket approval to run those command names against arbitrary paths. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
+- **Repo-scoped discovery only.** Launch discovery from the repo root and keep read-only shell enumeration scoped to repo paths. Prefer exact repo-scoped forms such as `rg --files ops/notion-workspace`, `rg --no-follow -F <text> ops/notion-workspace`, and repo-rooted file reads under `ops/notion-workspace`.
+- **PowerShell fallback shape.** If `rg` is unavailable, use explicit repo-scoped PowerShell fallback commands such as `Get-ChildItem -Path ops/notion-workspace -Recurse -File -Force | Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) }` for enumeration and pipe that result into `Select-String -SimpleMatch -Pattern <text>` for text search. Do not recurse against absolute paths, parent directories, or uncontrolled roots.
+- **Discovery path enforcement.** Kickoff discovery should normalize candidate paths against the repo root, reject absolute paths and `..` segments that escape the repo, and refuse discovery when the repo root cannot be resolved cleanly.
+- **Claude allowlist maintenance.** Keep the workstation-side Claude shell baseline aligned between `.claude/settings.json` and `.claude/settings.local.json`, and keep it no broader than necessary to let the repo-scoped discovery forms above run without extra prompts.
 - **Project MCP surface** lives in `.mcp.json`. Keep `playwright` there. Do not add the Notion MCP server to `.mcp.json` unless the local client proves the same remote-server registration path is stable for project-scoped use; until then, Notion remains configured in the user's local client config.
 - **Codex local baseline** should use a dedicated `ops_notion_workspace` profile in `~/.codex/config.toml` with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, while preserving the existing `mcp_servers` entries.
 - **Preferred Windows launch path** is `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd`, or the equivalent `codex.cmd -p ops_notion_workspace -C <repo-root>`. That is the supported low-friction launch for routine Notion-workspace sessions.

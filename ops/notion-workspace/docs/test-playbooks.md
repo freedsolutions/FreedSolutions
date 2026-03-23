@@ -21,19 +21,28 @@ Run before publishing:
 Validate the local client baseline any time a Notion-workspace change touches Claude project config, Codex local config, or the expected launch path:
 
 1. Confirm `.claude/settings.json` and `.claude/settings.local.json` stay aligned on the Notion-workspace MCP allowlist, including `mcp__notion__*`, `mcp__google-workspace__*`, `mcp__playwright__*`, and any still-used legacy MCP namespaces not covered by those wildcards.
-2. Confirm `enableAllProjectMcpServers` stays enabled for Claude project runs and `enabledMcpjsonServers` still includes `playwright`.
-3. Confirm `.mcp.json` remains the project-managed server surface and currently lists only `playwright`. Do not add Notion there until the project-scoped remote registration path is proven stable in the local client.
-4. Confirm `~/.codex/config.toml` defines the dedicated `ops_notion_workspace` profile with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, without changing the global default posture for unrelated repos.
-5. Confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` still launches Codex through the dedicated profile.
+2. Confirm the Claude project baseline also allowlists the safe read-only shell discovery patterns used by kickoff and repo discovery, especially `Get-ChildItem`, `Get-Content`, `rg`, and `Select-String`.
+3. Confirm `enableAllProjectMcpServers` stays enabled for Claude project runs and `enabledMcpjsonServers` still includes `playwright`.
+4. Confirm `.mcp.json` remains the project-managed server surface and currently lists only `playwright`. Do not add Notion there until the project-scoped remote registration path is proven stable in the local client.
+5. Confirm `~/.codex/config.toml` defines the dedicated `ops_notion_workspace` profile with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, without changing the global default posture for unrelated repos.
+6. Confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` still launches Codex through the dedicated profile.
 
 ### Local client approval regression checks
 
 - In Claude local, verify one safe `mcp__notion__*` read no longer triggers an unexpected client approval prompt when launched against the approved project baseline.
+- In Claude local, verify `Get-ChildItem`, `Get-Content`, `Select-String`, and `rg` repo reads all run without unexpected client approval prompts when launched against the approved project baseline.
+- Verify repo text discovery defaults to fixed-string matching, such as `rg -F` or `Select-String -SimpleMatch`, unless regex mode is explicitly required for the task.
+- Temporarily remove or bypass `rg` and confirm kickoff discovery can fall back to `Select-String -SimpleMatch` or an equivalent read-only shell search path without leaving the allowlisted workflow.
+- Run kickoff discovery from the repo root and from a non-repo working directory; confirm the workflow still scopes reads to the repo path and does not broaden into unrelated filesystem traversal.
+- Attempt discovery with an absolute path or a `..` escape and confirm the workflow rejects the path instead of broadening the read scope.
+- If a safe local fixture is available, include a symlink that points outside the repo and confirm the discovery path does not follow it.
+- If `rg` is unavailable, verify the fallback discovery path uses repo-scoped PowerShell forms such as `Get-ChildItem -Path ops/notion-workspace -Recurse -File -Force | Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) } | Select-String -SimpleMatch -Pattern ...` rather than broad recursive reads.
 - In Codex, run one session through the normal default startup and one through `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd`; confirm the profile-backed launch removes the extra routine MCP approval prompts that the default launch still surfaces.
 - In the profile-backed Codex session, run one safe Notion fetch and one bounded documented Notion-workspace action; confirm routine MCP reads or bounded playbook writes stay approval-free while repo gate prompts still appear where the contract requires them.
 - Confirm the first repo edit in an autonomous repo-backed skill still stops at `HARDENED_GATE`.
 - Confirm schema, destructive, bulk, or out-of-contract lifecycle work still stops at `GOVERNANCE_GATE`.
 - Confirm non-workspace shell escalation behavior is unchanged.
+- Confirm non-allowlisted or write-oriented shell actions still prompt for approval instead of piggybacking on the discovery baseline.
 
 ### notion-action-item regression checks
 
