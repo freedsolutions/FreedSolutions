@@ -233,18 +233,16 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Confirm `LinkedIn` notifications route into CRM safely when the notification contains enough identity and action detail
 - Confirm terminally processed threads are marked read, while unresolved threads stay unread
 
-### P3 - Align Notion Labels multi_select options with Gmail labels
+### P3 - Process remaining deferred inbox threads
 
-- Gmail routing labels (`Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, `DMC/DMC_GMail`) need corresponding Notion options
-- Company label mismatches to resolve: `Happy Buyers`/`Happy Cabbage`, `Perk Studios`/`Perk`, `Deeproots`/`Deep Roots`, `Good Day Farms`/`Good Day Farm`, `Brand Therapy`/`Florian P`
-- Decide convention: match Gmail exactly, or keep friendly Notion names and document the mapping
+- ~25 remaining unread threads need stubs created (Primitiv Outlook forwards, calendar acceptances, Deeproots SEO, bot/system notifications, plus page 2 of unread results)
 
 ### P4 - Normalize Gmail label coverage over time
 
 - Add deterministic Gmail labels to every stable source or known domain that should flow into CRM automatically
 - Keep company and domain naming aligned with Notion where practical
 - Treat this as the path toward fully automated inbox-zero handling for known sources
-- **Inbox filter process:** When a new Company/Contact enters the CRM, evaluate whether a Gmail filter should route their domain. Steps: (1) identify domain(s), (2) create Gmail filter with label, (3) add label to Notion `Labels` multi_select (requires P3 alignment), (4) configure skip-inbox/mark-read if appropriate, (5) document in `CLAUDE.md` routing section if it becomes an active intake lane
+- **Inbox filter process:** When a new Company/Contact enters the CRM, evaluate whether a Gmail filter should route their domain. Steps: (1) identify domain(s), (2) create Gmail filter with label, (3) add label to Notion `Labels` multi_select, (4) configure skip-inbox/mark-read if appropriate, (5) document in `CLAUDE.md` routing section if it becomes an active intake lane
 
 ### P5 - Run the next Post-Meeting regression slice
 
