@@ -212,7 +212,7 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 22, 2026)
+## Current Follow-Up Queue (March 23, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 
@@ -233,24 +233,19 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Confirm `LinkedIn` notifications route into CRM safely when the notification contains enough identity and action detail
 - Confirm terminally processed threads are marked read, while unresolved threads stay unread
 
-### P3 - Apply the new Company ownership rule to older Action Items where needed
-
-- Review historical edge cases like Jon Orzech / Resinate and flip `Company` only where the work item is clearly Adam-owned or otherwise internally-owned
-- Use `Company = owning/execution context`, `Contact = counterparty` as the review lens
-
-### P4 - Decide whether a dedicated Teams source option is worth a schema change
+### P3 - Decide whether a dedicated Teams source option is worth a schema change
 
 - Current docs keep Teams notifications on the mailbox-derived `Source`
 - Labels carry the Teams channel identity for now
 - If reporting or filtering needs improve with a dedicated source value, add it intentionally rather than overloading the current schema
 
-### P5 - Normalize Gmail label coverage over time
+### P4 - Normalize Gmail label coverage over time
 
 - Add deterministic Gmail labels to every stable source or known domain that should flow into CRM automatically
 - Keep company and domain naming aligned with Notion where practical
 - Treat this as the path toward fully automated inbox-zero handling for known sources
 
-### P6 - Run the next Post-Meeting regression slice
+### P5 - Run the next Post-Meeting regression slice
 
 - Active trigger on a representative meeting
 - Manual recovery path on a partially processed meeting
