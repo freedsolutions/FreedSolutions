@@ -16,16 +16,18 @@ $textExtensions = @(
 )
 
 $mojibakeTokens = @(
-    ([string]([char]0x00E2) + [char]0x20AC + [char]0x201D),
+    # Common UTF-8 bytes mis-decoded as Windows-1252 punctuation.
     ([string]([char]0x00E2) + [char]0x20AC + [char]0x2013),
+    ([string]([char]0x00E2) + [char]0x20AC + [char]0x2014),
     ([string]([char]0x00E2) + [char]0x20AC + [char]0x201C),
+    ([string]([char]0x00E2) + [char]0x20AC + [char]0x201D),
     ([string]([char]0x00E2) + [char]0x20AC + [char]0x2122),
+    ([string]([char]0x00E2) + [char]0x20AC + [char]0x0153),
+    ([string]([char]0x00E2) + [char]0x20AC + [char]0x00A2),
+    ([string]([char]0x00E2) + [char]0x20AC + [char]0x00A6),
     ([string]([char]0x00E2) + [char]0x20AC),
     ([string]([char]0x00E2) + [char]0x2020),
-    ([string]([char]0x00E2) + [char]0x00A2),
-    ([string]([char]0x00E2) + [char]0x00A6),
-    ([string]([char]0x00E2) + [char]0x0153),
-    ([string]([char]0x00E2) + [char]0x201D),
+    # Emoji and variation-selector fragments that show up after bad re-encoding.
     ([string]([char]0x00F0) + [char]0x0178),
     ([string]([char]0x00EF) + [char]0x00B8),
     [string][char]0xFFFD
@@ -135,13 +137,21 @@ if ($Paths -and $Paths.Count -gt 0) {
     $requestedPaths = @($Paths | ForEach-Object { Get-RepoRelativePath -Path $_ } | Select-Object -Unique)
 }
 
-$candidatePaths = @(Get-TrackedChangedRepoPaths |
-    Where-Object { Test-MatchesRequestedPath -RelativePath $_ -RequestedPaths $requestedPaths })
+$explicitRequestedTextPaths = @($requestedPaths |
+    Where-Object { Test-IsTextPath -RelativePath $_ } |
+    Where-Object { Test-Path (Join-Path $repoRoot.Path $_) -PathType Leaf })
+
+if ($explicitRequestedTextPaths.Count -gt 0) {
+    $candidatePaths = $explicitRequestedTextPaths
+} else {
+    $candidatePaths = @(Get-TrackedChangedRepoPaths |
+        Where-Object { Test-MatchesRequestedPath -RelativePath $_ -RequestedPaths $requestedPaths })
+}
 
 $scopedPaths = @($candidatePaths | Where-Object { Test-IsInScope -RelativePath $_ })
 $existingScopedTextPaths = @($scopedPaths |
     Where-Object { Test-IsTextPath -RelativePath $_ } |
-    Where-Object { Test-Path (Join-Path $repoRoot.Path $_) })
+    Where-Object { Test-Path (Join-Path $repoRoot.Path $_) -PathType Leaf })
 
 $untrackedScopedPaths = @(Get-UntrackedRepoPaths |
     Where-Object { Test-IsInScope -RelativePath $_ } |

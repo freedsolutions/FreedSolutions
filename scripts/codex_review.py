@@ -311,7 +311,10 @@ def parse_args() -> argparse.Namespace:
         "--pathspec",
         action="append",
         default=[],
-        help="Limit review to repo-relative paths or glob patterns. Repeat for multiple values.",
+        help=(
+            "Limit review to repo-relative paths or glob patterns. Exact paths also include "
+            "descendants; glob matching uses normalized repo paths. Repeat for multiple values."
+        ),
     )
     parser.add_argument("--dry-run", action="store_true", help="Build the payload without calling the API.")
     return parser.parse_args()
@@ -450,7 +453,7 @@ def collect_changed_file_blobs(
                 skipped_reason = "binary_or_unreadable"
             else:
                 if len(maybe_text) > max_chars:
-                    content = maybe_text[:max_chars] + "\n\n[TRUNCATED FOR CHANGED FILE BUDGET]\n"
+                    content = maybe_text[:max_chars]
                     truncated = True
                     skipped_reason = "truncated_for_budget"
                 else:

@@ -113,12 +113,13 @@ class CodexReviewTests(unittest.TestCase):
                     "truncated": True,
                     "skipped_reason": "truncated_for_budget",
                     "language": "txt",
-                    "content": "ABC\n[TRUNCATED FOR CHANGED FILE BUDGET]",
+                    "content": "ABC",
                 }
             ],
         )
         self.assertIn("[CONTENT TRUNCATED FOR BUDGET]", prompt)
         self.assertIn("ABC", prompt)
+        self.assertNotIn("[TRUNCATED FOR CHANGED FILE BUDGET]", prompt)
         self.assertIn("REQUIRED OUTPUT", prompt)
 
     def test_filter_changed_entries_honors_exact_pathspecs(self) -> None:
@@ -137,6 +138,27 @@ class CodexReviewTests(unittest.TestCase):
         self.assertEqual(
             [entry["path"] for entry in filtered],
             ["ops/notion-workspace/CLAUDE.md", "scripts/codex_review.py"],
+        )
+
+    def test_filter_changed_entries_exact_directory_pathspec_includes_descendants(self) -> None:
+        entries = [
+            {"status": " M", "path": "ops/notion-workspace/CLAUDE.md"},
+            {"status": " M", "path": "ops/notion-workspace/skills/notion-active-session/SKILL.md"},
+            {"status": " M", "path": "scripts/codex_review.py"},
+        ]
+
+        filtered = codex_review.filter_changed_entries(
+            entries,
+            codex_review.DEFAULT_CONFIG,
+            ["ops/notion-workspace"],
+        )
+
+        self.assertEqual(
+            [entry["path"] for entry in filtered],
+            [
+                "ops/notion-workspace/CLAUDE.md",
+                "ops/notion-workspace/skills/notion-active-session/SKILL.md",
+            ],
         )
 
     def test_filter_changed_entries_honors_glob_pathspecs(self) -> None:
