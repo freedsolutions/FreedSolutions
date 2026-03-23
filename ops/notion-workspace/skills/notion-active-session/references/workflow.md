@@ -10,6 +10,8 @@ Read these first:
 
 Then read only the workflow docs, skill sources, and scripts that are directly relevant to the requested scaffolding change.
 
+If the request touches `ops/local-db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning. Treat it as an architecture-lane brief, not as a silent replacement for the current handoff.
+
 ## Suggested Discovery Lanes
 
 Use local or parallel discovery by default when kickoff benefits from fan-out. Delegate only when the client supports it and the user explicitly asked for or approved delegation.
@@ -22,6 +24,8 @@ Inspect the active handoff plus `CLAUDE.md`. Report:
 - standing approval scope
 - review-gate or sync requirements
 - anything that must wait for Adam
+
+If the request touches the local-first architecture lane, also report whether `freed-solutions-execution-checklist.md` changes the relevant priority order or execution contract.
 
 ### Lane 2: Existing patterns
 
@@ -75,5 +79,8 @@ Before calling the kickoff work complete:
 1. Validate each changed repo skill with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`.
 2. Publish the installed copy when the task changed a repo skill.
 3. If mapped docs changed, sync them to Notion and run the parity helper from `CLAUDE.md`.
-4. Review the final diff for scope creep or stale handoff content.
-5. Update `session-active.md` only after the work is verified or the user explicitly accepts remaining findings.
+4. Treat a failed parity check as blocking unless Adam explicitly accepts the remaining mismatch.
+5. Run `ops/notion-workspace/scripts/test-closeout-sanity.ps1` and disclose any untracked-file warnings before claiming the worktree is clean.
+6. If unrelated local changes remain in the worktree, run the review gate with repeated `--pathspec <repo path or glob>` arguments so the review only covers the intended files.
+7. Review the final diff for scope creep or stale handoff content.
+8. Update `session-active.md` only after the work is verified or the user explicitly accepts remaining findings.

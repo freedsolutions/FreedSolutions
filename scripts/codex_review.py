@@ -151,13 +151,14 @@ Return only raw JSON with no markdown fences or commentary.
 
 def main() -> int:
     args = parse_args()
+    configure_console_streams()
     repo_root = Path(run_git(["rev-parse", "--show-toplevel"]).strip())
     os.chdir(repo_root)
 
     config = load_config(repo_root / args.config)
     base_ref = resolve_base_ref()
     status_entries = parse_git_status()
-    changed_entries = filter_changed_entries(status_entries, config)
+    changed_entries = filter_changed_entries(status_entries, config, args.pathspec)
 
     if not changed_entries:
         report = {
@@ -173,6 +174,7 @@ def main() -> int:
                 "diff_chars": 0,
                 "prompt_chars": 0,
                 "estimated_tokens": 0,
+                "pathspecs": args.pathspec,
             },
             "review": {
                 "status": "pass",
@@ -187,7 +189,7 @@ def main() -> int:
         print_summary(repo_root / args.output, report["review"])
         return 0
 
-    diff_text = get_tracked_diff(base_ref)
+    diff_text = get_tracked_diff(base_ref, changed_entries)
     changed_file_blobs = collect_changed_file_blobs(repo_root, changed_entries, config)
     context_blobs = collect_context_blobs(repo_root, changed_entries, config)
     prompt_text = build_prompt(
@@ -223,6 +225,7 @@ def main() -> int:
         "diff_chars": len(diff_text),
         "prompt_chars": len(prompt_text),
         "estimated_tokens": estimate_tokens(prompt_text),
+        "pathspecs": args.pathspec,
     }
 
     report: dict[str, Any] = {
@@ -304,8 +307,25 @@ def parse_args() -> argparse.Namespace:
         default=str(DEFAULT_OUTPUT_PATH),
         help="Path to the JSON report artifact.",
     )
+    parser.add_argument(
+        "--pathspec",
+        action="append",
+        default=[],
+        help="Limit review to repo-relative paths or glob patterns. Repeat for multiple values.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Build the payload without calling the API.")
     return parser.parse_args()
+
+
+def configure_console_streams() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if not callable(reconfigure):
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
 
 
 def run_git(args: list[str]) -> str:
@@ -359,6 +379,7 @@ def parse_git_status() -> list[dict[str, str]]:
 def filter_changed_entries(
     entries: list[dict[str, str]],
     config: dict[str, Any],
+    pathspecs: list[str],
 ) -> list[dict[str, str]]:
     filtered: list[dict[str, str]] = []
     for entry in entries:
@@ -367,18 +388,45 @@ def filter_changed_entries(
             continue
         if is_excluded(entry["path"], config):
             continue
+        if not matches_pathspec(entry["path"], pathspecs):
+            continue
         filtered.append(entry)
     return filtered
 
 
-def get_tracked_diff(base_ref: str) -> str:
+def get_tracked_diff(base_ref: str, changed_entries: list[dict[str, str]]) -> str:
+    tracked_paths = [entry["path"] for entry in changed_entries if entry["status"] != "??"]
+    if not tracked_paths:
+        return ""
     completed = subprocess.run(
-        ["git", "diff", "--no-color", "--find-renames=50%", base_ref],
+        ["git", "diff", "--no-color", "--find-renames=50%", base_ref, "--", *tracked_paths],
         check=True,
         capture_output=True,
         text=True,
     )
     return completed.stdout.strip()
+
+
+def matches_pathspec(path: str, pathspecs: list[str]) -> bool:
+    if not pathspecs:
+        return True
+
+    normalized_path = path.replace("\\", "/")
+    for raw_pathspec in pathspecs:
+        normalized_pathspec = raw_pathspec.replace("\\", "/").strip()
+        if not normalized_pathspec:
+            continue
+        if any(char in normalized_pathspec for char in "*?[]"):
+            if fnmatch(normalized_path, normalized_pathspec):
+                return True
+            continue
+        normalized_pathspec = normalized_pathspec.rstrip("/")
+        if normalized_path == normalized_pathspec:
+            return True
+        if normalized_path.startswith(f"{normalized_pathspec}/"):
+            return True
+
+    return False
 
 
 def collect_changed_file_blobs(

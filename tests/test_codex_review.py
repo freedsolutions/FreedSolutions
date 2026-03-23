@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import shutil
 import unittest
 from unittest import mock
@@ -119,6 +120,81 @@ class CodexReviewTests(unittest.TestCase):
         self.assertIn("[CONTENT TRUNCATED FOR BUDGET]", prompt)
         self.assertIn("ABC", prompt)
         self.assertIn("REQUIRED OUTPUT", prompt)
+
+    def test_filter_changed_entries_honors_exact_pathspecs(self) -> None:
+        entries = [
+            {"status": " M", "path": "ops/notion-workspace/CLAUDE.md"},
+            {"status": " M", "path": "scripts/codex_review.py"},
+            {"status": "??", "path": "ops/notion-workspace/freed-solutions-execution-checklist.md"},
+        ]
+
+        filtered = codex_review.filter_changed_entries(
+            entries,
+            codex_review.DEFAULT_CONFIG,
+            ["ops/notion-workspace/CLAUDE.md", "scripts/codex_review.py"],
+        )
+
+        self.assertEqual(
+            [entry["path"] for entry in filtered],
+            ["ops/notion-workspace/CLAUDE.md", "scripts/codex_review.py"],
+        )
+
+    def test_filter_changed_entries_honors_glob_pathspecs(self) -> None:
+        entries = [
+            {"status": " M", "path": "ops/notion-workspace/skills/notion-active-session/SKILL.md"},
+            {"status": " M", "path": "ops/notion-workspace/skills/notion-action-item/SKILL.md"},
+            {"status": " M", "path": "ops/notion-workspace/CLAUDE.md"},
+        ]
+
+        filtered = codex_review.filter_changed_entries(
+            entries,
+            codex_review.DEFAULT_CONFIG,
+            ["ops/notion-workspace/skills/notion-active-session/**"],
+        )
+
+        self.assertEqual(
+            [entry["path"] for entry in filtered],
+            ["ops/notion-workspace/skills/notion-active-session/SKILL.md"],
+        )
+
+    def test_get_tracked_diff_uses_only_filtered_tracked_paths(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=["git"],
+            returncode=0,
+            stdout="diff --git a/a b/a\n",
+            stderr="",
+        )
+
+        with mock.patch.object(codex_review.subprocess, "run", return_value=completed) as run_mock:
+            diff_text = codex_review.get_tracked_diff(
+                "HEAD",
+                [
+                    {"status": " M", "path": "ops/notion-workspace/CLAUDE.md"},
+                    {"status": "??", "path": "ops/notion-workspace/scripts/test-closeout-sanity.ps1"},
+                ],
+            )
+
+        self.assertEqual(diff_text, "diff --git a/a b/a")
+        run_mock.assert_called_once()
+        self.assertEqual(
+            run_mock.call_args.args[0],
+            [
+                "git",
+                "diff",
+                "--no-color",
+                "--find-renames=50%",
+                "HEAD",
+                "--",
+                "ops/notion-workspace/CLAUDE.md",
+            ],
+        )
+
+    def test_get_tracked_diff_returns_empty_for_untracked_only(self) -> None:
+        diff_text = codex_review.get_tracked_diff(
+            "HEAD",
+            [{"status": "??", "path": "ops/notion-workspace/scripts/test-closeout-sanity.ps1"}],
+        )
+        self.assertEqual(diff_text, "")
 
 
 if __name__ == "__main__":

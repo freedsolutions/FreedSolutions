@@ -265,7 +265,7 @@ Search the meeting's existing Contacts relation (wired in Step 1) for a match by
 If Tier 1 fails, search the entire Contacts DB. This is broader than AI action item parsing (which only uses meeting Contacts) because Floppy commands are explicit intent — Adam may reference someone not in the meeting.
 
 - Same matching rules: first name, full name, nickname, last name
-- If multiple matches, prefer Active records over Draft/Inactive
+- If multiple matches, prefer Active records over Draft
 - If still ambiguous, leave Contact blank and flag in Task Notes: "Ambiguous contact: '[name]' matches [list]. Manual wiring required."
 
 **Why two tiers:** Tier 1 is faster and more precise (smaller search space, higher confidence). Tier 2 catches cross-meeting references like "Hey Floppy, remind me to send the deck to Ted" where Ted Reynolds isn't in this meeting.

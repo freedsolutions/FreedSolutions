@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 22, 2026
+Last synced: March 23, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -190,7 +190,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
 	- Long term, domain-aligned company labels are encouraged because they make inbox-zero routing and CRM automation more deterministic.
 	- Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
-	- Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items, then moved to `Inactive` once annotated so they do not linger as Draft QC gaps.
+	- Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.
 	- Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
 ## Curated Notes Agent
 - Triggers:
@@ -297,9 +297,9 @@ There is a Notion database automation, not a Custom Agent, on page creation in M
 All five source databases use the same `Record Status` select:
 - `Draft`
 - `Active`
-- `Inactive`
 - `Delete`
-Only Adam promotes records to `Active`. Agents create Draft records. To delete a record, set `Record Status = Delete` and trash it — Notion automatically clears reciprocal relations. Permanent delete from Notion trash is Adam's manual step.
+Only Adam promotes records to `Active`. Agents create Draft records and never change `Record Status`. To delete a record, set `Record Status = Delete` and trash it — Notion automatically clears reciprocal relations. Permanent delete from Notion trash is Adam's manual step.
+Archiving is Adam's UI-managed lifecycle step for records that should be hidden from active views but preserved with full wiring for future use. Archived records remain searchable by agents for dedup and contact matching.
 ## Contacts
 - Dedup across `Email`, `Secondary Email`, and `Tertiary Email`
 - `Company` is the primary operational relation
@@ -334,7 +334,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - `Source` must be populated
 - Company-side visibility for emails comes from the `Companies.Emails` rollup via `Contacts -> Emails`, not from a direct Company relation on the Emails DB
 - Existing email stubs may be healed in place when prior runs only completed part of the workflow
-- Bot-only or alias-only email stubs should not remain operational Draft records after classification; once `Email Notes` explicitly marks that state, they should move to `Inactive`
+- Bot-only or alias-only email stubs should be annotated in `Email Notes` so they are clearly terminal. They stay as `Draft` until Adam archives them from the UI
 ---
 # Rules of Engagement
 1. Read `ops/notion-workspace/session-active.md` first, then the canonical local docs.

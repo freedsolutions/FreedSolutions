@@ -17,6 +17,16 @@ Run before publishing:
 7. Forward-test each changed skill on one realistic task without preloading the intended answer.
 8. If a skill was renamed, run `ops/notion-workspace/scripts/test-skill-rename-cleanup.ps1 -OldName <old-name> -NewName <new-name> -RequireClaudeCopy -RequireInstalledCopy` after publish and sync.
 
+## Close-out sanity
+
+Run before the review gate whenever the session changed files under `ops/notion-workspace/` or `.claude/skills/`:
+
+1. Run `ops/notion-workspace/scripts/test-closeout-sanity.ps1`.
+2. Treat any mojibake findings as blocking. Fix the encoding issue before review, handoff, or commit.
+3. If the script reports untracked files, either include them intentionally or disclose them as out-of-scope leftovers before claiming the task is clean.
+4. If unrelated local changes remain in the worktree, run the review gate with repeated `--pathspec <repo path or glob>` arguments so the review only covers the intended files.
+5. Use `-RequireCleanScope` only when the scoped tree is expected to be fully clean at the end of the task.
+
 ## Local client approval baseline
 
 Validate the local client baseline any time a Notion-workspace change touches Claude project config, Codex local config, or the expected launch path:
@@ -62,6 +72,7 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 ### notion-active-session regression checks
 
 - Invoke the skill with a kickoff request such as "Review `ops/notion-workspace` and propose the next scaffolding updates"; confirm it reads `session-active.md`, `CLAUDE.md`, and `docs/agent-sops.md` before branching wider.
+- When the request touches `ops/local-db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, confirm the skill also reads `ops/notion-workspace/freed-solutions-execution-checklist.md` and calls out any conflict with the current handoff before editing.
 - Run `ops/notion-workspace/scripts/test-skill-rename-cleanup.ps1 -OldName <old-name> -NewName notion-active-session -RequireClaudeCopy -RequireInstalledCopy` and confirm it reports no lingering matches or stale skill paths when the rename is meant to be complete.
 - Confirm the skill uses local or parallel repo discovery by default and does not assume delegation support.
 - Confirm the kickoff summary names the active priorities, likely touched files, and validation path instead of returning a vague backlog dump.
@@ -93,8 +104,9 @@ Run for every repo doc changed in the session that maps to a live Notion instruc
 2. Push the updated local doc to the mapped Notion page, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
 3. Re-fetch the live page via MCP immediately after the update.
 4. Assert the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment. If it does, treat the sync as failed.
-5. Save the fetched live page body to a temp file and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>`.
-6. Resolve any drift before marking the doc synced in `CLAUDE.md` or the handoff.
+5. Save the fetched live page body to a temp file verbatim from the MCP fetch output. Do not hand-type, visually reconstruct, or whitespace-normalize the fetched `<content>` block before running the parity helper.
+6. Run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>`.
+7. If parity fails, stop. Do not downgrade the failure to "visually verified", and do not mark the doc synced in `CLAUDE.md` or the handoff until the mismatch is resolved or Adam explicitly accepts it.
 
 ---
 
@@ -241,7 +253,7 @@ Before running the workflow, verify the live mail connections keep least privile
 
 - [ ] Existing partial Email record is resumed, not duplicated
 - [ ] Bot-only threads remain record-only with no Contacts or Action Items
-- [ ] Bot-only threads are marked `Inactive` after explicit classification so they do not linger as Draft QC gaps
+- [ ] Bot-only threads stay as annotated Draft with explicit `Email Notes` (agent does not change Record Status)
 - [ ] Teams and LinkedIn notification wrappers are not misclassified as bot-only just because the sender is automated
 - [ ] Routed labels are preserved on the Email record
 - [ ] `DMC/DMC_GMail` routes into normal CRM email processing rather than being treated like a chat-notification wrapper

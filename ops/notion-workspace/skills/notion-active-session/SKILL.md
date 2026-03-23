@@ -6,12 +6,14 @@ description: Kick off `ops/notion-workspace` work by reading the canonical hando
 # Notion Active Session
 
 Read `ops/notion-workspace/session-active.md`, `ops/notion-workspace/CLAUDE.md`, and `ops/notion-workspace/docs/agent-sops.md` first when they exist in the workspace.
+If the request touches `ops/local-db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning because that checklist may supersede the current manual-workflow queue for that architecture lane.
 
 ## Workflow
 
 1. Rebuild the active context.
    - Extract current state, priorities, follow-up items, and any `Planning Output` from `session-active.md`.
    - Extract standing approvals, sync rules, skill-publish rules, and the review gate from `CLAUDE.md`.
+   - When the request targets the local-first CRM architecture, extract any architecture-lane overrides or conflicts from `freed-solutions-execution-checklist.md`.
    - Read only the workflow docs, skills, and scripts that match the requested scaffolding change.
 2. Fan out targeted repo discovery.
    - Use local or parallel discovery by default when kickoff benefits from fan-out.
@@ -29,8 +31,11 @@ Read `ops/notion-workspace/session-active.md`, `ops/notion-workspace/CLAUDE.md`,
    - Use `HARDENED_GATE` before the first repo/code mutation in a skill run. Name the intended files and change types in one compact prompt.
    - Edit local source-of-truth files first.
    - When you change mapped docs, sync them to Notion in the same task and run the parity helper described in `CLAUDE.md`.
+   - Treat a failed parity check as blocking. Do not replace it with visual verification unless Adam explicitly accepts the remaining mismatch.
    - When you change a repo skill, validate with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly` and publish the installed copy before calling the task done.
 6. Close out cleanly.
+   - Run `ops/notion-workspace/scripts/test-closeout-sanity.ps1` before the review gate.
+   - If unrelated local changes remain in the worktree, run the review gate with repeated `--pathspec <repo path or glob>` arguments so the review stays scoped to the intended files.
    - Run the Codex review gate before updating `session-active.md`.
    - Update the handoff only after the work is verified or the user explicitly accepts remaining findings.
 

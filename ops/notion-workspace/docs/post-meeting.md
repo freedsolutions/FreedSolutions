@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 21, 2026
+Last synced: March 23, 2026
 
 # Agent Role
 
@@ -111,7 +111,7 @@ Series: [Series name, or omit if none]
 
 If the page already has a CRM Wiring block (check for "📋 CRM Wiring" text), skip — do not duplicate.
 
-13. **Set Record Status = Draft on Notion Calendar pages** (those with a `transcription` block), if Record Status is currently **empty/null**. This enables the lifecycle: Draft → nightly wires CRM (Steps 1–2) → Adam reviews Action Items → Adam sets Active → Active trigger runs Steps 1–3. **Never overwrite an already-set Record Status** (Active, Inactive, Delete) — only set Draft when the field is empty. Do NOT set Record Status on manually created pages (no `transcription` block). Note: The Meetings DB automation should auto-set Draft + 🗓️ on new pages — this step is a safety net for pages that pre-date the automation or where it didn't fire.
+13. **Set Record Status = Draft on Notion Calendar pages** (those with a `transcription` block), if Record Status is currently **empty/null**. This enables the lifecycle: Draft → nightly wires CRM (Steps 1–2) → Adam reviews Action Items → Adam sets Active → Active trigger runs Steps 1–3. **Never overwrite an already-set Record Status** (Active, Delete) — only set Draft when the field is empty. Do NOT set Record Status on manually created pages (no `transcription` block). Note: The Meetings DB automation should auto-set Draft + 🗓️ on new pages — this step is a safety net for pages that pre-date the automation or where it didn't fire.
 
 **Record Status on existing pages:** Only set Record Status = Draft when processing a Notion Calendar page (has `transcription` block) with an empty Record Status. All other existing pages (manually created, or already having a Record Status) — Adam manages their Record Status.
 
@@ -446,7 +446,7 @@ Search the meeting's existing Contacts relation (wired in Step 1) for a match by
 **Tier 2: Full Contacts DB (fallback)**
 If Tier 1 fails, search the entire Contacts DB. Floppy commands are explicit intent — Adam may reference someone not in the meeting.
 - Same matching rules: first name, full name, nickname, last name
-- If multiple matches, prefer Active records over Draft/Inactive
+- If multiple matches, prefer Active records over Draft
 - If still ambiguous, leave Contact blank and flag in Task Notes: "Ambiguous contact: '[name]' matches [list]. Manual wiring required."
 
 **Why two tiers:** Tier 1 is faster and more precise (smaller search space). Tier 2 catches cross-meeting references like "Hey Floppy, remind me to send the deck to Ted" where Ted isn't in this meeting.
@@ -731,7 +731,7 @@ Query the **Action Items DB** for all items where:
 
 Separate the results by Record Status:
 - **Active** — finalized items (Adam promoted them)
-- **Inactive** / **Delete** — items Adam removed or deduped
+- **Delete** — items Adam removed or deduped
 - **Draft** — items still pending review (should not exist if Record Status = Active was just set, but handle gracefully: log a warning if any Draft items remain)
 
 **If Draft items exist:** Log: "Warning — [N] Action Items still in Draft status. Curating with current finalized items." Proceed with Active items only.
@@ -835,7 +835,7 @@ The `📋 Curated Notes` text in the first block is the sentinel. Before writing
 
 1. **Guard rails are mandatory.** If any guard rail fails, log and stop Step 3 immediately. Do not attempt partial curation. Steps 1–2 are still complete.
 2. **Prepend above transcription block.** The transcription block is never modified, moved, or collapsed. It remains as the permanent original record.
-3. **Active items only in the summary.** Do not reference Draft, Inactive, or Delete items in the curated content. Adam's review is the authority — the Active list is the final list.
+3. **Active items only in the summary.** Do not reference Draft or Delete items in the curated content. Adam's review is the authority — the Active list is the final list.
 4. **Never modify the transcription block.** This is Notion Calendar's native block. It should not be touched.
 5. **Never change other properties.** Record Status is already Active (that's what triggered this agent). Do not modify Record Status, Meeting Title, Contacts, or any other property.
 6. **One run per meeting.** The `📋 Curated Notes` sentinel prevents duplicate runs. Trust it.
@@ -902,8 +902,8 @@ The agent processes meetings from **all configured calendars** with the same wir
 ## Record Status & Lifecycle
 
 15. **All agent-created records must have Record Status = Draft.** This applies to new Contacts, placeholder Companies, Action Items, and no-notes Meeting records.
-16. **Search ALL records regardless of Record Status** for dedup. Inactive records must still be found to prevent duplicates.
-17. **If an inactive contact is found by email**, reuse it and wire to the meeting. Do NOT change its Record Status — only Adam reactivates.
+16. **Search ALL records regardless of Record Status** for dedup. Archived records are still searchable and must be found to prevent duplicates.
+17. **If an archived or Delete contact is found by email**, reuse it and wire to the meeting. Do NOT change its Record Status — only Adam manages lifecycle transitions.
 18. **Record Status on existing Meeting pages:** Set Record Status = Draft on Notion Calendar pages (those with a `transcription` block) when Record Status is currently empty/null — this enables the lifecycle (Draft → Adam reviews → Active → full pipeline). Never overwrite an already-set Record Status. Do not set Record Status on manually created pages.
 
 ## Action Item Property Hardening (Steps 2.0–2.3)

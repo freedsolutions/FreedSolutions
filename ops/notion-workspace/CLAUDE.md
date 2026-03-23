@@ -7,8 +7,9 @@
 
 1. **Read the repo session handoff first** - `ops/notion-workspace/session-active.md` is the canonical active handoff for Claude Code and Codex work.
 2. **Read local docs** - `ops/notion-workspace/docs/agent-sops.md` is the stable workflow reference, then read the workflow-specific doc that matches the task.
-3. **Use the repo Codex skills for manual workflows** - `ops/notion-workspace/skills/` is the canonical source for the manual operator layer.
-4. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
+3. **Read the local-first architecture checklist when relevant** - `ops/notion-workspace/freed-solutions-execution-checklist.md` is a future-state execution brief for the `ops/local-db/` track. Read it early when the request touches local DB work, Gmail or GCal direct ingestion, SQLite sync, or broader CRM architecture migration.
+4. **Use the repo Codex skills for manual workflows** - `ops/notion-workspace/skills/` is the canonical source for the manual operator layer.
+5. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
 
 ## Local Docs
 
@@ -54,6 +55,14 @@ The repo is the canonical home for session handoff docs.
 |--------------|---------|
 | `ops/notion-workspace/session-active.md` | Canonical active handoff, priorities, and next actions |
 
+## Architecture Track
+
+`ops/notion-workspace/freed-solutions-execution-checklist.md` documents the planned local-first CRM architecture under `ops/local-db/`. It is an execution brief for that migration lane, not the default session handoff.
+
+- Read it when the task touches `ops/local-db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture changes.
+- Do not let it silently replace `session-active.md` or the current follow-up queue for routine Notion-workspace maintenance.
+- If the checklist conflicts with the current handoff or workflow docs, call out the conflict explicitly before editing.
+
 ## Notion-Only Resources (access via MCP)
 
 | Resource | Type | ID |
@@ -82,11 +91,12 @@ The repo is the canonical home for session handoff docs.
 4. **For migrations or bulk operations:** audit current state -> present plan -> get Adam's approval -> execute in phases with verification between each.
 5. **Use repo skill sources for manual operator work.** Task-specific manual workflows belong in `ops/notion-workspace/skills/`, not in ad hoc slash-command notes.
 6. **Never create new CRM DB records** unless explicitly instructed, except bounded `[TEST]` records or disposable audit pages required by the documented playbooks.
-7. **Never change `Record Status`** (`Draft`/`Active`/`Inactive`/`Delete`) without explicit instruction, except when the local workflow doc explicitly prescribes that exact bounded state transition as part of a validated run, cleanup step, or terminal no-op classification.
+7. **Never change `Record Status`** (`Draft`/`Active`/`Delete`) without explicit instruction. Agents create Draft records and never change Record Status. Archiving is Adam's UI-managed step.
 8. **Log everything** - `ops/notion-workspace/session-active.md` is the session system of record.
 9. **Dedup checks are mandatory** - always check Email + Secondary Email + Tertiary Email for contacts, Domains + Additional Domains for companies.
 10. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam - UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals.
 11. **Verify content on sync, not just existence.** When marking a Notion page as "in sync" with a local doc, verify the actual content matches - not just that the page exists.
+12. **Do not claim a clean close-out with a dirty tree.** Before saying the task is done, inspect `git status --short` and disclose any unrelated modified or untracked files instead of calling the worktree clean. If unrelated local changes are present, keep them out of the review conclusion by narrowing the review gate to the intended paths.
 
 ## Skill Gate Protocol
 
@@ -142,7 +152,7 @@ Pause and ask before proceeding only when any of the following are true:
 
 ## Key Schema Conventions
 
-- **Record Status** (select on Contacts, Companies, Action Items, Meetings, Emails): `Draft` -> `Active` -> `Inactive` -> `Delete`
+- **Record Status** (select on Contacts, Companies, Action Items, Meetings, Emails): `Draft` -> `Active` -> `Delete`. Archiving (Notion UI) is an orthogonal visibility layer - records are hidden from views but preserve all wiring and remain searchable by agents for dedup.
 - **Contacts DB:** Contact Name (title), Display Name (formula), QC (formula), Email, Secondary Email, Tertiary Email, Phone, Pronouns, Nickname, LinkedIn, Company, Role / Title, Record Status, Contact Notes
 - **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), QC (formula), Domains, Additional Domains, States (default: "All"), Website, Contacts, Emails (rollup), Meetings (rollup), Action Items, Engagements, Tech Stack, Record Status, Company Notes
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Attach File, QC (formula)
@@ -167,6 +177,8 @@ At the end of every session:
 
 - Local `docs/` files are the source of truth for instruction content.
 - When instructions change, edit the local file first, then push to Notion via MCP in the same task unless Adam explicitly asks for a local-only draft. Do not paste the repo-only `<!-- Notion Page ID: ... -->` comment into the live Notion page.
+- Save fetched live page bodies verbatim when preparing a parity check. Do not hand-type, visually reconstruct, or whitespace-normalize the fetched `<content>` block before running `compare-notion-sync.ps1`.
+- If `compare-notion-sync.ps1` fails, treat the doc as out of sync until the mismatch is resolved or Adam explicitly accepts the remaining drift. Visual inspection is not a substitute for a failed parity check.
 - Ephemeral/runtime data (agent config, CRM records, live automation state) lives in Notion only.
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
 - Skill sources follow the same rule: edit the repo copy first, validate, then publish installed copies to `$CODEX_HOME/skills` (default: `~/.codex/skills`).
@@ -181,10 +193,12 @@ If an autonomous repo-backed skill is executing the change, satisfy the required
 2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
 3. Re-fetch the updated Notion pages and first confirm the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment.
 4. Save the fetched live page body to a temp file and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>` to verify deterministic sync parity.
-5. If the task changed repo skill sources or `.claude/skills/`, run `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 -ValidateOnly` to confirm the Claude copies still mirror the canonical repo skills.
-6. Run the Codex review gate on the current worktree.
-7. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
-8. Then commit and push to `main`.
+5. If parity fails, stop. Do not mark the doc synced, do not replace the failed parity gate with visual verification, and do not update the handoff, commit, or push until the mismatch is resolved or Adam explicitly accepts the remaining drift.
+6. If the task changed repo skill sources or `.claude/skills/`, run `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 -ValidateOnly` to confirm the Claude copies still mirror the canonical repo skills.
+7. Run `ops/notion-workspace/scripts/test-closeout-sanity.ps1` and disclose any untracked-file warnings before close-out. Treat any mojibake findings as blocking.
+8. Run the Codex review gate on the current worktree. If unrelated local changes are present, pass repeated `--pathspec <repo path or glob>` arguments so the review only covers the intended files.
+9. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
+10. Then commit and push to `main`.
 
 Do **not** update the canonical handoff before the Codex review gate unless Adam explicitly asks for a draft note before review.
 
@@ -212,7 +226,7 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 
 ### P2 - Validate the next scheduled Post-Email run for correctness and recovery
 
-- Confirm bot-only or alias-only terminal threads remain `Inactive`
+- Confirm bot-only or alias-only terminal threads stay as annotated Draft (no status change by agent)
 - Confirm those terminal threads do not create Contacts, Companies, or Action Items on reprocessing
 - Confirm `Post-Email Agent Last Run` advances after a successful nightly run
 - Confirm `Primitiv/PRI_Teams` notifications are not misclassified as bot-only mail
