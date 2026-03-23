@@ -30,18 +30,33 @@ function Get-SkillNames {
 function Get-ClaudeSkillCopyContent {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$SourceSkillFile,
+        [string]$SourceFile,
 
         [Parameter(Mandatory = $true)]
-        [string]$SkillName
+        [string]$SkillName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$RelativePath
     )
 
-    $raw = Get-Content -Path $SourceSkillFile -Raw
+    $raw = Get-Content -Path $SourceFile -Raw
     $newline = if ($raw -match "`r`n") { "`r`n" } else { "`n" }
-    $banner = "<!-- Generated from `ops/notion-workspace/skills/$SkillName/`. Edit the repo skill source and rerun `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`; do not edit this Claude copy directly. -->"
+    $sourcePath = "ops/notion-workspace/skills/$SkillName/$RelativePath".Replace('\', '/')
+    $message = "Generated from `"$sourcePath`". Edit the repo skill source and rerun `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`; do not edit this Claude copy directly."
+    $banner = switch ([System.IO.Path]::GetExtension($RelativePath).ToLowerInvariant()) {
+        ".md" { "<!-- $message -->" }
+        ".yaml" { "# $message" }
+        ".yml" { "# $message" }
+        default { $null }
+    }
+
+    if (-not $banner) {
+        return $raw
+    }
+
     $frontmatterMatch = [regex]::Match($raw, '^(---\r?\n.*?\r?\n---)(\r?\n)?(?<body>[\s\S]*)$', [System.Text.RegularExpressions.RegexOptions]::Singleline)
 
-    if ($frontmatterMatch.Success) {
+    if ($RelativePath -eq "SKILL.md" -and $frontmatterMatch.Success) {
         $frontmatter = $frontmatterMatch.Groups[1].Value
         $body = $frontmatterMatch.Groups["body"].Value.TrimStart("`r", "`n")
         return $frontmatter + $newline + $newline + $banner + $newline + $newline + $body
@@ -101,7 +116,16 @@ function Test-DirectoryMatchesSource {
         }
 
         if ($relativePath -eq "SKILL.md") {
-            $expectedContent = Get-ClaudeSkillCopyContent -SourceSkillFile $sourceFiles[$relativePath] -SkillName $SkillName
+            $expectedContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $SkillName -RelativePath $relativePath
+            $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw
+            $normalizedExpected = $expectedContent -replace "\r\n", "`n"
+            $normalizedActual = $actualContent -replace "\r\n", "`n"
+
+            if ($normalizedExpected -ne $normalizedActual) {
+                return $false
+            }
+        } elseif ($relativePath -match '\.(md|ya?ml)$') {
+            $expectedContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $SkillName -RelativePath $relativePath
             $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw
             $normalizedExpected = $expectedContent -replace "\r\n", "`n"
             $normalizedActual = $actualContent -replace "\r\n", "`n"
@@ -170,9 +194,16 @@ foreach ($name in $skills) {
     }
 
     Copy-Item -Path $skillPath -Destination $resolvedWrapperRoot -Recurse
-    $targetSkillFile = Join-Path $targetPath "SKILL.md"
-    $targetSkillContent = Get-ClaudeSkillCopyContent -SourceSkillFile $skillFile -SkillName $name
-    [System.IO.File]::WriteAllText($targetSkillFile, $targetSkillContent, [System.Text.UTF8Encoding]::new($false))
+    $sourceFiles = Get-RelativeFileMap -Root $skillPath
+    foreach ($relativePath in $sourceFiles.Keys) {
+        if ($relativePath -notmatch '\.(md|ya?ml)$') {
+            continue
+        }
+
+        $targetFile = Join-Path $targetPath ($relativePath -replace '/', '\')
+        $targetContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $name -RelativePath $relativePath
+        [System.IO.File]::WriteAllText($targetFile, $targetContent, [System.Text.UTF8Encoding]::new($false))
+    }
 
     $writtenMatches = Test-DirectoryMatchesSource -SourceDir $skillPath -TargetDir $targetPath -SkillName $name
     if (-not $writtenMatches) {

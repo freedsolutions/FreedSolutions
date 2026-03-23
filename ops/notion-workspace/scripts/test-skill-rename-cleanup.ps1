@@ -6,24 +6,55 @@ param(
     [string]$NewName,
 
     [string]$RepoRoot,
-    [string]$CodexHome
+    [string]$CodexHome,
+    [switch]$RequireClaudeCopy,
+    [switch]$RequireInstalledCopy
 )
 
 $ErrorActionPreference = 'Stop'
 
-$workspaceRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+function Resolve-RequiredPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Label
+    )
+
+    if (-not (Test-Path $Path)) {
+        throw "$Label does not exist: $Path"
+    }
+
+    return (Resolve-Path $Path).Path
+}
+
+function Get-NormalizedPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
+}
+
+$workspaceRoot = Resolve-RequiredPath -Path (Join-Path $PSScriptRoot '..') -Label 'Workspace root'
 $resolvedRepoRoot = if ($PSBoundParameters.ContainsKey('RepoRoot')) {
-    (Resolve-Path $RepoRoot).Path
+    Resolve-RequiredPath -Path $RepoRoot -Label 'Repo root'
 } else {
-    (Resolve-Path (Join-Path (Join-Path $workspaceRoot '..') '..')).Path
+    Resolve-RequiredPath -Path (Join-Path (Join-Path $workspaceRoot '..') '..') -Label 'Repo root'
 }
 
 $resolvedCodexHome = if ($PSBoundParameters.ContainsKey('CodexHome')) {
-    (Resolve-Path $CodexHome).Path
+    Get-NormalizedPath -Path $CodexHome
 } elseif ($env:CODEX_HOME) {
-    $env:CODEX_HOME
+    Get-NormalizedPath -Path $env:CODEX_HOME
 } else {
-    Join-Path $HOME '.codex'
+    Get-NormalizedPath -Path (Join-Path $HOME '.codex')
 }
 
 $codexSkillsRoot = Join-Path $resolvedCodexHome 'skills'
@@ -95,7 +126,15 @@ if ($matches.Count -gt 0) {
     }
 }
 
-$requiredPaths = @($repoSkillRoot, $claudeSkillRoot, $codexSkillRoot)
+$requiredPaths = @($repoSkillRoot)
+if ($RequireClaudeCopy) {
+    $requiredPaths += $claudeSkillRoot
+}
+
+if ($RequireInstalledCopy) {
+    $requiredPaths += $codexSkillRoot
+}
+
 foreach ($path in $requiredPaths) {
     if (-not (Test-Path $path)) {
         $issues.Add("Expected renamed path is missing: $path")

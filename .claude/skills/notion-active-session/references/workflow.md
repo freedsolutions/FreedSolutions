@@ -1,3 +1,5 @@
+<!-- Generated from "ops/notion-workspace/skills/notion-active-session/references/workflow.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+
 # Notion Active Session Workflow
 
 ## Kickoff Inputs

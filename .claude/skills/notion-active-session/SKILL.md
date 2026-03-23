@@ -3,7 +3,7 @@ name: notion-active-session
 description: Kick off `ops/notion-workspace` work by reading the canonical handoff, repo contract, and agent SOPs, then using local or parallel repo discovery, the shared gate taxonomy, and repo-first updates to route the next scaffolding, documentation, or skill changes.
 ---
 
-<!-- Generated from ops/notion-workspace/skills/notion-active-session/. Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+<!-- Generated from "ops/notion-workspace/skills/notion-active-session/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Notion Active Session
 
