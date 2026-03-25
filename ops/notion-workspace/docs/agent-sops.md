@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 23, 2026
+Last synced: March 25, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -59,14 +59,6 @@ At the end of every session:
 <td>Opus 4.6</td>
 <td>Live</td>
 <td>[Settings](https://www.notion.so/agent/323adb01222f802cb5640092af74e84a?wfv=settings)</td>
-</tr>
-<tr>
-<td>Delete Unwiring Agent</td>
-<td>Delete Unwiring Instructions</td>
-<td>`@mention` only (property triggers removed March 22, 2026)</td>
-<td>Opus 4.6</td>
-<td>Retired</td>
-<td>[Settings](https://www.notion.so/agent/325adb01222f80d2844a0092e63da4ea?wfv=settings)</td>
 </tr>
 <tr>
 <td>Curated Notes Agent</td>
@@ -184,13 +176,20 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Notes:
 	- Existing stubs must be eligible for recovery if prior runs stopped after partial work.
 	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv/PRI_Outlook` for forwarded Outlook mail, `Primitiv/PRI_Teams` for Teams notifications, `LinkedIn` for LinkedIn message notifications, and `DMC/DMC_GMail` for DMC routed company mail.
-	- `Action Items` and any `Action Items/...` child label are temporary manual-queue labels. Ignore them for automated intake until Adam explicitly enables a dedicated workflow.
+	- `_Action Items` and any `_Action Items/...` child label are hard-ignore manual-queue labels. Leave them unread and out of automated intake until Adam explicitly enables a dedicated workflow.
 	- Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
+	- Gmail is the cleanup control plane. Filters, inbox posture, archive posture, and unread/read staging are decided in Gmail first; Notion is the retained CRM record and downstream Action Item system.
+	- Reverse-sync from Notion back into Gmail is out of scope unless Adam explicitly enables a separate workflow.
 	- `adamjfreed@gmail.com` stays in live sweep scope, but its Gmail labels are currently out of scope for routing. Treat personal-mailbox messages as standard email unless Adam explicitly adds a mailbox-specific routing contract later.
 	- Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
 	- Long term, domain-aligned company labels are encouraged because they make inbox-zero routing and CRM automation more deterministic.
 	- Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
+	- Contextful notification and share mail is keepable when it carries a real human plus a concrete artifact, decision, or follow-up context. Do not blanket-classify share notices or forwarded Outlook context as noise.
+	- Calendar email handling uses a 3-way split: meeting invite replies that are status-only are hard skip/read with no Email record; raw invite or update packets stay in a meeting-support bucket and are not normal Email intake by default; invite-thread mail with written human commentary is keepable when it adds durable CRM or meeting context.
 	- Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.
+	- Compare inbox parity and dedup by exact `Thread ID`, not subject line or Gmail message counts. Archived Email pages still count as already processed when evaluating parity.
+	- Gmail read-state may change only after a thread reaches terminal state: retained and wired in Notion, intentionally skipped, or classified as meeting-support-only. If anything remains unresolved, leave it unread and list the exception explicitly.
+	- The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is concrete evidence of a race-condition-class bug. Future Post-Email hardening must use in-run dedup-before-create or serialized Company and Contact creation across same-thread-family work.
 	- Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
 ## Curated Notes Agent
 - Triggers:
@@ -235,25 +234,6 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Notes:
 	- Queue fairness matters. Old Draft and QC-gap records must not starve behind newer ones.
 	- Placeholder correction is allowed when evidence is stronger than the placeholder default.
-## Delete Unwiring Agent
-- Retired (March 22, 2026). Live testing confirmed Notion trash automatically clears reciprocal synced-dual relations. The unwiring step is redundant.
-- Triggers:
-	- All property triggers removed
-	- `@mention` only (retained for manual re-activation if needed)
-- Notion page access:
-	- Delete Unwiring Instructions -\> Can edit
-	- Meetings -\> Can edit content
-	- Companies -\> Can edit content
-	- Action Items -\> Can edit content
-	- Contacts -\> Can edit content
-	- Emails -\> Can edit content
-	- Agent Config -\> Can edit
-	- Agent SOPs -\> Can view
-- Connections:
-	- Web access: Off
-	- No calendar
-	- No mail
-- Model: Opus 4.6
 ---
 # Database Quick Reference
 <table header-row="true">
@@ -278,10 +258,6 @@ This section is the canonical desired state for Notion Custom Agent settings.
 <td>`31fadb01-222f-80c0-acf7-000b401a5756`</td>
 </tr>
 <tr>
-<td>Agent Config</td>
-<td>`322adb01-222f-8114-b1b0-cc8971f1b61a`</td>
-</tr>
-<tr>
 <td>Emails</td>
 <td>`f685a378-5a37-4517-9b0c-d2928be4af4d`</td>
 </tr>
@@ -300,8 +276,10 @@ All five source databases use the same `Record Status` select:
 - `Delete`
 Only Adam promotes records to `Active`. Agents create Draft records and never change `Record Status`. To delete a record, set `Record Status = Delete` and trash it — Notion automatically clears reciprocal relations. Permanent delete from Notion trash is Adam's manual step.
 Archiving is Adam's UI-managed lifecycle step for records that should be hidden from active views but preserved with full wiring for future use. Archived records remain searchable by agents for dedup and contact matching.
+The live schema may still physically expose a legacy `Inactive` select option in some databases. Treat it as a retired schema artifact and do not use it in workflow logic or new automation behavior.
 ## Contacts
 - Dedup across `Email`, `Secondary Email`, and `Tertiary Email`
+- New or repaired Contact pages should use the `👤` page icon for visual consistency
 - `Company` is the primary operational relation
 - `LinkedIn`, `Phone`, `Pronouns`, and `Role / Title` are fill-in fields and may be updated by enrichment workflows
 ## Normalization rules
@@ -325,16 +303,26 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 ## Action Items
 - `Company` represents the owning or execution business context for the work item; it is not automatically the counterparty's employer
 - `Contact` carries the counterparty person when one is involved
+- `Source Meeting` / `Source Email` capture provenance for how the work entered the CRM
+- `Source Email` is a multi-relation. One Action Item may legitimately relate to multiple Email threads when those threads all contribute useful provenance for the same work item.
+- `Target Meeting` / `Target Email` capture optional future planning, presentation, or close-out context; leave them blank unless Adam or an explicit Action Item workflow asks to wire them
 - For Adam-owned, pre-seeded, or otherwise internally-originated work, default `Company` to the source calendar, mailbox, or explicit business context unless the source text clearly names another beneficiary company or account
 - Use the counterparty's company as `Company` only when the item is genuinely tracking that counterparty's commitment, deliverable, or follow-up
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists
 - `Due Date` should be set whenever the source text contains an explicit or relative deadline that can be resolved
+- New or repaired Action Item pages should use the `🎬` page icon unless an explicit manual exception already exists
 ## Emails
 - `Thread ID` is the canonical email-thread identity
+- Compare parity and dedup by exact `Thread ID`, not subject lines or Gmail message counts
+- Archived Email pages still count as already processed for parity and should suppress false “missing thread” conclusions
 - `Source` must be populated
 - Company-side visibility for emails comes from the `Companies.Emails` rollup via `Contacts -> Emails`, not from a direct Company relation on the Emails DB
 - Existing email stubs may be healed in place when prior runs only completed part of the workflow
+- Contextful notifications and share mail may still belong in the Emails DB even when the sender looks automated, as long as the thread preserves useful human relationship context
+- Status-only meeting invite replies are skip/read with no Email record. Raw invite/update packets belong in a meeting-support bucket unless they materially help reconcile the correct Meeting/calendar or preserve useful context, while invite-thread mail with real human commentary may still belong in the Emails DB
 - Bot-only or alias-only email stubs should be annotated in `Email Notes` so they are clearly terminal. They stay as `Draft` until Adam archives them from the UI
+- Gmail read-state may change only after the thread is retained and wired, intentionally skipped, or classified as meeting-support-only. Truly unresolved exceptions stay unread and should be logged explicitly
+- New or repaired Email pages should use the `📧` page icon for visual consistency
 ---
 # Rules of Engagement
 1. Read `ops/notion-workspace/session-active.md` first, then the canonical local docs.

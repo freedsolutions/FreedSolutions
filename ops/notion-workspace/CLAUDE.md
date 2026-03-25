@@ -7,7 +7,7 @@
 
 1. **Read the repo session handoff first** - `ops/notion-workspace/session-active.md` is the canonical active handoff for Claude Code and Codex work.
 2. **Read local docs** - `ops/notion-workspace/docs/agent-sops.md` is the stable workflow reference, then read the workflow-specific doc that matches the task.
-3. **Read the local-first architecture checklist when relevant** - `ops/notion-workspace/freed-solutions-execution-checklist.md` is a future-state execution brief for the `ops/local-db/` track. Read it early when the request touches local DB work, Gmail or GCal direct ingestion, SQLite sync, or broader CRM architecture migration.
+3. **Read the local-first architecture checklist when relevant** - `ops/notion-workspace/freed-solutions-execution-checklist.md` is a future-state execution brief for the `ops/local_db/` track. Read it early when the request touches local DB work, Gmail or GCal direct ingestion, SQLite sync, or broader CRM architecture migration.
 4. **Use the repo Codex skills for manual workflows** - `ops/notion-workspace/skills/` is the canonical source for the manual operator layer.
 5. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
 
@@ -20,15 +20,14 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-22 |
-| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> Notes -> curated summary). Uses live `Calendar Name` options only. | 2026-03-21 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-24 |
+| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> Notes -> curated summary). Uses live `Calendar Name` options only. | 2026-03-24 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-22 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
-| `docs/delete-unwiring.md` | `325adb01-222f-8103-b4d9-d5ce67f21de5` | Delete Unwiring Agent (Retired): relation map reference and current trash-first delete path | 2026-03-22 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
-| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-21 |
+| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-24 |
 | `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
 | `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | - |
 
@@ -57,9 +56,9 @@ The repo is the canonical home for session handoff docs.
 
 ## Architecture Track
 
-`ops/notion-workspace/freed-solutions-execution-checklist.md` documents the planned local-first CRM architecture under `ops/local-db/`. It is an execution brief for that migration lane, not the default session handoff.
+`ops/notion-workspace/freed-solutions-execution-checklist.md` documents the planned local-first CRM architecture under `ops/local_db/`. It is an execution brief for that migration lane, not the default session handoff.
 
-- Read it when the task touches `ops/local-db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture changes.
+- Read it when the task touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture changes.
 - Do not let it silently replace `session-active.md` or the current follow-up queue for routine Notion-workspace maintenance.
 - If the checklist conflicts with the current handoff or workflow docs, call out the conflict explicitly before editing.
 
@@ -67,7 +66,7 @@ The repo is the canonical home for session handoff docs.
 
 | Resource | Type | ID |
 |----------|------|----|
-| Agent Config | Database | `322adb01-222f-8114-b1b0-cc8971f1b61a` |
+| Agent Config | Page | `322adb01-222f-8114-b1b0-cc8971f1b61a` |
 | Automation Hub | Page | `321adb01-222f-810f-8706-e53105950d86` |
 
 ## Database IDs
@@ -78,7 +77,6 @@ The repo is the canonical home for session handoff docs.
 | Companies | `796deadb-b5f0-4adc-ac06-28e94c90db0e` |
 | Action Items | `319adb01-222f-8059-bd33-000b029a2fdd` |
 | Meetings | `31fadb01-222f-80c0-acf7-000b401a5756` |
-| Agent Config | `322adb01-222f-8114-b1b0-cc8971f1b61a` |
 | Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` |
 
 **Adam's Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
@@ -116,15 +114,16 @@ The shared `UNGATED` / `HARDENED_GATE` / `GOVERNANCE_GATE` taxonomy is the repo 
 
 For routine `ops/notion-workspace` work on this workstation:
 
-- **Claude project baseline** lives in `.claude/settings.json` and `.claude/settings.local.json`. Keep the required Notion-workspace namespaces aligned between both files: `mcp__notion__*`, `mcp__google-workspace__*`, `mcp__playwright__*`, plus any still-used legacy MCP namespaces that are not covered by those wildcards. If Claude needs local shell access for `notion-active-session` kickoff discovery, keep that workstation-side shell baseline minimal and treat it as support for the exact repo-scoped discovery forms below, not as blanket approval to run those command names against arbitrary paths. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
+- **Claude project baseline** lives in `.claude/settings.json` and `.claude/settings.local.json`. Keep the required Notion-workspace MCP server entries aligned between both files: `mcp__notion`, `mcp__google-workspace`, `mcp__playwright`, plus any still-used legacy MCP namespaces that still need explicit coverage. Claude MCP permissions do not support `*` wildcards, so approve the server name itself when the intent is "all tools from this MCP server." If Claude needs local shell access for `notion-active-session` kickoff discovery, keep that workstation-side shell baseline minimal and treat it as support for the exact repo-scoped discovery forms below, not as blanket approval to run those command names against arbitrary paths. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
 - **Repo-scoped discovery only.** Launch discovery from the repo root and keep read-only shell enumeration scoped to repo paths. Prefer exact repo-scoped forms such as `rg --files ops/notion-workspace`, `rg --no-follow -F <text> ops/notion-workspace`, and repo-rooted file reads under `ops/notion-workspace`.
 - **PowerShell fallback shape.** If `rg` is unavailable, use explicit repo-scoped PowerShell fallback commands such as `Get-ChildItem -Path ops/notion-workspace -Recurse -File -Force | Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) }` for enumeration and pipe that result into `Select-String -SimpleMatch -Pattern <text>` for text search. Do not recurse against absolute paths, parent directories, or uncontrolled roots.
 - **Discovery path enforcement.** Kickoff discovery should normalize candidate paths against the repo root, reject absolute paths and `..` segments that escape the repo, and refuse discovery when the repo root cannot be resolved cleanly.
 - **Claude allowlist maintenance.** Keep the workstation-side Claude shell baseline aligned between `.claude/settings.json` and `.claude/settings.local.json`, and keep it no broader than necessary to let the repo-scoped discovery forms above run without extra prompts.
 - **Project MCP surface** lives in `.mcp.json`. Keep `playwright` there. Do not add the Notion MCP server to `.mcp.json` unless the local client proves the same remote-server registration path is stable for project-scoped use; until then, Notion remains configured in the user's local client config.
-- **Codex local baseline** should use a dedicated `ops_notion_workspace` profile in `~/.codex/config.toml` with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, while preserving the existing `mcp_servers` entries.
-- **Preferred Windows launch path** is `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd`, or the equivalent `codex.cmd -p ops_notion_workspace -C <repo-root>`. That is the supported low-friction launch for routine Notion-workspace sessions.
-- **Repo gates still apply** after the local client baseline is in place. Repo/code mutations inside autonomous repo-backed skills still require `HARDENED_GATE`, and schema, destructive, bulk, or out-of-contract lifecycle moves still require `GOVERNANCE_GATE`.
+- **Codex local baseline** should keep the dedicated `ops_notion_workspace` profile in `~/.codex/config.toml` at `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, while preserving the existing `mcp_servers` entries.
+- **Codex quiet baseline** may add a second `ops_notion_workspace_quiet` profile in `~/.codex/config.toml` with `approval_policy = "never"` and `sandbox_mode = "workspace-write"` for routine MCP-heavy Notion-workspace sessions. Reuse the same top-level `mcp_servers`; do not duplicate or move them into the profile.
+- **Preferred Windows launch paths** are `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` for the safer default lane and `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd` for the low-friction lane, or the equivalent `codex.cmd -p <profile> -C <repo-root>`. Keep using `codex.cmd`, not bare `codex`, so PowerShell execution-policy issues around `codex.ps1` do not reintroduce friction.
+- **Quiet mode is a client baseline only.** The quiet Codex profile suppresses local client approval prompts, but it does not waive repo workflow gates. Repo/code mutations inside autonomous repo-backed skills still require `HARDENED_GATE`, and schema, destructive, bulk, or out-of-contract lifecycle moves still require `GOVERNANCE_GATE`.
 
 ## Standing Approval Scope
 
@@ -153,16 +152,22 @@ Pause and ask before proceeding only when any of the following are true:
 ## Key Schema Conventions
 
 - **Record Status** (select on Contacts, Companies, Action Items, Meetings, Emails): `Draft` -> `Active` -> `Delete`. Archiving (Notion UI) is an orthogonal visibility layer - records are hidden from views but preserve all wiring and remain searchable by agents for dedup.
+- The live schema may still physically expose a legacy `Inactive` select option in some databases. Treat it as a retired schema artifact and do not use it in workflow logic or new automation behavior.
 - **Contacts DB:** Contact Name (title), Display Name (formula), QC (formula), Email, Secondary Email, Tertiary Email, Phone, Pronouns, Nickname, LinkedIn, Company, Role / Title, Record Status, Contact Notes
 - **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), QC (formula), Domains, Additional Domains, States (default: "All"), Website, Contacts, Emails (rollup), Meetings (rollup), Action Items, Engagements, Tech Stack, Record Status, Company Notes
-- **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Attach File, QC (formula)
-- **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
-- **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
+- **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Target Meeting, Target Email, Attach File, QC (formula)
+- **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Target Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
+- **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Target Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
 - **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `Action Items` and any `Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications keep the mailbox-derived `Source`; the `Labels` multi_select carries the routing metadata instead of a dedicated Teams source option.
+- **Action Item provenance vs. target context:** `Source Meeting` / `Source Email` capture where the work originated. `Target Meeting` / `Target Email` capture the optional future touchpoint where Adam wants to review, present, or close out the work. Leave the target fields blank unless Adam or an explicit Action Item workflow asks to wire them.
+- **Target-link rollout note:** `Target Meeting` / `Target Email` are live in Adam's workspace as of March 24, 2026. If an older environment or copied workspace is missing them, pause and add the schema before relying on target-link behavior.
+- **Page icon conventions:** New or repaired Meetings should use `🗓️`, Contacts `👤`, Emails `📧`, and Action Items `🎬` unless an explicit manual exception already exists. Company page icons remain Adam-managed.
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary/sender-level) - both checked for dedup. `Additional Domains` may also hold full sender email addresses for platform companies where the domain is too broad (e.g., `workspace@google.com` for Google). When matching, check domains first, then fall back to full sender email address against `Additional Domains`.
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
 - **Delete path:** Set `Record Status = Delete` plus the relevant notes field (Contact Notes / Company Notes / Task Notes) explaining why, then trash the record (or trash directly if the record is already annotated). Notion automatically clears reciprocal synced-dual relations on linked records. Permanent delete from Notion trash is Adam's manual step.
+- **Email parity + cleanup contract:** Compare Gmail parity by exact `Thread ID`, not by subject line or Gmail message count. Archived Email rows still count as already processed for parity. Gmail read-state changes only after a thread reaches terminal state: retained and wired, intentionally skipped, or classified as meeting-support-only. Truly unresolved exceptions may remain unread, but they must be listed explicitly.
+- **Concrete duplicate-prevention target:** The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is concrete evidence of a race-condition-class bug. Future Post-Email hardening must use in-run dedup-before-create or serialized Company/Contact creation across same-thread-family work.
 - **Agent Config:** Runtime state (timestamps) shared between agents. Not documentation - agents read/write during execution.
 
 ## End-of-Session Protocol
@@ -177,7 +182,7 @@ At the end of every session:
 
 - Local `docs/` files are the source of truth for instruction content.
 - When instructions change, edit the local file first, then push to Notion via MCP in the same task unless Adam explicitly asks for a local-only draft. Do not paste the repo-only `<!-- Notion Page ID: ... -->` comment into the live Notion page.
-- Save fetched live page bodies verbatim when preparing a parity check. Do not hand-type, visually reconstruct, or whitespace-normalize the fetched `<content>` block before running `compare-notion-sync.ps1`.
+- Save fetched live page bodies verbatim under `ops/notion-workspace/tmp/notion-sync-remote-YYYY-MM-DD-<doc>.md` when preparing a parity check. Do not hand-type, visually reconstruct, or whitespace-normalize the fetched `<content>` block before running `compare-notion-sync.ps1`.
 - If `compare-notion-sync.ps1` fails, treat the doc as out of sync until the mismatch is resolved or Adam explicitly accepts the remaining drift. Visual inspection is not a substitute for a failed parity check.
 - Ephemeral/runtime data (agent config, CRM records, live automation state) lives in Notion only.
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
@@ -192,7 +197,7 @@ If an autonomous repo-backed skill is executing the change, satisfy the required
 1. Edit the local source-of-truth files.
 2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
 3. Re-fetch the updated Notion pages and first confirm the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment.
-4. Save the fetched live page body to a temp file and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>` to verify deterministic sync parity.
+4. Save the fetched live page body to `ops/notion-workspace/tmp/notion-sync-remote-YYYY-MM-DD-<doc>.md` and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>` to verify deterministic sync parity.
 5. If parity fails, stop. Do not mark the doc synced, do not replace the failed parity gate with visual verification, and do not update the handoff, commit, or push until the mismatch is resolved or Adam explicitly accepts the remaining drift.
 6. If the task changed repo skill sources or `.claude/skills/`, run `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 -ValidateOnly` to confirm the Claude copies still mirror the canonical repo skills.
 7. Run `ops/notion-workspace/scripts/test-closeout-sanity.ps1` and disclose any untracked-file warnings before close-out. Treat any mojibake findings as blocking.
@@ -212,17 +217,17 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 23, 2026)
+## Current Follow-Up Queue (March 24, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 
-### P1 - Validate the first scheduled Post-Email run under the current intake model
+### P1 - Repair and validate automatic routed-label persistence on new Post-Email runs
 
-- Confirm the live agent respects the current mailbox contract:
-  - `adam@freedsolutions.com` labels participate in routing
-  - `adamjfreed@gmail.com` stays in sweep scope, but its labels do not
+- Manual March 24 cleanup repaired the current routed backlog and existing Email records; the remaining gap is the automated Post-Email path that wrote route context only into `Email Notes`
+- Confirm new or resumed routed Email records persist the Gmail label directly in `Labels`
+- Confirm `adamjfreed@gmail.com` stays in sweep scope, but its labels remain non-routing
 - Confirm `Action Items` and `Action Items/...` remain ignored as manual queue labels
-- Confirm `DMC/DMC_GMail` processes as standard email rather than as a chat wrapper
+- Confirm `DMC/DMC_GMail` continues to process as standard email rather than as a chat wrapper
 
 ### P2 - Validate the next scheduled Post-Email run for correctness and recovery
 
@@ -231,11 +236,15 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Confirm `Post-Email Agent Last Run` advances after a successful nightly run
 - Confirm `Primitiv/PRI_Teams` notifications are not misclassified as bot-only mail
 - Confirm `LinkedIn` notifications route into CRM safely when the notification contains enough identity and action detail
+- Confirm `adamjfreed@gmail.com` stays in sweep scope while its labels remain non-routing
+- Confirm `Action Items` and `Action Items/...` queue labels stay ignored, unread, and non-mutating
 - Confirm terminally processed threads are marked read, while unresolved threads stay unread
 
-### P3 - Process remaining deferred inbox threads
+### P3 - Validate Action Item target-link workflow
 
-- ~25 remaining unread threads need stubs created (Primitiv Outlook forwards, calendar acceptances, Deeproots SEO, bot/system notifications, plus page 2 of unread results)
+- Run one safe page-level smoke path for `Target Meeting` / `Target Email` and confirm the reciprocal `Target Action Items` relation appears on Meetings and Emails
+- Confirm Post-Meeting and Post-Email still populate only `Source Meeting` / `Source Email` by default
+- Confirm the `notion-action-item` skill refreshes and reports source and target context separately before execution
 
 ### P4 - Normalize Gmail label coverage over time
 
