@@ -29,7 +29,7 @@
 ## Cleanup
 
 - Set test records to `Delete` only when that is the documented cleanup path.
-- If Delete Unwiring is still part of cleanup, verify both sides of the relation clear. If that agent is retired, switch the cleanup check to the current trash or archive workflow instead of assuming reciprocal unwiring.
+- For cleanup tests, verify the current trash or archive workflow clears linked relations and rollups as expected instead of assuming a dedicated unwiring agent exists.
 
 ## Report Template
 

@@ -8,7 +8,7 @@ description: Kick off `ops/notion-workspace` work by reading the canonical hando
 # Notion Active Session
 
 Read `ops/notion-workspace/session-active.md`, `ops/notion-workspace/CLAUDE.md`, and `ops/notion-workspace/docs/agent-sops.md` first when they exist in the workspace.
-If the request touches `ops/local-db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning because that checklist may supersede the current manual-workflow queue for that architecture lane.
+If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning because that checklist may supersede the current manual-workflow queue for that architecture lane.
 
 ## Workflow
 

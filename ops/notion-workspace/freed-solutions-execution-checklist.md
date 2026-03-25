@@ -3,7 +3,7 @@
 **For:** Fresh VSCode context window (Claude Code / Codex)
 **Repo:** FreedSolutions (access `ops/` directory)
 **Date:** March 22, 2026
-**Scope:** Phase 0–2 (local DB + ingestion + sync + agent porting)
+**Scope:** Phase 0–2 (local DB + ingestion + sync + agent porting) plus Phase 3 / v2 planning notes for Gmail filter automation
 
 ---
 
@@ -25,7 +25,7 @@ Before writing any code, read these files in order:
 
 ### What we're building
 
-A **local orchestration layer** (`ops/local-db/`) that sits between raw APIs (Gmail, GCal) and Notion:
+A **local orchestration layer** (`ops/local_db/`) that sits between raw APIs (Gmail, GCal) and Notion:
 
 ```
 Gmail API ──→ Local SQLite ──→ Claude Code Agents ──→ Notion (push sync)
@@ -77,7 +77,7 @@ GCal API  ──→     (fast reads)     (repo instructions)     (dashboard/revi
 - **OAuth consent screen:** Internal (Workspace-only), app name `FreedSolutions CRM`
 - **OAuth scopes:** `gmail.readonly`, `gmail.modify`, `calendar.readonly`
 - **Credentials:** Desktop app OAuth client ID created, `credentials.json` downloaded
-- **Action for execution session:** Place `credentials.json` at `ops/local-db/credentials/google_oauth_credentials.json` (gitignored). First run of gmail_ingest.py will open a browser for OAuth consent → saves `token.json` for subsequent runs.
+- **Action for execution session:** Place `credentials.json` at `ops/local_db/credentials/google_oauth_credentials.json` (gitignored). First run of gmail_ingest.py will open a browser for OAuth consent → saves `token.json` for subsequent runs.
 
 ### P-2: Notion integration token ✅ VERIFIED
 
@@ -88,7 +88,7 @@ GCal API  ──→     (fast reads)     (repo instructions)     (dashboard/revi
   - ✅ Meetings (`31fadb01-222f-80c0-acf7-000b401a5756`)
   - ✅ Emails (`f685a378-5a37-4517-9b0c-d2928be4af4d`)
   - ✅ Agent Config (`322adb01-222f-8114-b1b0-cc8971f1b61a` — this is a page, not a database)
-- **Action for execution session:** Copy the integration token to `ops/local-db/credentials/notion_token.txt` (gitignored). The token is the same one Claude Code uses — find it at `notion.so/profile/integrations`.
+- **Action for execution session:** Copy the integration token to `ops/local_db/credentials/notion_token.txt` (gitignored). The token is the same one Claude Code uses — find it at `notion.so/profile/integrations`.
 - **Note:** Agent Config is a Notion page (not a database). The local-db layer replaces this with the `agent_config` SQLite table. The Notion page can be kept as a read-only audit log or retired after cutover.
 
 ### P-3: Python dependencies ✅ COMPLETE
@@ -104,8 +104,8 @@ Installed and verified on Python 3.12.3:
 
 **Note for execution session:** These are installed in the system Python. If you prefer a venv, create one and reinstall:
 ```bash
-python3 -m venv ops/local-db/.venv
-source ops/local-db/.venv/bin/activate  # or .venv\Scripts\activate on Windows
+python3 -m venv ops/local_db/.venv
+source ops/local_db/.venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib notion-client anthropic pyyaml
 ```
 
@@ -117,7 +117,7 @@ pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib n
 
 ```
 ops/
-├── local-db/
+├── local_db/
 │   ├── .gitignore              # credentials/, *.db, token.json
 │   ├── config.yaml             # paths, schedule, account mappings
 │   ├── schema.sql              # SQLite schema
@@ -147,7 +147,7 @@ ops/
 │       └── test_dedup.py
 ```
 
-### 0.2: Schema (create `ops/local-db/schema.sql`)
+### 0.2: Schema (create `ops/local_db/schema.sql`)
 
 Mirror the 6 Notion DBs. Key design rules:
 
@@ -177,22 +177,22 @@ Mirror the 6 Notion DBs. Key design rules:
 
 Refer to the full schema in `freed-solutions-architecture-plan.md` — it's ready to use (add the `display_date` column and title normalization to the schema there).
 
-### 0.3: Config (create `ops/local-db/config.yaml`)
+### 0.3: Config (create `ops/local_db/config.yaml`)
 
 ```yaml
 database:
-  path: ops/local-db/freed.db
+  path: ops/local_db/freed.db
 
 google:
-  credentials_path: ops/local-db/credentials/google_oauth_credentials.json
-  token_path: ops/local-db/credentials/token.json
+  credentials_path: ops/local_db/credentials/google_oauth_credentials.json
+  token_path: ops/local_db/credentials/token.json
   scopes:
     - https://www.googleapis.com/auth/gmail.readonly
     - https://www.googleapis.com/auth/gmail.modify
     - https://www.googleapis.com/auth/calendar.readonly
 
 notion:
-  token_path: ops/local-db/credentials/notion_token.txt
+  token_path: ops/local_db/credentials/notion_token.txt
   databases:
     contacts: fd06740b-ea9f-401f-9083-ebebfb85653c
     companies: 796deadb-b5f0-4adc-ac06-28e94c90db0e
@@ -318,7 +318,7 @@ python -m ops.local_db.ingest.gmail_ingest
 python -m ops.local_db.ingest.gcal_ingest
 
 # Verify records
-sqlite3 ops/local-db/freed.db "SELECT COUNT(*) FROM emails; SELECT COUNT(*) FROM meetings;"
+sqlite3 ops/local_db/freed.db "SELECT COUNT(*) FROM emails; SELECT COUNT(*) FROM meetings;"
 ```
 
 **Validation criteria:**
@@ -398,7 +398,7 @@ Notion → Local pull (catches Adam's manual edits):
 python -m ops.local_db.sync.notion_backfill
 
 # Verify counts
-sqlite3 ops/local-db/freed.db "SELECT 'contacts', COUNT(*) FROM contacts UNION ALL SELECT 'companies', COUNT(*) FROM companies UNION ALL SELECT 'emails', COUNT(*) FROM emails UNION ALL SELECT 'meetings', COUNT(*) FROM meetings UNION ALL SELECT 'action_items', COUNT(*) FROM action_items;"
+sqlite3 ops/local_db/freed.db "SELECT 'contacts', COUNT(*) FROM contacts UNION ALL SELECT 'companies', COUNT(*) FROM companies UNION ALL SELECT 'emails', COUNT(*) FROM emails UNION ALL SELECT 'meetings', COUNT(*) FROM meetings UNION ALL SELECT 'action_items', COUNT(*) FROM action_items;"
 
 # Push test (after modifying a local record)
 python -m ops.local_db.sync.push_to_notion
@@ -456,7 +456,7 @@ class AgentRunner:
 - System prompt: the instruction MD content
 - User prompt: the structured record context from local DB
 - Response: structured JSON with actions to apply
-- Store API key in `ops/local-db/credentials/anthropic_key.txt` (gitignored)
+- Store API key in `ops/local_db/credentials/anthropic_key.txt` (gitignored)
 
 **Alternative approach (simpler for v1):** Instead of calling Claude API, the runner can execute the agent logic directly in Python — deterministic code for the well-defined steps (dedup, contact matching, company wiring, skip filtering), calling Claude API only for the judgment-heavy steps (enrichment, action item parsing from email bodies, curated notes generation). This hybrid approach is faster and cheaper.
 
@@ -537,7 +537,7 @@ Port from `docs/contact-company.md`. Simplest agent — mostly enrichment:
 - Evidence gathering: Gmail API for signatures (read from `raw_gmail_data`), GCal for context
 - Enrichment: Claude API call for role, LinkedIn, phone normalization
 
-### 2.5: Scheduler (`ops/local-db/scheduler.py`)
+### 2.5: Scheduler (`ops/local_db/scheduler.py`)
 
 Simple Python scheduler (or cron wrapper) for 3x/day processing:
 
@@ -598,7 +598,7 @@ SCHEDULE = [
 
 Add a section documenting the local-db layer:
 
-- `ops/local-db/` directory purpose and relationship to `ops/notion-workspace/`
+- `ops/local_db/` directory purpose and relationship to `ops/notion-workspace/`
 - How local agents read instructions from `ops/notion-workspace/docs/` (no change to instruction MDs)
 - Sync model: local DB → Notion push, Notion → local pull
 - New credential paths (gitignored)
@@ -614,9 +614,9 @@ Add the local-db work as a new priority block, documenting:
 ### Update `.gitignore`
 
 ```
-ops/local-db/credentials/
-ops/local-db/*.db
-ops/local-db/credentials/token.json
+ops/local_db/credentials/
+ops/local_db/*.db
+ops/local_db/credentials/token.json
 ```
 
 ---
@@ -662,14 +662,82 @@ If ambiguity arises during execution, use these defaults:
 3. **Rate limiting:** Notion API limit is 3 req/sec for internal integrations. Gmail API default is 250 quota units/sec. Build in retry with exponential backoff.
 4. **Error handling:** Log and continue. Never crash the pipeline on a single record failure. Write errors to `sync_log` and move to the next record.
 5. **Testing approach:** Test each phase independently before building the next. Don't skip Phase 0 testing to rush Phase 2.
+6. **Routing source of truth:** Live Gmail labels and filters are the upstream routing contract. Notion/DB business rules should define the desired state, and Gmail should enforce it through labels and filters rather than through hard-coded one-off inbox rules.
+
+---
+
+## PHASE 3 / V2: Gmail Filter Automation (Next Phase)
+
+Goal: make Gmail filters a managed automation layer driven by approved Company and Contact records, while keeping `thread_id` as the downstream canonical dedup key in the Emails DB.
+
+### 3.1: Desired-state model
+
+- Treat Notion + local DB business rules as the policy source of truth.
+- Treat live Gmail labels/filters as the enforcement layer and audit surface.
+- Reconcile desired filter state into Gmail rather than managing filters manually forever.
+- Preserve support for overlapping company context. Multiple filters are acceptable, including cases like `Deeproots` + `Primitiv` on the same incoming message.
+
+### 3.2: Trigger rules
+
+- Company approved/activated:
+  - Read `Domains` and `Additional Domains`
+  - Ensure the canonical Gmail label exists
+  - Create or refresh company-domain filters for the relevant mailbox
+- Contact approved/activated:
+  - Create narrower sender-based filters only when contact-level routing is needed beyond the company-domain rules
+  - Use these as exceptions or tie-breakers, not as the default routing path for every contact
+- Manual review remains valid for edge cases, but the desired end state is that approved CRM records drive Gmail routing automatically
+
+### 3.3: Gmail implementation rules
+
+- Use Gmail API filter management (`users.settings.filters`) plus label management
+- Add future OAuth scopes when this phase starts:
+  - `https://www.googleapis.com/auth/gmail.settings.basic`
+  - `https://www.googleapis.com/auth/gmail.labels`
+- Filters operate at the individual-message level; this is acceptable because downstream ingestion and CRM dedup remain thread-based via `thread_id`
+- Gmail filters do not have a true update call; edits should be handled as list/get -> diff -> delete/recreate
+- Multiple filters per message are allowed and expected in cross-company or exception scenarios
+
+### 3.4: Routing defaults
+
+- Use company/domain filters as the primary routing path
+- Use contact/email filters for exceptions, named senders, or special handling that domain rules cannot express cleanly
+- Preserve routed Gmail labels into `Emails.Labels`
+- Continue ignoring personal-mailbox labels for routing unless a mailbox-specific contract is added later
+- Keep calendar handling narrow:
+  - accepted/declined/tentative response emails should be filtered out where possible
+  - invite/update emails can remain available when they help reconcile the correct Meeting / calendar assignment
+
+### 3.5: Reconciliation job
+
+- Build a small reconciliation pass that:
+  - reads the current Gmail labels and filters
+  - computes the desired labels and filters from approved Companies/Contacts
+  - creates missing labels
+  - creates missing filters
+  - recreates changed filters
+  - reports stale filters for safe cleanup or controlled removal
+- Prefer idempotent sync over one-off create-only behavior
+- Log every create/delete/recreate action so routing drift is auditable
+
+### 3.6: Validation for Phase 3 / v2
+
+- [ ] New approved Company creates or refreshes the expected Gmail label + domain filter
+- [ ] New approved Contact can add a narrower sender exception without breaking company-domain routing
+- [ ] Overlapping company messages can receive multiple labels without breaking downstream thread-based dedup
+- [ ] `thread_id` remains the canonical Emails key even though Gmail filters operate per message
+- [ ] Routed labels continue to land in `Emails.Labels`
+- [ ] Accepted calendar responses are filtered out
+- [ ] Invite/update emails still remain available when needed for Meeting reconciliation
+- [ ] Filter reconciliation is idempotent across repeat runs
+- [ ] Filter changes are logged with enough detail to audit drift and rollback manually if needed
 
 ---
 
 ## NOT IN SCOPE (Future Phases)
 
-- Mac Mini daemon setup (Phase 3 — hardware not yet procured)
+- Mac Mini daemon setup (later infrastructure phase — hardware not yet procured)
 - Local meeting recording / Whisper transcription
 - Custom dashboard frontend (Notion stays as UI)
 - LinkedIn API direct access (stay with Gmail notification intake)
 - Claude Cowork Agents for outbound LinkedIn actions
-- Delete Unwiring agent porting (pending P1 decommission decision in session-active.md)

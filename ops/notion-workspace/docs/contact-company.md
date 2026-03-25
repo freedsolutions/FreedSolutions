@@ -110,6 +110,8 @@ Use these in order:
 | Secondary Email | Fill only when verified by a strong source |
 | Tertiary Email | Fill only when verified by a strong source |
 
+For new Contacts, or when repairing obvious placeholder Contact pages that are missing their visual marker, set the page icon to `👤`.
+
 ## 2.4: Company mismatch handling
 
 If the evidence strongly suggests a different company than the current Contact relation:

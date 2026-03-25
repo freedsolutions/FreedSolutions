@@ -3,7 +3,7 @@ name: notion-agent-test
 description: Run structured smoke or regression tests for Notion Custom Agents using the local playbooks, Notion MCP, and browser activity checks. Use when validating triggers, downstream record creation, cleanup flows, or recent workflow changes in the Automation Hub.
 ---
 
-<!-- Generated from ops/notion-workspace/skills/notion-agent-test/. Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+<!-- Generated from "ops/notion-workspace/skills/notion-agent-test/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Notion Agent Test
 

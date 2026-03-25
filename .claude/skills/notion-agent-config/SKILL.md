@@ -3,7 +3,7 @@ name: notion-agent-config
 description: Audit or update Notion Custom Agent settings through the browser UI using the workspace's local config spec. Use when reviewing triggers, page access, mail or calendar connections, models, permission drift, or other Automation Hub runtime settings.
 ---
 
-<!-- Generated from ops/notion-workspace/skills/notion-agent-config/. Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+<!-- Generated from "ops/notion-workspace/skills/notion-agent-config/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Notion Agent Config
 

@@ -24,6 +24,10 @@ node_modules/
 __pycache__/
 *.pyc
 ops/notion-workspace/.tmp/
+ops/local_db/credentials/
+ops/local_db/*.db
+ops/local_db/*.sqlite
+ops/local_db/*.sqlite3
 
 # Claude Code local settings (except version-controlled skills)
 .claude/*

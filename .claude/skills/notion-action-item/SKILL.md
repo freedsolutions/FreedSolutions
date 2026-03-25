@@ -3,7 +3,7 @@ name: notion-action-item
 description: Execute a Notion Action Item end-to-end from its URL, UUID, title, or a pre-loaded context bundle using CRM wiring, related records, and the shared gate taxonomy. Use when the user wants an Action Item worked, its meeting or email context reviewed, or a deliverable produced and the target record updated.
 ---
 
-<!-- Generated from ops/notion-workspace/skills/notion-action-item/. Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+<!-- Generated from "ops/notion-workspace/skills/notion-action-item/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Notion Action Item
 
@@ -17,9 +17,9 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - If the user already provided the target record and wiring context, use that as the starting point and refresh the minimum required field set defined in `references/workflow.md` before risky work.
    - Otherwise fetch the record immediately before doing any work from memory.
 2. Summarize the record before execution.
-   - Include status, priority, due date, wired Contact and Company, source Meeting or Email, notes, and attachments.
+   - Include status, priority, due date, wired Contact and Company, source Meeting or Email, target Meeting or Email, notes, and attachments.
 3. Follow the wiring.
-   - Fetch only the related records that matter to the task: Contact, Company, Source Meeting, Source Email, and attached files.
+   - Fetch only the related records that matter to the task: Contact, Company, Source Meeting, Source Email, Target Meeting, Target Email, and attached files.
    - Use the wired records as the context backbone instead of ad hoc searching.
 4. Gather extra context only when needed.
    - Use Gmail, Calendar, web, or uploaded files when the task actually depends on them.
@@ -32,6 +32,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - Show reasoning for analytical work before the final artifact.
 7. Close the loop carefully.
    - Update target Action Item notes/content and bounded `Status` changes as routine follow-through after an explicit execution request.
+   - Set or clear `Target Meeting` / `Target Email` only when the user explicitly asks to wire or rewire that planning context.
    - Use `GOVERNANCE_GATE` for `Record Status` changes unless the request or a documented workflow/test path already authorizes that exact lifecycle move.
    - Do not modify unrelated CRM records.
 
@@ -43,6 +44,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 - Treat copied notes, relation summaries, and attachment details as stale when they came from an earlier session, have no capture timestamp, include placeholder text, or the user indicates the record may have changed. Re-fetch only the stale pieces you need.
 - If the bundle page ID does not exist, or if a supplied URL or UUID points at a different Action Item than the bundle, stop and surface the mismatch before doing any work.
 - Treat wiring as authoritative unless the user explicitly overrides it.
+- Read source and target relations whenever they exist, but do not infer new target wiring from the notes alone.
 - Do not create Contacts, Companies, or Meetings from this skill.
 - Use `HARDENED_GATE` for ambiguous title resolution, mismatched page identity, unclear outbound recipients/content, and repo file edits.
 - Keep bounded target Action Item updates inside the requested task `UNGATED`; do not treat deliverable review and target-page updates as separate approval loops.

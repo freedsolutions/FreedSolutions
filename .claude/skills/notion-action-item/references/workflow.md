@@ -1,3 +1,5 @@
+<!-- Generated from "ops/notion-workspace/skills/notion-action-item/references/workflow.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+
 # Notion Action Item Workflow
 
 ## Resolution
@@ -6,11 +8,11 @@
 - If the user provides a pre-loaded Action Item context bundle, it should identify the page by URL or page ID and include the current Task Name plus whatever status, relations, notes, or attachment context is already known.
 - Verify that any supplied bundle, URL, and UUID all resolve to the same Action Item page before proceeding.
 - If the bundle page does not exist or the identifiers disagree, stop and report the mismatch.
-- If the bundle is valid, use it as the starting record and refresh this minimum field set before risky work: `Task Name`, `Task Notes`, `Status`, `Priority`, `Due Date`, `Record Status`, `Assignee`, `Contact`, `Company`, `Source Meeting`, `Source Email`, and `Attach File`.
+- If the bundle is valid, use it as the starting record and refresh this minimum field set before risky work: `Task Name`, `Task Notes`, `Status`, `Priority`, `Due Date`, `Record Status`, `Assignee`, `Contact`, `Company`, `Source Meeting`, `Source Email`, `Target Meeting`, `Target Email`, and `Attach File`.
 - Treat copied notes, relation summaries, and attachment details as stale when they came from an earlier session, have no capture timestamp, include placeholder values, or the user indicates the record may have changed. Re-fetch only the stale pieces you need.
 - If title search returns multiple candidate Action Items, use `HARDENED_GATE` to ask the user to disambiguate before fetching related context or doing work.
 - Otherwise fetch the page immediately.
-- Extract the Task Name, Task Notes, Status, Priority, Due Date, Record Status, Assignee, Contact, Company, Source Meeting, Source Email, Attach File, and page body.
+- Extract the Task Name, Task Notes, Status, Priority, Due Date, Record Status, Assignee, Contact, Company, Source Meeting, Source Email, Target Meeting, Target Email, Attach File, and page body.
 
 ## Compact Summary Template
 
@@ -18,7 +20,8 @@
 ## Action Item: [Task Name]
 - Status: [Status] | Priority: [Priority] | Due: [Due Date or "none"]
 - Contact: [name(s)] | Company: [name(s)]
-- Source: [Meeting title or Email subject]
+- Source: [Meeting title or Email subject or "none"]
+- Target: [Meeting title or Email subject or "none"]
 - Notes/Sub-tasks: [brief summary]
 - Attached files: [list]
 ```
@@ -31,6 +34,8 @@
 - Company: type, domains, website, notes, tech stack
 - Meeting: date, attendees, calendar name, location, transcript or notes
 - Email: summary, participants, date
+
+Fetch source and target records separately when both exist. Source explains provenance; target explains where the work is meant to be reviewed, presented, or closed out.
 
 Fetch only what the current task needs.
 
@@ -65,6 +70,7 @@ Fetch only what the current task needs.
 - Follow the wiring.
 - Use `HARDENED_GATE` before acting on real ambiguity.
 - Create real deliverables.
+- Set or clear `Target Meeting` / `Target Email` only on explicit user instruction; do not infer target wiring from source notes alone.
 - Set `Record Status` only when the request or a documented workflow/test path already authorizes that exact lifecycle move; otherwise use `GOVERNANCE_GATE`.
 - Keep changes scoped to the target Action Item unless the user expands scope.
 
@@ -83,6 +89,9 @@ Fetch only what the current task needs.
 - Pre-loaded context bundle with no capture timestamp: confirm copied notes, relations, and attachments are treated as stale and refreshed as needed.
 - Pre-loaded context bundle with a missing or mismatched page ID, URL, or UUID: confirm the skill reports the mismatch and stops before execution.
 - Standard URL or UUID path plus an explicit execution request: confirm the skill still performs an initial fetch, produces the same pre-execution summary, and can perform bounded target note/content/`Status` updates without an extra approval loop.
+- Wired target relations present vs. absent on the same Action Item: confirm the summary reports source and target separately after the minimum refresh.
+- Pre-loaded context bundle with stale or missing `Target Meeting` / `Target Email`: confirm the minimum refresh pulls the live target relations before risky work.
+- Explicit wiring or rewiring request for `Target Meeting` / `Target Email`: confirm only those target relations change unless the user separately requests another update.
 - Title search with multiple matching Action Items: confirm the skill asks for disambiguation instead of selecting one arbitrarily.
 - Unclear outbound recipient or outbound content: confirm the skill uses `HARDENED_GATE` before proceeding.
 - Empty or ambiguous reply to a required gate question: confirm the skill re-asks before proceeding.

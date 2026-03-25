@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 23, 2026
+Last synced: March 24, 2026
 
 # Agent Role
 
@@ -663,6 +663,8 @@ All action items go to the **Action Items DB**. The **Type** property is a formu
 | Contact | Wire to the relevant counterparty using ONLY the meeting's existing Contacts relation (wired in Step 1). Match by name, nickname, or first name. If ambiguous or no clear counterparty, leave blank. One Contact per item — if multiple people, duplicate the item. | Same — match from meeting's Contacts. If no match, leave blank. |
 | Company | Apply the Company ownership rule above. Company must always be set. | Same rule. Company must always be set. |
 | Source Meeting | Wire to the source meeting page | Wire to the source meeting page |
+| Target Meeting | Leave blank unless Adam or an explicit downstream Action Item workflow asks to wire a future meeting reference. | Same |
+| Target Email | Leave blank unless Adam or an explicit downstream Action Item workflow asks to wire a future email reference. | Same |
 | Assignee | Adam Freed (Notion user ID: `30cd872b-594c-81b7-99dc-0002af0f255a`) | Leave blank |
 | Record Status | "Draft" | "Draft" |
 | Attach File | If the note's rich text contains a hyperlink URL, set this property with the URL. If no URL, leave blank. | Same |

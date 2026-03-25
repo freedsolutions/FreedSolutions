@@ -1,3 +1,5 @@
+# Generated from "ops/notion-workspace/skills/notion-agent-config/agents/openai.yaml". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly.
+
 interface:
   display_name: "Notion Agent Config"
   short_description: "Audit or update Custom Agent settings"

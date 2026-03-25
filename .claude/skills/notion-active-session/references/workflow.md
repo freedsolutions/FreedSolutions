@@ -12,7 +12,7 @@ Read these first:
 
 Then read only the workflow docs, skill sources, and scripts that are directly relevant to the requested scaffolding change.
 
-If the request touches `ops/local-db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning. Treat it as an architecture-lane brief, not as a silent replacement for the current handoff.
+If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning. Treat it as an architecture-lane brief, not as a silent replacement for the current handoff.
 
 ## Suggested Discovery Lanes
 
