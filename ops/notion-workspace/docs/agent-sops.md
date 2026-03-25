@@ -335,7 +335,6 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 8. Every repo doc that maps to a live Notion page must include a visible `Live Notion doc` banner directly under the H1.
 ## Skill Gate Protocol
 Repo-backed Notion skills use this shared gate taxonomy:
-
 <table header-row="true">
 <tr>
 <td>Gate</td>
@@ -354,7 +353,6 @@ Repo-backed Notion skills use this shared gate taxonomy:
 <td>Use the same pause mechanism as `HARDENED_GATE`, but only when the existing Rules of Engagement require a pause.</td>
 </tr>
 </table>
-
 Inside an autonomous repo-backed skill run, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
 ## Kickoff Conventions
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.

@@ -158,7 +158,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Target Meeting, Target Email, Attach File, QC (formula)
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Target Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Target Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
-- **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `Action Items` and any `Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications keep the mailbox-derived `Source`; the `Labels` multi_select carries the routing metadata instead of a dedicated Teams source option.
+- **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake. `_Action Items` and any `_Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications keep the mailbox-derived `Source`; the `Labels` multi_select carries the routing metadata instead of a dedicated Teams source option.
 - **Action Item provenance vs. target context:** `Source Meeting` / `Source Email` capture where the work originated. `Target Meeting` / `Target Email` capture the optional future touchpoint where Adam wants to review, present, or close out the work. Leave the target fields blank unless Adam or an explicit Action Item workflow asks to wire them.
 - **Target-link rollout note:** `Target Meeting` / `Target Email` are live in Adam's workspace as of March 24, 2026. If an older environment or copied workspace is missing them, pause and add the schema before relying on target-link behavior.
 - **Page icon conventions:** New or repaired Meetings should use `🗓️`, Contacts `👤`, Emails `📧`, and Action Items `🎬` unless an explicit manual exception already exists. Company page icons remain Adam-managed.
@@ -226,7 +226,7 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Manual March 24 cleanup repaired the current routed backlog and existing Email records; the remaining gap is the automated Post-Email path that wrote route context only into `Email Notes`
 - Confirm new or resumed routed Email records persist the Gmail label directly in `Labels`
 - Confirm `adamjfreed@gmail.com` stays in sweep scope, but its labels remain non-routing
-- Confirm `Action Items` and `Action Items/...` remain ignored as manual queue labels
+- Confirm `_Action Items` and `_Action Items/...` remain ignored as manual queue labels
 - Confirm `DMC/DMC_GMail` continues to process as standard email rather than as a chat wrapper
 
 ### P2 - Validate the next scheduled Post-Email run for correctness and recovery
@@ -237,7 +237,7 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Confirm `Primitiv/PRI_Teams` notifications are not misclassified as bot-only mail
 - Confirm `LinkedIn` notifications route into CRM safely when the notification contains enough identity and action detail
 - Confirm `adamjfreed@gmail.com` stays in sweep scope while its labels remain non-routing
-- Confirm `Action Items` and `Action Items/...` queue labels stay ignored, unread, and non-mutating
+- Confirm `_Action Items` and `_Action Items/...` queue labels stay ignored, unread, and non-mutating
 - Confirm terminally processed threads are marked read, while unresolved threads stay unread
 
 ### P3 - Validate Action Item target-link workflow
