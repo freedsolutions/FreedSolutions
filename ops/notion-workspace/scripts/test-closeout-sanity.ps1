@@ -115,6 +115,13 @@ function Get-TrackedChangedRepoPaths {
         Select-Object -Unique
 }
 
+function Get-StagedRepoPaths {
+    return @(& git -C $repoRoot.Path diff --cached --name-only --) |
+        Where-Object { $_ } |
+        ForEach-Object { $_.Replace('\', '/') } |
+        Select-Object -Unique
+}
+
 function Get-UntrackedRepoPaths {
     return @(& git -C $repoRoot.Path ls-files --others --exclude-standard --) |
         Where-Object { $_ } |
@@ -174,6 +181,19 @@ foreach ($relativePath in $existingScopedTextPaths) {
 if ($mojibakeHits.Count -gt 0) {
     foreach ($hit in $mojibakeHits) {
         Write-Error "Likely mojibake found: $hit"
+    }
+
+    exit 1
+}
+
+$stagedTmpArtifacts = @(Get-StagedRepoPaths |
+    Where-Object {
+        $_.StartsWith('ops/notion-workspace/tmp/', [System.StringComparison]::OrdinalIgnoreCase)
+    })
+
+if ($stagedTmpArtifacts.Count -gt 0) {
+    foreach ($relativePath in $stagedTmpArtifacts) {
+        Write-Error "Staged tmp artifact must be unstaged before closeout: $relativePath"
     }
 
     exit 1

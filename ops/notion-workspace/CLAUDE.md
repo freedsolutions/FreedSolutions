@@ -20,14 +20,14 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-25 |
-| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-primary action items with summary/transcript fallback -> curated summary). Uses live `Calendar Name` options only. | 2026-03-25 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-26 |
+| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-primary action items with summary/transcript fallback -> curated summary). Uses live `Calendar Name` options only. | 2026-03-26 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-22 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
-| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-24 |
+| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-26 |
 | `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
 | `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | - |
 | `docs/sub-agent-contract.md` | - | Sub-agent delegation contract: bootstrap, gates, results, depth limits, parallel execution, and scaffold profiles | - |
@@ -173,6 +173,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Target Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Target Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
 - **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake for the DMC client (same routing class as `Primitiv/PRI_Outlook`, just currently lower-volume). `_Action Items` and any `_Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications keep the mailbox-derived `Source`; the `Labels` multi_select carries the routing metadata instead of a dedicated Teams source option.
+- **New source filter contract:** When a newly retained thread introduces a stable new Company or Contact source that should route future mail, dedup the CRM records first, then create or refresh the Gmail label using the existing live naming pattern: slash-delimited client/lane labels when a child lane is warranted (for example `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, or `DMC/DMC_GMail`) or the exact stable company label Adam already uses when no child lane is needed. Add the matching option to `Emails.Labels`, default to company/domain filters, use sender-specific filters only for exceptions, keep new filters label-first instead of auto-read by default, and archive/read only after post-processing reaches terminal state.
 - **Action Item provenance vs. target context:** `Source Meeting` / `Source Email` capture where the work originated. `Target Meeting` / `Target Email` capture the optional future touchpoint where Adam wants to review, present, or close out the work. Leave the target fields blank unless Adam or an explicit Action Item workflow asks to wire them.
 - **Target-link rollout note:** `Target Meeting` / `Target Email` are live in Adam's workspace as of March 24, 2026. If an older environment or copied workspace is missing them, pause and add the schema before relying on target-link behavior.
 - **Page icon conventions:** New or repaired Meetings should use `🗓️`, Contacts `👤`, Emails `📧`, and Action Items `🎬` unless an explicit manual exception already exists. Company page icons remain Adam-managed.
@@ -197,6 +198,7 @@ At the end of every session:
 - Local `docs/` files are the source of truth for instruction content.
 - When instructions change, edit the local file first, then push to Notion via MCP in the same task unless Adam explicitly asks for a local-only draft. Do not paste the repo-only `<!-- Notion Page ID: ... -->` comment into the live Notion page.
 - Save fetched live page bodies verbatim under `ops/notion-workspace/tmp/notion-sync-remote-YYYY-MM-DD-<doc>.md` when preparing a parity check. Do not hand-type, visually reconstruct, or whitespace-normalize the fetched `<content>` block before running `compare-notion-sync.ps1`.
+- Treat `ops/notion-workspace/tmp/` as a scratch validation area only. Never stage or commit artifacts from that folder; `test-closeout-sanity.ps1` should fail closeout if any `ops/notion-workspace/tmp/` path is staged.
 - If `compare-notion-sync.ps1` fails, treat the doc as out of sync until the mismatch is resolved or Adam explicitly accepts the remaining drift. Visual inspection is not a substitute for a failed parity check.
 - Ephemeral/runtime data (agent config, CRM records, live automation state) lives in Notion only.
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
@@ -231,7 +233,7 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 25, 2026)
+## Current Follow-Up Queue (March 26, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 
@@ -259,7 +261,7 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 
 ### P2 - Continue the retained Email corpus triage into Action Items and follow-ups
 
-- Continue from the current inbox-backed retained threads and recent high-signal Draft emails
+- Continue from the retained Email corpus, recent high-signal Draft emails, and future newly retained Gmail threads; the March 26 residual `INBOX` stub set is closed
 - For each reviewed retained email, land it in exactly one bucket:
   - Action Item created
   - existing Action Item reused
@@ -279,10 +281,12 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Add deterministic Gmail labels to every stable source or known domain that should flow into CRM automatically
 - Keep company and domain naming aligned with Notion where practical
 - Treat this as the path toward fully automated inbox-zero handling for known sources
-- **Inbox filter process:** When a new Company/Contact enters the CRM, evaluate whether a Gmail filter should route their domain. Steps: (1) identify domain(s), (2) create Gmail filter with label, (3) add label to Notion `Labels` multi_select, (4) configure skip-inbox/mark-read if appropriate, (5) document in `CLAUDE.md` routing section if it becomes an active intake lane
+- **Inbox filter process:** When a new Company/Contact enters the CRM, follow the New source filter contract above: dedup first, align the Gmail label and Notion `Emails.Labels` option, prefer company/domain filters over sender-only exceptions, keep new filters label-first, and archive/read only after post-processing reaches terminal state. Document the route in `CLAUDE.md` only when it becomes an active intake lane.
+- **Email label hardening:** The next Post-Email hardening pass must add regression coverage that newly created or resumed Email rows persist only Gmail user labels, never Gmail system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, or `TRASH`, and must add an audit that every active routed Gmail user label plus each newly introduced source label exists as a Notion `Emails.Labels` option before the workflow relies on it.
 - Keep `📧` on new or repaired Emails and `🎬` on new or repaired Action Items during both automation and manual recovery, and carry the icon-rule language into any remaining lagging validation surfaces
 - Revisit `Target Meeting` / `Target Email` / reciprocal `Target Action Items` only after the Meeting recovery lane is stable
 - Re-run the sparse-notes Post-Meeting regression lane against the next intentionally light-notes meeting and close the remaining `docs/post-meeting.md` parity follow-through once verbatim live-body artifacts can be saved
+- Keep the accepted March 26 mapped-doc saved-artifact parity exception explicit until a native verbatim artifact-save path exists for MCP fetch output; do not silently claim deterministic parity before then
 
 ## Maintenance
 

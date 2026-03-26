@@ -160,6 +160,37 @@ Run for every repo doc changed in the session that maps to a live Notion instruc
 - Verify any overlapping Floppy command still wins dedup over a fallback-derived item.
 - Verify Notes-derived items remain primary when meaningful typed Notes are present; summary/transcript fallback should enrich or recover, not silently replace Notes parsing.
 
+### Series/calendar recovery regression
+
+- When multiple meeting recovery candidates exist, prioritize **Adam - Personal** before **Adam - Business**.
+- Personal lane:
+  - one missed series case
+  - one missing-`Calendar Name` case
+  - one shared-personal-calendar identity case
+  - one solo-personal fallback case
+- Business lane:
+  - one forwarded-title or `FW:` normalization case
+  - one recurring-instance case where identity must stay instance-specific instead of collapsing by repeated title
+  - one "funky" business case with wrong or missing `Series` or `Calendar Name`
+- For each case, capture the recovery worksheet before repair under `ops/notion-workspace/tmp/post-meeting-recovery-worksheet-YYYY-MM-DD.md`:
+  - Meeting Title
+  - calendar source
+  - current `Calendar Event ID`
+  - current `Calendar Name`
+  - current `Series`
+  - whether a `transcription` block exists
+  - expected outcome
+  - repair method
+  - exception reason if unrecoverable
+- Verify recoverable cases land with the correct `Calendar Name` and `Series`, while unrecoverable cases are logged explicitly instead of patched heuristically.
+
+### Target-link follow-up after meeting recovery
+
+- Run only after the series/calendar recovery lane is stable.
+- Verify `Target Meeting` / `Target Email` remain explicit-only and are not populated by default Post-Meeting wiring.
+- Verify the source-vs-target distinction still matches the current skill/runtime contract.
+- Verify no schema change, lifecycle mutation, or bulk rewiring is implied by the follow-up check.
+
 ### Cleanup
 
 Set test records to `Delete` only after verifying downstream unwiring expectations.
@@ -272,6 +303,8 @@ Cover these cases:
 - `DMC/DMC_GMail` routed company-mail thread that should process as standard email
 - `adamjfreed@gmail.com` thread with personal-mailbox labels that should still process as standard email
 - `_Action Items`-labeled manual-queue thread that should remain untouched
+- newly retained thread that introduces a stable new source and therefore needs the label/filter contract applied
+- retained Email row that still carries `Labels = [INBOX, <routed-or-company-label>]` after Gmail cleanup
 
 Before running the workflow, verify the live mail connections keep least privilege. `Send` and `Draft` should stay off. If inbox-modify is available, use it only for marking terminal threads read; if it is unavailable, log the drift and confirm the workflow still avoids send or draft behavior.
 
@@ -282,7 +315,9 @@ Before running the workflow, verify the live mail connections keep least privile
 - [ ] Bot-only threads remain record-only with no Contacts or Action Items
 - [ ] Bot-only threads stay as annotated Draft with explicit `Email Notes` (agent does not change Record Status)
 - [ ] Teams and LinkedIn notification wrappers are not misclassified as bot-only just because the sender is automated
+- [ ] Teams notifications keep the mailbox-derived `Source` value while `Primitiv/PRI_Teams` persists in `Emails.Labels`
 - [ ] Routed Gmail labels persist onto `Emails.Labels` using the exact live Gmail label names (`Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, `LinkedIn`, `DMC/DMC_GMail`) when those labels are present on the source thread
+- [ ] Newly created or resumed Email rows persist only Gmail user labels; Gmail system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, and `TRASH` do not land in `Emails.Labels`
 - [ ] Contextful share or notification mail is kept when it preserves useful human relationship context, even if the message body looks system-generated
 - [ ] `DMC/DMC_GMail` routes into normal CRM email processing rather than being treated like a chat-notification wrapper
 - [ ] `adamjfreed@gmail.com` stays in sweep scope, but its labels do not trigger routing or skip behavior
@@ -292,6 +327,8 @@ Before running the workflow, verify the live mail connections keep least privile
 - [ ] Invite-thread mail with meaningful human commentary is kept when it adds real scheduling nuance, decisions, or durable CRM context
 - [ ] Archived Notion Email rows count as already processed during parity checks and suppress false “missing thread” conclusions
 - [ ] Terminally processed threads are marked read only after they are retained and wired, intentionally skipped, or classified as meeting-support-only, while ambiguous threads stay unread
+- [ ] A retained Email row with `Labels = [INBOX, <routed-or-company-label>]` clears only stale `INBOX` after terminal Gmail cleanup and preserves the non-`INBOX` labels
+- [ ] Every active routed Gmail user label and each newly introduced source label exists as a Notion `Emails.Labels` option before the workflow relies on it
 - [ ] Any thread left unread after the run is listed explicitly as an unresolved exception
 - [ ] Action Items never have blank Company
 - [ ] Multiple related Email threads can be linked to the same Action Item when they extend the same work item, instead of forcing one-email-per-action-item duplication

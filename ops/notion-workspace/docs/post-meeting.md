@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 25, 2026
+Last synced: March 26, 2026
 
 # Agent Role
 
@@ -893,6 +893,27 @@ The agent processes meetings from **all configured calendars** with the same wir
 **Default Company:** When an Action Item has no Contact (or the Contact has no Company), the agent falls back to the calendar's Default Company. This ensures Adam-only tasks are always attributed — business tasks to "Freed Solutions," personal tasks to the personal company (once configured). See Action Item routing tables (Steps 2.0.6 and 2.3) for the full fallback chain. The agent resolves "Freed Solutions" by searching the Companies DB by Company Name (case-insensitive match).
 
 **Two calendars are currently active.** Adam - Business (adam@freedsolutions.com, Default Company = "Freed Solutions") and Adam - Personal (adamjfreed@gmail.com shared to adam@freedsolutions.com, Default Company = "Personal"). Additional calendars will be added as OAuth access is configured. The instruction page will be updated with each new calendar's Default Company mapping.
+
+## Manual Recovery Prioritization For Series/Calendar Issues
+
+When a bounded manual recovery or QA pass is needed for meetings with missing or incorrect `Series`, `Calendar Name`, or event identity:
+
+1. Prioritize **Adam - Personal** cases first.
+   - Focus on missing `Series`, missing `Calendar Name`, failed title-based GCal lookup, and shared-personal-calendar identity issues.
+2. Then handle **Adam - Business** edge cases.
+   - Focus on recurring-instance mismatches, forwarded or normalized-title mismatches, and wrong or missing `Series` or `Calendar Name`.
+3. Only after those series/calendar identity issues stabilize should you revisit `Target Meeting` / `Target Email` follow-up behavior. Target fields remain explicit-only and stay blank unless Adam or an explicit downstream workflow asks to wire them.
+
+For each broken case, capture this audit worksheet before repair and save it under `ops/notion-workspace/tmp/post-meeting-recovery-worksheet-YYYY-MM-DD.md` (or append to the active day's worksheet if the session is already in progress):
+- Meeting Title
+- calendar source
+- current `Calendar Event ID`
+- current `Calendar Name`
+- current `Series`
+- whether a `transcription` block exists
+- expected outcome
+- repair method
+- exception reason if unrecoverable
 
 ---
 

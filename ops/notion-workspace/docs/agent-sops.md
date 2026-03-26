@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 25, 2026
+Last synced: March 26, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -186,12 +186,15 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- `adamjfreed@gmail.com` stays in live sweep scope, but its Gmail labels are currently out of scope for routing. Treat personal-mailbox messages as standard email unless Adam explicitly adds a mailbox-specific routing contract later.
 	- Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
 	- Long term, domain-aligned company labels are encouraged because they make inbox-zero routing and CRM automation more deterministic.
+	- When a newly retained thread introduces a stable new Company or Contact source that should route future mail, dedup CRM first, then create or refresh the Gmail label using the existing live naming pattern: slash-delimited client/lane labels when a child lane is warranted (for example `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, or `DMC/DMC_GMail`) or the exact stable company label Adam already uses when no child lane is needed. Add the matching Notion `Labels` option, default to company/domain filters, use sender-specific filters only for exceptions, and keep new filters label-first rather than auto-read by default.
 	- Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
 	- Contextful notification and share mail is keepable when it carries a real human plus a concrete artifact, decision, or follow-up context. Do not blanket-classify share notices or forwarded Outlook context as noise.
 	- Calendar email handling uses a 3-way split: meeting invite replies that are status-only are hard skip/read with no Email record; raw invite or update packets stay in a meeting-support bucket and are not normal Email intake by default; invite-thread mail with written human commentary is keepable when it adds durable CRM or meeting context.
 	- Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.
 	- Compare inbox parity and dedup by exact `Thread ID`, not subject line or Gmail message counts. Archived Email pages still count as already processed when evaluating parity.
 	- Gmail read-state may change only after a thread reaches terminal state: retained and wired in Notion, intentionally skipped, or classified as meeting-support-only. If anything remains unresolved, leave it unread and list the exception explicitly.
+	- If a retained Email row still carries `INBOX` after a manual Gmail cleanup pass, clear only the stale `INBOX` label on the Email row so Notion backlog views mirror the Gmail archive decision. Preserve any remaining routed or company labels.
+	- Post-Email hardening must verify that newly created or resumed Email rows persist only Gmail user labels, never system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, or `TRASH`, and that every active routed Gmail user label plus each newly introduced source label exists as a Notion `Emails.Labels` option before the workflow relies on it.
 	- The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is concrete evidence of a race-condition-class bug. Future Post-Email hardening must use in-run dedup-before-create or serialized Company and Contact creation across same-thread-family work.
 	- Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
 ## Curated Notes Agent
