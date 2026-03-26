@@ -154,6 +154,9 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Notes:
 	- GCal sync-back is retired.
 	- Manual `@mention` is for targeted rewiring, recovery, or explicitly requested curation on an already Active meeting.
+	- Typed Notes are the primary non-Floppy Action Item source.
+	- Floppy commands are the highest-confidence explicit signal and win any overlap; Adam will often use an end-of-meeting Floppy recap to summarize the Action Items that matter.
+	- The AI summary and transcript may enrich note-derived items and provide bounded fallback recovery when Notes are sparse or empty, but they are not the default primary source when Notes are present.
 	- Curated summary generation remains inside Post-Meeting, but the separate Curated Notes Agent now serves as the manual QA reviewer.
 ## Post-Email Agent
 - Triggers:

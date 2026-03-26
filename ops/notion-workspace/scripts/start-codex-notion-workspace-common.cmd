@@ -25,5 +25,8 @@ if not exist "%CODEX_CMD%" (
 set "REPO_ROOT=%~dp0..\..\.."
 for %%I in ("%REPO_ROOT%") do set "REPO_ROOT=%%~fI"
 
+echo [ops-notion-workspace] Codex profile: %PROFILE_NAME%
+echo [ops-notion-workspace] Repo root: %REPO_ROOT%
+
 call "%CODEX_CMD%" -p "%PROFILE_NAME%" -C "%REPO_ROOT%" %*
 exit /b %ERRORLEVEL%

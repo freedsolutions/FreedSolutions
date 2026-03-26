@@ -20,8 +20,8 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-24 |
-| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> Notes -> curated summary). Uses live `Calendar Name` options only. | 2026-03-24 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-25 |
+| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-primary action items with summary/transcript fallback -> curated summary). Uses live `Calendar Name` options only. | 2026-03-25 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-22 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
@@ -120,10 +120,12 @@ For routine `ops/notion-workspace` work on this workstation:
 - **Discovery path enforcement.** Kickoff discovery should normalize candidate paths against the repo root, reject absolute paths and `..` segments that escape the repo, and refuse discovery when the repo root cannot be resolved cleanly.
 - **Claude allowlist maintenance.** Keep the workstation-side Claude shell baseline aligned between `.claude/settings.json` and `.claude/settings.local.json`, and keep it no broader than necessary to let the repo-scoped discovery forms above run without extra prompts.
 - **Project MCP surface** lives in `.mcp.json`. Keep `playwright` there. Do not add the Notion MCP server to `.mcp.json` unless the local client proves the same remote-server registration path is stable for project-scoped use; until then, Notion remains configured in the user's local client config.
-- **Codex local baseline** should keep the dedicated `ops_notion_workspace` profile in `~/.codex/config.toml` at `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, while preserving the existing `mcp_servers` entries.
-- **Codex quiet baseline** may add a second `ops_notion_workspace_quiet` profile in `~/.codex/config.toml` with `approval_policy = "never"` and `sandbox_mode = "workspace-write"` for routine MCP-heavy Notion-workspace sessions. Reuse the same top-level `mcp_servers`; do not duplicate or move them into the profile.
-- **Preferred Windows launch paths** are `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` for the safer default lane and `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd` for the low-friction lane, or the equivalent `codex.cmd -p <profile> -C <repo-root>`. Keep using `codex.cmd`, not bare `codex`, so PowerShell execution-policy issues around `codex.ps1` do not reintroduce friction.
-- **Quiet mode is a client baseline only.** The quiet Codex profile suppresses local client approval prompts, but it does not waive repo workflow gates. Repo/code mutations inside autonomous repo-backed skills still require `HARDENED_GATE`, and schema, destructive, bulk, or out-of-contract lifecycle moves still require `GOVERNANCE_GATE`.
+- **Codex default baseline** should keep the dedicated `ops_notion_workspace_quiet` profile in `~/.codex/config.toml` at `approval_policy = "never"` and `sandbox_mode = "workspace-write"` for routine Notion-workspace sessions, while preserving the existing `mcp_servers` entries.
+- **Codex safe fallback baseline** should keep `ops_notion_workspace` in `~/.codex/config.toml` at `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"` for explicit safer runs that still surface local client approvals. Reuse the same top-level `mcp_servers`; do not duplicate or move them into either profile.
+- **Preferred Windows launch paths** are `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` for the default quiet lane with an automatic fallback to the safe profile when the quiet profile is missing locally, `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd` as a compatibility alias to the direct quiet lane, and `ops/notion-workspace/scripts/start-codex-notion-workspace-safe.cmd` for the explicit safer lane, or the equivalent `codex.cmd -p <profile> -C <repo-root>`. If `~/.codex/config.toml` itself is missing, fail fast with the remediation banner instead of silently dropping into an unknown profile. Keep using `codex.cmd`, not bare `codex`, so PowerShell execution-policy issues around `codex.ps1` do not reintroduce friction.
+- **Playwright MCP baseline** is approval-free in the default repo launch lane. Routine `mcp__playwright` navigation, capture, and bounded UI actions inside documented Notion-workspace flows should not trigger extra local client approval prompts on this workstation.
+- **Playwright bounds still apply.** Do not treat the quiet baseline as blanket approval for arbitrary browser eval, broad artifact writes, or out-of-workspace file access. Keep Playwright use inside the documented browser tools, repo/workspace-scoped outputs, and task-approved domains, normally the Notion workspace and localhost preview/test surfaces. Treat broader browsing as a task-specific decision, not as part of the standing baseline; only the normal repo workflow gates should pause the work.
+- **Quiet mode is a client baseline only.** The default quiet Codex lane suppresses local client approval prompts, but it does not waive repo workflow gates. Repo/code mutations inside autonomous repo-backed skills still require `HARDENED_GATE`, and schema, destructive, bulk, or out-of-contract lifecycle moves still require `GOVERNANCE_GATE`.
 
 ## Standing Approval Scope
 
@@ -217,7 +219,7 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
 
-## Current Follow-Up Queue (March 24, 2026)
+## Current Follow-Up Queue (March 25, 2026)
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 

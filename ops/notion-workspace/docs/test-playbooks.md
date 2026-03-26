@@ -35,9 +35,9 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 2. Confirm the Claude project baseline also allowlists the safe read-only shell discovery patterns used by kickoff and repo discovery, especially `Get-ChildItem`, `Get-Content`, `rg`, and `Select-String`.
 3. Confirm `enableAllProjectMcpServers` stays enabled for Claude project runs and `enabledMcpjsonServers` still includes `playwright`.
 4. Confirm `.mcp.json` remains the project-managed server surface and currently lists only `playwright`. Do not add Notion there until the project-scoped remote registration path is proven stable in the local client.
-5. Confirm `~/.codex/config.toml` keeps the dedicated `ops_notion_workspace` profile with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"`, without changing the global default posture for unrelated repos.
-6. Confirm `~/.codex/config.toml` also defines `ops_notion_workspace_quiet` with `approval_policy = "never"` and `sandbox_mode = "workspace-write"`, while leaving the top-level `mcp_servers` block unchanged.
-7. Confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` still launches Codex through the safer profile and `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd` launches through the quiet profile.
+5. Confirm `~/.codex/config.toml` keeps the dedicated `ops_notion_workspace_quiet` profile with `approval_policy = "never"` and `sandbox_mode = "workspace-write"` as the default repo lane, without changing the global default posture for unrelated repos.
+6. Confirm `~/.codex/config.toml` also defines `ops_notion_workspace` with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"` as the explicit safer fallback, while leaving the top-level `mcp_servers` block unchanged.
+7. Confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` prefers the quiet profile and falls back to the safer profile with a clear banner when the quiet profile is missing locally, exits non-zero with remediation when `~/.codex/config.toml` itself is missing, `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd` remains a quiet compatibility alias, and `ops/notion-workspace/scripts/start-codex-notion-workspace-safe.cmd` launches through the safer profile.
 
 ### Local client approval regression checks
 
@@ -50,14 +50,20 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 - Attempt discovery with an absolute path or a `..` escape and confirm the workflow rejects the path instead of broadening the read scope.
 - If a safe local fixture is available, include a symlink that points outside the repo and confirm the discovery path does not follow it.
 - If `rg` is unavailable, verify the fallback discovery path uses repo-scoped PowerShell forms such as `Get-ChildItem -Path ops/notion-workspace -Recurse -File -Force | Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) } | Select-String -SimpleMatch -Pattern ...` rather than broad recursive reads.
-- In Codex, run one session through the normal default startup, one through `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd`, and one through `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd`; confirm the safer profile preserves the current `on-failure` behavior while the quiet profile removes the extra routine MCP approval prompts that the other launch paths still surface.
-- With `%APPDATA%\npm\codex.cmd` temporarily unavailable, confirm both launchers fall back to `where codex.cmd`; if PATH discovery also fails, confirm they exit non-zero with the remediation message instead of silently launching bare `codex`.
-- In the quiet Codex session, run one safe Playwright MCP call and one safe Notion fetch; confirm routine MCP reads stay approval-free.
-- In the quiet Codex session, run one bounded documented Notion-workspace write path such as `notion-update-page`; confirm the repeated local prompt to allow the Notion MCP server tool no longer appears while repo gate prompts still surface where the contract requires them.
+- In Codex, run one session through the normal default startup, one through `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd`, one through `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd`, and one through `ops/notion-workspace/scripts/start-codex-notion-workspace-safe.cmd`; confirm the repo launchers default to the approval-free quiet MCP posture while the safe lane preserves the current `on-failure` behavior that generic startup may still surface.
+- For each repo launcher, confirm stdout prints the active Codex profile and resolved repo root before Codex starts so the quiet-versus-safe lane is visible at launch time.
+- Temporarily remove or rename `~/.codex/config.toml` on a safe local fixture and confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` exits non-zero with the remediation banner instead of silently choosing an unknown profile.
+- Temporarily remove or rename the quiet profile in `~/.codex/config.toml` on a safe local fixture and confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` falls back to the safe profile with the remediation banner instead of failing hard.
+- With `%APPDATA%\npm\codex.cmd` temporarily unavailable, confirm all three repo launchers fall back to `where codex.cmd`; if PATH discovery also fails, confirm they exit non-zero with the remediation message instead of silently launching bare `codex`.
+- In the default repo-launch or explicit quiet Codex session, run one safe Playwright MCP call and one safe Notion fetch; confirm routine MCP reads stay approval-free.
+- In the default repo-launch or explicit quiet Codex session, run one bounded Playwright UI action such as navigate, click, and capture; confirm the UI action remains approval-free while repo workflow gates still fire where the contract requires them.
+- In the default repo-launch or explicit quiet Codex session, verify Playwright navigation stays inside the task-approved domains for the workflow, normally the Notion workspace or localhost fixtures, and treat any broader domain reach as out of baseline until the task explicitly requires it.
+- In the default repo-launch or explicit quiet Codex session, run one Playwright artifact write that stays inside the repo or workspace and one attempted outside-path write; confirm the bounded write succeeds and the outside-path write is blocked by the workspace-write sandbox.
+- In the default repo-launch or explicit quiet Codex session, run one bounded documented Notion-workspace write path such as `notion-update-page`; confirm the repeated local prompt to allow the Notion MCP server tool no longer appears while repo gate prompts still surface where the contract requires them.
 - Confirm the first repo edit in an autonomous repo-backed skill still stops at `HARDENED_GATE`.
 - Confirm schema, destructive, bulk, or out-of-contract lifecycle work still stops at `GOVERNANCE_GATE`.
 - Confirm non-workspace shell escalation behavior is unchanged.
-- Confirm non-allowlisted or write-oriented shell actions still prompt for approval instead of piggybacking on the discovery baseline.
+- In Claude local or the explicit Codex safe profile, confirm non-allowlisted or write-oriented shell actions still prompt for approval instead of piggybacking on the discovery baseline.
 
 ### notion-action-item regression checks
 
@@ -145,6 +151,14 @@ Run for every repo doc changed in the session that maps to a live Notion instruc
 - [ ] No duplicate no-notes meeting created
 - [ ] Curated summary added only on Active/manual path
 - [ ] Agent Config `Last Successful Run` updated
+
+### Notes-sparse fallback regression
+
+- Create one `[TEST]` meeting whose typed Notes are intentionally sparse or empty but whose summary/transcript contains one or two clear, high-confidence commitments.
+- Verify fallback-created Action Items are limited to those clear commitments and do not convert vague discussion into tasks.
+- Verify every fallback-created Action Item includes both `Source: Summary/transcript fallback recovery` and an `Evidence:` line in `Task Notes`.
+- Verify any overlapping Floppy command still wins dedup over a fallback-derived item.
+- Verify Notes-derived items remain primary when meaningful typed Notes are present; summary/transcript fallback should enrich or recover, not silently replace Notes parsing.
 
 ### Cleanup
 
