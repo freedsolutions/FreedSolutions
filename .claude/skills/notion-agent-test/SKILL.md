@@ -35,6 +35,7 @@ Read `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/docs/agent-sops.md`
 - Wait long enough for asynchronous runs before calling a trigger dead.
 - Do not skip cleanup on partial failures.
 - Treat runtime timestamps and activity history as evidence, not assumptions.
+- This skill does not currently delegate to sub-agents. If a future version supports delegation, it must follow `docs/sub-agent-contract.md`.
 
 ## Gate Protocol
 

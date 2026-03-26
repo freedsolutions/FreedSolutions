@@ -30,6 +30,7 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-24 |
 | `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
 | `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | - |
+| `docs/sub-agent-contract.md` | - | Sub-agent delegation contract: bootstrap, gates, results, depth limits, parallel execution, and scaffold profiles | - |
 
 ## Codex Skills
 
@@ -95,6 +96,7 @@ The repo is the canonical home for session handoff docs.
 10. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam - UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals.
 11. **Verify content on sync, not just existence.** When marking a Notion page as "in sync" with a local doc, verify the actual content matches - not just that the page exists.
 12. **Do not claim a clean close-out with a dirty tree.** Before saying the task is done, inspect `git status --short` and disclose any unrelated modified or untracked files instead of calling the worktree clean. If unrelated local changes are present, keep them out of the review conclusion by narrowing the review gate to the intended paths.
+13. **Sub-agent delegation follows `docs/sub-agent-contract.md`.** Never delegate `GOVERNANCE_GATE` decisions. Never exceed depth 1. Never spawn parallel sub-agents with overlapping write targets.
 
 ## Skill Gate Protocol
 
@@ -107,6 +109,16 @@ Repo-backed Notion skills use this shared gate taxonomy:
 | `GOVERNANCE_GATE` | Use the same pause mechanism as `HARDENED_GATE`, but only when the existing Rules of Engagement require a pause. |
 
 When a repo-backed skill is executing autonomously, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
+
+## Sub-Agent Delegation
+
+When Claude Code or Codex spawns sub-agents (via the `Agent` tool or `codex exec`), follow the sub-agent delegation contract in `docs/sub-agent-contract.md`. Core rules:
+
+- **Depth limit:** Maximum delegation depth is 1 (parent -> sub-agent, no further nesting).
+- **Gate ceiling:** Sub-agents inherit at most `HARDENED_GATE`. `GOVERNANCE_GATE` decisions are never delegated — the sub-agent returns `needs_escalation` and the parent asks Adam.
+- **Parallel safety:** Parallel sub-agents must have completely disjoint `write_paths`. For Notion DB record creation, the parent must assign disjoint source sets, run a post-collection dedup check, or serialize through one sub-agent.
+- **Scaffold profiles:** Sub-agents load conventions from lightweight context cards under `docs/cards/` instead of parsing full docs. Four profiles are available: `explorer`, `crm-worker`, `validator`, `scaffolding-editor`.
+- **Result contract:** Every sub-agent returns a typed JSON envelope with `status`, `summary`, `findings`, `mutations_performed`, and optional escalation or error detail.
 
 ## Local Client Approval Baseline
 
@@ -275,3 +287,5 @@ When changing a manual workflow skill:
 2. Validate it with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`
 3. Publish the installed copy to `$CODEX_HOME/skills` (default: `~/.codex/skills`)
 4. Sync the Claude skill copy in `.claude/skills/` with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`
+
+When creating new scaffold profiles or context cards, update the manifest in `docs/sub-agent-contract.md` and verify that existing context cards under `docs/cards/` still reflect the current canonical source values.

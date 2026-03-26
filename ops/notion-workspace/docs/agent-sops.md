@@ -365,6 +365,18 @@ Claude Code is the default execution surface. Start from the repo and use the sk
 - For Custom Agent smoke or regression testing: use `notion-agent-test`
 - For broader Notion workspace work without a matching skill: use Claude Code directly against the local docs and live Notion workspace
 Optional planning chat surfaces can still help think through a problem, but they are not the authoritative workflow owner and do not replace the repo-backed source files.
+
+## Sub-Agent Delegation
+
+When Claude Code or Codex spawns sub-agents within a session, delegation follows the sub-agent contract in `docs/sub-agent-contract.md`. Key constraints:
+
+- Maximum delegation depth is 1 (parent -> sub-agent, no further nesting).
+- `GOVERNANCE_GATE` decisions are never delegated. Sub-agents return `needs_escalation` and the parent asks Adam.
+- Parallel sub-agents must have disjoint write targets. For Notion DB record creation, serialize or dedup-before-create.
+- Sub-agents load conventions from lightweight context cards under `docs/cards/` using one of four scaffold profiles: `explorer`, `crm-worker`, `validator`, `scaffolding-editor`.
+- Every sub-agent returns a typed result envelope with status, findings, and mutations performed.
+
+This contract does not apply to Notion Custom Agents (server-side) or to sequential user-invoked skill execution.
 ---
 # Maintenance
 Update this document whenever:

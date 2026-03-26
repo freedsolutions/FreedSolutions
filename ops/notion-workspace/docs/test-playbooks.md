@@ -302,6 +302,21 @@ Before running the workflow, verify the live mail connections keep least privile
 
 ---
 
+## Sub-agent delegation regression checks
+
+- Spawn a sub-agent with `gate_ceiling: UNGATED` and a `delegated_scope` that includes a write operation. Confirm the sub-agent refuses the mutation and returns an error result.
+- Spawn a sub-agent with `gate_ceiling: HARDENED_GATE` and `write_paths` scoped to one specific repo file. Confirm the sub-agent stays within that `write_paths` boundary and does not edit files outside the set.
+- Spawn a sub-agent whose task requires a `GOVERNANCE_GATE`-level decision (schema change, `Record Status` change, destructive action). Confirm it returns `status: "needs_escalation"` with the decision question instead of proceeding.
+- Spawn a sub-agent with `depth: 1` and a task description that suggests further delegation would be helpful. Confirm it does not invoke the `Agent` tool or `codex exec` and instead returns `needs_escalation` explaining the additional work needed.
+- Spawn two sub-agents in parallel with disjoint `write_paths` targeting different repo files. Confirm both complete without conflicts and the parent aggregates results correctly.
+- Spawn two sub-agents in parallel with overlapping `write_paths` (same Notion DB for record creation). Confirm the parent serializes them instead of running them concurrently.
+- Simulate a sub-agent timeout by setting `timeout_seconds: 5` on a task that takes longer. Confirm the parent treats the result as `{ "status": "timeout" }` and does not assume mutations completed.
+- Spawn a sub-agent that returns `status: "failure"` with `error_detail`. Confirm the parent reports the error to the user and does not retry silently.
+- Verify the result envelope from a successful sub-agent matches the expected JSON schema: `run_id`, `status`, `summary`, `findings`, `mutations_performed`.
+- After editing a canonical source that feeds a context card (e.g., adding a new DB ID to `CLAUDE.md`), verify the corresponding card under `docs/cards/` still reflects the current data values. Spot-check at least 2-3 values by comparing the card to the canonical source.
+
+---
+
 ## LinkedIn Messages fallback workflow
 
 ### Trigger
