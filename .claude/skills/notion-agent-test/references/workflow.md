@@ -27,11 +27,17 @@
 - Check Recent Activity first.
 - Re-fetch downstream records with Notion MCP.
 - Use Agent Config timestamps when the workflow writes runtime markers.
+- If routine support tools start surfacing local approval prompts, treat that as client-baseline drift instead of approving each step ad hoc.
 
 ## Cleanup
 
 - Set test records to `Delete` only when that is the documented cleanup path.
 - For cleanup tests, verify the current trash or archive workflow clears linked relations and rollups as expected instead of assuming a dedicated unwiring agent exists.
+
+## Gate discipline
+
+- Bundle all currently known off-playbook or risky test questions into one compact `HARDENED_GATE` prompt instead of serial pauses.
+- Once a bounded off-playbook test slice is approved, continue autonomously unless a new ambiguity appears or a `GOVERNANCE_GATE` condition is triggered.
 
 ## Report Template
 

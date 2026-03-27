@@ -1,6 +1,8 @@
 @echo off
 setlocal
 
+for %%I in ("%~f0") do set "SCRIPT_DIR=%%~dpI"
+
 set "PROFILE_NAME=%~1"
 if "%PROFILE_NAME%"=="" (
   echo ERROR: Missing Codex profile name.
@@ -8,6 +10,19 @@ if "%PROFILE_NAME%"=="" (
   exit /b 1
 )
 shift
+
+set "BASELINE_VALIDATOR=%SCRIPT_DIR%test-approval-baseline.ps1"
+if not exist "%BASELINE_VALIDATOR%" (
+  echo ERROR: Missing approval baseline validator at "%BASELINE_VALIDATOR%".
+  echo Remediation: restore ops/notion-workspace/scripts/test-approval-baseline.ps1 and retry.
+  exit /b 1
+)
+
+powershell.exe -ExecutionPolicy Bypass -File "%BASELINE_VALIDATOR%" -CodexProfileName "%PROFILE_NAME%"
+if errorlevel 1 (
+  echo [ops-notion-workspace] Selected Codex profile failed validation: %PROFILE_NAME%
+  exit /b 1
+)
 
 set "CODEX_CMD=%APPDATA%\npm\codex.cmd"
 if not exist "%CODEX_CMD%" (
@@ -22,7 +37,7 @@ if not exist "%CODEX_CMD%" (
 )
 
 :codex_found
-set "REPO_ROOT=%~dp0..\..\.."
+set "REPO_ROOT=%SCRIPT_DIR%..\..\.."
 for %%I in ("%REPO_ROOT%") do set "REPO_ROOT=%%~fI"
 
 echo [ops-notion-workspace] Codex profile: %PROFILE_NAME%

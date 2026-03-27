@@ -8,6 +8,7 @@ description: Audit or update Notion Custom Agent settings through the browser UI
 # Notion Agent Config
 
 Read `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.md` first when they exist. Those files define the current operating model and the prescriptive config baseline.
+If routine repo-scoped shell, Notion MCP, or Playwright MCP support actions start surfacing local approval prompts during the audit, treat that as launcher/profile drift and switch to the documented quiet lane instead of normalizing repeated ad hoc approvals.
 
 ## Workflow
 
@@ -25,6 +26,8 @@ Read `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.
 5. Apply changes one agent at a time.
    - Clear, safe runtime repairs that bring live settings back to the documented baseline are `UNGATED`.
    - Use `HARDENED_GATE` before fixing unclear drift, redefining the local spec, or making agent-architecture, permission, or model changes not plainly dictated by the current docs.
+   - Bundle all currently known `HARDENED_GATE` drift items into one compact prompt instead of serial pauses.
+   - Once the bounded repair slice is approved, continue autonomously unless a new ambiguity appears or a `GOVERNANCE_GATE` condition is triggered.
    - Save before navigating away.
    - Re-open any property-trigger dialog to verify the final state.
 6. Report drift explicitly.

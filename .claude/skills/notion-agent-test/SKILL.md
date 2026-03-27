@@ -8,11 +8,13 @@ description: Run structured smoke or regression tests for Notion Custom Agents u
 # Notion Agent Test
 
 Read `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/docs/agent-sops.md`, and `ops/notion-workspace/docs/test-playbooks.md` first when they exist. The local playbooks are the canonical acceptance criteria.
+If routine repo-scoped shell, Notion MCP, or Playwright MCP support actions start surfacing local approval prompts during setup or verification, treat that as launcher/profile drift and switch to the documented quiet lane instead of normalizing repeated ad hoc approvals.
 
 ## Workflow
 
 1. Pick the exact test target.
    - Use the user request plus the local playbook to decide whether this is a smoke test, regression, or targeted failure reproduction.
+   - Bundle all currently known off-playbook or risky test questions into one compact `HARDENED_GATE` prompt instead of serial pauses.
 2. Prepare test data safely.
    - Prefix new records with `[TEST]`.
    - Keep the blast radius small and plan cleanup before firing the trigger.
@@ -28,6 +30,7 @@ Read `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/docs/agent-sops.md`
    - Revert or delete test artifacts according to the documented cleanup path.
 7. Report the outcome.
    - Include trigger method, execution time, pass or fail status, concrete checkpoints, issues found, and cleanup status.
+   - Once a bounded off-playbook test slice is approved, continue autonomously unless a new ambiguity appears or a `GOVERNANCE_GATE` condition is triggered.
 
 ## Guardrails
 

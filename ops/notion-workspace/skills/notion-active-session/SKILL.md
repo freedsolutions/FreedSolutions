@@ -7,6 +7,7 @@ description: Kick off `ops/notion-workspace` work by reading the canonical hando
 
 Read `ops/notion-workspace/session-active.md`, `ops/notion-workspace/CLAUDE.md`, and `ops/notion-workspace/docs/agent-sops.md` first when they exist in the workspace.
 If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning because that checklist may supersede the current manual-workflow queue for that architecture lane.
+If routine repo-scoped shell, Notion MCP, or Playwright MCP actions start surfacing local approval prompts during kickoff, treat that as launcher/profile drift and switch to the documented quiet lane instead of normalizing repeated ad hoc approvals.
 
 ## Workflow
 
@@ -28,8 +29,10 @@ If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sy
    - Ask only when the answer changes scope, naming, risky behavior, or whether live Notion/UI state should be touched.
    - Use the shared gate contract instead of open-ended chat when a question is required.
    - Prefer one or two concrete questions at a time.
+   - Bundle all currently known `HARDENED_GATE` items into one compact prompt instead of serial pauses.
 5. Execute repo-first updates.
    - Use `HARDENED_GATE` before the first repo/code mutation in a skill run. Name the intended files and change types in one compact prompt.
+   - Once the bounded kickoff or edit slice is approved, continue autonomously unless a new ambiguity appears or a `GOVERNANCE_GATE` condition is triggered.
    - Edit local source-of-truth files first.
    - When you change mapped docs, sync them to Notion in the same task and run the parity helper described in `CLAUDE.md`.
    - Treat a failed parity check as blocking. Do not replace it with visual verification unless Adam explicitly accepts the remaining mismatch.

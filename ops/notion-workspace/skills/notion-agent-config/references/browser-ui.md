@@ -27,6 +27,7 @@ Top to bottom:
 
 - Notion does not reliably auto-save these edits.
 - Save after each logical change set.
+- Batch related drift fixes into one logical change set so one `HARDENED_GATE` can cover the bounded repair slice.
 - Confirm the Save button returns to the inactive state before moving on.
 
 ## Audit checklist
@@ -36,3 +37,4 @@ Top to bottom:
 - Calendar and Mail permissions follow least privilege.
 - Model is pinned as expected.
 - No revoked access entry remains in a required dependency slot.
+- If routine support tools start surfacing local approval prompts, treat that as client-baseline drift instead of approving each step ad hoc.

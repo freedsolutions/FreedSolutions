@@ -66,11 +66,15 @@ Use a compact summary before editing:
 ## Question Patterns
 
 Use `HARDENED_GATE` only when the answer changes execution materially. Keep the prompt concrete and re-ask if the reply is empty or unclear.
+Bundle all currently known `HARDENED_GATE` items into one compact prompt instead of serial pauses.
 
 - Naming question: when the requested skill or workflow name could be interpreted more than one way.
 - Scope question: when it is unclear whether the user wants only local repo edits or also live Notion sync, publish, or UI follow-through.
 - Risk question: when the work may change schema, `Record Status`, live automations, or bulk CRM data.
 - Repo edit question: before the first repo mutation, name the intended files and change types in one compact prompt.
+
+Once the bounded kickoff or edit slice is approved, continue autonomously unless a new ambiguity appears or a `GOVERNANCE_GATE` condition is triggered.
+If routine repo-scoped shell, Notion MCP, or Playwright MCP actions start surfacing local approvals during kickoff, treat that as launcher/profile drift and switch to the documented quiet lane instead of normalizing repeated prompts.
 
 Do not ask broad brainstorming questions when the repo already answers them.
 

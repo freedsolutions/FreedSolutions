@@ -42,6 +42,8 @@ The JSON envelope the sub-agent must return (see Result Contract below).
 
 **Scope enforcement:** If the sub-agent determines it needs something outside its manifest envelope — a file not in `read_paths`, a write target not in `write_paths`, or a `GOVERNANCE_GATE`-level decision — it must return `needs_escalation` rather than broadening its own scope.
 
+Use `ops/notion-workspace/scripts/test-sub-agent-contract.ps1` to validate repo-stored manifest or result fixtures and to smoke-test parent-side overlap checks before relying on new delegation scaffolding.
+
 ## Scaffold Profiles
 
 Four named profiles tell the sub-agent which repo files to read for context. The sub-agent reads files in the listed order, then proceeds with the delegated task.

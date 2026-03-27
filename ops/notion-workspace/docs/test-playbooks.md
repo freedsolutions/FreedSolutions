@@ -31,19 +31,21 @@ Run before the review gate whenever the session changed files under `ops/notion-
 
 Validate the local client baseline any time a Notion-workspace change touches Claude project config, Codex local config, or the expected launch path:
 
-1. Confirm `.claude/settings.json` and `.claude/settings.local.json` stay aligned on the Notion-workspace MCP allowlist, including `mcp__notion`, `mcp__google-workspace`, `mcp__playwright`, and any still-used legacy MCP namespaces that still need explicit coverage. Claude MCP permissions do not support `*` wildcards.
-2. Confirm the Claude project baseline also allowlists the safe read-only shell discovery patterns used by kickoff and repo discovery, especially `Get-ChildItem`, `Get-Content`, `rg`, and `Select-String`.
-3. Confirm `enableAllProjectMcpServers` stays enabled for Claude project runs and `enabledMcpjsonServers` still includes `playwright`.
-4. Confirm `.mcp.json` remains the project-managed server surface and currently lists only `playwright`. Do not add Notion there until the project-scoped remote registration path is proven stable in the local client.
-5. Confirm `~/.codex/config.toml` keeps the dedicated `ops_notion_workspace_quiet` profile with `approval_policy = "never"` and `sandbox_mode = "workspace-write"` as the default repo lane, without changing the global default posture for unrelated repos.
-6. Confirm `~/.codex/config.toml` also defines `ops_notion_workspace` with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"` as the explicit safer fallback, while leaving the top-level `mcp_servers` block unchanged.
-7. Confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` prefers the quiet profile and falls back to the safer profile with a clear banner when the quiet profile is missing locally, exits non-zero with remediation when `~/.codex/config.toml` itself is missing, `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd` remains a quiet compatibility alias, and `ops/notion-workspace/scripts/start-codex-notion-workspace-safe.cmd` launches through the safer profile.
+1. Run `ops/notion-workspace/scripts/test-approval-baseline.ps1` and keep it green before relying on the quiet lane.
+2. Confirm `.claude/settings.json` and `.claude/settings.local.json` stay aligned on the shared Notion-workspace baseline entries: `mcp__notion`, `mcp__google-workspace`, `mcp__playwright`, the still-needed legacy `mcp__claude_ai_Notion__notion-{fetch,search,update-page,create-pages}` entries, `mcp__claude_ai_Gmail__gmail_read_message`, the repo-scoped discovery shell patterns, and the script-specific approvals for `compare-notion-sync.ps1`, `test-closeout-sanity.ps1`, `publish-codex-skills.ps1`, and `sync-claude-skill-wrappers.ps1`. Claude MCP permissions do not support `*` wildcards.
+3. Confirm the Claude project baseline also allowlists the safe read-only shell discovery patterns used by kickoff and repo discovery, especially `Get-ChildItem`, `Get-Content`, `rg`, and `Select-String`.
+4. Confirm `enableAllProjectMcpServers` stays enabled for Claude project runs and `enabledMcpjsonServers` still includes `playwright`.
+5. Confirm `.mcp.json` remains the project-managed server surface and currently lists only `playwright`. Do not add Notion there until the project-scoped remote registration path is proven stable in the local client.
+6. Confirm `~/.codex/config.toml` keeps the dedicated `ops_notion_workspace_quiet` profile with `approval_policy = "never"` and `sandbox_mode = "workspace-write"` as the default repo lane, without changing the global default posture for unrelated repos.
+7. Confirm `~/.codex/config.toml` also defines `ops_notion_workspace` with `approval_policy = "on-failure"` and `sandbox_mode = "workspace-write"` as the explicit safer fallback, while leaving the top-level `mcp_servers` block unchanged.
+8. Confirm `ops/notion-workspace/scripts/start-codex-notion-workspace.cmd` prefers the quiet profile and falls back to the safer profile with a clear banner when the quiet profile is missing locally, exits non-zero with remediation when `~/.codex/config.toml` itself is missing, `ops/notion-workspace/scripts/start-codex-notion-workspace-quiet.cmd` remains a quiet compatibility alias, and `ops/notion-workspace/scripts/start-codex-notion-workspace-safe.cmd` launches through the safer profile after validating the selected profile with `test-approval-baseline.ps1`.
 
 ### Local client approval regression checks
 
 - In Claude local, verify one safe Notion MCP read under the approved `mcp__notion` server no longer triggers an unexpected client approval prompt when launched against the approved project baseline.
 - In Claude local, verify one safe `mcp__playwright__browser_tabs` or similar read-only Playwright call no longer triggers an unexpected client approval prompt when launched against the approved project baseline.
 - In Claude local, verify `Get-ChildItem`, `Get-Content`, `Select-String`, and `rg` repo reads all run without unexpected client approval prompts when launched against the approved project baseline.
+- Run `ops/notion-workspace/scripts/test-discovery-scope.ps1` to verify the shared repo-scope helper rejects absolute paths and `..` escapes before depending on kickoff discovery.
 - Verify repo text discovery defaults to fixed-string matching, such as `rg -F` or `Select-String -SimpleMatch`, unless regex mode is explicitly required for the task.
 - Temporarily remove or bypass `rg` and confirm kickoff discovery can fall back to `Select-String -SimpleMatch` or an equivalent read-only shell search path without leaving the allowlisted workflow.
 - Run kickoff discovery from the repo root and from a non-repo working directory; confirm the workflow still scopes reads to the repo path and does not broaden into unrelated filesystem traversal.
@@ -91,7 +93,9 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 - Confirm the skill uses local or parallel repo discovery by default and does not assume delegation support.
 - Confirm the kickoff summary names the active priorities, likely touched files, and validation path instead of returning a vague backlog dump.
 - Confirm the skill asks only the minimum high-impact questions and does so through the shared `HARDENED_GATE` model, using native structured questioning when available and a deterministic chat halt otherwise.
+- Confirm the skill bundles all currently known `HARDENED_GATE` items into one compact prompt instead of serial pauses.
 - Confirm the skill uses `HARDENED_GATE` before repo file edits by naming the intended files and change types.
+- Confirm the skill continues autonomously after the bounded slice is approved unless a new ambiguity or `GOVERNANCE_GATE` condition appears.
 - Run once with an empty or ambiguous gate response and confirm the skill re-asks before proceeding.
 - Confirm the skill does not recreate the retired Notion session-handoff ritual or invent a second handoff surface.
 - Confirm the published Codex skill lives at `$CODEX_HOME/skills/notion-active-session/` and the stale retired-skill path is absent after a full rename.
@@ -101,14 +105,18 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 - Run the skill on a no-op audit of one live agent and confirm it reads `docs/agent-sops.md` before opening the browser.
 - Confirm it uses the documented direct Settings URL instead of wandering through the Notion sidebar.
 - Confirm it captures current-state evidence and reports drift explicitly instead of silently changing unclear settings.
+- Confirm the skill bundles all currently known unclear drift into one compact `HARDENED_GATE` prompt instead of serial pauses.
 - Confirm clear safe runtime repairs can proceed without a new approval loop, while unclear drift triggers `HARDENED_GATE`.
+- Confirm the skill continues autonomously after the bounded repair slice is approved unless a new ambiguity or `GOVERNANCE_GATE` condition appears.
 
 ### notion-agent-test regression checks
 
 - Run the skill on one bounded `[TEST]` scenario and confirm it follows the matching section in `docs/test-playbooks.md`.
 - Confirm it checks Recent Activity plus downstream Notion state instead of relying on a single signal.
 - Confirm the final report includes trigger method, pass/fail checkpoints, issues found, and cleanup status.
+- Confirm the skill bundles all currently known off-playbook questions into one compact `HARDENED_GATE` prompt instead of serial pauses.
 - Confirm bounded `[TEST]` setup, cleanup, and reporting stay `UNGATED`, while out-of-playbook moves would trigger `HARDENED_GATE` or `GOVERNANCE_GATE`.
+- Confirm the skill continues autonomously after a bounded off-playbook slice is approved unless a new ambiguity or `GOVERNANCE_GATE` condition appears.
 
 ## Notion sync parity
 
@@ -346,6 +354,7 @@ Before running the workflow, verify the live mail connections keep least privile
 
 ## Sub-agent delegation regression checks
 
+- Run `ops/notion-workspace/scripts/test-sub-agent-contract.ps1` and keep it green before trusting repo-stored delegation manifest or result fixtures.
 - Spawn a sub-agent with `gate_ceiling: UNGATED` and a `delegated_scope` that includes a write operation. Confirm the sub-agent refuses the mutation and returns an error result.
 - Spawn a sub-agent with `gate_ceiling: HARDENED_GATE` and `write_paths` scoped to one specific repo file. Confirm the sub-agent stays within that `write_paths` boundary and does not edit files outside the set.
 - Spawn a sub-agent whose task requires a `GOVERNANCE_GATE`-level decision (schema change, `Record Status` change, destructive action). Confirm it returns `status: "needs_escalation"` with the decision question instead of proceeding.
