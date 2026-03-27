@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Get-Content *)",
+      "Bash(rg *)",
+      "Bash(Select-String *)",
+      "Bash(grep *)",
+      "Bash(python scripts/codex_review.py *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/compare-notion-sync.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/test-compare-notion-sync.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/test-closeout-sanity.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/test-closeout-sanity-guard.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/publish-codex-skills.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/test-approval-baseline.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/test-discovery-scope.ps1\" *)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"ops/notion-workspace/scripts/test-sub-agent-contract.ps1\" *)",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch(domain:localhost)",
+      "mcp__notion",
+      "mcp__google-workspace",
+      "mcp__playwright",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude_ai_Notion__notion-search",
+      "mcp__claude_ai_Notion__notion-update-page",
+      "mcp__claude_ai_Notion__notion-create-pages",
+      "mcp__claude_ai_Gmail__gmail_read_message",
+      "Agent",
+      "TodoWrite"
+    ],
+    "additionalDirectories": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "playwright"
+  ]
+}

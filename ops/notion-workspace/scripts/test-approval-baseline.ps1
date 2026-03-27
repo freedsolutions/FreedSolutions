@@ -40,6 +40,83 @@ function Assert-AllowListContains {
     }
 }
 
+function Assert-AllowListOmits {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$AllowList,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$DisallowedEntries,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Label
+    )
+
+    $present = @($DisallowedEntries | Where-Object { $_ -in $AllowList })
+    if ($present.Count -gt 0) {
+        throw "$Label includes disallowed allow entries: $($present -join ', ')"
+    }
+}
+
+function Invoke-GitCheck {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $stdoutPath = [System.IO.Path]::GetTempFileName()
+    $stderrPath = [System.IO.Path]::GetTempFileName()
+    $gitArguments = @('-C', $repoRoot) + $Arguments
+
+    try {
+        $process = Start-Process -FilePath 'git' `
+            -ArgumentList $gitArguments `
+            -NoNewWindow `
+            -Wait `
+            -PassThru `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+
+        return @{
+            ExitCode = $process.ExitCode
+            StdOut = if (Test-Path $stdoutPath) { Get-Content -Path $stdoutPath -Raw -ErrorAction SilentlyContinue } else { '' }
+            StdErr = if (Test-Path $stderrPath) { Get-Content -Path $stderrPath -Raw -ErrorAction SilentlyContinue } else { '' }
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Assert-GitTracked {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RelativePath
+    )
+
+    $result = Invoke-GitCheck -Arguments @('ls-files', '--error-unmatch', '--', $RelativePath)
+    if ($result.ExitCode -ne 0) {
+        throw "Expected repo-tracked Claude baseline file is not tracked: $RelativePath`n$($result.StdErr)$($result.StdOut)"
+    }
+}
+
+function Assert-GitIgnoredAndUntracked {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RelativePath
+    )
+
+    $trackedResult = Invoke-GitCheck -Arguments @('ls-files', '--error-unmatch', '--', $RelativePath)
+    if ($trackedResult.ExitCode -eq 0) {
+        throw "Expected workstation-local Claude overlay to stay untracked: $RelativePath"
+    }
+
+    $ignoredResult = Invoke-GitCheck -Arguments @('check-ignore', '--quiet', '--', $RelativePath)
+    if ($ignoredResult.ExitCode -ne 0) {
+        throw "Expected workstation-local Claude overlay to stay git-ignored: $RelativePath`n$($ignoredResult.StdErr)$($ignoredResult.StdOut)"
+    }
+}
+
 function Assert-CodexProfile {
     param(
         [Parameter(Mandatory = $true)]
@@ -96,10 +173,17 @@ $requiredClaudeAllowEntries = @(
     'Bash(Get-Content *)',
     'Bash(rg *)',
     'Bash(Select-String *)',
+    'Bash(grep *)',
+    'Bash(python scripts/codex_review.py *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/compare-notion-sync.ps1" *)',
+    'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-compare-notion-sync.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-closeout-sanity.ps1" *)',
+    'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-closeout-sanity-guard.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/publish-codex-skills.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1" *)',
+    'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-approval-baseline.ps1" *)',
+    'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-discovery-scope.ps1" *)',
+    'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-sub-agent-contract.ps1" *)',
     'Read',
     'Edit',
     'Write',
@@ -118,10 +202,33 @@ $requiredClaudeAllowEntries = @(
     'TodoWrite'
 )
 
-$settingsPaths = @(
-    (Join-Path $repoRoot '.claude\settings.json'),
-    (Join-Path $repoRoot '.claude\settings.local.json')
+$disallowedRepoClaudeAllowEntries = @(
+    'Bash(node projects/linkedin-carousel/build.js)',
+    'Bash(node projects/linkedin-carousel/scripts/*)',
+    'Bash(node -e *)',
+    'Bash(NODE_PATH=* node -e *)',
+    'Bash(npx serve *)',
+    'Bash(npx playwright *)',
+    'Bash(npx --version)',
+    'Bash(echo *)',
+    'Bash(ls *)',
+    'Bash(wc *)',
+    'Bash(mkdir *)',
+    'Bash(pwd)',
+    'Bash(which *)'
 )
+
+$repoSettingsPath = Join-Path $repoRoot '.claude\settings.json'
+$localSettingsPath = Join-Path $repoRoot '.claude\settings.local.json'
+
+$settingsPaths = @($repoSettingsPath)
+
+Assert-GitTracked -RelativePath '.claude/settings.json'
+Assert-GitIgnoredAndUntracked -RelativePath '.claude/settings.local.json'
+
+if (Test-Path $localSettingsPath -PathType Leaf) {
+    $settingsPaths += $localSettingsPath
+}
 
 foreach ($settingsPath in $settingsPaths) {
     $settings = Get-JsonFile -Path $settingsPath
@@ -136,6 +243,15 @@ foreach ($settingsPath in $settingsPaths) {
     if ('playwright' -notin @($settings.enabledMcpjsonServers)) {
         throw "$settingsPath must include 'playwright' in enabledMcpjsonServers."
     }
+}
+
+$repoClaudeSettings = Get-JsonFile -Path $repoSettingsPath
+$repoAllowList = @($repoClaudeSettings.permissions.allow)
+Assert-AllowListOmits -AllowList $repoAllowList -DisallowedEntries $disallowedRepoClaudeAllowEntries -Label '.claude/settings.json'
+
+$repoAdditionalDirectories = @($repoClaudeSettings.permissions.additionalDirectories)
+if ($repoAdditionalDirectories.Count -gt 0) {
+    throw '.claude/settings.json must not declare additionalDirectories; keep workstation-only paths in .claude/settings.local.json.'
 }
 
 $projectMcpPath = Join-Path $repoRoot '.mcp.json'
