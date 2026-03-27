@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 26, 2026
+Last synced: March 27, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -157,6 +157,8 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Typed Notes are the primary non-Floppy Action Item source.
 	- Floppy commands are the highest-confidence explicit signal and win any overlap; Adam will often use an end-of-meeting Floppy recap to summarize the Action Items that matter.
 	- The AI summary and transcript may enrich note-derived items and provide bounded fallback recovery when Notes are sparse or empty, but they are not the default primary source when Notes are present.
+	- Series wiring is recurrence-driven. When GCal returns `recurringEventId`, Post-Meeting stores that value in Meetings.`Series Key`, reuses or auto-creates a Series Parent, and sets the instance `Series` relation.
+	- Same-title meetings without `recurringEventId` stay standalone. Legacy title-pattern Series matching is reference-only, not the automatic rule.
 	- Curated summary generation remains inside Post-Meeting, but the separate Curated Notes Agent now serves as the manual QA reviewer.
 ## Post-Email Agent
 - Triggers:
@@ -302,6 +304,9 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Placeholder companies default to `States = All`, but enrichment may replace that placeholder value when stronger evidence exists
 ## Meetings
 - `Calendar Event ID` is the canonical event identity
+- `Series Key` stores the Google `recurringEventId` on recurring instances and their Series Parent row
+- Recurring meetings reuse or auto-create a Series Parent keyed by `Series Key`; parent rows intentionally keep `Calendar Event ID` blank
+- Same-title meetings without `Series Key` stay standalone unless Adam explicitly requests a manual repair
 - `Calendar Name` is a select with current live options:
 	- `Adam - Business`
 	- `Adam - Personal`

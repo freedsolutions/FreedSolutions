@@ -20,8 +20,8 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-26 |
-| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-primary action items with summary/transcript fallback -> curated summary). Uses live `Calendar Name` options only. | 2026-03-26 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-27 |
+| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-primary action items with summary/transcript fallback -> curated summary). Uses live `Calendar Name` options only. | 2026-03-27 |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-20 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-22 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
@@ -170,7 +170,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Contacts DB:** Contact Name (title), Display Name (formula), QC (formula), Email, Secondary Email, Tertiary Email, Phone, Pronouns, Nickname, LinkedIn, Company, Role / Title, Record Status, Contact Notes
 - **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), QC (formula), Domains, Additional Domains, States (default: "All"), Website, Contacts, Emails (rollup), Meetings (rollup), Action Items, Engagements, Tech Stack, Record Status, Company Notes
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Target Meeting, Target Email, Attach File, QC (formula)
-- **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Target Action Items, Series, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
+- **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Target Action Items, Series, Series Key, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Target Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
 - **Email routing labels:** On `adam@freedsolutions.com`, `Primitiv/PRI_Outlook` = forwarded Outlook intake, `Primitiv/PRI_Teams` = Teams notification intake, `LinkedIn` = LinkedIn message-notification intake, `DMC/DMC_GMail` = DMC routed company-mail intake for the DMC client (same routing class as `Primitiv/PRI_Outlook`, just currently lower-volume). `_Action Items` and any `_Action Items/...` sublabel are temporary ignore labels for manual filing, not active intake lanes. Other company or project labels are metadata only unless explicitly promoted into routing. Labels are the canonical intake-route truth for the Freed Solutions mailbox. `adamjfreed@gmail.com` remains in live sweep scope, but its labels are out of scope for routing. Teams notifications keep the mailbox-derived `Source`; the `Labels` multi_select carries the routing metadata instead of a dedicated Teams source option.
 - **New source filter contract:** When a newly retained thread introduces a stable new Company or Contact source that should route future mail, dedup the CRM records first, then create or refresh the Gmail label using the existing live naming pattern: slash-delimited client/lane labels when a child lane is warranted (for example `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, or `DMC/DMC_GMail`) or the exact stable company label Adam already uses when no child lane is needed. Add the matching option to `Emails.Labels`, default to company/domain filters, use sender-specific filters only for exceptions, keep new filters label-first instead of auto-read by default, and archive/read only after post-processing reaches terminal state.
@@ -180,6 +180,7 @@ Pause and ask before proceeding only when any of the following are true:
 - **Email fields** (Contacts): Email, Secondary Email, Tertiary Email - all checked for dedup
 - **Domain fields** (Companies): Domains (primary), Additional Domains (merged/subsidiary/sender-level) - both checked for dedup. `Additional Domains` may also hold full sender email addresses for platform companies where the domain is too broad (e.g., `workspace@google.com` for Google). When matching, check domains first, then fall back to full sender email address against `Additional Domains`.
 - **Calendar Name** currently has live select options for `Adam - Business` and `Adam - Personal` only. Do not assume local placeholders such as `Manual` or `Pending` exist in the schema.
+- **Series Key** stores the Google `recurringEventId` on recurring Meetings and their Series Parent row. Same-title meetings without a `Series Key` stay standalone unless Adam explicitly asks for a manual repair.
 - **Delete path:** Set `Record Status = Delete` plus the relevant notes field (Contact Notes / Company Notes / Task Notes) explaining why, then trash the record (or trash directly if the record is already annotated). Notion automatically clears reciprocal synced-dual relations on linked records. Permanent delete from Notion trash is Adam's manual step.
 - **Email parity + cleanup contract:** Compare Gmail parity by exact `Thread ID`, not by subject line or Gmail message count. Archived Email rows still count as already processed for parity. Gmail read-state changes only after a thread reaches terminal state: retained and wired, intentionally skipped, or classified as meeting-support-only. Truly unresolved exceptions may remain unread, but they must be listed explicitly.
 - **Concrete duplicate-prevention target:** The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is concrete evidence of a race-condition-class bug. Future Post-Email hardening must use in-run dedup-before-create or serialized Company/Contact creation across same-thread-family work.
@@ -237,27 +238,27 @@ The repo handoff remains the canonical shared mechanism for Claude Code and Code
 
 Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
 
-### P1 - Prepare Post-Meeting series/calendar recovery and hardening
+### P1 - Validate the recurrence-driven Series contract on the next live Post-Meeting cases
 
-- Start with queue cleanup, the audit worksheet, and bounded case selection before any broader live Meeting repair
-- Personal Calendar first:
-  - audit missing `Series`, missing `Calendar Name`, failed title-based GCal lookup, and shared-personal-calendar identity issues
-  - classify each case as recoverable vs explicit exception
-- Business Calendar second:
-  - audit recurring-instance oddities, forwarded/normalized-title mismatches, and wrong/missing `Series` or `Calendar Name`
-  - keep the same recoverable vs explicit-exception split
-- Use the existing `Series Registry`, `Calendar Name` contract, and explicit-only target-link rule as the baseline instead of inventing new Meeting behavior
-- Prepare a per-case worksheet with:
+- Personal-first and business-second recovery is complete for the bounded March 26 worksheet set. Treat `Series Key` as the automatic series identity baseline.
+- On the next recurring live meeting or recovery pass, verify that:
+  - `recurringEventId` populates `Series Key`
+  - the Meeting row reuses or auto-creates the correct Series Parent in the same run
+  - past recurring no-notes events create Draft Meeting rows with both `Series Key` and the correct `Series` relation
+  - same-title one-offs without `recurringEventId` stay standalone
+- Keep the worksheet format current with:
   - meeting title
   - calendar source
   - current `Calendar Event ID`
   - current `Calendar Name`
   - current `Series`
+  - current `Series Key`
   - whether a transcription block exists
   - expected outcome
   - repair method
   - exception reason if unrecoverable
-- Revisit target-link behavior only after the Personal-first and Business-second recovery passes stabilize
+- Ignore the two intentionally archived/deleted business child rows; they were archived on purpose and are not follow-up work
+- Revisit target-link behavior only after the new recurrence-driven path proves stable on fresh live data
 
 ### P2 - Continue the retained Email corpus triage into Action Items and follow-ups
 
@@ -270,11 +271,11 @@ Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove co
 - Keep `Source Email` as provenance-only and leave `Target Email` blank unless Adam explicitly asks to wire a future touchpoint
 - Leave the duplicate Hoodie Email-row pair untouched until Adam explicitly asks for a cleanup or merge pass
 
-### P3 - Document the broadened live agent baseline and keep mapped docs aligned
+### P3 - Close the mapped-doc parity gap with a verbatim remote-body helper
 
-- Enumerate the exact per-agent trigger, page-access, and mail/calendar-scope deltas observed in the March 25 config-repair follow-up instead of treating the broader live baseline as an implied known list
-- Update `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.md` to match that intentionally broadened live baseline
-- Re-sync and parity-check those mapped docs in the next baseline-update pass
+- The March 26 mapped-doc content updates are live, but deterministic parity is still blocked by the lack of a native verbatim save path for MCP fetch output
+- Add a small helper that can persist mapped Notion page bodies exactly as fetched into `ops/notion-workspace/tmp/notion-sync-remote-YYYY-MM-DD-<doc>.md`, then run `compare-notion-sync.ps1`
+- Use that helper to close the open March 26 parity exception for the refreshed Post-Meeting and Agent SOP pages
 
 ### P4 - Lower-priority maintenance and follow-through
 

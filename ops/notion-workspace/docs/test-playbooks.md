@@ -164,25 +164,30 @@ Run for every repo doc changed in the session that maps to a live Notion instruc
 
 - When multiple meeting recovery candidates exist, prioritize **Adam - Personal** before **Adam - Business**.
 - Personal lane:
-  - one missed series case
+  - one recurring `Therapy (remote)` case that should auto-create or reuse a parent
+  - one recurring `Therapy (onsite)` case that should auto-create or reuse a separate parent
+  - one standalone same-title Therapy case that should stay ungrouped because Google does not return `recurringEventId`
   - one missing-`Calendar Name` case
   - one shared-personal-calendar identity case
-  - one solo-personal fallback case
 - Business lane:
   - one forwarded-title or `FW:` normalization case
-  - one recurring-instance case where identity must stay instance-specific instead of collapsing by repeated title
-  - one "funky" business case with wrong or missing `Series` or `Calendar Name`
+  - one recurring-instance case where parent reuse must key off `Series Key`, not repeated title
+  - one no-notes recurring case that should create the Meeting row and attach to the correct parent in the same pass
+  - one "funky" business case with wrong or missing `Series`, `Series Key`, or `Calendar Name`
 - For each case, capture the recovery worksheet before repair under `ops/notion-workspace/tmp/post-meeting-recovery-worksheet-YYYY-MM-DD.md`:
   - Meeting Title
   - calendar source
   - current `Calendar Event ID`
   - current `Calendar Name`
   - current `Series`
+  - current `Series Key`
   - whether a `transcription` block exists
   - expected outcome
   - repair method
   - exception reason if unrecoverable
-- Verify recoverable cases land with the correct `Calendar Name` and `Series`, while unrecoverable cases are logged explicitly instead of patched heuristically.
+- Verify recurring instances with `recurringEventId` auto-create or reuse the correct Series Parent and persist the same `Series Key` on both parent and child rows.
+- Verify same-title one-off meetings without `recurringEventId` stay standalone.
+- Verify recoverable cases land with the correct `Calendar Name`, `Series`, and `Series Key`, while unrecoverable cases are logged explicitly instead of patched heuristically.
 
 ### Target-link follow-up after meeting recovery
 

@@ -76,6 +76,7 @@
 | Action Items | relation | |
 | Target Action Items | relation | Reciprocal of Action Items.Target Meeting |
 | Series | relation | |
+| Series Key | rich_text | Google `recurringEventId` on recurring instances and series parents |
 | Instances | relation | |
 | Is Series Parent | checkbox | |
 | Series Status | rollup | |
