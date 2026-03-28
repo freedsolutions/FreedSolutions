@@ -7,9 +7,8 @@
 
 1. **Read the repo session handoff first** - `ops/notion-workspace/session-active.md` is the canonical active handoff for Claude Code and Codex work.
 2. **Read local docs** - `ops/notion-workspace/docs/agent-sops.md` is the stable workflow reference, then read the workflow-specific doc that matches the task.
-3. **Read the local-first architecture checklist when relevant** - `ops/notion-workspace/freed-solutions-execution-checklist.md` is a future-state execution brief for the `ops/local_db/` track. Read it early when the request touches local DB work, Gmail or GCal direct ingestion, SQLite sync, or broader CRM architecture migration.
-4. **Use the repo Codex skills for manual workflows** - `ops/notion-workspace/skills/` is the canonical source for the manual operator layer.
-5. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
+3. **Use the repo Codex skills for manual workflows** - `ops/notion-workspace/skills/` is the canonical source for the manual operator layer.
+4. **Use standing approval for routine Notion work.** Ask questions only if the request is ambiguous, destructive, schema-changing, or a bulk record operation.
 
 ## Local Docs
 
@@ -57,11 +56,11 @@ The repo is the canonical home for session handoff docs.
 
 ## Architecture Track
 
-`ops/notion-workspace/freed-solutions-execution-checklist.md` documents the planned local-first CRM architecture under `ops/local_db/`. It is an execution brief for that migration lane, not the default session handoff.
+`ops/notion-workspace/freed-solutions-execution-checklist.md` documents the planned local-first CRM architecture under `ops/local_db/`. This execution brief is **currently frozen** pending completion of the cross-contextual agent instruction work. See `session-active.md` for active priorities.
 
-- Read it when the task touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture changes.
-- Do not let it silently replace `session-active.md` or the current follow-up queue for routine Notion-workspace maintenance.
-- If the checklist conflicts with the current handoff or workflow docs, call out the conflict explicitly before editing.
+- Do not start new `ops/local_db` work until the freeze is lifted.
+- The checklist remains in the repo as a future-state reference.
+- If a task appears to require local DB work, flag it and redirect to the Notion-native approach in the current priorities.
 
 ## Notion-Only Resources (access via MCP)
 
@@ -207,11 +206,23 @@ At the end of every session:
 - To refresh a local doc from Notion: use MCP to read the page, overwrite the local file.
 - Skill sources follow the same rule: edit the repo copy first, validate, then publish installed copies to `$CODEX_HOME/skills` (default: `~/.codex/skills`).
 
-## Codex Review Gate
+## Closeout Protocol
 
-For tasks that change local files in `ops/notion-workspace/`, use this order:
+For tasks that change local files in `ops/notion-workspace/`:
 
-If an autonomous repo-backed skill is executing the change, satisfy the required `HARDENED_GATE` before the first repo mutation, then follow the close-out order below.
+1. Edit the local source-of-truth files.
+2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
+3. Spot-check the live Notion page to confirm the content landed correctly.
+4. Update `session-active.md`, commit, and push.
+
+If an autonomous repo-backed skill is executing the change, satisfy the required `HARDENED_GATE` before the first repo mutation.
+
+## Legacy Closeout Protocol
+
+The full 10-step deterministic closeout below was the active protocol through March 28, 2026. It is preserved here for re-enablement if the system reaches a state where deterministic parity and multi-step validation are worth the overhead. The lightweight protocol above is the current default.
+
+<details>
+<summary>Full 10-step protocol (archived)</summary>
 
 1. Edit the local source-of-truth files.
 2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
@@ -224,7 +235,7 @@ If an autonomous repo-backed skill is executing the change, satisfy the required
 9. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
 10. Then commit and push to `main`.
 
-Do **not** update the canonical handoff before the Codex review gate unless Adam explicitly asks for a draft note before review.
+</details>
 
 ## Planning Output (Repo Handoff)
 
@@ -235,61 +246,6 @@ Do **not** update the canonical handoff before the Codex review gate unless Adam
 3. Mark changes as done in the session log only after the Codex review gate passes (or Adam explicitly accepts the findings).
 
 The repo handoff remains the canonical shared mechanism for Claude Code and Codex work.
-
-## Current Follow-Up Queue (March 26, 2026)
-
-Keep this queue aligned with `ops/notion-workspace/session-active.md`. Remove completed items instead of letting stale audit work linger.
-
-### P1 - Validate the recurrence-driven Series contract on the next live Post-Meeting cases
-
-- Personal-first and business-second recovery is complete for the bounded March 26 worksheet set. Treat `Series Key` as the automatic series identity baseline.
-- On the next recurring live meeting or recovery pass, verify that:
-  - `recurringEventId` populates `Series Key`
-  - the Meeting row reuses or auto-creates the correct Series Parent in the same run
-  - past recurring no-notes events create Draft Meeting rows with both `Series Key` and the correct `Series` relation
-  - same-title one-offs without `recurringEventId` stay standalone
-- Keep the worksheet format current with:
-  - meeting title
-  - calendar source
-  - current `Calendar Event ID`
-  - current `Calendar Name`
-  - current `Series`
-  - current `Series Key`
-  - whether a transcription block exists
-  - expected outcome
-  - repair method
-  - exception reason if unrecoverable
-- Ignore the two intentionally archived/deleted business child rows; they were archived on purpose and are not follow-up work
-- Revisit target-link behavior only after the new recurrence-driven path proves stable on fresh live data
-
-### P2 - Continue the retained Email corpus triage into Action Items and follow-ups
-
-- Continue from the retained Email corpus, recent high-signal Draft emails, and future newly retained Gmail threads; the March 26 residual `INBOX` stub set is closed
-- For each reviewed retained email, land it in exactly one bucket:
-  - Action Item created
-  - existing Action Item reused
-  - context only
-  - blocked/manual review
-- Keep `Source Email` as provenance-only and leave `Target Email` blank unless Adam explicitly asks to wire a future touchpoint
-- Leave the duplicate Hoodie Email-row pair untouched until Adam explicitly asks for a cleanup or merge pass
-
-### P3 - Close the mapped-doc parity gap with a verbatim remote-body helper
-
-- The March 26 mapped-doc content updates are live, but deterministic parity is still blocked by the lack of a native verbatim save path for MCP fetch output
-- Add a small helper that can persist mapped Notion page bodies exactly as fetched into `ops/notion-workspace/tmp/notion-sync-remote-YYYY-MM-DD-<doc>.md`, then run `compare-notion-sync.ps1`
-- Use that helper to close the open March 26 parity exception for the refreshed Post-Meeting and Agent SOP pages
-
-### P4 - Lower-priority maintenance and follow-through
-
-- Add deterministic Gmail labels to every stable source or known domain that should flow into CRM automatically
-- Keep company and domain naming aligned with Notion where practical
-- Treat this as the path toward fully automated inbox-zero handling for known sources
-- **Inbox filter process:** When a new Company/Contact enters the CRM, follow the New source filter contract above: dedup first, align the Gmail label and Notion `Emails.Labels` option, prefer company/domain filters over sender-only exceptions, keep new filters label-first, and archive/read only after post-processing reaches terminal state. Document the route in `CLAUDE.md` only when it becomes an active intake lane.
-- **Email label hardening:** The next Post-Email hardening pass must add regression coverage that newly created or resumed Email rows persist only Gmail user labels, never Gmail system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, or `TRASH`, and must add an audit that every active routed Gmail user label plus each newly introduced source label exists as a Notion `Emails.Labels` option before the workflow relies on it.
-- Keep `📧` on new or repaired Emails and `🎬` on new or repaired Action Items during both automation and manual recovery, and carry the icon-rule language into any remaining lagging validation surfaces
-- Revisit `Target Meeting` / `Target Email` / reciprocal `Target Action Items` only after the Meeting recovery lane is stable
-- Re-run the sparse-notes Post-Meeting regression lane against the next intentionally light-notes meeting and close the remaining `docs/post-meeting.md` parity follow-through once verbatim live-body artifacts can be saved
-- Keep the accepted March 26 mapped-doc saved-artifact parity exception explicit until a native verbatim artifact-save path exists for MCP fetch output; do not silently claim deterministic parity before then
 
 ## Maintenance
 
