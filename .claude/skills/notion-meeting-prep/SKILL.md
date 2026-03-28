@@ -3,6 +3,8 @@ name: notion-meeting-prep
 description: Surface open Action Items and recent email threads for a Meeting's attendees before a call. Use when the user wants a pre-call context brief showing open work and recent correspondence for every Contact attending the meeting.
 ---
 
+<!-- Generated from "ops/notion-workspace/skills/notion-meeting-prep/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+
 # Notion Meeting Prep
 
 Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspace. It holds the current DB IDs, lifecycle rules, and review gate.

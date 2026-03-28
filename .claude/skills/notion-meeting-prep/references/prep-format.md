@@ -1,3 +1,5 @@
+<!-- Generated from "ops/notion-workspace/skills/notion-meeting-prep/references/prep-format.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+
 # Meeting Prep Output Format
 
 ## Replace Strategy

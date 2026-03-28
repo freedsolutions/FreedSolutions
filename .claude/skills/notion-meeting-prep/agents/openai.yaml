@@ -1,0 +1,9 @@
+# Generated from "ops/notion-workspace/skills/notion-meeting-prep/agents/openai.yaml". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly.
+
+interface:
+  display_name: "Notion Meeting Prep"
+  short_description: "Surface open AIs and recent emails for meeting attendees"
+  default_prompt: "Use $notion-meeting-prep to prepare a pre-call context brief from a Meeting URL, ID, title, or 'next meeting'."
+
+policy:
+  allow_implicit_invocation: true
