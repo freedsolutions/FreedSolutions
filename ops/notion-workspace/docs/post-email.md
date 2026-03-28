@@ -169,14 +169,59 @@ Generic domains include:
 - [protonmail.com](http://protonmail.com)
 Within a single run, keep a batch-local entity map for Contacts and Companies. Key Contacts by normalized participant email first, then LinkedIn URL, then strong name-plus-company evidence. Key Companies by matched domain first, then sender-level `Additional Domains` fallback when applicable. Reuse the first matching or newly created entity across sibling messages and same-thread-family work in the batch instead of issuing a second create.
 The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is the concrete regression to prevent here. Treat it as a race-condition-class bug, not just a theory: the create path must either dedup-before-create inside the current batch or serialize Company and Contact creation within that run.
+## 2.4.1: New domain intake handoff
+When Step 2.4 creates a new Draft Company because no domain match was found:
+1. Create a Draft Action Item to prompt Adam's routing-tier review:
+	- **Task Name**: `Review new domain: [domain] ([company name])`
+	- **Status**: `Not started`
+	- **Priority**: `Medium`
+	- **Record Status**: `Draft`
+	- **Company**: the newly created Draft Company
+	- **Contact**: the Contact that triggered the new Company creation
+	- **Source Email**: current Email record
+	- **Task Notes**: include the originating email thread subject, sender, and a suggested routing tier based on the thread content and domain (e.g., "Looks like a vendor — suggest Active Auto or Draft Intake")
+	- **Due Date**: leave blank. Adam sets review priority during Draft triage.
+	- Page icon: `🎬`
+2. Track created domain-intake Action Items in the batch-local entity map, keyed by domain. Do not create a second intake AI for the same domain within the same run.
 ## 2.5: Write the Email record
 - Write the full Contacts relation.
 - Let the Companies rollup populate from Contacts -> Company.
 - If no Contacts remain after exclusions, keep the Email record and note why in `Email Notes`.
 - For Teams notification threads, preserve the Teams-routing label so downstream review can distinguish chat-notification intake from normal email.
 ---
+# Step 2.6: Cross-contextual Action Item matching
+Before creating new Action Items in Step 3, check whether the email thread's work overlaps with existing open Action Items for the same Contact or Company.
+## 2.6.0: Already-wired guard
+If this Email record already appears in any Action Item's `Source Email` relation, skip cross-contextual matching entirely — it was handled in a prior run or resumed partial processing. Proceed directly to Step 3.
+## 2.6.1: Follow-up detection (priority check)
+For each wired Contact on the current Email record:
+1. Query Action Items where the `Type` formula evaluates to `Follow Up`, `Status` is not `Done`, and `Record Status` is `Draft` or `Active`.
+2. If one or more matching Follow Up items exist, flag **all** of them — Adam determines which is resolved. For each:
+	- Prepend `⚡ FOLLOW-UP RECEIVED [YYYY-MM-DD]` to `Task Notes`
+	- Append a 1-2 sentence summary of the email thread context to `Task Notes`
+	- Add the current Email record to the `Source Email` relation
+3. Mark the follow-up work as handled for this Contact. Do **not** create a duplicate Follow Up Action Item in Step 3. If the email thread contains additional actionable work beyond the follow-up subject, those items still proceed to 2.6.2 and Step 3 normally.
+If no Contact-level Follow Up matches were found, also query Action Items where the `Type` formula evaluates to `Follow Up`, `Status` is not `Done`, `Record Status` is `Draft` or `Active`, and `Company` matches any Company wired on the current Email record. Apply the same flagging logic. This catches Company-level Follow Ups where the responding person is a different Contact at the same org.
+## 2.6.2: General semantic matching
+For each actionable item parsed from the email thread (same parsing logic as Step 3.1):
+1. Query open Action Items (`Status` is not `Done`, `Record Status` is `Draft` or `Active`) for any wired Contact or Company on the current Email record.
+2. Compare the email thread's subject, participants, and actionable content against each existing Action Item's Task Name and Task Notes. Use semantic judgment to determine overlap. Err toward flagging weak matches rather than missing them.
+Strong match examples:
+- Email subject "Re: Surfside media buy proposal" → existing AI "Send Jake the Surfside media buy proposal"
+- Email from Eric with attachment "Q1 numbers" → existing AI "Follow up with Eric on Deep Roots Q1 reporting"
+Weak match examples:
+- Email from Jake about "Surfside" → existing AI about Surfside but a different workstream (deck vs. proposal)
+- Same Company, similar topic area, but different Contact and no clear thread connection
+No match:
+- New topic, new Contact, or no existing open AIs for that Contact/Company
+3. Classify each parsed action:
+	- **Strong match**: the email thread clearly continues or advances an existing Action Item's work. Update the existing AI: append `[YYYY-MM-DD] Email context added: [1-line summary]` to `Task Notes`, add the current Email to `Source Email`. Do **not** create a new AI — skip this item in Step 3.
+	- **Weak match**: partial semantic overlap or same Contact but potentially different topic. Create a new Draft AI in Step 3 as normal, but append `⚠️ Possibly related to: [existing AI title]` to `Task Notes`.
+	- **No match**: proceed to Step 3 creation as normal.
+---
 # Step 3: Schema-safe Action Items
 For each Email record that has at least one human contact or a clear business context:
+Step 2.6 may have already handled some actionable items via follow-up detection or strong semantic matching. For any item marked as handled in Step 2.6, skip creation here. The remaining unhandled items proceed through the normal creation flow below.
 ## 3.1: Parse actionable work
 - Create Tasks when Adam owns the work.
 - Create Follow Ups when someone else owns the work.
@@ -208,6 +253,7 @@ Set the page icon to `🎬` when creating a new Action Item or repairing an olde
 ## 3.3: Duplicate protection
 Before creating a new Action Item from a resumed partial run, check existing Source Email-linked Action Items for a materially identical task name. Reuse or skip instead of duplicating.
 Do not assume one-email-per-action-item. `Source Email` is a multi-relation, so when multiple related email threads materially support the same ongoing work item, append the new Email relation to the existing Action Item instead of creating a duplicate task just to preserve the additional thread context.
+Step 2.6 provides cross-contextual dedup across prior runs and existing open Action Items. This step (3.3) remains as the within-run safety net for resumed partial processing within the current batch.
 ---
 # Step 4: Summary and runtime state
 For every processed or resumed Email record:
