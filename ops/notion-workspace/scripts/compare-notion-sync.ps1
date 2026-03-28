@@ -113,6 +113,28 @@ function Test-IsMarkdownTableSeparatorLine {
     return $Line -match '^\s*\|?(?:\s*:?-+:?\s*\|)+(?:\s*:?-+:?\s*)?$'
 }
 
+function Test-IsMarkdownEscapedCharacter {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Text,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Index
+    )
+
+    if ($Index -le 0 -or $Index -gt ($Text.Length - 1)) {
+        return $false
+    }
+
+    $backslashCount = 0
+    for ($i = $Index - 1; $i -ge 0 -and $Text[$i] -eq '\'; $i--) {
+        $backslashCount++
+    }
+
+    return (($backslashCount % 2) -eq 1)
+}
+
 function Get-MarkdownInlineSegments {
     param(
         [AllowEmptyString()]
@@ -125,14 +147,29 @@ function Get-MarkdownInlineSegments {
     $i = 0
 
     while ($i -lt $Text.Length) {
-        if ($Text[$i] -eq '`') {
+        if (($Text[$i] -eq '`') -and (-not (Test-IsMarkdownEscapedCharacter -Text $Text -Index $i))) {
             $tickCount = 1
             while (($i + $tickCount) -lt $Text.Length -and $Text[$i + $tickCount] -eq '`') {
                 $tickCount++
             }
 
             $ticks = '`' * $tickCount
-            $closingIndex = $Text.IndexOf($ticks, $i + $tickCount)
+            $closingIndex = -1
+            $searchIndex = $i + $tickCount
+
+            while ($searchIndex -lt $Text.Length) {
+                $candidateIndex = $Text.IndexOf($ticks, $searchIndex)
+                if ($candidateIndex -lt 0) {
+                    break
+                }
+
+                if (-not (Test-IsMarkdownEscapedCharacter -Text $Text -Index $candidateIndex)) {
+                    $closingIndex = $candidateIndex
+                    break
+                }
+
+                $searchIndex = $candidateIndex + 1
+            }
 
             if ($closingIndex -ge 0) {
                 if ($buffer.Length -gt 0) {
@@ -167,6 +204,26 @@ function Get-MarkdownInlineSegments {
     return $segments.ToArray()
 }
 
+function Get-MarkdownIndentWidth {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Indent
+    )
+
+    $indentWidth = 0
+    foreach ($char in $Indent.ToCharArray()) {
+        if ($char -eq "`t") {
+            $indentWidth += 4
+            continue
+        }
+
+        $indentWidth += 1
+    }
+
+    return $indentWidth
+}
+
 function Get-MarkdownCodeSpanInnerText {
     param(
         [Parameter(Mandatory = $true)]
@@ -196,6 +253,7 @@ function Get-MarkdownCodeSpanInnerText {
 
 function Convert-CanonicalTableCellsToRow {
     param(
+        [AllowEmptyString()]
         [Parameter(Mandatory = $true)]
         [string[]]$Cells
     )
@@ -492,6 +550,7 @@ function Normalize-MarkdownNonCodeSegmentText {
 
 function Normalize-CanonicalTableCellText {
     param(
+        [AllowEmptyString()]
         [Parameter(Mandatory = $true)]
         [string]$Text
     )
@@ -540,6 +599,125 @@ function Normalize-SpacedArrowEscapesOutsideCode {
     return $normalized.ToString()
 }
 
+function Normalize-MarkdownLinksOutsideCode {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Text
+    )
+
+    $normalized = New-Object System.Text.StringBuilder
+
+    foreach ($segment in (Get-MarkdownInlineSegments -Text $Text)) {
+        $segmentText = $segment.Text
+        if (-not $segment.IsCode) {
+            $segmentText = Convert-MarkdownLinksToPlainText -Text $segmentText
+        }
+
+        [void]$normalized.Append($segmentText)
+    }
+
+    return $normalized.ToString()
+}
+
+function Normalize-QuotedFenceMarkers {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Line
+    )
+
+    if ($Line -match '^(?<indent>\s*)>\s*(?:`{1,}|~{1,})\s*$') {
+        return ($Matches['indent'] + '> ```')
+    }
+
+    return $Line
+}
+
+function Normalize-BlockquoteSpacing {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Line
+    )
+
+    if ($Line -notmatch '^(?<indent>\s*)(?<markers>(?:>\s*)+)(?<rest>.*)$') {
+        return $Line
+    }
+
+    $markerCount = [regex]::Matches($Matches['markers'], '>').Count
+    $prefix = $Matches['indent'] + (('> ' * $markerCount).TrimEnd())
+
+    if ([string]::IsNullOrWhiteSpace($Matches['rest'])) {
+        return $prefix
+    }
+
+    return ($prefix + ' ' + $Matches['rest'].TrimStart())
+}
+
+function Normalize-BlockquoteListMarkers {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Line
+    )
+
+    if ($Line -notmatch '^(?<prefix>\s*(?:>\s*)+)(?<marker>(?:[-*+]|\d+\.))\s+(?<rest>.*)$') {
+        return $Line
+    }
+
+    $marker = if ($Matches['marker'] -match '^\d+\.$') { '1.' } else { $Matches['marker'] }
+    return ($Matches['prefix'] + $marker + ' ' + $Matches['rest'])
+}
+
+function Test-IsNestedMarkdownListLine {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Line,
+
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$PreviousNonBlankLine,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$PreviousLineWasBlank
+    )
+
+    $lineMatch = [regex]::Match($Line, '^(?<indent>[ \t]+)(?:[-*+]|\d+\.)\s+')
+    if (-not $lineMatch.Success) {
+        return $false
+    }
+
+    if ($PreviousNonBlankLine -notmatch '^\s*(?:[-*+]|\d+\.)\s+') {
+        return $false
+    }
+
+    return (-not $PreviousLineWasBlank)
+}
+
+function Normalize-MarkdownListIndentation {
+    param(
+        [AllowEmptyString()]
+        [Parameter(Mandatory = $true)]
+        [string]$Line
+    )
+
+    if ($Line -notmatch '^(?<indent>\s*)(?<marker>(?:[-*+]|\d+\.))\s+(?<rest>.*)$') {
+        return $Line
+    }
+
+    $indentWidth = Get-MarkdownIndentWidth -Indent $Matches['indent']
+
+    $marker = if ($Matches['marker'] -match '^\d+\.$') { '1.' } else { $Matches['marker'] }
+    if ($indentWidth -eq 0) {
+        return ($marker + ' ' + $Matches['rest'])
+    }
+
+    $depth = [Math]::Max(1, [int][Math]::Ceiling($indentWidth / 4.0))
+    return (('    ' * $depth) + $marker + ' ' + $Matches['rest'])
+}
+
 function Test-IsLikelyMarkdownTableDataRow {
     param(
         [AllowEmptyString()]
@@ -582,11 +760,23 @@ function Test-IsOptionalBlankNeighborLine {
         return $true
     }
 
+    if ($Line -match '^\s*(?:\*\*[^*\n]+\*\*|__[^_\n]+__)\s*$') {
+        return $true
+    }
+
     if ($Line -match '^\s*(?:---+|\*\*\*+|___+)\s*$') {
         return $true
     }
 
     if ($Line -match '^\s*(?:\[/?TABLE\]|\[ROW\])') {
+        return $true
+    }
+
+    if ($Line -match '^\s*(?:`{3,}|~{3,})') {
+        return $true
+    }
+
+    if ($Line -match ':\s*$') {
         return $true
     }
 
@@ -680,14 +870,39 @@ function Normalize-NotionSyncText {
     $normalized = Convert-MarkdownTablesToCanonical -Text $normalized
 
     $normalizedLines = $normalized -split "`n"
+    $previousNonBlankLines = New-Object 'string[]' $normalizedLines.Count
+    $nextNonBlankLines = New-Object 'string[]' $normalizedLines.Count
     $normalizedOutput = New-Object System.Collections.Generic.List[string]
     $inFence = $false
     $fenceMarker = ''
 
+    $lastNonBlankLine = ''
+    for ($i = 0; $i -lt $normalizedLines.Count; $i++) {
+        $previousNonBlankLines[$i] = $lastNonBlankLine
+        if ($normalizedLines[$i].Trim().Length -gt 0) {
+            $lastNonBlankLine = [regex]::Replace($normalizedLines[$i], '[ \t]+$', '')
+        }
+    }
+
+    $nextNonBlankLine = ''
+    for ($i = $normalizedLines.Count - 1; $i -ge 0; $i--) {
+        $nextNonBlankLines[$i] = $nextNonBlankLine
+        if ($normalizedLines[$i].Trim().Length -gt 0) {
+            $nextNonBlankLine = [regex]::Replace($normalizedLines[$i], '[ \t]+$', '')
+        }
+    }
+
     for ($i = 0; $i -lt $normalizedLines.Count; $i++) {
         $rawLine = $normalizedLines[$i]
-        $isIndentedCode = $rawLine -match '^(?: {4}|\t)'
         $rawLineWithoutTrailingWhitespace = [regex]::Replace($rawLine, '[ \t]+$', '')
+        $previousNonBlankRawLine = $previousNonBlankLines[$i]
+        $previousLineWasBlank = ($i -gt 0) -and ($normalizedLines[$i - 1].Trim().Length -eq 0)
+
+        $isNestedListLine = Test-IsNestedMarkdownListLine -Line $rawLineWithoutTrailingWhitespace -PreviousNonBlankLine $previousNonBlankRawLine -PreviousLineWasBlank $previousLineWasBlank
+        $isIndentedCode = (
+            ($rawLine -match '^(?: {4}|\t)') -and
+            (-not $isNestedListLine)
+        )
         $fenceState = Update-MarkdownFenceState -Line $rawLineWithoutTrailingWhitespace -InFence $inFence -FenceMarker $fenceMarker
         $inFence = $fenceState.InFence
         $fenceMarker = $fenceState.FenceMarker
@@ -702,32 +917,35 @@ function Normalize-NotionSyncText {
             continue
         }
 
-        $line = $rawLineWithoutTrailingWhitespace -replace "`t", '  '
+        $line = $rawLineWithoutTrailingWhitespace
 
         if (-not $isIndentedCode) {
+            if ($line -match '^\s*(?:[-*+]|\d+\.)\s+') {
+                $line = Normalize-MarkdownListIndentation -Line $line
+            } else {
+                $line = $line -replace "`t", '  '
+            }
+
+            $line = Normalize-QuotedFenceMarkers -Line $line
+            $line = Normalize-BlockquoteSpacing -Line $line
+            $line = Normalize-BlockquoteListMarkers -Line $line
+            $line = Normalize-MarkdownLinksOutsideCode -Text $line
             $line = Normalize-SpacedArrowEscapesOutsideCode -Text $line
+
+            if ($line.Trim() -eq '>') {
+                $line = ''
+            }
+        } else {
+            $line = $line -replace "`t", '  '
         }
 
         if ($line.Trim().Length -eq 0) {
-            $previousNonBlank = $null
-            for ($j = $i - 1; $j -ge 0; $j--) {
-                if ($normalizedLines[$j].Trim().Length -gt 0) {
-                    $previousNonBlank = $normalizedLines[$j]
-                    break
-                }
-            }
-
-            $nextNonBlank = $null
-            for ($j = $i + 1; $j -lt $normalizedLines.Count; $j++) {
-                if ($normalizedLines[$j].Trim().Length -gt 0) {
-                    $nextNonBlank = $normalizedLines[$j]
-                    break
-                }
-            }
+            $previousNonBlank = $previousNonBlankLines[$i]
+            $nextNonBlank = $nextNonBlankLines[$i]
 
             if (
-                (($null -ne $previousNonBlank) -and (Test-IsOptionalBlankNeighborLine -Line $previousNonBlank)) -or
-                (($null -ne $nextNonBlank) -and (Test-IsOptionalBlankNeighborLine -Line $nextNonBlank))
+                (($previousNonBlank.Length -gt 0) -and (Test-IsOptionalBlankNeighborLine -Line $previousNonBlank)) -or
+                (($nextNonBlank.Length -gt 0) -and (Test-IsOptionalBlankNeighborLine -Line $nextNonBlank))
             ) {
                 continue
             }

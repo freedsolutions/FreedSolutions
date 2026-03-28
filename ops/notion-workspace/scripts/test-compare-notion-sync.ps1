@@ -149,6 +149,96 @@ try {
     Write-Utf8File -Path $remote11 -Content "# Title`nBody`n"
     Expect-Pass -Name 'single-blank-line-normalization' -Local $local11 -Remote $remote11
 
+    $local11b = Join-Path $tempDir 'local-list-lead-in.md'
+    $remote11b = Join-Path $tempDir 'remote-list-lead-in-blank.md'
+    Write-Utf8File -Path $local11b -Content "Checklist:`n- One`n- Two`n"
+    Write-Utf8File -Path $remote11b -Content "Checklist:`n`n- One`n- Two`n"
+    Expect-Pass -Name 'list-lead-in-blank-line-normalization' -Local $local11b -Remote $remote11b
+
+    $local11c = Join-Path $tempDir 'local-nested-list-tab.md'
+    $remote11c = Join-Path $tempDir 'remote-nested-list-spaces.md'
+    Write-Utf8File -Path $local11c -Content ("1. Parent`n`t- Child`n")
+    Write-Utf8File -Path $remote11c -Content ("1. Parent`n    - Child`n")
+    Expect-Pass -Name 'nested-list-indentation-normalization' -Local $local11c -Remote $remote11c
+
+    $local11c2 = Join-Path $tempDir 'local-indented-dash-code.md'
+    $remote11c2 = Join-Path $tempDir 'remote-top-level-dash-list.md'
+    Write-Utf8File -Path $local11c2 -Content ("Example:`n    - dash-in-code`n")
+    Write-Utf8File -Path $remote11c2 -Content ("Example:`n- dash-in-code`n")
+    Expect-Fail -Name 'indented-dash-code-preserved' -Local $local11c2 -Remote $remote11c2
+
+    $local11c3 = Join-Path $tempDir 'local-indented-number-code.md'
+    $remote11c3 = Join-Path $tempDir 'remote-top-level-number-list.md'
+    Write-Utf8File -Path $local11c3 -Content ("Example:`n    1. number-in-code`n")
+    Write-Utf8File -Path $remote11c3 -Content ("Example:`n1. number-in-code`n")
+    Expect-Fail -Name 'indented-number-code-preserved' -Local $local11c3 -Remote $remote11c3
+
+    $local11c4 = Join-Path $tempDir 'local-list-context-indented-code.md'
+    $remote11c4 = Join-Path $tempDir 'remote-list-context-indented-code.md'
+    Write-Utf8File -Path $local11c4 -Content ("- Parent`n    - code-lookalike`n")
+    Write-Utf8File -Path $remote11c4 -Content ("- Parent`n- code-lookalike`n")
+    Expect-Fail -Name 'list-context-indented-code-preserved' -Local $local11c4 -Remote $remote11c4
+
+    $local11d = Join-Path $tempDir 'local-ordered-list-number.md'
+    $remote11d = Join-Path $tempDir 'remote-ordered-list-number.md'
+    Write-Utf8File -Path $local11d -Content ("13. Parent`n")
+    Write-Utf8File -Path $remote11d -Content ("1. Parent`n")
+    Expect-Pass -Name 'ordered-list-number-normalization' -Local $local11d -Remote $remote11d
+
+    $local11d2 = Join-Path $tempDir 'local-nested-ordered-list-number.md'
+    $remote11d2 = Join-Path $tempDir 'remote-nested-ordered-list-number.md'
+    Write-Utf8File -Path $local11d2 -Content ("- Parent`n    7. Child`n")
+    Write-Utf8File -Path $remote11d2 -Content ("- Parent`n    1. Child`n")
+    Expect-Pass -Name 'nested-ordered-list-number-normalization' -Local $local11d2 -Remote $remote11d2
+
+    $local11d3 = Join-Path $tempDir 'local-multi-level-nested-list-tabs.md'
+    $remote11d3 = Join-Path $tempDir 'remote-multi-level-nested-list-spaces.md'
+    Write-Utf8File -Path $local11d3 -Content ("- Parent`n`t- Child`n`t`t- Grandchild`n")
+    Write-Utf8File -Path $remote11d3 -Content ("- Parent`n    - Child`n        - Grandchild`n")
+    Expect-Pass -Name 'multi-level-nested-list-depth-preserved' -Local $local11d3 -Remote $remote11d3
+
+    $local11e = Join-Path $tempDir 'local-code-fence-spacing.md'
+    $remote11e = Join-Path $tempDir 'remote-code-fence-spacing.md'
+    Write-Utf8File -Path $local11e -Content ('```text' + "`n" + 'Body' + "`n" + '```' + "`n")
+    Write-Utf8File -Path $remote11e -Content ("`n" + '```text' + "`n" + 'Body' + "`n" + '```' + "`n")
+    Expect-Pass -Name 'code-fence-blank-line-normalization' -Local $local11e -Remote $remote11e
+
+    $local11f = Join-Path $tempDir 'local-bold-lead-in.md'
+    $remote11f = Join-Path $tempDir 'remote-bold-lead-in-blank.md'
+    Write-Utf8File -Path $local11f -Content ("**Tier 2: Full Contacts DB (fallback)**`nIf Tier 1 fails.`n")
+    Write-Utf8File -Path $remote11f -Content ("**Tier 2: Full Contacts DB (fallback)**`n`nIf Tier 1 fails.`n")
+    Expect-Pass -Name 'bold-lead-in-blank-line-normalization' -Local $local11f -Remote $remote11f
+
+    $local11g = Join-Path $tempDir 'local-empty-blockquote-line.md'
+    $remote11g = Join-Path $tempDir 'remote-empty-blockquote-line.md'
+    Write-Utf8File -Path $local11g -Content (">`n> **Grouped as 1 Action Item:**`n")
+    Write-Utf8File -Path $remote11g -Content ("`n> **Grouped as 1 Action Item:**`n")
+    Expect-Pass -Name 'empty-blockquote-line-normalization' -Local $local11g -Remote $remote11g
+
+    $local11h = Join-Path $tempDir 'local-blockquote-fence.md'
+    $remote11h = Join-Path $tempDir 'remote-blockquote-fence.md'
+    Write-Utf8File -Path $local11h -Content (('>   ' + '```') + "`n" + '>   body' + "`n" + ('>   ' + '```') + "`n")
+    Write-Utf8File -Path $remote11h -Content ('> `' + "`n`n" + '>   body' + "`n`n" + '> `' + "`n")
+    Expect-Pass -Name 'blockquote-fence-normalization' -Local $local11h -Remote $remote11h
+
+    $local11i = Join-Path $tempDir 'local-blockquote-spacing.md'
+    $remote11i = Join-Path $tempDir 'remote-blockquote-spacing.md'
+    Write-Utf8File -Path $local11i -Content ('>   ## Sub-tasks' + "`n")
+    Write-Utf8File -Path $remote11i -Content ('> ## Sub-tasks' + "`n")
+    Expect-Pass -Name 'blockquote-spacing-normalization' -Local $local11i -Remote $remote11i
+
+    $local11j = Join-Path $tempDir 'local-blockquote-list.md'
+    $remote11j = Join-Path $tempDir 'remote-blockquote-list.md'
+    Write-Utf8File -Path $local11j -Content ('>   - Child' + "`n")
+    Write-Utf8File -Path $remote11j -Content ('> - Child' + "`n")
+    Expect-Pass -Name 'blockquote-list-normalization' -Local $local11j -Remote $remote11j
+
+    $local11k = Join-Path $tempDir 'local-blockquote-ordered-list.md'
+    $remote11k = Join-Path $tempDir 'remote-blockquote-ordered-list.md'
+    Write-Utf8File -Path $local11k -Content ('>   7. Child' + "`n")
+    Write-Utf8File -Path $remote11k -Content ('> 1. Child' + "`n")
+    Expect-Pass -Name 'blockquote-ordered-list-normalization' -Local $local11k -Remote $remote11k
+
     $local12 = Join-Path $tempDir 'local-escaped-pipe.md'
     $remote12 = Join-Path $tempDir 'remote-escaped-pipe.md'
     Write-Utf8File -Path $local12 -Content "| Name | Value |`n| --- | --- |`n| Foo \| Bar | Baz |`n"
@@ -242,6 +332,36 @@ try {
     Write-Utf8File -Path $remote20d -Content ('<table><tr><td>Label</td><td>Value</td></tr><tr><td>Email</td><td><a href="mailto:adam@example.com">adam@example.com</a></td></tr></table>' + "`n")
     Expect-Pass -Name 'email-autolink-table-normalization' -Local $local20d -Remote $remote20d
 
+    $local20d2 = Join-Path $tempDir 'local-email-list.md'
+    $remote20d2 = Join-Path $tempDir 'remote-email-list.md'
+    Write-Utf8File -Path $local20d2 -Content ('- adam@example.com' + "`n")
+    Write-Utf8File -Path $remote20d2 -Content ('- [adam@example.com](mailto:adam@example.com)' + "`n")
+    Expect-Pass -Name 'email-list-mailto-normalization' -Local $local20d2 -Remote $remote20d2
+
+    $local20d3 = Join-Path $tempDir 'local-domain-list.md'
+    $remote20d3 = Join-Path $tempDir 'remote-domain-list.md'
+    Write-Utf8File -Path $local20d3 -Content ('- Any email ending in @resource.calendar.google.com' + "`n")
+    Write-Utf8File -Path $remote20d3 -Content ('- Any email ending in @[resource.calendar.google.com](http://resource.calendar.google.com)' + "`n")
+    Expect-Pass -Name 'domain-link-list-normalization' -Local $local20d3 -Remote $remote20d3
+
+    $local20d5 = Join-Path $tempDir 'local-inline-link-paragraph.md'
+    $remote20d5 = Join-Path $tempDir 'remote-inline-link-paragraph.md'
+    Write-Utf8File -Path $local20d5 -Content ('See [Settings](https://example.com)' + "`n")
+    Write-Utf8File -Path $remote20d5 -Content ('See Settings' + "`n")
+    Expect-Pass -Name 'inline-link-paragraph-normalization' -Local $local20d5 -Remote $remote20d5
+
+    $local20d6 = Join-Path $tempDir 'local-inline-link-parentheses.md'
+    $remote20d6 = Join-Path $tempDir 'remote-inline-link-parentheses.md'
+    Write-Utf8File -Path $local20d6 -Content ('See [Docs](https://example.com/docs(test))' + "`n")
+    Write-Utf8File -Path $remote20d6 -Content ('See Docs' + "`n")
+    Expect-Pass -Name 'inline-link-parentheses-normalization' -Local $local20d6 -Remote $remote20d6
+
+    $local20d7 = Join-Path $tempDir 'local-escaped-backticks.md'
+    $remote20d7 = Join-Path $tempDir 'remote-escaped-backticks.md'
+    Write-Utf8File -Path $local20d7 -Content ('Keep \`not code\` and [Docs](https://example.com)' + "`n")
+    Write-Utf8File -Path $remote20d7 -Content ('Keep \`not code\` and Docs' + "`n")
+    Expect-Pass -Name 'escaped-backticks-not-code' -Local $local20d7 -Remote $remote20d7
+
     $local20e = Join-Path $tempDir 'local-emphasis-table.md'
     $remote20e = Join-Path $tempDir 'remote-emphasis-table.md'
     Write-Utf8File -Path $local20e -Content ('| Label | Value |' + "`n" + '| --- | --- |' + "`n" + '| *Focus* | **Done** |' + "`n")
@@ -271,6 +391,12 @@ try {
     Write-Utf8File -Path $local20i -Content ('| Label | Value |' + "`n" + '| --- | --- |' + "`n" + '| Link | [A|B](https://example.com) |' + "`n")
     Write-Utf8File -Path $remote20i -Content ('<table><tr><td>Label</td><td>Value</td></tr><tr><td>Link</td><td><a href="https://example.com">A|B</a></td></tr></table>' + "`n")
     Expect-Pass -Name 'link-label-pipe-table-normalization' -Local $local20i -Remote $remote20i
+
+    $local20j = Join-Path $tempDir 'local-empty-cell-table.md'
+    $remote20j = Join-Path $tempDir 'remote-empty-cell-table.md'
+    Write-Utf8File -Path $local20j -Content ('| Name | Email | Notes |' + "`n" + '| --- | --- | --- |' + "`n" + '| Morgan Carlone | [morgan@primitivgroup.com](mailto:morgan@primitivgroup.com) |  |' + "`n")
+    Write-Utf8File -Path $remote20j -Content ('<table><tr><td>Name</td><td>Email</td><td>Notes</td></tr><tr><td>Morgan Carlone</td><td><a href="mailto:morgan@primitivgroup.com">morgan@primitivgroup.com</a></td><td></td></tr></table>' + "`n")
+    Expect-Pass -Name 'empty-cell-table-normalization' -Local $local20j -Remote $remote20j
 
     $local21 = Join-Path $tempDir 'local-uppercase-html-table.md'
     $remote21 = Join-Path $tempDir 'remote-uppercase-html-table.md'
