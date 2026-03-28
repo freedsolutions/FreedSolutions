@@ -24,7 +24,9 @@ node_modules/
 __pycache__/
 *.pyc
 ops/notion-workspace/.tmp/
+ops/notion-workspace/tmp/
 ops/local_db/credentials/
+ops/local_db/config.yaml
 ops/local_db/*.db
 ops/local_db/*.sqlite
 ops/local_db/*.sqlite3
