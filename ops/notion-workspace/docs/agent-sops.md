@@ -121,6 +121,11 @@ Naming conventions:
 <td>`ops/notion-workspace/skills/notion-agent-test/`</td>
 <td>Run smoke or regression tests for Notion Custom Agents using the local playbooks</td>
 </tr>
+<tr>
+<td>`notion-meeting-prep`</td>
+<td>`ops/notion-workspace/skills/notion-meeting-prep/`</td>
+<td>Surface open Action Items and recent emails for a Meeting's attendees before a call</td>
+</tr>
 </table>
 Skill publish workflow:
 1. Edit the canonical skill source in the repo.
@@ -369,6 +374,7 @@ Claude Code is the default execution surface. Start from the repo and use the sk
 - For Action Item execution: use `notion-action-item`
 - For Custom Agent config audits or edits: use `notion-agent-config`
 - For Custom Agent smoke or regression testing: use `notion-agent-test`
+- For pre-call meeting context: use `notion-meeting-prep`
 - For broader Notion workspace work without a matching skill: use Claude Code directly against the local docs and live Notion workspace
 Optional planning chat surfaces can still help think through a problem, but they are not the authoritative workflow owner and do not replace the repo-backed source files.
 
