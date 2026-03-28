@@ -18,7 +18,7 @@
 | LinkedIn | url | Canonical form: `https://www.linkedin.com/in/<slug>` |
 | Company | relation | |
 | Role / Title | rich_text | |
-| Record Status | select | `Draft` / `Active` / `Delete` |
+| Record Status | select | `Draft` / `Active` |
 | Contact Notes | rich_text | |
 
 ## Companies DB
@@ -38,7 +38,7 @@
 | Action Items | relation | |
 | Engagements | relation | |
 | Tech Stack | multi_select | |
-| Record Status | select | `Draft` / `Active` / `Delete` |
+| Record Status | select | `Draft` / `Active` |
 | Company Notes | rich_text | |
 
 ## Action Items DB
@@ -49,7 +49,7 @@
 | Type | formula | |
 | Status | select | |
 | Priority | select | |
-| Record Status | select | `Draft` / `Active` / `Delete` |
+| Record Status | select | `Draft` / `Active` |
 | Task Notes | rich_text | |
 | Due Date | date | |
 | Created Date | created_time | |
@@ -81,7 +81,7 @@
 | Is Series Parent | checkbox | |
 | Series Status | rollup | |
 | Location | rich_text | |
-| Record Status | select | `Draft` / `Active` / `Delete` |
+| Record Status | select | `Draft` / `Active` |
 | QC | formula | |
 
 ## Emails DB
@@ -99,7 +99,7 @@
 | Target Action Items | relation | Reciprocal of Action Items.Target Email |
 | Labels | multi_select | Routing: `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, `LinkedIn`, `DMC/DMC_GMail` |
 | Source | select | `Email - Freed Solutions`, `Email - Personal`, `LinkedIn - DMs` |
-| Record Status | select | `Draft` / `Active` / `Delete` |
+| Record Status | select | `Draft` / `Active` |
 | Email Notes | rich_text | |
 | QC | formula | |
 | Created Timestamp | created_time | |

@@ -281,10 +281,8 @@ There is a Notion database automation, not a Custom Agent, on page creation in M
 All five source databases use the same `Record Status` select:
 - `Draft`
 - `Active`
-- `Delete`
-Only Adam promotes records to `Active`. Agents create Draft records and never change `Record Status`. To delete a record, set `Record Status = Delete` and trash it — Notion automatically clears reciprocal relations. Permanent delete from Notion trash is Adam's manual step.
+Only Adam promotes records to `Active`. Agents create Draft records and never change `Record Status`. To delete a record, trash it directly in Notion — there is no intermediate status. Notion automatically clears reciprocal relations. Permanent delete from Notion trash is Adam's manual step.
 Archiving is Adam's UI-managed lifecycle step for records that should be hidden from active views but preserved with full wiring for future use. Archived records remain searchable by agents for dedup and contact matching.
-The live schema may still physically expose a legacy `Inactive` select option in some databases. Treat it as a retired schema artifact and do not use it in workflow logic or new automation behavior.
 ## Contacts
 - Dedup across `Email`, `Secondary Email`, and `Tertiary Email`
 - New or repaired Contact pages should use the `👤` page icon for visual consistency
