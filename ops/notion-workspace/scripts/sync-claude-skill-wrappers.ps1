@@ -39,7 +39,7 @@ function Get-ClaudeSkillCopyContent {
         [string]$RelativePath
     )
 
-    $raw = Get-Content -Path $SourceFile -Raw
+    $raw = Get-Content -Path $SourceFile -Raw -Encoding UTF8
     $newline = if ($raw -match "`r`n") { "`r`n" } else { "`n" }
     $sourcePath = "ops/notion-workspace/skills/$SkillName/$RelativePath".Replace('\', '/')
     $message = "Generated from `"$sourcePath`". Edit the repo skill source and rerun `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`; do not edit this Claude copy directly."
@@ -117,7 +117,7 @@ function Test-DirectoryMatchesSource {
 
         if ($relativePath -eq "SKILL.md") {
             $expectedContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $SkillName -RelativePath $relativePath
-            $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw
+            $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw -Encoding UTF8
             $normalizedExpected = $expectedContent -replace "\r\n", "`n"
             $normalizedActual = $actualContent -replace "\r\n", "`n"
 
@@ -126,7 +126,7 @@ function Test-DirectoryMatchesSource {
             }
         } elseif ($relativePath -match '\.(md|ya?ml)$') {
             $expectedContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $SkillName -RelativePath $relativePath
-            $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw
+            $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw -Encoding UTF8
             $normalizedExpected = $expectedContent -replace "\r\n", "`n"
             $normalizedActual = $actualContent -replace "\r\n", "`n"
 
