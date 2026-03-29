@@ -278,6 +278,11 @@ For every processed or resumed Email record:
 	- retained in Notion and fully wired, including any Action Item creation or Action Item reuse that closes the intake decision
 	- or an explicit intentional skip such as bot-only noise
 	- or classified as meeting-support-only rather than normal Email intake
+- After marking a thread read, also **archive it** (remove the `INBOX` label) so processed threads leave the inbox automatically. Archival rules by context:
+	- **Known domain with filter** (any Routing Tier except Block): archive after processing. The Gmail filter handles future labeling; the CRM record is the retained trail.
+	- **New domain** (Draft Intake, no filter yet): do **not** archive. Leave in inbox until Adam reviews the Domain record and sets a Routing Tier. Once the tier is set and a filter is created, the cleanup pass or next agent run archives it.
+	- **Block tier**: archive + mark read immediately. No CRM record retained.
+	- **Generic domain personal contacts**: apply `Personal` or `My Network` label, mark read, archive.
 - If a retained Email row still carries `INBOX` after a manual or bounded Gmail cleanup pass, clear only the stale `INBOX` label from the Email row so Notion backlog views no longer treat it as active inbox work. Preserve any non-`INBOX` routed or company labels that still describe the thread.
 - For threads from personal or generic-domain contacts where the Contact's Company Type is `Personal` or `Network`, apply the Gmail label `Personal` or `My Network` (matching Company Type) and mark the thread read as part of terminal state handling. This is a cleanup action, not a filter rule — no Domains DB record or Gmail filter is needed for these.
 - If the thread still needs manual identity review, company recovery, or retry after an agent failure, leave it unread and list the exact `Thread ID` as an explicit unresolved exception. Do not silently leave it behind.
