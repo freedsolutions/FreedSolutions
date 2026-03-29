@@ -11,6 +11,7 @@
 | Action Items | `319adb01-222f-8059-bd33-000b029a2fdd` |
 | Meetings | `31fadb01-222f-80c0-acf7-000b401a5756` |
 | Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` |
+| Domains | `9f8ea73a-a8d3-43fb-a2b6-7ff77ebd6e69` |
 
 ## Notion-Only Resource Pages
 

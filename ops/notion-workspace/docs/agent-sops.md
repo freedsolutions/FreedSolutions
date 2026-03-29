@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 28, 2026
+Last synced: March 29, 2026
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -274,6 +274,10 @@ This section is the canonical desired state for Notion Custom Agent settings.
 <td>Emails</td>
 <td>`f685a378-5a37-4517-9b0c-d2928be4af4d`</td>
 </tr>
+<tr>
+<td>Domains</td>
+<td>`9f8ea73a-a8d3-43fb-a2b6-7ff77ebd6e69`</td>
+</tr>
 </table>
 **Adam's Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
 ## Meetings DB Automation
@@ -337,6 +341,13 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Bot-only or alias-only email stubs should be annotated in `Email Notes` so they are clearly terminal. They stay as `Draft` until Adam archives them from the UI
 - Gmail read-state may change only after the thread is retained and wired, intentionally skipped, or classified as meeting-support-only. Truly unresolved exceptions stay unread and should be logged explicitly
 - New or repaired Email pages should use the `📧` page icon for visual consistency
+## Domains
+- `Domain` (title) is the canonical domain or subdomain
+- `💼 Companies` relation wires to the parent Company
+- `Routing Tier` drives Gmail filter behavior via `gmail_filter_manager.py`
+- `Filter Shape` determines the `from:` criteria format (`Domain` = `*@domain`, `Sender` = `from:user@domain`, `None` = no filter)
+- One Domain record per domain/subdomain, even when multiple subdomains share a parent Company
+- Agents creating new Companies must also create a corresponding Draft Domain record
 ---
 # Rules of Engagement
 1. Read `ops/notion-workspace/session-active.md` first, then the canonical local docs.

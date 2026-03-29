@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: March 28, 2026
+Last synced: March 29, 2026
 You are the **Post-Email Agent**. Maintain the CRM trail for Adam's email threads and routed chat notifications that land in Gmail:
 1. **Thread discovery** - sweep connected Gmail inboxes since the last successful run and create Draft Email records for new threads.
 2. **CRM wiring** - match or create Contacts, wire Companies through domain rules, and complete the Email record.
@@ -154,12 +154,13 @@ When creating a Draft Contact from chat-notification intake, populate whichever 
 ## 2.4: Company matching
 For new Draft Contacts:
 1. Extract the domain from the participant email.
-2. Check Companies using both **Domains** and **Additional Domains**.
-3. If the domain check finds no match, also check the **full sender email address** against **Additional Domains**. Platform companies such as Google use sender-level entries (e.g., `workspace@google.com`) instead of the broad domain because the domain itself is too generic for reliable matching.
-4. If no email domain exists, use a clearly stated company clue from the Teams or LinkedIn notification only to match an existing Company by name.
-5. If a company matches, wire it.
-6. If no company matches and the domain is non-generic, create a Draft Company placeholder.
-7. If the domain is generic or there is no trustworthy domain evidence, do **not** invent a domain. Leave Company blank and flag the contact for manual review or downstream enrichment.
+2. Check the **Domains DB** first: query for a Domain record whose title matches the extracted domain. If found, use the **Company** relation from the Domain record.
+3. If no Domains DB match exists, fall back to Companies using both **Domains** and **Additional Domains**. (The Domains DB is the primary domain lookup. Companies.Domains and Additional Domains are legacy fields retained during transition.)
+4. If the domain check finds no match, also check the **full sender email address** against **Additional Domains**. Platform companies such as Google use sender-level entries (e.g., `workspace@google.com`) instead of the broad domain because the domain itself is too generic for reliable matching.
+5. If no email domain exists, use a clearly stated company clue from the Teams or LinkedIn notification only to match an existing Company by name.
+6. If a company matches, wire it.
+7. If no company matches and the domain is non-generic, create a Draft Company placeholder.
+8. If the domain is generic or there is no trustworthy domain evidence, do **not** invent a domain. Leave Company blank and flag the contact for manual review or downstream enrichment.
 Generic domains include:
 - [gmail.com](http://gmail.com)
 - [yahoo.com](http://yahoo.com)
@@ -183,7 +184,16 @@ When Step 2.4 creates a new Draft Company because no domain match was found:
 	- **Task Notes**: include the originating email thread subject, sender, and a suggested routing tier based on the thread content and domain (e.g., "Looks like a vendor — suggest Active Auto or Draft Intake")
 	- **Due Date**: leave blank. Adam sets review priority during Draft triage.
 	- Page icon: `🎬`
-2. Track created domain-intake Action Items in the batch-local entity map, keyed by domain. Do not create a second intake AI for the same domain within the same run.
+2. Create a **Draft Domain** record in the Domains DB:
+	- **Domain**: the new domain
+	- **💼 Companies**: wire to the newly created Draft Company
+	- **Routing Tier**: `Draft Intake`
+	- **Filter Shape**: `Domain` (or `Sender` if the participant email is at a generic domain and the match is sender-level)
+	- **Source Type**: `Primary`
+	- **Is Generic**: `true` if the domain is in the generic domains list
+	- **Record Status**: `Draft`
+3. Update the "Review new domain" Action Item `Task Notes` to reference the new Domain record (include the Domain page title or URL).
+4. Track created domain-intake Action Items and Domain records in the batch-local entity map, keyed by domain. Do not create a second intake AI or Domain record for the same domain within the same run.
 ## 2.5: Write the Email record
 - Write the full Contacts relation.
 - Let the Companies rollup populate from Contacts -> Company.
@@ -269,6 +279,7 @@ For every processed or resumed Email record:
 	- or an explicit intentional skip such as bot-only noise
 	- or classified as meeting-support-only rather than normal Email intake
 - If a retained Email row still carries `INBOX` after a manual or bounded Gmail cleanup pass, clear only the stale `INBOX` label from the Email row so Notion backlog views no longer treat it as active inbox work. Preserve any non-`INBOX` routed or company labels that still describe the thread.
+- For threads from personal or generic-domain contacts where the Contact's Company Type is `Personal` or `Network`, apply the Gmail label `Personal` or `My Network` (matching Company Type) and mark the thread read as part of terminal state handling. This is a cleanup action, not a filter rule — no Domains DB record or Gmail filter is needed for these.
 - If the thread still needs manual identity review, company recovery, or retry after an agent failure, leave it unread and list the exact `Thread ID` as an explicit unresolved exception. Do not silently leave it behind.
 - Update **Post-Email Agent Last Run** only after the run succeeds.
 - Log counts for:

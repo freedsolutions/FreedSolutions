@@ -28,8 +28,8 @@
 | Company Name | title | |
 | Company Type | select | Tech Stack, Operator, Network, Personal |
 | QC | formula | |
-| Domains | multi_select | Primary domains — dedup field |
-| Additional Domains | multi_select | Merged/subsidiary/sender-level — dedup field. May hold full sender email for platform companies. |
+| Domains | rich_text | Primary domains — dedup field (legacy — see Domains DB) |
+| Additional Domains | rich_text | Merged/subsidiary/sender-level — dedup field. May hold full sender email for platform companies. (legacy — see Domains DB) |
 | States | select | Default: "All" |
 | Website | url | |
 | Contacts | relation | |
@@ -103,6 +103,21 @@
 | Email Notes | rich_text | |
 | QC | formula | |
 | Created Timestamp | created_time | |
+
+## Domains DB
+
+| Property | Type | Notes |
+|----------|------|-------|
+| Domain | title | Canonical domain or subdomain |
+| 💼 Companies | relation | Parent Company |
+| Routing Tier | select | Label, Silent Label, Archive, Block, Draft Intake |
+| Filter Shape | select | Domain, Sender, None |
+| Gmail Label | rich_text | |
+| Gmail Filter ID | rich_text | |
+| Is Generic | checkbox | |
+| Source Type | select | Primary, Additional, Sender-Level |
+| Notes | rich_text | |
+| Record Status | select | `Draft` / `Active` |
 
 ## Dedup Rules
 

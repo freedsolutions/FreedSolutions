@@ -19,14 +19,14 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-28 |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-03-29 |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-primary action items with summary/transcript fallback -> curated summary). Uses live `Calendar Name` options only. | 2026-03-27 |
-| `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-28 |
+| `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-03-29 |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-22 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
-| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-28 |
+| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: Gmail sweep -> CRM wiring -> schema-safe action items -> thread summary with partial-run recovery | 2026-03-29 |
 | `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
 | `docs/domain-intake.md` | - | Operator checklist for new domain routing-tier decisions from Post-Email intake | - |
 | `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | - |
@@ -80,6 +80,9 @@ The repo is the canonical home for session handoff docs.
 | Action Items | `319adb01-222f-8059-bd33-000b029a2fdd` |
 | Meetings | `31fadb01-222f-80c0-acf7-000b401a5756` |
 | Emails | `f685a378-5a37-4517-9b0c-d2928be4af4d` |
+| Domains | `9f8ea73a-a8d3-43fb-a2b6-7ff77ebd6e69` |
+
+The IDs listed here are Notion Data Source IDs used by MCP and Custom Agents. The direct Notion API uses different database UUIDs — see `ops/local_db/config.yaml` for API-facing IDs.
 
 **Adam's Notion User ID:** `30cd872b-594c-81b7-99dc-0002af0f255a`
 
@@ -170,7 +173,8 @@ Pause and ask before proceeding only when any of the following are true:
 
 - **Record Status** (select on Contacts, Companies, Action Items, Meetings, Emails): `Draft` -> `Active`. Only two values. Archiving (Notion UI) is an orthogonal visibility layer - records are hidden from views but preserve all wiring and remain searchable by agents for dedup.
 - **Contacts DB:** Contact Name (title), Display Name (formula), QC (formula), Email, Secondary Email, Tertiary Email, Phone, Pronouns, Nickname, LinkedIn, Company, Role / Title, Record Status, Contact Notes
-- **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), QC (formula), Domains, Additional Domains, States (multi_select: MA, MI, CT, NJ, FL, OH, PA, CA, All, AR, MO, MS, LA; default: "All"), Website, Contacts, Emails (rollup), Meetings (rollup), Action Items, Engagements, Tech Stack, Record Status, Company Notes
+- **Companies DB:** Company Name (title), Company Type (select: Tech Stack, Operator, Network, Personal), QC (formula), Domains (rich_text), Additional Domains (rich_text), States (multi_select: MA, MI, CT, NJ, FL, OH, PA, CA, All, AR, MO, MS, LA; default: "All"), Website, Contacts, Emails (rollup), Meetings (rollup), Action Items, Engagements, Tech Stack, Record Status, Company Notes. *Legacy fields — the Domains DB is the primary domain lookup. Domains and Additional Domains are retained during transition.*
+- **Domains DB:** Domain (title), 💼 Companies (relation), Routing Tier (select: Label, Silent Label, Archive, Block, Draft Intake), Filter Shape (select: Domain, Sender, None), Gmail Label (rich_text), Gmail Filter ID (rich_text), Is Generic (checkbox), Source Type (select: Primary, Additional, Sender-Level), Notes (rich_text), Record Status (select: Draft, Active)
 - **Action Items DB:** Task Name (title), Type (formula), Status, Priority, Record Status, Task Notes, Due Date, Created Date (created_time), Contact, Company, Assignee, Source Meeting, Source Email, Target Meeting, Target Email, Attach File, QC (formula)
 - **Meetings DB:** Meeting Title (title), Calendar Event ID, Calendar Name, Date, Contacts, Companies (rollup), Action Items, Target Action Items, Series, Series Key, Instances, Is Series Parent, Series Status (rollup), Location, Record Status, QC (formula)
 - **Emails DB:** Email Subject (title), Thread ID, From, Direction (formula), Date, Contacts, Companies (rollup), Action Items, Target Action Items, Labels (multi_select), Source (select: Email - Freed Solutions, Email - Personal, LinkedIn - DMs), Record Status, Email Notes, QC (formula), Created Timestamp
