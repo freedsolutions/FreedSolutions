@@ -117,7 +117,8 @@ Remove Adam-owned aliases from participant matching:
 - `adam@primitivgroup.com`
 - `adamjfreed@gmail.com`
 - `freedsolutions@gmail.com`
-Do not auto-classify `systems@...` addresses as Adam aliases unless the current session explicitly confirms they are Adam-owned.
+- `systems@thccrafts.com`
+Remove `systems@thccrafts.com` (DMC alias) from participant matching — it is Adam-owned.
 Remove obvious automated senders:
 - `noreply@`
 - `no-reply@`
