@@ -6,10 +6,11 @@ Operator checklist for when the Post-Email agent creates a "Review new domain: [
 
 | Tier | What it means | Gmail filter behavior |
 |------|--------------|----------------------|
-| **Active Auto** | Known business contact, ongoing relationship. | Apply company label, no auto-archive. Mail stays in inbox. |
-| **Draft Intake** | New or uncertain source, worth tracking. | Apply company label, no auto-archive. Post-Email agent creates Draft Email records normally. |
-| **Archive** | Automated/marketing mail worth keeping searchable but not surfacing. | Apply label, auto-archive (skip inbox). |
-| **Block** | Spam-adjacent, no CRM value. | Auto-delete or auto-archive + mark read. |
+| **Label** | Active business contact, ongoing relationship. Adam reviews in inbox. | Apply company label. Mail stays in inbox, unread. |
+| **Silent Label** | Tracked source, agent processes automatically. No inbox review needed. | Apply label, mark read. Stays in All Mail. |
+| **Archive** | Worth keeping searchable but not surfacing. | Apply label, skip inbox, mark read. |
+| **Block** | Spam-adjacent, no CRM value. | Delete or skip inbox entirely. |
+| **Draft Intake** | New/unreviewed domain. No filter yet. | No Gmail filter. Mail arrives normally until tier is set. |
 
 ## Decision Checklist
 
@@ -17,11 +18,11 @@ For each "Review new domain" Action Item:
 
 1. Open the Draft Company record linked to the Action Item.
 2. Review the domain, sender, and email thread context in Task Notes.
-3. Decide the routing tier.
-4. In Gmail Settings > Filters:
+3. Decide the routing tier (Label / Silent Label / Archive / Block).
+4. In Gmail Settings > Filters (or via `gmail_filter_manager.py --create`):
    - Create or update a filter matching the domain (`from:*@[domain]`) or specific sender.
    - Apply the Gmail label matching the company name (create the label first if needed).
-   - Set archive/read behavior per the tier above.
+   - Filter actions are determined by the tier (see table above).
 5. In Notion:
    - If the Company is worth keeping: promote to Active, verify Domains/Additional Domains, set Company Type.
    - If not worth keeping: trash the record directly.

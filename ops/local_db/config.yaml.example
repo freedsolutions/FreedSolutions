@@ -8,16 +8,19 @@ google:
     - https://www.googleapis.com/auth/gmail.readonly
     - https://www.googleapis.com/auth/gmail.modify
     - https://www.googleapis.com/auth/calendar.readonly
+    - https://www.googleapis.com/auth/gmail.settings.basic
+    - https://www.googleapis.com/auth/gmail.labels
 
 notion:
   token_path: ops/local_db/credentials/notion_token.txt
   databases:
-    contacts: fd06740b-ea9f-401f-9083-ebebfb85653c
-    companies: 796deadb-b5f0-4adc-ac06-28e94c90db0e
-    action_items: 319adb01-222f-8059-bd33-000b029a2fdd
-    meetings: 31fadb01-222f-80c0-acf7-000b401a5756
+    contacts: f479bdc1-235a-45b4-984a-cd1577a4a47e
+    companies: 559f4e42-57d3-42d0-b4cc-a8fb5e76350e
+    action_items: 319adb01-222f-8020-9919-ed2b34e466f7
+    meetings: 31fadb01-222f-80fd-95ad-df9ac0f038a5
     agent_config: 322adb01-222f-8114-b1b0-cc8971f1b61a
-    emails: f685a378-5a37-4517-9b0c-d2928be4af4d
+    emails: a82a0100-2b76-45d2-87bb-221bbe6d9df6
+    domains: 9d42dcbc-673b-47c0-8db6-7fbc8e8673c4
 
 gmail:
   accounts:

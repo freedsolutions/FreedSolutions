@@ -46,8 +46,16 @@ def _load_credentials(account_email: str, google_config: GoogleConfig):
     token_path.parent.mkdir(parents=True, exist_ok=True)
     credentials = None
 
+    required_scopes = set(google_config.scopes)
+
     if token_path.exists():
         credentials = Credentials.from_authorized_user_file(str(token_path), list(google_config.scopes))
+        # If the stored token is missing required scopes, discard it and re-auth
+        granted = set(credentials.scopes or []) if credentials else set()
+        if credentials and not required_scopes.issubset(granted):
+            print(f"[auth] Token at {token_path} is missing scopes: {required_scopes - granted}")
+            print("[auth] Re-triggering OAuth consent to acquire all scopes.")
+            credentials = None
 
     if credentials and credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())
