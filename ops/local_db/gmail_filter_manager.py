@@ -607,13 +607,15 @@ def run_create_from_domains(
     """Create Gmail filters using the Domains DB as source."""
     label_name_to_id = {v: k for k, v in label_map.items()}
 
-    # Only create for records that need filters
+    # Only create for records that need filters.
+    # Generic domains are allowed when Filter Shape = Sender (from:user@domain
+    # is safe — it targets a specific sender, not the whole domain).
     candidates = [
         d for d in domain_records
         if not d["gmail_filter_id"]
-        and not d["is_generic"]
+        and (not d["is_generic"] or d["filter_shape"] == "Sender")
         and d["filter_shape"] != "None"
-        and d["routing_tier"] != "Draft Intake"
+        and d["routing_tier"] not in ("Draft Intake", "None")
     ]
 
     if not candidates:
