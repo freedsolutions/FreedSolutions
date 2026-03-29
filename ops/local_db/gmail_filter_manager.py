@@ -743,12 +743,18 @@ def run_cleanup(
     """Apply tier actions retroactively to existing Gmail threads."""
     label_name_to_id = {v: k for k, v in label_map.items()}
 
-    # Candidates: non-Draft-Intake, non-None shape, non-generic
+    # Domains that require content-conditional routing (multiple Gmail filters
+    # with different labels based on subject/query/to patterns). The script's
+    # per-domain single-label model can't express these, so cleanup skips them.
+    CLEANUP_SKIP_DOMAINS = {"primitivgroup.com"}
+
+    # Candidates: non-Draft-Intake, non-None tier, non-None shape, non-generic
     candidates = [
         d for d in domain_records
-        if d["routing_tier"] not in ("Draft Intake", "")
+        if d["routing_tier"] not in ("Draft Intake", "", "None")
         and d["filter_shape"] != "None"
         and not d["is_generic"]
+        and d["domain"].lower() not in CLEANUP_SKIP_DOMAINS
     ]
 
     if not candidates:

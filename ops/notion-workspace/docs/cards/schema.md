@@ -137,16 +137,14 @@ if(empty(Company), "missing:company", "TRUE")))))
 
 ### Companies QC
 
-Checks: Company Name, Record Status, Company Type, Domains, States, Website, Contacts.
-
-> **Note:** The Domains check currently references the legacy rich_text field. Update to check the Domains DB relation after transition.
+Checks: Company Name, Record Status, Company Type, 🌐 Domains, States, Website, Contacts.
 
 ```
 if(empty(Company Name), "missing:name",
 if(empty(Record Status), "missing:status",
 if(empty(Company Type), "missing:type",
-if(empty(Domains), "missing:domains",
-if(empty(join(States, ", ")), "missing:states",
+if(empty(🌐 Domains), "missing:domains",
+if(empty(format(States)), "missing:states",
 if(empty(Website), "missing:website",
 if(empty(Contacts), "missing:contacts", "TRUE")))))))
 ```
@@ -168,6 +166,8 @@ if(empty(Source Meeting) and empty(Source Email),
 if(Due Date < today() and format(Status) != "Done",
 "past_due", "TRUE")))))))))
 ```
+
+> **Note:** Action Items QC uses `today()` for the past_due check, not `now()`.
 
 ### Meetings QC
 
@@ -195,6 +195,25 @@ if(empty(From), "missing:from",
 if(empty(Date), "missing:date",
 if(empty(Contacts), "missing:contacts",
 if(empty(Source), "missing:source", "TRUE")))))))
+```
+
+### Domains QC
+
+Checks: Domain, Record Status, Company, Routing Tier, Source Type. Conditionally checks Gmail Label and Gmail Filter ID only when Routing Tier requires a filter (not Draft Intake or None).
+
+```
+if(empty(Domain), "missing:domain",
+if(empty(Record Status), "missing:record_status",
+if(empty(Companies), "missing:company",
+if(empty(Routing Tier), "missing:routing_tier",
+if(empty(Source Type), "missing:source_type",
+if(and(Routing Tier != "Draft Intake",
+       Routing Tier != "None",
+       empty(Gmail Label)), "missing:gmail_label",
+if(and(Routing Tier != "Draft Intake",
+       Routing Tier != "None",
+       empty(Gmail Filter ID)), "missing:filter_id",
+"TRUE")))))))
 ```
 
 ## Dedup Rules
