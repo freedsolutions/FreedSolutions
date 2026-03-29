@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 27, 2026
+Last synced: March 29, 2026
 
 # Agent Role
 
@@ -197,9 +197,9 @@ Do not add `systems@...` addresses to this exclusion list unless the current ses
 When a new contact is created (or an existing contact has no Company relation), use the email domain to automatically wire to the correct Company:
 
 1. Extract the domain from the attendee email (everything after `@`).
-2. Search the **Companies DB** — check the **Domains** property on each Company. This is a comma-separated text field (e.g., `formul8.ai, staqs.io`). The **first domain listed is the primary/canonical domain**.
-3. Also check the **Additional Domains** property — same format, contains merged/subsidiary/alternate domains.
-4. If the domain matches a Company's Domains or Additional Domains → set the Contact's Company relation to that Company.
+2. Check the **Domains DB** first: query for a Domain record whose title matches the extracted domain. If found, use the **💼 Companies** relation from the Domain record.
+3. If no Domains DB match exists, fall back to the **Companies DB** — check the **Domains** property on each Company. This is a comma-separated text field (e.g., `formul8.ai, staqs.io`). The **first domain listed is the primary/canonical domain**. Also check the **Additional Domains** property — same format, contains merged/subsidiary/alternate domains. (The Domains DB is the primary domain lookup. Companies.Domains and Additional Domains are legacy fields retained during transition.)
+4. If the domain matches → set the Contact's Company relation to that Company.
 5. If no match → create a **placeholder Company** (see Unknown Handling below). If a placeholder already exists for this domain (any Record Status), reuse it.
 6. **Generic email domains** (gmail.com, yahoo.com, outlook.com, hotmail.com, icloud.com, aol.com, protonmail.com) — do NOT match by domain alone. Instead, check if the **full email address** (e.g., `orfaotechservices@gmail.com`) appears as an entry in any Company's Domains or Additional Domains property. If matched, wire to that Company. If not matched, leave the Contact's Company relation empty — manual wiring required.
 

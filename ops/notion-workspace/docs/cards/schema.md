@@ -108,9 +108,9 @@
 
 | Property | Type | Notes |
 |----------|------|-------|
-| Domain | title | Canonical domain or subdomain |
+| Domain | title | Canonical domain or subdomain. Page icon: 🌐 |
 | 💼 Companies | relation | Parent Company |
-| Routing Tier | select | Label, Silent Label, Archive, Block, Draft Intake |
+| Routing Tier | select | Label, Silent Label, Archive, Block, Draft Intake, None |
 | Filter Shape | select | Domain, Sender, None |
 | Gmail Label | rich_text | |
 | Gmail Filter ID | rich_text | |
@@ -118,6 +118,84 @@
 | Source Type | select | Primary, Additional, Sender-Level |
 | Notes | rich_text | |
 | Record Status | select | `Draft` / `Active` |
+
+## QC Formula Logic
+
+Each CRM database has a `QC` formula that validates required fields. Returns `"TRUE"` when all required fields are populated, or `"missing:<field>"` for the first gap found.
+
+### Contacts QC
+
+Checks: Contact Name, Record Status, Email, Role/Title, Company.
+
+```
+if(empty(Contact Name), "missing:name",
+if(empty(Record Status), "missing:status",
+if(empty(Email), "missing:email",
+if(empty(Role / Title), "missing:role",
+if(empty(Company), "missing:company", "TRUE")))))
+```
+
+### Companies QC
+
+Checks: Company Name, Record Status, Company Type, Domains, States, Website, Contacts.
+
+> **Note:** The Domains check currently references the legacy rich_text field. Update to check the Domains DB relation after transition.
+
+```
+if(empty(Company Name), "missing:name",
+if(empty(Record Status), "missing:status",
+if(empty(Company Type), "missing:type",
+if(empty(Domains), "missing:domains",
+if(empty(join(States, ", ")), "missing:states",
+if(empty(Website), "missing:website",
+if(empty(Contacts), "missing:contacts", "TRUE")))))))
+```
+
+### Action Items QC
+
+Checks: Task Name, Record Status, Status, Priority, Due Date, Contact, Company, Source (Meeting or Email). Also flags past-due items.
+
+```
+if(empty(Task Name), "missing:task_name",
+if(empty(Record Status), "missing:record_status",
+if(empty(format(Status)), "missing:task_status",
+if(empty(Priority), "missing:priority",
+if(empty(Due Date), "missing:due_date",
+if(empty(Contact), "missing:contact",
+if(empty(Company), "missing:company",
+if(empty(Source Meeting) and empty(Source Email),
+"missing:source",
+if(Due Date < today() and format(Status) != "Done",
+"past_due", "TRUE")))))))))
+```
+
+### Meetings QC
+
+Checks: Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date, Contacts. Series Parents always pass.
+
+```
+if(Is Series Parent, "TRUE",
+if(empty(Meeting Title), "missing:Meeting Title",
+if(empty(Record Status), "missing:Record Status",
+if(empty(Calendar Name), "missing:Calendar Name",
+if(empty(Calendar Event ID), "missing:Calendar Event ID",
+if(empty(Date), "missing:Date",
+if(empty(Contacts), "missing:Contacts", "TRUE")))))))
+```
+
+### Emails QC
+
+Checks: Email Subject, Record Status, Thread ID, From, Date, Contacts, Source.
+
+```
+if(empty(Email Subject), "missing:email_subject",
+if(empty(Record Status), "missing:record_status",
+if(empty(Thread ID), "missing:thread_id",
+if(empty(From), "missing:from",
+if(empty(Date), "missing:date",
+if(empty(Contacts), "missing:contacts",
+if(empty(Source), "missing:source", "TRUE")))))))
+```
 
 ## Dedup Rules
 

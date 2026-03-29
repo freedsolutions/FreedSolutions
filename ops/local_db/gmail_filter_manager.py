@@ -825,6 +825,179 @@ def run_cleanup(
 
 
 # ---------------------------------------------------------------------------
+# Dedup mode — remove old filters where a Domains-DB-managed filter exists
+# ---------------------------------------------------------------------------
+
+
+def _is_complex_filter(gf: dict) -> bool:
+    """Return True if the filter uses patterns the script can't express."""
+    criteria = gf.get("criteria", {})
+    if criteria.get("subject") or criteria.get("query") or criteria.get("hasAttachment"):
+        return True
+    if criteria.get("negatedQuery"):
+        return True
+    from_q = criteria.get("from", "")
+    to_q = criteria.get("to", "")
+    # Dual from+to criteria or multi-domain OR in from:
+    if from_q and to_q:
+        return True
+    if " OR " in from_q:
+        return True
+    return False
+
+
+def _extract_from_domains(gf: dict) -> list[str]:
+    """Extract domains from a filter's from: criteria, handling *@ and @ and full emails."""
+    criteria = gf.get("criteria", {})
+    from_val = criteria.get("from", "")
+    if not from_val:
+        return []
+    domains = []
+    cleaned = from_val.strip().strip("{}")
+    for part in cleaned.split():
+        part = part.strip().lower()
+        if part.startswith("*@"):
+            domains.append(part[2:])
+        elif part.startswith("@"):
+            domains.append(part[1:])
+        elif "@" in part:
+            # Full email like systems@thccrafts.com → extract domain AND keep full email
+            at_pos = part.index("@")
+            domains.append(part[at_pos + 1:])
+            domains.append(part)  # also match the full email
+        elif "." in part:
+            domains.append(part)
+    return domains
+
+
+def run_dedup(
+    domain_records: list[dict],
+    gmail_filters: list[dict],
+    label_map: dict[str, str],
+    service,
+    confirm: bool,
+):
+    """Identify and remove old duplicate filters where a Domains-DB-managed filter exists."""
+    id_to_name = label_map
+    name_to_id = {v: k for k, v in label_map.items()}
+
+    # Build managed filter set from Domains DB
+    managed_ids: set[str] = set()
+    managed_domains: dict[str, dict] = {}  # domain_or_email -> record
+    for d in domain_records:
+        fid = d["gmail_filter_id"]
+        if fid:
+            managed_ids.add(fid)
+        domain = d["domain"].lower()
+        if d["filter_shape"] != "None" and d["routing_tier"] != "Draft Intake":
+            managed_domains[domain] = d
+
+    print(f"  Domains DB: {len(domain_records)} records, "
+          f"{len(managed_ids)} with Gmail Filter ID, "
+          f"{len(managed_domains)} filterable domains.")
+    print(f"  Gmail: {len(gmail_filters)} filters.\n")
+
+    # Classify filters
+    managed = []          # script-created, tracked in Domains DB
+    duplicates = []       # old filter with a managed equivalent for same domain
+    complex_kept = []     # complex filters the script can't express
+    to_mirrors = []       # to: counterpart filters
+    unmanaged_unique = [] # old filter with NO managed equivalent
+
+    for gf in gmail_filters:
+        fid = gf["id"]
+        criteria = gf.get("criteria", {})
+        action = gf.get("action", {})
+        from_q = criteria.get("from", "")
+        to_q = criteria.get("to", "")
+        label_ids = action.get("addLabelIds", [])
+        label_names = [id_to_name.get(lid, lid) for lid in label_ids]
+
+        # 1. Script-managed filter?
+        if fid in managed_ids:
+            managed.append(gf)
+            continue
+
+        # 2. Pure to: filter (no from:)?
+        if to_q and not from_q:
+            to_mirrors.append(gf)
+            continue
+
+        # 3. Complex filter?
+        if _is_complex_filter(gf):
+            complex_kept.append(gf)
+            continue
+
+        # 4. Simple from: filter — check if a managed filter covers same domain
+        filter_domains = _extract_from_domains(gf)
+        is_dup = False
+        for fd in filter_domains:
+            if fd in managed_domains:
+                is_dup = True
+                break
+        if is_dup:
+            duplicates.append(gf)
+        else:
+            unmanaged_unique.append(gf)
+
+    # Report
+    print(f"CLASSIFICATION:")
+    print(f"  Managed (Domains DB):     {len(managed)}")
+    print(f"  Duplicate (old, remove):  {len(duplicates)}")
+    print(f"  Complex (keep):           {len(complex_kept)}")
+    print(f"  to: mirrors:              {len(to_mirrors)}")
+    print(f"  Unmanaged unique:         {len(unmanaged_unique)}")
+
+    if duplicates:
+        print(f"\n{'DELETING' if confirm else 'DRY RUN — would delete'} "
+              f"{len(duplicates)} duplicate old filters:\n")
+        for gf in duplicates:
+            fid = gf["id"]
+            from_q = gf.get("criteria", {}).get("from", "")
+            labels = [id_to_name.get(lid, lid) for lid in gf.get("action", {}).get("addLabelIds", [])]
+            remove = [id_to_name.get(lid, lid) for lid in gf.get("action", {}).get("removeLabelIds", [])]
+            desc = f"from:{from_q} -> {labels}"
+            if remove:
+                desc += f" remove:{remove}"
+            if confirm:
+                service.users().settings().filters().delete(userId="me", id=fid).execute()
+                print(f"  DELETED: {desc} (id={fid})")
+            else:
+                print(f"  WOULD DELETE: {desc} (id={fid})")
+
+    if to_mirrors:
+        print(f"\nto: MIRROR FILTERS ({len(to_mirrors)}):")
+        for gf in to_mirrors:
+            to_q = gf.get("criteria", {}).get("to", "")
+            labels = [id_to_name.get(lid, lid) for lid in gf.get("action", {}).get("addLabelIds", [])]
+            print(f"  to:{to_q} -> {labels} (id={gf['id']})")
+
+    if complex_kept:
+        print(f"\nCOMPLEX FILTERS KEPT ({len(complex_kept)}):")
+        for gf in complex_kept:
+            criteria = gf.get("criteria", {})
+            parts = []
+            if criteria.get("from"): parts.append(f"from:{criteria['from']}")
+            if criteria.get("to"): parts.append(f"to:{criteria['to']}")
+            if criteria.get("subject"): parts.append(f"subject:{criteria['subject']}")
+            if criteria.get("query"): parts.append(f"query:{criteria['query']}")
+            if criteria.get("hasAttachment"): parts.append("hasAttachment")
+            if criteria.get("negatedQuery"): parts.append(f"neg:{criteria['negatedQuery']}")
+            labels = [id_to_name.get(lid, lid) for lid in gf.get("action", {}).get("addLabelIds", [])]
+            print(f"  {' | '.join(parts)} -> {labels}")
+
+    if unmanaged_unique:
+        print(f"\nUNMANAGED UNIQUE ({len(unmanaged_unique)}) — no Domains DB equivalent:")
+        for gf in unmanaged_unique:
+            from_q = gf.get("criteria", {}).get("from", "")
+            labels = [id_to_name.get(lid, lid) for lid in gf.get("action", {}).get("addLabelIds", [])]
+            print(f"  from:{from_q} -> {labels} (id={gf['id']})")
+
+    if not confirm and duplicates:
+        print(f"\n  Re-run with --dedup --confirm to delete {len(duplicates)} duplicates.")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -841,6 +1014,14 @@ def main():
         "--cleanup", action="store_true",
         help="Apply tier actions retroactively to existing threads (dry-run unless --confirm)."
     )
+    action_group.add_argument(
+        "--create-labels", nargs="+", metavar="LABEL",
+        help="Create one or more Gmail labels (no filters). E.g. --create-labels Personal 'My Network'"
+    )
+    action_group.add_argument(
+        "--dedup", action="store_true",
+        help="Find and remove old duplicate filters where a Domains-DB-managed filter exists for the same domain."
+    )
     parser.add_argument(
         "--confirm", action="store_true",
         help="Actually execute creates/cleanup (requires --create or --cleanup)."
@@ -856,8 +1037,8 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.confirm and not args.create and not args.cleanup:
-        parser.error("--confirm requires --create or --cleanup")
+    if args.confirm and not args.create and not args.cleanup and not args.dedup:
+        parser.error("--confirm requires --create, --cleanup, or --dedup")
 
     config = load_config()
     generic_domains = set(config.adam.generic_domains)
@@ -865,6 +1046,27 @@ def main():
     # Build Gmail service
     print(f"Connecting to Gmail as {args.account}...")
     service = build_gmail_service(args.account, config.google)
+
+    # --create-labels: standalone label creation, then exit
+    if args.create_labels:
+        label_map = fetch_gmail_labels(service)
+        name_to_id = {v: k for k, v in label_map.items()}
+        for label_name in args.create_labels:
+            if label_name in name_to_id:
+                print(f"  Label already exists: {label_name!r} (id={name_to_id[label_name]})")
+            else:
+                label_id = create_gmail_label(service, label_name)
+                print(f"  Created label: {label_name!r} (id={label_id})")
+        return
+
+    # --dedup: standalone duplicate removal, then exit
+    if args.dedup:
+        print("Fetching Domains DB and Gmail filters for dedup analysis...")
+        domain_records = fetch_domains_db(config)
+        gmail_filters = fetch_gmail_filters(service)
+        label_map = fetch_gmail_labels(service)
+        run_dedup(domain_records, gmail_filters, label_map, service, args.confirm)
+        return
 
     print("Fetching Gmail filters and labels...")
     gmail_filters = fetch_gmail_filters(service)

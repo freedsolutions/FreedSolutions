@@ -329,6 +329,8 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists
 - `Due Date` should be set whenever the source text contains an explicit or relative deadline that can be resolved
 - New or repaired Action Item pages should use the `🎬` page icon unless an explicit manual exception already exists
+## Domains
+- New or repaired Domain pages should use the `🌐` page icon
 ## Emails
 - `Thread ID` is the canonical email-thread identity
 - Compare parity and dedup by exact `Thread ID`, not subject lines or Gmail message counts
@@ -344,8 +346,9 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 ## Domains
 - `Domain` (title) is the canonical domain or subdomain
 - `💼 Companies` relation wires to the parent Company
-- `Routing Tier` drives Gmail filter behavior via `gmail_filter_manager.py`
+- `Routing Tier` drives Gmail filter behavior via `gmail_filter_manager.py` (options: Label, Silent Label, Archive, Block, Draft Intake, None)
 - `Filter Shape` determines the `from:` criteria format (`Domain` = `*@domain`, `Sender` = `from:user@domain`, `None` = no filter)
+- Routing Tier `None` means the domain is tracked but explicitly excluded from all Gmail filter automation (e.g., Adam's own addresses)
 - One Domain record per domain/subdomain, even when multiple subdomains share a parent Company
 - Agents creating new Companies must also create a corresponding Draft Domain record
 ---
