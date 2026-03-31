@@ -610,7 +610,7 @@ def run_create_from_domains(
     # Only create for records that need filters.
     # Generic domains are allowed when Filter Shape = Sender (from:user@domain
     # is safe — it targets a specific sender, not the whole domain).
-    candidates = [
+    _filterable = [
         d for d in domain_records
         if not d["gmail_filter_id"]
         and (not d["is_generic"] or d["filter_shape"] == "Sender")
@@ -618,8 +618,20 @@ def run_create_from_domains(
         and d["routing_tier"] not in ("Draft Intake", "None")
     ]
 
+    # Gate: only Active records get filters created.
+    candidates = [d for d in _filterable if d["record_status"] == "Active"]
+    draft_skipped = [d for d in _filterable if d["record_status"] != "Active"]
+
+    # Log skipped Draft records
+    if draft_skipped:
+        print(f"\nSKIPPED (Draft): {len(draft_skipped)} domain(s) — "
+              "promote to Active to create filter:")
+        for d in draft_skipped:
+            print(f"  SKIPPED (Draft): {d['domain']} — promote to Active to create filter")
+
     if not candidates:
-        print("\nNo Domain records need new Gmail filters.")
+        if not draft_skipped:
+            print("\nNo Domain records need new Gmail filters.")
         return
 
     print(f"\n{'CREATING' if confirm else 'DRY RUN — would create'} "

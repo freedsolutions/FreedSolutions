@@ -27,7 +27,8 @@ For each "Review new domain" Action Item:
    - If the Company is worth keeping: promote to Active, verify Domains/Additional Domains, set Company Type.
    - If not worth keeping: trash the record directly.
    - Verify the Gmail label exists as an `Emails.Labels` option in the Emails DB schema.
-6. Mark the Action Item as Done.
+6. Promote the Domain record to Active (Record Status = Active). This triggers filter eligibility — the next run of `gmail_filter_manager.py --create` will create the Gmail filter automatically.
+7. Mark the Action Item as Done.
 
 ## Edge Cases
 
