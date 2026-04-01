@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 31, 2026 (Session 35: Primitiv filter rebuild — sub-labels eliminated, dual-label pattern for Looker/QB)
+Last synced: March 31, 2026 (Session 35: Primitiv filter rebuild + DMC label simplification)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -187,7 +187,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Model: Opus 4.6
 - Notes:
 	- Existing stubs must be eligible for recovery if prior runs stopped after partial work.
-	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail (forwarded Outlook, Teams notifications, calendar invites), `LinkedIn` for LinkedIn message notifications, and `DMC/DMC_GMail` for DMC routed company mail. Primitiv mail uses dual-labeling for source-specific tracking. Looker reports get Dutchie + Primitiv. QB transactions get Intuit + Primitiv. Teams and Calendar mail get Primitiv only — the Post-Email agent uses Email Notes and thread content to distinguish source type, not sub-labels.
+	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail (forwarded Outlook, Teams notifications, calendar invites), `LinkedIn` for LinkedIn message notifications, and `DMC` for DMC routed company mail. Primitiv mail uses dual-labeling for source-specific tracking. Looker reports get Dutchie + Primitiv. QB transactions get Intuit + Primitiv. Teams and Calendar mail get Primitiv only — the Post-Email agent uses Email Notes and thread content to distinguish source type, not sub-labels.
 	- `_Action Items` and any `_Action Items/...` child label are hard-ignore manual-queue labels. Leave them unread and out of automated intake until Adam explicitly enables a dedicated workflow.
 	- Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
 	- Gmail is the cleanup control plane. Filters, inbox posture, archive posture, and unread/read staging are decided in Gmail first; Notion is the retained CRM record and downstream Action Item system.
@@ -195,7 +195,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- `adamjfreed@gmail.com` stays in live sweep scope, but its Gmail labels are currently out of scope for routing. Treat personal-mailbox messages as standard email unless Adam explicitly adds a mailbox-specific routing contract later.
 	- Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
 	- Long term, domain-aligned company labels are encouraged because they make inbox-zero routing and CRM automation more deterministic.
-	- When a newly retained thread introduces a stable new Company or Contact source that should route future mail, dedup CRM first, then create or refresh the Gmail label using the existing live naming pattern: slash-delimited client/lane labels when a child lane is warranted (for example `DMC/DMC_GMail`) or the top-level client label when no child lane is needed (for example `Primitiv`) or the exact stable company label Adam already uses when no child lane is needed. Add the matching Notion `Labels` option, default to company/domain filters, use sender-specific filters only for exceptions, and keep new filters label-first rather than auto-read by default.
+	- When a newly retained thread introduces a stable new Company or Contact source that should route future mail, dedup CRM first, then create or refresh the Gmail label using the existing live naming pattern: the top-level client label (for example `Primitiv` or `DMC`) or the exact stable company label Adam already uses when no child lane is needed. Add the matching Notion `Labels` option, default to company/domain filters, use sender-specific filters only for exceptions, and keep new filters label-first rather than auto-read by default.
 	- Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
 	- Contextful notification and share mail is keepable when it carries a real human plus a concrete artifact, decision, or follow-up context. Do not blanket-classify share notices or forwarded Outlook context as noise.
 	- `Record Status = Active` on Emails gates Step 3 (Action Item creation). Steps 1-2 and Step 2.6 (cross-contextual matching) run on all records regardless of status. `@mention` runs also respect this gate. This mirrors Post-Meeting: CRM wiring runs on Draft, Action Item creation runs on Active.
