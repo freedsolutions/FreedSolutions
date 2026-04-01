@@ -90,14 +90,13 @@
 |----------|------|-------|
 | Email Subject | title | |
 | Thread ID | rich_text | Canonical dedup key (exact match, not subject line) |
-| From | email | |
 | Direction | formula | |
 | Date | date | |
 | Contacts | relation | |
 | Companies | rollup | |
 | Action Items | relation | |
 | Target Action Items | relation | Reciprocal of Action Items.Target Email |
-| Labels | multi_select | Routing: `Primitiv/PRI_Outlook`, `Primitiv/PRI_Teams`, `LinkedIn`, `DMC/DMC_GMail` |
+| Labels | multi_select | Routing: `Primitiv`, `LinkedIn`, `DMC`. Pulled from Gmail API thread labels, filtering out system labels. |
 | Source | select | `Email - Freed Solutions`, `Email - Personal`, `LinkedIn - DMs` |
 | Record Status | select | `Draft` / `Active` |
 | Email Notes | rich_text | |
@@ -110,7 +109,7 @@
 |----------|------|-------|
 | Domain | title | Canonical domain or subdomain. Page icon: 🌐 |
 | 💼 Companies | relation | Parent Company |
-| Routing Tier | select | Label, Silent Label, Archive, Block, Draft Intake, None |
+| Routing Tier | select | Label, Silent Label, Archive, Block, Draft Intake, None. Archive, Silent Label, and Block tier domains do not create Email records. |
 | Filter Shape | select | Domain, Sender, None |
 | Gmail Label | rich_text | |
 | Gmail Filter ID | rich_text | |
@@ -187,17 +186,18 @@ if(empty(Contacts), "missing:Contacts", "TRUE")))))))
 
 ### Emails QC
 
-Checks: Email Subject, Record Status, Thread ID, From, Date, Contacts, Source.
+Checks: Email Subject, Record Status, Thread ID, Date, Contacts, Source.
 
 ```
 if(empty(Email Subject), "missing:email_subject",
 if(empty(Record Status), "missing:record_status",
 if(empty(Thread ID), "missing:thread_id",
-if(empty(From), "missing:from",
 if(empty(Date), "missing:date",
 if(empty(Contacts), "missing:contacts",
-if(empty(Source), "missing:source", "TRUE")))))))
+if(empty(Source), "missing:source", "TRUE"))))))
 ```
+
+> **Note:** The `From` field has been removed from the Emails DB (redundant with Contact relation). The live QC formula in Notion must also be updated to remove the `From` check — Adam UI step.
 
 ### Domains QC
 
