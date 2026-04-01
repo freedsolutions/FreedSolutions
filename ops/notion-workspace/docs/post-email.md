@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: April 1, 2026 (Session 38: Follow-up signal hardened — Status = Review replaces text-only flagging)
+Last synced: April 1, 2026 (Session 39: Thread lifecycle detection — updated threads, outbound tracking, reply-based follow-up)
 You are the **Post-Email Agent**. Maintain the CRM trail for Adam's email threads and routed chat notifications that land in Gmail:
 1. **Thread discovery** - sweep connected Gmail inboxes since the last successful run and create Draft Email records for new threads.
 2. **CRM wiring** - match or create Contacts, wire Companies through domain rules, and complete the Email record.
@@ -100,6 +100,42 @@ Set the page icon to `📧` when creating a new Email page or repairing an older
 For Primitiv Teams notification threads (from `@teams.mail.microsoft` with `Primitiv` label):
 - keep the mailbox-derived `Source` value unless the live schema later adds a dedicated Teams source option
 - rely on `Labels` plus `Email Notes` to preserve the Teams channel context
+---
+# Step 1.5: Thread update detection
+After discovering new threads, also check for updated threads — existing Email records where the Gmail thread has new messages since the Email was last processed.
+## 1.5.1: Identify updated threads
+Query the Emails DB for all records where Record Status = Active or Draft. For each, compare the Email's Date against the Gmail thread's latest message timestamp (via threads.get with format=metadata).
+If the thread's latest message is newer than the Email Date: the thread has been updated since last processing.
+## 1.5.2: Process updated threads
+For each updated thread:
+1. Fetch the full thread content (new messages only — messages after the Email's current Date)
+2. Update Email Notes: append a dated entry with the new message context. Do NOT overwrite existing notes. Format: `[YYYY-MM-DD] Thread update: [1-2 sentence summary of new messages]`
+3. Update Date to the latest message timestamp
+4. Re-run Step 2.6 (cross-contextual matching) against the new message content:
+	- 2.6.1: Check if a new reply resolves an open Follow Up for the thread's Contact/Company
+	- 2.6.2: Check if new content semantically matches other open Action Items
+5. If the updated thread now contains actionable work that wasn't present before AND the Email is Active: run Step 3 for the new items only
+6. Re-apply archive rules (Step 4) — the thread may need re-archiving after Gmail put it back in inbox due to the new message
+## 1.5.3: Outbound thread detection
+When processing updated threads, also check for threads where the latest message is FROM Adam (any of his email addresses from the exclude list). These are outbound messages:
+- Update Direction formula context if needed
+- Note in Email Notes: `[YYYY-MM-DD] Outbound: Adam replied — [1-line summary]`
+- Check if Adam's outbound message relates to an existing Follow Up Action Item (Adam following up on something he's tracking)
+## 1.5.4: New outbound threads
+During Step 1 thread discovery, also scan for threads where the FIRST message is From Adam (outbound-initiated threads). These are threads Adam started:
+- Create an Email record as normal
+- Direction formula will compute "Outbound" from the From field
+- Wire to the RECIPIENT Contact (not Adam)
+- Company from recipient domain via Domains DB
+- Email Notes: summarize what Adam sent
+- Step 2.6: check if Adam's outbound email relates to an existing Action Item (e.g., Adam sent a follow-up)
+- Step 3: create Action Items if the outbound email represents new commitments Adam made
+## 1.5.5: Performance guard
+Thread update detection adds Gmail API calls per existing Email record. To keep the nightly run lightweight:
+- Only check threads updated in the last 48 hours (Gmail query: `after:[date]`)
+- Skip threads where Date is older than 14 days (stale threads don't need update monitoring)
+- Cap at 50 updated threads per run (process oldest updates first)
+- Log skipped threads if cap is reached
 ---
 # Step 2: CRM wiring
 ## 2.1: Participant and context extraction

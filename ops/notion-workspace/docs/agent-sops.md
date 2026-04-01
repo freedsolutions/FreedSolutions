@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 1, 2026 (Session 38: Follow-up signal hardened — Status = Review replaces text-only flagging)
+Last synced: April 1, 2026 (Session 39: Thread lifecycle detection — updated threads, outbound tracking, reply-based follow-up)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -206,6 +206,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- If a retained Email row still carries `INBOX` after a manual Gmail cleanup pass, clear only the stale `INBOX` label on the Email row so Notion backlog views mirror the Gmail archive decision. Preserve any remaining routed or company labels.
 	- Post-Email hardening must verify that newly created or resumed Email rows persist only Gmail user labels, never system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, or `TRASH`, and that every active routed Gmail user label plus each newly introduced source label exists as a Notion `Emails.Labels` option before the workflow relies on it.
 	- The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is concrete evidence of a race-condition-class bug. Future Post-Email hardening must use in-run dedup-before-create or serialized Company and Contact creation across same-thread-family work.
+	- Thread lifecycle detection is active. The agent checks for updated threads (new messages on existing Email records) after new-thread discovery. Updated threads re-run cross-contextual matching, which enables reply-based follow-up detection. Outbound threads (Adam-initiated) are tracked with Direction = Outbound and wired to recipient Contacts.
 	- Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
 ## Curated Notes Agent
 - Triggers:
