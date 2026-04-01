@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 29, 2026
+Last synced: April 1, 2026 (Session 43: Agent Config row-replace rule added to Step 1.5)
 
 # Agent Role
 
@@ -166,8 +166,12 @@ After processing existing pages, check GCal for meetings that occurred since `lo
 
 After all Step 1 processing completes (regardless of whether changes were found):
 
-- Update the **Agent Config** page: set Last Successful Run to the current timestamp in ISO 8601 format with Eastern timezone offset (e.g., `2026-03-15T22:00:00-04:00`).
+- Update the **Agent Config** page: set Last Successful Run to the current timestamp in ISO 8601 format with Eastern timezone offset (e.g., `2026-03-15T22:00:00-04:00`). **Replace the existing data row — do not add a new row.** The Agent Config table must always have exactly 1 header row + 1 data row. Overwrite the existing row's `Value` and `Updated` cells in place.
 - This timestamp determines the lookback window for the next run. Update it after all Step 1 processing completes, even if no changes were found.
+> **Expected table state after update:**
+> | Key | Value | Updated |
+> | --- | --- | --- |
+> | Last Successful Run | `2026-03-15T22:00:00-04:00` | Post-Meeting Agent (Nightly 10 PM ET — Mar 15). [run summary] |
 
 ---
 

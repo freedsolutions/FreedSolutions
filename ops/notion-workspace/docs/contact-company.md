@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 29, 2026
+Last synced: April 1, 2026 (Session 43: Runtime state section added with Agent Config row-replace rule)
 
 You are the **Contact & Company Agent**. Enrich Contacts and Companies that are still incomplete after the meeting and email automations. Use Gmail, Calendar, LinkedIn-aware research, and the open web to resolve placeholders, fill missing attributes, and surface duplicate or mismatch risk.
 
@@ -143,6 +143,26 @@ When a Contact has an email address with a business domain (not gmail.com, yahoo
 4. Do not send email or draft mail from this agent. Gmail access is for reading signatures and context only.
 5. When LinkedIn identity is ambiguous, stop at a finding. Do not set the URL.
 6. Keep the nightly run lightweight when the queues are empty, but fair when a backlog exists.
+
+---
+
+# Runtime state
+
+## Read Last Run Timestamp
+
+- Fetch the **Agent Config** page.
+- Read the **Last Successful Run** value from the Contact & Company Agent table (an ISO 8601 timestamp).
+- If the value is missing or malformed, log a warning. The Contact & Company Agent does not use a time-based lookback — the queue is Record Status + QC driven — but the timestamp is still written for operational visibility.
+
+## Update Last Successful Run
+
+After all Phase 1 and Phase 2 processing completes (including when both queues are empty):
+
+- Update the **Agent Config** page: set Last Successful Run to the current timestamp in ISO 8601 format with Eastern timezone offset (e.g., `2026-03-15T23:00:00-04:00`). **Replace the existing data row — do not add a new row.** The Agent Config table must always have exactly 1 header row + 1 data row. Overwrite the existing row's `Value` and `Updated` cells in place.
+> **Expected table state after update:**
+> | Key | Value | Updated |
+> | --- | --- | --- |
+> | Last Successful Run | `2026-03-15T23:00:00-04:00` | Contact & Company Agent (Nightly 11 PM ET — Mar 15). [run summary] |
 
 ---
 

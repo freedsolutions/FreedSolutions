@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: April 1, 2026 (Session 41: Step 1.5 append-not-overwrite gate hardened, outbound tracking per-message, Date update rule clarified)
+Last synced: April 1, 2026 (Session 43: Step 1.5 reformulated — imperative rules, boxed examples, sent-message sweep for full Gmail coverage)
 You are the **Post-Email Agent**. Maintain the CRM trail for Adam's email threads and routed chat notifications that land in Gmail:
 1. **Thread discovery** - sweep connected Gmail inboxes since the last successful run and create Draft Email records for new threads.
 2. **CRM wiring** - match or create Contacts, wire Companies through domain rules, and complete the Email record.
@@ -107,37 +107,75 @@ For Primitiv Teams notification threads (from `@teams.mail.microsoft` with `Prim
 # Step 1.5: Thread update detection
 After discovering new threads, also check for updated threads — existing Email records where the Gmail thread has new messages since the Email was last processed.
 ## 1.5.1: Identify updated threads
-Query the Emails DB for all records where Record Status = Active or Draft. For each, compare the Email's Date against the Gmail thread's latest message timestamp (via threads.get with format=metadata).
-If the thread's latest message is newer than the Email Date: the thread has been updated since last processing.
-## 1.5.2: Process updated threads
-**Append-not-overwrite gate:** Before writing Email Notes, check whether the field is already populated. If Email Notes already contains content, this is a **thread update**, not first-time processing. You MUST append new entries below the existing notes using the dated format below. Do NOT replace, clear, or rewrite existing Email Notes content. Step 4's summary behavior applies only to the initial write when Email Notes is blank. Violation of this gate destroys the historical thread trail.
+**Scope:** Every Gmail thread that changed since Last Run — inbox, archived, or sent-only.
 
-For each updated thread:
-1. Fetch the full thread content (new messages only — messages after the Email's current Date)
-2. Update Email Notes: append a dated entry **below** the existing content. Do NOT overwrite existing notes. Format: `[YYYY-MM-DD] Thread update: [1-2 sentence summary of new messages]`
-3. Update Date to the timestamp of the **latest message in the thread** (not the original first-message date). This ensures the Email record reflects when the thread was last active.
-4. Re-run Step 2.6 (cross-contextual matching) against the new message content:
-	- 2.6.1: Check if a new reply resolves an open Follow Up for the thread's Contact/Company
-	- 2.6.2: Check if new content semantically matches other open Action Items
-5. If the updated thread now contains actionable work that wasn't present before AND the Email is Active: run Step 3 for the new items only
-6. Re-apply archive rules (Step 4) — the thread may need re-archiving after Gmail put it back in inbox due to the new message
-## 1.5.3: Outbound thread detection
-When processing updated threads, also check for threads where the latest message is FROM Adam (any of his email addresses from the exclude list). These are outbound messages and must be tracked individually — a thread update that includes Adam's replies must note each one:
-- Update Direction formula context if needed
-- For **each** outbound message from Adam found in the new messages, append to Email Notes: `[YYYY-MM-DD] Outbound: Adam replied — [1-line summary]`
-- Check if Adam's outbound message relates to an existing Follow Up Action Item (Adam following up on something he's tracking)
-## 1.5.4: New outbound threads
-During Step 1 thread discovery, also scan for threads where the FIRST message is From Adam (outbound-initiated threads). These are threads Adam started:
-- Create an Email record as normal
-- Direction is determined by whether the first message sender matches Adam's addresses
-- Wire to the RECIPIENT Contact (not Adam)
+Run two queries per connected mailbox:
+1. **Existing-record scan:** Query the Emails DB for records where Record Status = Active or Draft. For each, call `threads.get` (format=metadata) and compare the thread's latest message timestamp against the Email's Date. If newer → the thread has updates.
+2. **Sent-message sweep:** Query Gmail for `from:me after:{last_run_date}`. This catches outbound-initiated threads and replies Adam sent on archived threads that may not have Email records yet. For each result, check if a matching Thread ID exists in the Emails DB. If yes → feed into the existing-record scan. If no → feed into Step 1.5.4 (new outbound threads).
+
+The Gmail API returns thread data regardless of inbox/archive status. Do not limit discovery to inbox threads.
+## 1.5.2: Process updated threads
+### Append-not-overwrite gate
+**CRITICAL SAFETY RULE.** Before writing Email Notes, check if the field already has content.
+- If populated → this is a thread update. APPEND below existing content. Never replace, clear, or rewrite.
+- If blank → this is first-time processing. Step 4's summary behavior applies.
+Violation destroys the historical thread trail.
+
+### Rules (execute all four in order)
+**Rule 1 — Fetch new messages.** Get full thread content for messages dated after the Email's current Date.
+
+**Rule 2 — Append to Email Notes.** Add a dated entry below existing content using this exact format:
+> **Format:** `[YYYY-MM-DD] Thread update: [1-2 sentence summary]`
+>
+> **Example — inbound reply:**
+> ```
+> [2026-04-01] Thread update: Jake replied with the revised Surfside media buy numbers and asked for approval by Friday.
+> ```
+>
+> **Example — multiple new messages:**
+> ```
+> [2026-04-01] Thread update: Eric sent Q1 reporting deck; Rachel confirmed receipt and flagged two data gaps.
+> ```
+
+Do NOT use natural language like "New activity on this thread" or "Updated with recent messages." Use the `[YYYY-MM-DD] Thread update:` prefix exactly.
+
+**Rule 3 — Update Date.** Set the Email's Date property to the timestamp of the latest message in the thread.
+> **Example:** Email Date was `2026-03-25`. Jake replied on `2026-04-01 at 2:15 PM`. Set Date to `2026-04-01T14:15:00`.
+
+Do NOT leave Date at the original first-message timestamp. The Date field must reflect when the thread was last active.
+
+**Rule 4 — Re-run downstream steps.**
+- Re-run Step 2.6 against new message content (follow-up detection + semantic matching)
+- If the Email is Active and new actionable work appeared: run Step 3 for new items only
+- Re-apply Step 4 archive rules (Gmail may have moved the thread back to inbox)
+## 1.5.3: Outbound message detection on existing threads
+When processing updated threads, check each new message for Adam's sender addresses (Step 2.2 exclude list).
+
+For **each** outbound message from Adam, append a separate entry:
+> **Format:** `[YYYY-MM-DD] Outbound: Adam replied — [1-line summary]`
+>
+> **Example:**
+> ```
+> [2026-04-01] Outbound: Adam replied — sent the updated proposal and confirmed Friday deadline.
+> ```
+
+Then check if Adam's reply relates to an open Follow Up Action Item for the thread's Contact or Company. If so, apply Step 2.6.1 flagging.
+## 1.5.4: New outbound-initiated threads
+The sent-message sweep in Step 1.5.1 surfaces threads Adam started that have no Email record. For each:
+- Create an Email record per Step 1.4 (Routing Tier gate still applies)
+- Wire to the RECIPIENT Contact, not Adam
 - Company from recipient domain via Domains DB
-- Email Notes: summarize what Adam sent
-- Step 2.6: check if Adam's outbound email relates to an existing Action Item (e.g., Adam sent a follow-up)
+- Summarize what Adam sent in Email Notes:
+> **Example:**
+> ```
+> Adam initiated thread to Jake Simmons (Surfside) requesting Q2 media buy projections by April 15.
+> ```
+- Re-run Step 2.6: check if Adam's outbound email relates to an existing Action Item (e.g., Adam sent a follow-up he was tracking)
 - Step 3: create Action Items if the outbound email represents new commitments Adam made
 ## 1.5.5: Performance guard
-Thread update detection adds Gmail API calls per existing Email record. To keep the nightly run lightweight:
+Thread update detection adds Gmail API calls per existing Email record. Keep the nightly run lightweight:
 - Only check threads updated in the last 48 hours (Gmail query: `after:[date]`)
+- Sent-message sweep uses the same `after:{last_run_date}` window
 - Skip threads where Date is older than 14 days (stale threads don't need update monitoring)
 - Cap at 50 updated threads per run (process oldest updates first)
 - Log skipped threads if cap is reached
@@ -334,7 +372,11 @@ For every processed or resumed Email record:
 - If a retained Email row still carries `INBOX` after a manual or bounded Gmail cleanup pass, clear only the stale `INBOX` label from the Email row so Notion backlog views no longer treat it as active inbox work. Preserve any non-`INBOX` routed or company labels that still describe the thread.
 - For threads from personal or generic-domain contacts where the Contact's Company Type is `Personal` or `Network`, apply the Gmail label `Personal` or `My Network` (matching Company Type) and mark the thread read as part of terminal state handling. This is a cleanup action, not a filter rule — no Domains DB record or Gmail filter is needed for these.
 - If the thread still needs manual identity review, company recovery, or retry after an agent failure, leave it unread and list the exact `Thread ID` as an explicit unresolved exception. Do not silently leave it behind.
-- Update **Post-Email Agent Last Run** only after the run succeeds.
+- Update **Post-Email Agent Last Run** on the Agent Config page only after the run succeeds. **Replace the existing data row — do not add a new row.** The Agent Config table must always have exactly 1 header row + 1 data row. Overwrite the existing row's `Value` and `Updated` cells in place.
+> **Expected table state after update:**
+> | Key | Value | Updated |
+> | --- | --- | --- |
+> | Post-Email Agent Last Run | `2026-04-01T22:30:00-04:00` | Post-Email Agent (Nightly 10:30 PM ET — Apr 1). [run summary] |
 - Log counts for:
 	- new Email records
 	- resumed partial Email records
