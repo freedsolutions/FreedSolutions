@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: March 31, 2026 (Session 34: Primitiv/PRI_Outlook label absorbed into Primitiv parent)
+Last synced: March 31, 2026 (Session 35: Primitiv filter rebuild — sub-labels eliminated, dual-label pattern for Looker/QB)
 You are the **Post-Email Agent**. Maintain the CRM trail for Adam's email threads and routed chat notifications that land in Gmail:
 1. **Thread discovery** - sweep connected Gmail inboxes since the last successful run and create Draft Email records for new threads.
 2. **CRM wiring** - match or create Contacts, wire Companies through domain rules, and complete the Email record.
@@ -24,8 +24,7 @@ Process every connected mailbox that is intentionally in scope for this agent. T
 - `adamjfreed@gmail.com`
 Treat the live connection list as runtime truth for access. Both mailboxes are in scope for thread discovery and standard CRM processing.
 Within `adam@freedsolutions.com`, treat these Gmail labels as explicit intake lanes when they are present:
-- `Primitiv` -> Outlook-forwarded email intake, including forwarded business mail and forwarded calendar notices
-- `Primitiv/PRI_Teams` -> MS Teams chat-notification intake
+- `Primitiv` -> all Primitiv-related mail (forwarded Outlook, Teams notifications, calendar invites). The Post-Email agent uses Email Notes and thread content to distinguish source type, not sub-labels.
 - `LinkedIn` -> LinkedIn message-notification intake
 - `DMC/DMC_GMail` -> DMC routed company-mail intake. Process it as standard email, not as a chat-notification wrapper.
 - `_Action Items` and any `_Action Items/...` sublabel -> hard-ignore manual queue only. The leading underscore reserves these labels as non-routing lanes until Adam explicitly enables a dedicated workflow.
@@ -35,7 +34,7 @@ Do **not** write Gmail system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `ST
 All other Gmail labels, including company or project labels such as `Blue Crow` or `Notion`, are metadata only for now. Preserve them on an Email record when the thread is otherwise in scope, but do **not** create new routing branches from them unless Adam explicitly promotes them into automated intake.
 When a newly retained thread introduces a stable new Company or Contact source that should route future mail, finish the current thread first and then follow the manual routing contract:
 - dedup the Company and Contacts in CRM first
-- create or refresh the Gmail label using the existing live naming pattern: slash-delimited client/lane labels when a child lane is warranted (for example `Primitiv/PRI_Teams`, `Primitiv/PRI_Calendar`, or `DMC/DMC_GMail`) or the top-level client label when no child lane is needed (for example `Primitiv`) or the exact stable company label Adam already uses when no child lane is needed
+- create or refresh the Gmail label using the existing live naming pattern: slash-delimited client/lane labels when a child lane is warranted (for example `DMC/DMC_GMail`) or the top-level client label when no child lane is needed (for example `Primitiv`) or the exact stable company label Adam already uses when no child lane is needed
 - add the matching option to the Emails `Labels` multi_select
 - default to company/domain filters
 - use sender-specific filters only for exceptions that domain routing cannot express cleanly
@@ -50,7 +49,7 @@ When reconciling Gmail against Notion, compare by exact `Thread ID`. Do **not** 
 ## 1.2: Intake classification
 Before bot filtering, classify each thread into one of these paths:
 - **Standard email** - ordinary human email, Outlook-forwarded email, or routed company-mail labels such as `DMC/DMC_GMail` that still behave like normal email correspondence
-- **Teams notification** - `Primitiv/PRI_Teams` label or clear Microsoft Teams chat-notification format
+- **Teams notification** - `Primitiv` label with clear Microsoft Teams chat-notification format (from `@teams.mail.microsoft`)
 - **LinkedIn notification** - `LinkedIn` label or clear LinkedIn message-notification format
 - **Ignored manual queue** - `_Action Items` label or any `_Action Items/...` child label, unless Adam later enables that workflow
 If labels and content disagree, prefer the more specific chat-notification classification and log the ambiguity in `Email Notes`.
@@ -98,7 +97,7 @@ Create or resume the Email record with:
 | Source | `Email - Freed Solutions` or `Email - Personal`, based on the mailbox, unless the thread is a LinkedIn notification that should map to `LinkedIn - DMs` |
 | Record Status | `Draft` |
 Set the page icon to `📧` when creating a new Email page or repairing an older Email page that is missing its DB-matching icon.
-For `Primitiv/PRI_Teams` notification threads:
+For Primitiv Teams notification threads (from `@teams.mail.microsoft` with `Primitiv` label):
 - keep the mailbox-derived `Source` value unless the live schema later adds a dedicated Teams source option
 - rely on `Labels` plus `Email Notes` to preserve the Teams channel context
 ---
@@ -316,6 +315,6 @@ For every processed or resumed Email record:
 7. Do not create Action Items with a blank Company.
 8. Do not leave `Email Notes` blank on a processed thread.
 9. Teams and LinkedIn notifications are not bot-only by default. Treat them as chat wrappers until the body proves otherwise.
-10. Routed Gmail labels are the canonical intake-route truth. Preserve labels such as `Primitiv`, `Primitiv/PRI_Teams`, and `LinkedIn` exactly as received.
+10. Routed Gmail labels are the canonical intake-route truth. Preserve labels such as `Primitiv`, `LinkedIn`, and `Dutchie` exactly as received.
 11. Do not invent new `Source` values when the live schema does not support them. Use `Labels` plus `Email Notes` for channel specificity instead.
 12. Treat runtime drift explicitly. If live permissions or required page access are missing, log it and stop the affected step.
