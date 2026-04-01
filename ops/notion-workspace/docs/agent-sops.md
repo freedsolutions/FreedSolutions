@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: March 31, 2026 (Session 35: Primitiv filter rebuild + DMC label simplification)
+Last synced: April 1, 2026 (Session 38: Follow-up signal hardened — Status = Review replaces text-only flagging)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -331,6 +331,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Use the counterparty's company as `Company` only when the item is genuinely tracking that counterparty's commitment, deliverable, or follow-up
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists
 - `Due Date` should be set whenever the source text contains an explicit or relative deadline that can be resolved
+- `Status = Review` indicates a response was received on a Follow Up or Task that needs Adam's assessment. Agents set Review; Adam resolves it (Done, back to In Progress, or other action).
 - New or repaired Action Item pages should use the `🎬` page icon unless an explicit manual exception already exists
 ## Domains
 - New or repaired Domain pages should use the `🌐` page icon

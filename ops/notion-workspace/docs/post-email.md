@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: March 31, 2026 (Session 35: Primitiv filter rebuild + DMC label simplification)
+Last synced: April 1, 2026 (Session 38: Follow-up signal hardened — Status = Review replaces text-only flagging)
 You are the **Post-Email Agent**. Maintain the CRM trail for Adam's email threads and routed chat notifications that land in Gmail:
 1. **Thread discovery** - sweep connected Gmail inboxes since the last successful run and create Draft Email records for new threads.
 2. **CRM wiring** - match or create Contacts, wire Companies through domain rules, and complete the Email record.
@@ -210,13 +210,12 @@ If this Email record already appears in any Action Item's `Source Email` relatio
 For each wired Contact on the current Email record:
 1. Query Action Items where the `Type` formula evaluates to `Follow Up`, `Status` is not `Done`, and `Record Status` is `Draft` or `Active`.
 2. If one or more matching Follow Up items exist, flag **all** of them — Adam determines which is resolved. For each:
-	- Prepend `⚡ FOLLOW-UP RECEIVED [YYYY-MM-DD]` to `Task Notes`
-	- Append a 1-2 sentence summary of the email thread context to `Task Notes`
+	- Set `Status = Review` on the matched Action Item
+	- Append `⚡ FOLLOW-UP RECEIVED [YYYY-MM-DD]` to `Task Notes`, followed by a 1-2 sentence summary of the email thread context. The Status change makes the item filterable in the "Needs My Attention" view. The Task Notes text preserves the context and timestamp.
 	- Add the current Email record to the `Source Email` relation
 3. After flagging, apply the completion rule:
-	- If the matched Action Item has `Record Status = Active` **and** the email provides clear evidence that the tracked work is complete (deliverable received, confirmation sent, request fulfilled), set `Status = Done` in addition to the flagging and wiring. Append `[YYYY-MM-DD] Completed — [1-line evidence summary]` to `Task Notes`.
-	- If the matched Action Item has `Record Status = Draft`, do **not** change `Status`. Flag with `⚡ FOLLOW-UP RECEIVED` only. Adam has not yet reviewed this item.
-	- If the evidence is ambiguous (partial delivery, related but not conclusive), do **not** change `Status` regardless of `Record Status`. Flag only.
+	- If the matched Action Item has `Record Status = Active` **and** the email clearly shows the work is complete (deliverable received, confirmation sent, request fulfilled), set `Status = Done` (not `Review`). The `Review` status is for responses that need Adam's assessment, not confirmed completions. Append `[YYYY-MM-DD] Completed — [1-line evidence summary]` to `Task Notes`.
+	- If the evidence is ambiguous (partial delivery, related but not conclusive), do **not** set `Status = Done`. Set `Status = Review` and flag only.
 4. Mark the follow-up work as handled for this Contact. Do **not** create a duplicate Follow Up Action Item in Step 3. If the email thread contains additional actionable work beyond the follow-up subject, those items still proceed to 2.6.2 and Step 3 normally.
 If no Contact-level Follow Up matches were found, also query Action Items where the `Type` formula evaluates to `Follow Up`, `Status` is not `Done`, `Record Status` is `Draft` or `Active`, and `Company` matches any Company wired on the current Email record. Apply the same flagging logic. This catches Company-level Follow Ups where the responding person is a different Contact at the same org.
 ## 2.6.2: General semantic matching

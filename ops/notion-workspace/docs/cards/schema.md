@@ -47,7 +47,7 @@
 |----------|------|-------|
 | Task Name | title | |
 | Type | formula | |
-| Status | select | |
+| Status | select | Options: `Not started`, `In Progress`, `Done`, `Review`. `Review` is set by agents when a Follow Up receives a response. Adam reviews and decides: Done, back to In Progress, or other action. |
 | Priority | select | |
 | Record Status | select | `Draft` / `Active` |
 | Task Notes | rich_text | |
@@ -168,6 +168,8 @@ if(Due Date < today() and format(Status) != "Done",
 ```
 
 > **Note:** Action Items QC uses `today()` for the past_due check, not `now()`.
+>
+> **Note:** Items with `Status = Review` may also flag as `past_due` if their Due Date has passed. This is expected — the item needs attention AND is overdue.
 
 ### Meetings QC
 
