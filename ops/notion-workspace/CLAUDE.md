@@ -58,10 +58,9 @@ The repo is the canonical home for session handoff docs.
 
 ## Architecture Track
 
-`ops/notion-workspace/freed-solutions-execution-checklist.md` documents the planned local-first CRM architecture under `ops/local_db/`. This execution brief is **currently frozen** pending completion of the cross-contextual agent instruction work. See `session-active.md` for active priorities.
+The local-first CRM execution checklist (`freed-solutions-execution-checklist.md`) has been archived — removed from the repo tree, preserved in git history (`4367140`). The overhaul plan (`freed-solutions-overhaul-plan.md`) remains in the repo as a future-state reference. See `session-active.md` for active priorities.
 
 - Do not start new `ops/local_db` work until the freeze is lifted.
-- The checklist remains in the repo as a future-state reference.
 - If a task appears to require local DB work, flag it and redirect to the Notion-native approach in the current priorities.
 
 ## Notion-Only Resources (access via MCP)

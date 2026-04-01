@@ -239,7 +239,7 @@ def extract_filter_domains(gmail_filter: dict) -> list[str]:
         return []
 
     domains = []
-    # Patterns: *@domain, @domain, {*@d1 *@d2}
+    # Patterns: *@domain, @domain, {*@d1 *@d2}, user@domain (sender-level)
     # Strip curly braces for OR-groups
     cleaned = from_val.strip().strip("{}")
     for part in cleaned.split():
@@ -249,7 +249,10 @@ def extract_filter_domains(gmail_filter: dict) -> list[str]:
             domains.append(part[2:])
         elif part.startswith("@"):
             domains.append(part[1:])
-        elif "." in part and "@" not in part:
+        elif "@" in part:
+            # Full email (sender-level filter) — keep full address as key
+            domains.append(part)
+        elif "." in part:
             # bare domain
             domains.append(part)
     return domains
