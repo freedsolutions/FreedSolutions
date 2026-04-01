@@ -514,6 +514,9 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
                 for t in props.get("Gmail Label", {}).get("rich_text", [])
             ).strip()
 
+            company_rel = props.get("\U0001f4bc Companies", {}).get("relation", [])
+            company_ids = [r["id"] for r in company_rel]
+
             domains.append({
                 "page_id": page["id"],
                 "domain": domain,
@@ -523,6 +526,7 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
                 "is_generic": is_generic,
                 "gmail_filter_id": gmail_filter_text,
                 "gmail_label": gmail_label_text,
+                "company_ids": company_ids,
             })
 
         if resp.get("has_more") and resp.get("next_cursor"):
@@ -564,6 +568,27 @@ def _update_domain_filter_id(config: AppConfig, page_id: str, filter_id: str):
         raise
 
 
+def _fetch_company_types(config: AppConfig, company_ids: set[str]) -> dict[str, str]:
+    """Fetch Company Type for a set of Company page IDs.
+
+    Returns {page_id: company_type} where company_type is one of
+    'Operator', 'Network', 'Tech Stack', 'Personal', or '' if unset.
+    """
+    if not company_ids:
+        return {}
+    token = _load_notion_token(config)
+    result: dict[str, str] = {}
+    for page_id in company_ids:
+        try:
+            resp = _notion_request(f"/pages/{page_id}", token)
+            props = resp.get("properties", {})
+            ct_select = props.get("Company Type", {}).get("select")
+            result[page_id] = ct_select["name"] if ct_select else ""
+        except Exception:
+            result[page_id] = ""
+    return result
+
+
 def _tier_filter_action_desc(tier: str) -> str:
     """Human-readable description of what a filter does for this tier."""
     descs = {
@@ -595,6 +620,20 @@ def _build_filter_action(tier: str, label_id: str | None) -> dict | None:
         action: dict = {"removeLabelIds": ["INBOX"], "addLabelIds": ["TRASH"]}
         return action
     return None
+
+
+def _needs_to_mirror(entry: dict, company_types: dict[str, str]) -> bool:
+    """Return True if this domain should get a to: outbound mirror filter.
+
+    Mirrors are created for Operator and Network companies with Domain-shaped
+    filters. Sender-level, Tech Stack, and Personal entries are skipped.
+    """
+    if entry["filter_shape"] != "Domain":
+        return False
+    for cid in entry.get("company_ids", []):
+        if company_types.get(cid) in ("Operator", "Network"):
+            return True
+    return False
 
 
 def run_create_from_domains(
@@ -634,10 +673,17 @@ def run_create_from_domains(
             print("\nNo Domain records need new Gmail filters.")
         return
 
+    # Resolve Company Types for to: mirror decisions
+    all_company_ids: set[str] = set()
+    for d in candidates:
+        all_company_ids.update(d.get("company_ids", []))
+    company_types = _fetch_company_types(config, all_company_ids)
+
     print(f"\n{'CREATING' if confirm else 'DRY RUN — would create'} "
           f"filters for {len(candidates)} domains:\n")
 
     created = 0
+    mirrors = 0
     for entry in candidates:
         domain = entry["domain"]
         label_name = entry["gmail_label"] or domain
@@ -669,7 +715,7 @@ def run_create_from_domains(
                 "action": action,
             }
 
-            print(f"  CREATE FILTER: from:{from_criteria} -> {action_desc}")
+            print(f"  CREATED: from:{from_criteria} -> {action_desc}")
             result = service.users().settings().filters().create(
                 userId="me", body=filter_body
             ).execute()
@@ -680,14 +726,31 @@ def run_create_from_domains(
                 print(f"    -> Filter ID {new_filter_id} written to Domain record")
 
             created += 1
+
+            # Create to: outbound mirror for Operator/Network + Domain shape
+            if _needs_to_mirror(entry, company_types):
+                to_criteria = f"*@{domain}"
+                mirror_body: dict = {
+                    "criteria": {"to": to_criteria},
+                    "action": {"addLabelIds": [label_id], "removeLabelIds": ["SPAM"]},
+                }
+                service.users().settings().filters().create(
+                    userId="me", body=mirror_body
+                ).execute()
+                print(f"  CREATED: to:{to_criteria} -> {label_name} (outbound mirror)")
+                mirrors += 1
         else:
             label_action = "exists" if label_id else "WOULD CREATE"
             print(f"  WOULD CREATE: label:{label_name} ({label_action}), "
                   f"filter from:{from_criteria} -> {action_desc}")
+            if _needs_to_mirror(entry, company_types):
+                print(f"  WOULD CREATE: to:*@{domain} -> {label_name} (outbound mirror)")
+                mirrors += 1
             created += 1
 
-    print(f"\n  {'Created' if confirm else 'Would create'}: {created}")
-    if not confirm and created > 0:
+    print(f"\n  {'Created' if confirm else 'Would create'}: {created} from: filters"
+          f", {mirrors} to: mirrors")
+    if not confirm and (created > 0 or mirrors > 0):
         print("\n  Re-run with --create --confirm to execute.")
 
 
