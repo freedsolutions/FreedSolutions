@@ -316,7 +316,6 @@ Cover these cases:
 - human-commented invite thread that should be kept as scheduling/context mail
 - `DMC/DMC_GMail` routed company-mail thread that should process as standard email
 - `adamjfreed@gmail.com` thread with personal-mailbox labels that should still process as standard email
-- `_Action Items`-labeled manual-queue thread that should remain untouched
 - newly retained thread that introduces a stable new source and therefore needs the label/filter contract applied
 - retained Email row that still carries `Labels = [INBOX, <routed-or-company-label>]` after Gmail cleanup
 
@@ -335,7 +334,6 @@ Before running the workflow, verify the live mail connections keep least privile
 - [ ] Contextful share or notification mail is kept when it preserves useful human relationship context, even if the message body looks system-generated
 - [ ] `DMC/DMC_GMail` routes into normal CRM email processing rather than being treated like a chat-notification wrapper
 - [ ] `adamjfreed@gmail.com` stays in sweep scope, but its labels do not trigger routing or skip behavior
-- [ ] `_Action Items` or `_Action Items/...` queue labels are ignored, left unread, and do not create or update CRM records
 - [ ] Status-only invite replies are skipped, marked read, and do not create Email records
 - [ ] Raw invite or update packets stay in the meeting-support bucket and do not enter normal Email intake unless the workflow explicitly needs them for meeting/calendar reconciliation or durable context
 - [ ] Invite-thread mail with meaningful human commentary is kept when it adds real scheduling nuance, decisions, or durable CRM context

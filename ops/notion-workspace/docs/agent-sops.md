@@ -188,7 +188,6 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Notes:
 	- Existing stubs must be eligible for recovery if prior runs stopped after partial work.
 	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail (forwarded Outlook, Teams notifications, calendar invites), `LinkedIn` for LinkedIn message notifications, and `DMC` for DMC routed company mail. Primitiv mail uses dual-labeling for source-specific tracking. Looker reports get Dutchie + Primitiv. QB transactions get Intuit + Primitiv. Teams and Calendar mail get Primitiv only — the Post-Email agent uses Email Notes and thread content to distinguish source type, not sub-labels.
-	- `_Action Items` and any `_Action Items/...` child label are hard-ignore manual-queue labels. Leave them unread and out of automated intake until Adam explicitly enables a dedicated workflow.
 	- Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
 	- Gmail is the cleanup control plane. Filters, inbox posture, archive posture, and unread/read staging are decided in Gmail first; Notion is the retained CRM record and downstream Action Item system.
 	- Reverse-sync from Notion back into Gmail is out of scope unless Adam explicitly enables a separate workflow.
