@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 1, 2026 (Session 40: Routing tier gate, From field removed, archive strengthened)
+Last synced: April 2, 2026 (Session 48: Remove archive behavior from Post-Email agent)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -181,7 +181,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Agent SOPs -\> Can view
 - Connections:
 	- Mail: runtime may show `adam@freedsolutions.com` and `adamjfreed@gmail.com`, and both are currently in scope for the live agent
-	- Expected mail permission set is `Read` plus inbox-modify only for marking terminal threads read after successful processing. `Send` and `Draft` should stay off; treat any broader runtime scope as config drift and log it during agent audits.
+	- Expected mail permission set is `Read` only. The agent does not modify Gmail inbox state (no archiving, no marking read). `Send` and `Draft` should stay off; treat any broader runtime scope as config drift and log it during agent audits.
 	- Web access: Off
 	- No calendar access
 - Model: Opus 4.6
@@ -189,7 +189,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Existing stubs must be eligible for recovery if prior runs stopped after partial work.
 	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail (forwarded Outlook, Teams notifications, calendar invites), `LinkedIn` for LinkedIn message notifications, and `DMC` for DMC routed company mail. Primitiv mail uses dual-labeling for source-specific tracking. Looker reports get Dutchie + Primitiv. QB transactions get Intuit + Primitiv. Teams and Calendar mail get Primitiv only — the Post-Email agent uses Email Notes and thread content to distinguish source type, not sub-labels.
 	- Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
-	- Gmail is the cleanup control plane. Filters, inbox posture, archive posture, and unread/read staging are decided in Gmail first; Notion is the retained CRM record and downstream Action Item system.
+	- Gmail is the upstream source for thread discovery. Filters, labels, and routing are managed in Gmail. The agent does not modify inbox state. Notion is the retained CRM record and downstream Action Item system.
 	- Reverse-sync from Notion back into Gmail is out of scope unless Adam explicitly enables a separate workflow.
 	- `adamjfreed@gmail.com` stays in live sweep scope, but its Gmail labels are currently out of scope for routing. Treat personal-mailbox messages as standard email unless Adam explicitly adds a mailbox-specific routing contract later.
 	- Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
@@ -201,9 +201,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Calendar email handling uses a 3-way split: meeting invite replies that are status-only are hard skip/read with no Email record; raw invite or update packets stay in a meeting-support bucket and are not normal Email intake by default; invite-thread mail with written human commentary is keepable when it adds durable CRM or meeting context.
 	- Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.
 	- Compare inbox parity and dedup by exact `Thread ID`, not subject line or Gmail message counts. Archived Email pages still count as already processed when evaluating parity.
-	- Gmail read-state may change only after a thread reaches terminal state: retained and wired in Notion, intentionally skipped, or classified as meeting-support-only. If anything remains unresolved, leave it unread and list the exception explicitly.
-	- If a retained Email row still carries `INBOX` after a manual Gmail cleanup pass, clear only the stale `INBOX` label on the Email row so Notion backlog views mirror the Gmail archive decision. Preserve any remaining routed or company labels.
-	- Post-Email hardening must verify that newly created or resumed Email rows persist only Gmail user labels, never system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, or `TRASH`, and that every active routed Gmail user label plus each newly introduced source label exists as a Notion `Emails.Labels` option before the workflow relies on it.
+	- Email rows must persist only Gmail user labels, never system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, or `TRASH`. Every active routed Gmail user label and each newly introduced source label must exist as a Notion `Emails.Labels` option before the workflow relies on it.
 	- The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is concrete evidence of a race-condition-class bug. Future Post-Email hardening must use in-run dedup-before-create or serialized Company and Contact creation across same-thread-family work.
 	- Thread lifecycle detection is active. The agent checks for updated threads (new messages on existing Email records) after new-thread discovery. Updated threads re-run cross-contextual matching, which enables reply-based follow-up detection. Outbound threads (Adam-initiated) are tracked with Direction = Outbound and wired to recipient Contacts.
 	- Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
