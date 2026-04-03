@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 2, 2026 (Session 48: Remove archive behavior from Post-Email agent)
+Last synced: April 2, 2026 (Session 51: Post-Email Agent slimdown — reasoning-only after script split)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -170,14 +170,13 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Daily 10:30 PM ET
 	- Property trigger: `Record Status = Active` on Emails (fires Step 3 for newly promoted records)
 	- `@mention`
-	- Note: `Record Status = Active` on Emails gates Step 3 (new Action Item creation). Steps 1-2 and Step 2.6 (cross-contextual matching) run on all records regardless of status. This mirrors Post-Meeting: CRM wiring runs on Draft, Action Item creation runs on Active.
+	- Note: `Record Status = Active` on Emails gates Step 3 (new Action Item creation). Steps 1-2 (Email Notes + cross-contextual matching) run on all records regardless of status. This mirrors Post-Meeting: summary/wiring runs on Draft, Action Item creation runs on Active.
+- Pre-processing script: `post_email_sweep.py` runs before the agent on the nightly schedule. It handles Gmail sweep, thread classification, Email/Contact/Company/Domain record creation and dedup, Date/Subject sync, and Agent Config Last Run updates. The agent receives pre-wired Email records and focuses on reasoning: Email Notes summaries, cross-contextual Action Item matching, and schema-safe Action Item creation.
 - Notion page access:
 	- Post-Email Instructions -\> Can edit
 	- Emails -\> Can edit content
-	- Contacts -\> Can edit content
-	- Companies -\> Can edit content
 	- Action Items -\> Can edit content
-	- Agent Config -\> Can edit
+	- Agent Config -\> Can view
 	- Agent SOPs -\> Can view
 - Connections:
 	- Mail: runtime may show `adam@freedsolutions.com` and `adamjfreed@gmail.com`, and both are currently in scope for the live agent
@@ -186,25 +185,13 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- No calendar access
 - Model: Opus 4.6
 - Notes:
-	- Existing stubs must be eligible for recovery if prior runs stopped after partial work.
-	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail (forwarded Outlook, Teams notifications, calendar invites), `LinkedIn` for LinkedIn message notifications, and `DMC` for DMC routed company mail. Primitiv mail uses dual-labeling for source-specific tracking. Looker reports get Dutchie + Primitiv. QB transactions get Intuit + Primitiv. Teams and Calendar mail get Primitiv only — the Post-Email agent uses Email Notes and thread content to distinguish source type, not sub-labels.
-	- Those routed Gmail labels are the canonical intake signal. `Source` should only use existing schema values; do not force a schema change just to mirror every label.
-	- Gmail is the upstream source for thread discovery. Filters, labels, and routing are managed in Gmail. The agent does not modify inbox state. Notion is the retained CRM record and downstream Action Item system.
-	- Reverse-sync from Notion back into Gmail is out of scope unless Adam explicitly enables a separate workflow.
-	- `adamjfreed@gmail.com` stays in live sweep scope, but its Gmail labels are currently out of scope for routing. Treat personal-mailbox messages as standard email unless Adam explicitly adds a mailbox-specific routing contract later.
-	- Other Gmail labels, especially company or project labels, are metadata only unless they are deliberately promoted into a routed intake lane.
-	- Long term, domain-aligned company labels are encouraged because they make inbox-zero routing and CRM automation more deterministic.
-	- When a newly retained thread introduces a stable new Company or Contact source that should route future mail, dedup CRM first, then create or refresh the Gmail label using the existing live naming pattern: the top-level client label (for example `Primitiv` or `DMC`) or the exact stable company label Adam already uses when no child lane is needed. Add the matching Notion `Labels` option, default to company/domain filters, use sender-specific filters only for exceptions, and keep new filters label-first rather than auto-read by default.
+	- The agent's 4-step pipeline: (1) identify records needing attention (blank Email Notes or script stubs), (2) write Email Notes summaries + cross-contextual Action Item matching, (3) schema-safe Action Item creation on Active records, (4) CRM completion logging.
+	- The agent trusts the script's CRM wiring. It does not re-wire Contacts or Companies. If wiring looks wrong, it logs the issue in Email Notes but does not modify relations.
+	- The agent does NOT update Agent Config Last Run — the script handles this.
+	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail, `LinkedIn` for LinkedIn message notifications, and `DMC` for DMC routed company mail.
 	- Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
-	- Contextful notification and share mail is keepable when it carries a real human plus a concrete artifact, decision, or follow-up context. Do not blanket-classify share notices or forwarded Outlook context as noise.
-	- `Record Status = Active` on Emails gates Step 3 (Action Item creation). Steps 1-2 and Step 2.6 (cross-contextual matching) run on all records regardless of status. `@mention` runs also respect this gate. This mirrors Post-Meeting: CRM wiring runs on Draft, Action Item creation runs on Active.
-	- Calendar email handling uses a 3-way split: meeting invite replies that are status-only are hard skip/read with no Email record; raw invite or update packets stay in a meeting-support bucket and are not normal Email intake by default; invite-thread mail with written human commentary is keepable when it adds durable CRM or meeting context.
-	- Bot-only or alias-only threads may be summarized and skipped without creating CRM wiring or action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.
-	- Compare inbox parity and dedup by exact `Thread ID`, not subject line or Gmail message counts. Archived Email pages still count as already processed when evaluating parity.
-	- Email rows must persist only Gmail user labels, never system labels such as `INBOX`, `UNREAD`, `IMPORTANT`, `STARRED`, `CATEGORY_*`, `SENT`, `DRAFT`, `SPAM`, or `TRASH`. Every active routed Gmail user label and each newly introduced source label must exist as a Notion `Emails.Labels` option before the workflow relies on it.
-	- The March 25 `Hoodie Analytics` / `David Winter` duplicate cluster is concrete evidence of a race-condition-class bug. Future Post-Email hardening must use in-run dedup-before-create or serialized Company and Contact creation across same-thread-family work.
-	- Thread lifecycle detection is active. The agent checks for updated threads (new messages on existing Email records) after new-thread discovery. Updated threads re-run cross-contextual matching, which enables reply-based follow-up detection. Outbound threads (Adam-initiated) are tracked with Direction = Outbound and wired to recipient Contacts.
-	- Runtime audit on March 20, 2026 found a revoked Notion-access entry where Agent Config should be. Repair the live page access if timestamps stop updating.
+	- `Record Status = Active` on Emails gates Step 3 (Action Item creation). `@mention` runs also respect this gate.
+	- Bot-only or alias-only threads may be summarized and skipped without creating action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.
 ## Curated Notes Agent
 - Triggers:
 	- `@mention`

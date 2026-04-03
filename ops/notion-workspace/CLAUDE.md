@@ -19,14 +19,14 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-04-02 (S48) |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-04-02 (S51) |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-primary action items with summary/transcript fallback -> curated summary). Uses live `Calendar Name` options only. | 2026-04-02 (S47) |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction and backlog fairness rules | 2026-04-02 (S47) |
 | `docs/merge-workflow.md` | `323adb01-222f-8111-89c7-c92eaac10ebb` | Merge and dedup workflows | 2026-03-22 |
 | `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
-| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: timestamp-based sweep -> classification matrix -> CRM wiring -> schema-safe action items -> CRM completion | 2026-04-02 (S49) |
+| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: reasoning-only after script split — Email Notes summaries, cross-contextual matching, schema-safe action items | 2026-04-02 (S51) |
 | `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
 | `docs/domain-intake.md` | - | Operator checklist for new domain routing-tier decisions from Post-Email intake | - |
 | `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | - |
