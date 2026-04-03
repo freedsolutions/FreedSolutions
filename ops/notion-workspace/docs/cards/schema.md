@@ -109,7 +109,6 @@
 |----------|------|-------|
 | Domain | title | Canonical domain or subdomain. Page icon: 🌐 |
 | 💼 Companies | relation | Parent Company |
-| Routing Tier | select | *Deprecated — pending removal.* Previously drove Gmail filter behavior. Email record creation is now driven by inbox state. |
 | Filter Shape | select | Domain, Sender, None |
 | Gmail Label | rich_text | |
 | Gmail Filter ID | rich_text | |
@@ -214,8 +213,6 @@ if(and(Record Status == "Active",
        empty(Gmail Filter ID)), "missing:filter_id",
 "TRUE"))))))
 ```
-
-> **Note:** The Routing Tier property is deprecated and pending removal. The live QC formula in Notion still references it — Adam UI step to update after the property is dropped.
 
 ## Dedup Rules
 

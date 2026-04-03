@@ -458,9 +458,6 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
             title_parts = props.get("Domain", {}).get("title", [])
             domain = "".join(t.get("plain_text", "") for t in title_parts).strip()
 
-            routing_select = props.get("Routing Tier", {}).get("select")
-            routing_tier = routing_select["name"] if routing_select else ""
-
             shape_select = props.get("Filter Shape", {}).get("select")
             filter_shape = shape_select["name"] if shape_select else ""
 
@@ -485,7 +482,6 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
             domains.append({
                 "page_id": page["id"],
                 "domain": domain,
-                "routing_tier": routing_tier,
                 "filter_shape": filter_shape,
                 "record_status": record_status,
                 "is_generic": is_generic,
@@ -554,37 +550,13 @@ def _fetch_company_types(config: AppConfig, company_ids: set[str]) -> dict[str, 
     return result
 
 
-def _tier_filter_action_desc(tier: str) -> str:
-    """Human-readable description of what a filter does for this tier."""
-    descs = {
-        "Label": "label only (inbox, unread)",
-        "Silent Label": "label + skip inbox",
-        "Archive": "label + skip inbox",
-        "Block": "trash",
-    }
-    return descs.get(tier, tier)
+def _build_filter_action(label_id: str) -> dict:
+    """Build a label-only Gmail filter action.
 
-
-def _build_filter_action(tier: str, label_id: str | None) -> dict | None:
-    """Build the Gmail filter action dict for a given tier.
-
-    Returns None for Draft Intake (no filter should be created).
-
-    Note: Silent Label and Archive produce identical Gmail filter mechanics
-    (label + removeLabelIds: INBOX). The distinction drives Post-Email agent
-    behavior — Silent Label means the agent processes the thread automatically,
-    while Archive means the thread is stored but not agent-processed.
+    The script only creates label-only filters. Adam manages inbox behavior
+    (archive, skip inbox, mark read) directly in Gmail UI.
     """
-    if tier == "Draft Intake":
-        return None
-    if tier == "Label":
-        return {"addLabelIds": [label_id]}
-    if tier in ("Silent Label", "Archive"):
-        return {"addLabelIds": [label_id], "removeLabelIds": ["INBOX"]}
-    if tier == "Block":
-        action: dict = {"removeLabelIds": ["INBOX"], "addLabelIds": ["TRASH"]}
-        return action
-    return None
+    return {"addLabelIds": [label_id]}
 
 
 def _needs_to_mirror(entry: dict, company_types: dict[str, str]) -> bool:
@@ -611,15 +583,17 @@ def run_create_from_domains(
     """Create Gmail filters using the Domains DB as source."""
     label_name_to_id = {v: k for k, v in label_map.items()}
 
-    # Only create for records that need filters.
-    # Generic domains are allowed when Filter Shape = Sender (from:user@domain
-    # is safe — it targets a specific sender, not the whole domain).
+    # Only create for records that need filters:
+    #   - No existing Gmail filter
+    #   - Filter Shape is set (not None/empty)
+    #   - Gmail Label is populated (script needs a label to apply)
+    #   - Generic domains allowed only for Sender shape (targets specific sender)
     _filterable = [
         d for d in domain_records
         if not d["gmail_filter_id"]
         and (not d["is_generic"] or d["filter_shape"] == "Sender")
-        and d["filter_shape"] != "None"
-        and d["routing_tier"] not in ("Draft Intake", "None")
+        and d["filter_shape"] not in ("None", "")
+        and d["gmail_label"]
     ]
 
     # Gate: only Active records get filters created.
@@ -651,9 +625,8 @@ def run_create_from_domains(
     mirrors = 0
     for entry in candidates:
         domain = entry["domain"]
-        label_name = entry["gmail_label"] or domain
+        label_name = entry["gmail_label"]
         shape = entry["filter_shape"]
-        tier = entry["routing_tier"]
 
         # Build from: criteria based on Filter Shape
         if shape == "Sender":
@@ -663,24 +636,20 @@ def run_create_from_domains(
 
         label_id = label_name_to_id.get(label_name)
 
-        action_desc = _tier_filter_action_desc(tier)
-
         if confirm:
-            if tier != "Block" and not label_id:
+            if not label_id:
                 print(f"  CREATE LABEL: {label_name}")
                 label_id = create_gmail_label(service, label_name)
                 label_name_to_id[label_name] = label_id
 
-            action = _build_filter_action(tier, label_id)
-            if not action:
-                continue
+            action = _build_filter_action(label_id)
 
             filter_body: dict = {
                 "criteria": {"from": from_criteria},
                 "action": action,
             }
 
-            print(f"  CREATED: from:{from_criteria} -> {action_desc}")
+            print(f"  CREATED: from:{from_criteria} -> label:{label_name}")
             result = service.users().settings().filters().create(
                 userId="me", body=filter_body
             ).execute()
@@ -707,7 +676,7 @@ def run_create_from_domains(
         else:
             label_action = "exists" if label_id else "WOULD CREATE"
             print(f"  WOULD CREATE: label:{label_name} ({label_action}), "
-                  f"filter from:{from_criteria} -> {action_desc}")
+                  f"filter from:{from_criteria} -> label only")
             if _needs_to_mirror(entry, company_types):
                 print(f"  WOULD CREATE: to:*@{domain} -> {label_name} (outbound mirror)")
                 mirrors += 1
@@ -790,11 +759,12 @@ def run_cleanup(
     # per-domain single-label model can't express these, so cleanup skips them.
     CLEANUP_SKIP_DOMAINS = {"primitivgroup.com"}
 
-    # Candidates: non-Draft-Intake, non-None tier, non-None shape, non-generic
+    # Candidates: Active records with a filter shape and Gmail label, non-generic
     candidates = [
         d for d in domain_records
-        if d["routing_tier"] not in ("Draft Intake", "", "None")
-        and d["filter_shape"] != "None"
+        if d["record_status"] == "Active"
+        and d["filter_shape"] not in ("None", "")
+        and d["gmail_label"]
         and not d["is_generic"]
         and d["domain"].lower() not in CLEANUP_SKIP_DOMAINS
     ]
@@ -812,8 +782,7 @@ def run_cleanup(
     for entry in candidates:
         domain = entry["domain"]
         shape = entry["filter_shape"]
-        tier = entry["routing_tier"]
-        label_name = entry["gmail_label"] or domain
+        label_name = entry["gmail_label"]
 
         # Build search query
         if shape == "Sender":
@@ -834,35 +803,22 @@ def run_cleanup(
         total_threads += len(thread_ids)
         total_messages += len(message_ids)
 
-        # Determine actions based on tier
-        add_labels: list[str] = []
-        remove_labels: list[str] = []
-        action_desc = _tier_filter_action_desc(tier)
+        # Label-only — no archive or mark-read actions.
+        # Adam manages inbox state directly in Gmail.
+        label_id = label_name_to_id.get(label_name)
+        if not label_id and confirm:
+            print(f"  CREATE LABEL: {label_name}")
+            label_id = create_gmail_label(service, label_name)
+            label_name_to_id[label_name] = label_id
 
-        if tier == "Block":
-            add_labels = ["TRASH"]
-            remove_labels = ["INBOX"]
-        else:
-            # Label, Silent Label, Archive all get the label applied
-            label_id = label_name_to_id.get(label_name)
-            if not label_id and confirm:
-                print(f"  CREATE LABEL: {label_name}")
-                label_id = create_gmail_label(service, label_name)
-                label_name_to_id[label_name] = label_id
-            if label_id:
-                add_labels.append(label_id)
-
-            # Silent Label and Archive: also remove from inbox
-            if tier in ("Silent Label", "Archive"):
-                remove_labels.append("INBOX")
-                remove_labels.append("UNREAD")
+        add_labels: list[str] = [label_id] if label_id else []
 
         print(f"  {domain:<40} {len(thread_ids):>4} threads  "
-              f"{len(message_ids):>5} msgs  -> {action_desc}")
+              f"{len(message_ids):>5} msgs  -> label:{label_name}")
 
         if confirm:
             _batch_modify_messages(
-                service, message_ids, add_labels, remove_labels, confirm=True
+                service, message_ids, add_labels, [], confirm=True
             )
             # Rate limit: pause between domains
             time.sleep(1)
@@ -937,7 +893,7 @@ def run_dedup(
         if fid:
             managed_ids.add(fid)
         domain = d["domain"].lower()
-        if d["filter_shape"] != "None" and d["routing_tier"] != "Draft Intake":
+        if d["filter_shape"] not in ("None", ""):
             managed_domains[domain] = d
 
     print(f"  Domains DB: {len(domain_records)} records, "
