@@ -109,7 +109,7 @@
 |----------|------|-------|
 | Domain | title | Canonical domain or subdomain. Page icon: 🌐 |
 | 💼 Companies | relation | Parent Company |
-| Routing Tier | select | Label, Silent Label, Archive, Block, Draft Intake, None. Archive, Silent Label, and Block tier domains do not create Email records. |
+| Routing Tier | select | *Deprecated — pending removal.* Previously drove Gmail filter behavior. Email record creation is now driven by inbox state. |
 | Filter Shape | select | Domain, Sender, None |
 | Gmail Label | rich_text | |
 | Gmail Filter ID | rich_text | |
@@ -201,22 +201,21 @@ if(empty(Source), "missing:source", "TRUE"))))))
 
 ### Domains QC
 
-Checks: Domain, Record Status, Company, Routing Tier, Source Type. Conditionally checks Gmail Label and Gmail Filter ID only when Routing Tier requires a filter (not Draft Intake or None).
+Checks: Domain, Record Status, Company, Source Type. Conditionally checks Gmail Label and Gmail Filter ID only for Active domains.
 
 ```
 if(empty(Domain), "missing:domain",
 if(empty(Record Status), "missing:record_status",
 if(empty(Companies), "missing:company",
-if(empty(Routing Tier), "missing:routing_tier",
 if(empty(Source Type), "missing:source_type",
-if(and(Routing Tier != "Draft Intake",
-       Routing Tier != "None",
+if(and(Record Status == "Active",
        empty(Gmail Label)), "missing:gmail_label",
-if(and(Routing Tier != "Draft Intake",
-       Routing Tier != "None",
+if(and(Record Status == "Active",
        empty(Gmail Filter ID)), "missing:filter_id",
-"TRUE")))))))
+"TRUE"))))))
 ```
+
+> **Note:** The Routing Tier property is deprecated and pending removal. The live QC formula in Notion still references it — Adam UI step to update after the property is dropped.
 
 ## Dedup Rules
 

@@ -602,11 +602,6 @@ def get_company_from_domain_record(domain_record: dict) -> str | None:
     return None
 
 
-def get_routing_tier(domain_record: dict) -> str:
-    """Extract Routing Tier from a Domain record."""
-    props = domain_record.get("properties", {})
-    return extract_plain_text(props.get("Routing Tier"))
-
 
 def create_draft_company(
     company_name: str,
@@ -643,7 +638,6 @@ def create_draft_domain(
     properties: dict = {
         "Domain": {"title": [{"text": {"content": domain}}]},
         "\U0001f4bc Companies": {"relation": [{"id": company_page_id}]},  # 💼
-        "Routing Tier": {"select": {"name": "Draft Intake"}},
         "Filter Shape": {"select": {"name": "Domain"}},
         "Source Type": {"select": {"name": "Primary"}},
         "Is Generic": {"checkbox": is_generic},
@@ -680,7 +674,7 @@ def create_domain_review_action_item(
         f"Originating thread: \"{email_subject}\"\n"
         f"Sender: {sender_email}\n"
         f"Domain record created: {domain}\n"
-        f"Suggested routing tier: Draft Intake (review needed)"
+        f"Action: Create Gmail filter for this domain or dismiss"
     )
     properties: dict = {
         "Task Name": {"title": [{"text": {"content": task_name}}]},
@@ -1054,13 +1048,10 @@ def _resolve_company_for_domain(
     time.sleep(0.05)
 
     if domain_record:
-        # Check routing tier
-        tier = get_routing_tier(domain_record)
         company_id = get_company_from_domain_record(domain_record)
         entity_cache.setdefault("domains", {})[domain] = {
             "domain_id": domain_record["id"],
             "company_id": company_id,
-            "routing_tier": tier,
         }
         if verbose and company_id:
             print(f"    MATCHED Domain: {domain} -> Company {company_id[:8]}")
@@ -1088,7 +1079,6 @@ def _resolve_company_for_domain(
     entity_cache.setdefault("domains", {})[domain] = {
         "domain_id": new_domain["id"],
         "company_id": company_id,
-        "routing_tier": "Draft Intake",
     }
     counts["domains_created"] = counts.get("domains_created", 0) + 1
 
@@ -1127,21 +1117,6 @@ def handle_new_thread(
     emails_db_id = config.notion.databases["emails"]
     thread_id = thread_meta["thread_id"]
     subject = thread_meta.get("subject", "(no subject)")
-
-    # Routing Tier gate: check first sender's domain
-    from_email = thread_meta.get("from_email") or ""
-    if from_email and "@" in from_email:
-        sender_domain = from_email.split("@")[1]
-        domain_record = lookup_domain(sender_domain, config.notion.databases["domains"], notion_token)
-        time.sleep(0.05)
-        if domain_record:
-            tier = get_routing_tier(domain_record)
-            if tier in ("Archive", "Silent Label", "Block"):
-                action = "Blocked" if tier == "Block" else "Auto-filtered"
-                if verbose:
-                    print(f"    ROUTING GATE: {action} domain: {sender_domain} ({tier})")
-                counts["routing_skipped"] = counts.get("routing_skipped", 0) + 1
-                return
 
     # Thread ID dedup: re-check immediately before creation
     existing = lookup_email_by_thread_id(thread_id, emails_db_id, notion_token)
@@ -1396,7 +1371,6 @@ def run_sweep(args: argparse.Namespace) -> None:
         "domains_created": 0,
         "domain_review_ais": 0,
         "subjects_synced": 0,
-        "routing_skipped": 0,
     }
 
     # Batch-local entity cache (prevents duplicate creation within a run)
@@ -1582,8 +1556,6 @@ def _print_summary(counts: dict, since: datetime, dry_run: bool) -> None:
     print(f"  Errors:                {counts['errors']}")
     if counts.get("deduped_cross_account"):
         print(f"  Cross-account dedup:   {counts['deduped_cross_account']}")
-    if counts.get("routing_skipped"):
-        print(f"  Routing tier skipped:  {counts['routing_skipped']}")
     if not dry_run:
         print(f"\nCRM wiring:")
         print(f"  Emails created:        {counts.get('emails_created', 0)}")

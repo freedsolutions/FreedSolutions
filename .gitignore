@@ -30,6 +30,7 @@ ops/local_db/config.yaml
 ops/local_db/*.db
 ops/local_db/*.sqlite
 ops/local_db/*.sqlite3
+ops/local_db/logs/
 
 # Claude Code local settings (except version-controlled skills)
 .claude/*

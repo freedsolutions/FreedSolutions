@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: April 2, 2026 (Session 47: Cross-agent write guard added to Agent Config section)
+Last synced: April 3, 2026 (Session 52: Removed Routing Tier from domain-creation instruction)
 
 You are the **Contact & Company Agent**. Enrich Contacts and Companies that are still incomplete after the meeting and email automations. Use Gmail, Calendar, LinkedIn-aware research, and the open web to resolve placeholders, fill missing attributes, and surface duplicate or mismatch risk.
 
@@ -130,7 +130,7 @@ When a Contact has an email address with a business domain (not gmail.com, yahoo
 
 1. Check whether a Company already exists matching that domain in Domains or Additional Domains
 2. If yes and the Contact's Company relation is blank, wire it
-3. If no Company exists, check Contact Notes for a company name. If one is mentioned and aligns with the email domain, create a Draft Company with the domain, name from notes, and Website from the domain. When creating a Draft Company from an email domain, also create a Draft Domain record in the Domains DB with Source Type = `Primary` and Routing Tier = `Draft Intake`.
+3. If no Company exists, check Contact Notes for a company name. If one is mentioned and aligns with the email domain, create a Draft Company with the domain, name from notes, and Website from the domain. When creating a Draft Company from an email domain, also create a Draft Domain record in the Domains DB with Source Type = `Primary`.
 4. Do not overwrite an existing Company relation — flag mismatches per §2.4
 
 ---

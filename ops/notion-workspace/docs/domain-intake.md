@@ -1,16 +1,15 @@
 # Domain Intake Workflow
 
-Operator checklist for when the Post-Email agent creates a "Review new domain: [domain]" Action Item (Step 2.4.1 of Post-Email Instructions).
+Operator checklist for when the Post-Email script creates a "Review new domain: [domain]" Action Item.
 
-## Routing Tiers
+## Gmail Filter Decision Model
 
-| Tier | What it means | Gmail filter behavior |
-|------|--------------|----------------------|
-| **Label** | Active business contact, ongoing relationship. Adam reviews in inbox. | Apply company label. Mail stays in inbox, unread. |
-| **Silent Label** | Tracked source, agent processes automatically. No inbox review needed. | Apply label, mark read. Stays in All Mail. |
-| **Archive** | Worth keeping searchable but not surfacing. | Apply label, skip inbox, mark read. |
-| **Block** | Spam-adjacent, no CRM value. | Delete or skip inbox entirely. |
-| **Draft Intake** | New/unreviewed domain. No filter yet. | No Gmail filter. Mail arrives normally until tier is set. |
+The script classifies threads by **inbox state** — whether Gmail's filters labeled and/or archived the thread. There are no routing tiers. The decision is binary:
+
+| Decision | What it means | Gmail filter action |
+|----------|--------------|---------------------|
+| **Track** | Business contact worth CRM visibility. Create a Gmail filter with a company label. | `from:*@domain` → apply label. Optionally skip inbox for low-priority sources. |
+| **Don't track** | No CRM value. Let Gmail's default behavior handle it, or block. | No filter needed. Archive/delete manually, or add a filter to auto-delete. |
 
 ## Decision Checklist
 
@@ -18,17 +17,16 @@ For each "Review new domain" Action Item:
 
 1. Open the Draft Company record linked to the Action Item.
 2. Review the domain, sender, and email thread context in Task Notes.
-3. Decide the routing tier (Label / Silent Label / Archive / Block).
-4. In Gmail Settings > Filters (or via `gmail_filter_manager.py --create`):
-   - Create or update a filter matching the domain (`from:*@[domain]`) or specific sender.
+3. **Create Gmail filter?**
+   - If yes: create a filter matching the domain (`from:*@[domain]`) or specific sender.
    - Apply the Gmail label matching the company name (create the label first if needed).
-   - Filter actions are determined by the tier (see table above).
-5. In Notion:
-   - If the Company is worth keeping: promote to Active, verify Domains/Additional Domains, set Company Type.
+   - Choose filter behavior: label only (stays in inbox), or label + skip inbox (auto-filed).
+4. In Notion:
+   - If the Company is worth keeping: promote to Active, verify Domains, set Company Type.
    - If not worth keeping: trash the record directly.
    - Verify the Gmail label exists as an `Emails.Labels` option in the Emails DB schema.
-6. Promote the Domain record to Active (Record Status = Active). This triggers filter eligibility — the next run of `gmail_filter_manager.py --create` will create the Gmail filter automatically.
-7. Mark the Action Item as Done.
+5. Promote the Domain record to Active (Record Status = Active).
+6. Mark the Action Item as Done.
 
 ## Edge Cases
 

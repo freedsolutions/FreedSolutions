@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 2, 2026 (Session 51: Post-Email Agent slimdown — reasoning-only after script split)
+Last synced: April 3, 2026 (Session 52: Routing Tier removal from docs, inbox-state model)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -335,9 +335,8 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 ## Domains
 - `Domain` (title) is the canonical domain or subdomain
 - `💼 Companies` relation wires to the parent Company
-- `Routing Tier` drives Gmail filter behavior via `gmail_filter_manager.py` (options: Label, Silent Label, Archive, Block, Draft Intake, None). Archive, Silent Label, and Block tier domains do not create Email records in the Post-Email workflow.
 - `Filter Shape` determines the `from:` criteria format (`Domain` = `*@domain`, `Sender` = `from:user@domain`, `None` = no filter)
-- Routing Tier `None` means the domain is tracked but explicitly excluded from all Gmail filter automation (e.g., Adam's own addresses)
+- Email record creation is driven by inbox state (Gmail filter behavior), not by a Domains DB property. If Gmail's filter archived a labeled thread, the script creates a record. If the thread has no label and is archived, it is dismissed.
 - One Domain record per domain/subdomain, even when multiple subdomains share a parent Company
 - Agents creating new Companies must also create a corresponding Draft Domain record
 ---
