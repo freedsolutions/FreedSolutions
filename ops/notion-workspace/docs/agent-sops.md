@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 3, 2026 (Session 55: Legacy domain field references removed — Domains DB is sole domain source)
+Last synced: April 3, 2026 (Session 58: Tag simplification — Action Items Tags now optional manual field)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -317,7 +317,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists
 - `Due Date` should be set whenever the source text contains an explicit or relative deadline that can be resolved
 - `Status = Review` indicates a response was received on a Follow Up or Task that needs Adam's assessment. Agents set Review; Adam resolves it (Done, back to In Progress, or other action).
-- `Tags` classifies the workstream using business-unit tags (Marketing, Retail, Manufacturing, Supply Chain, Technology, HR, Finance, Executive, Operations, Admin, Wholesale, Compliance). Agents set Tags when creating Action Items based on thread content, Contact role, and Company context. Multiple tags are allowed. If uncertain, leave blank for Adam to set during review.
+- `Tags` is an optional manual field on Action Items. Tag context comes from the Contact relation. Agents do not set Tags when creating Action Items — Adam sets them during review when needed.
 - New or repaired Action Item pages should use the `🎬` page icon unless an explicit manual exception already exists
 ## Domains
 - New or repaired Domain pages should use the `🌐` page icon
