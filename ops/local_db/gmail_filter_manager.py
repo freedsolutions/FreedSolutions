@@ -36,49 +36,11 @@ if str(_REPO_ROOT) not in sys.path:
 
 from ops.local_db.lib.config import load_config, AppConfig, split_csv_text
 from ops.local_db.lib.gmail_auth import build_gmail_service
-
-# ---------------------------------------------------------------------------
-# Notion API helpers (stdlib only — no requests dependency)
-# ---------------------------------------------------------------------------
-
-NOTION_API_VERSION = "2022-06-28"
-NOTION_BASE = "https://api.notion.com/v1"
-
-
-def _notion_request(path: str, token: str, body: dict | None = None) -> dict:
-    url = f"{NOTION_BASE}{path}"
-    data = json.dumps(body).encode("utf-8") if body else None
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Notion-Version": NOTION_API_VERSION,
-            "Content-Type": "application/json",
-        },
-        method="POST" if data else "GET",
-    )
-    try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8", errors="replace")
-        try:
-            detail = json.loads(error_body)
-            msg = detail.get("message", error_body)
-        except json.JSONDecodeError:
-            msg = error_body
-        print(f"ERROR: Notion API {e.code} on {url}\n  {msg}", file=sys.stderr)
-        raise
+from ops.local_db.lib.notion_api import notion_request as _notion_request, load_notion_token
 
 
 def _load_notion_token(config: AppConfig) -> str:
-    token_path = config.notion.token_path
-    if not token_path.exists():
-        print(f"ERROR: Notion token file not found at {token_path}", file=sys.stderr)
-        print("Place your Notion integration token in that file and retry.", file=sys.stderr)
-        sys.exit(1)
-    return token_path.read_text(encoding="utf-8").strip()
+    return load_notion_token(config.notion.token_path)
 
 
 # ---------------------------------------------------------------------------
