@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: April 2, 2026 (Session 47: Cross-agent write guard added to Agent Config section)
+Last synced: April 3, 2026 (Session 55: Legacy domain field references removed — Domains DB is sole domain source)
 
 # Agent Role
 
@@ -204,11 +204,10 @@ Do not add `systems@...` addresses to this exclusion list unless the current ses
 When a new contact is created (or an existing contact has no Company relation), use the email domain to automatically wire to the correct Company:
 
 1. Extract the domain from the attendee email (everything after `@`).
-2. Check the **Domains DB** first: query for a Domain record whose title matches the extracted domain. If found, use the **💼 Companies** relation from the Domain record.
-3. If no Domains DB match exists, fall back to the **Companies DB** — check the **Domains** property on each Company. This is a comma-separated text field (e.g., `formul8.ai, staqs.io`). The **first domain listed is the primary/canonical domain**. Also check the **Additional Domains** property — same format, contains merged/subsidiary/alternate domains. (The Domains DB is the primary domain lookup. Companies.Domains and Additional Domains are legacy fields retained during transition.)
-4. If the domain matches → set the Contact's Company relation to that Company.
-5. If no match → create a **placeholder Company** (see Unknown Handling below). If a placeholder already exists for this domain (any Record Status), reuse it.
-6. **Generic email domains** (gmail.com, yahoo.com, outlook.com, hotmail.com, icloud.com, aol.com, protonmail.com) — do NOT match by domain alone. Instead, check if the **full email address** (e.g., `orfaotechservices@gmail.com`) appears as an entry in any Company's Domains or Additional Domains property. If matched, wire to that Company. If not matched, leave the Contact's Company relation empty — manual wiring required.
+2. Query the **Domains DB** for a Domain record whose title matches the extracted domain. If found, use the **💼 Companies** relation from the Domain record.
+3. If the domain matches → set the Contact's Company relation to that Company.
+4. If no match → create a **placeholder Company** (see Unknown Handling below). If a placeholder already exists for this domain (any Record Status), reuse it.
+5. **Generic email domains** (gmail.com, yahoo.com, outlook.com, hotmail.com, icloud.com, aol.com, protonmail.com) — do NOT match by domain alone. Instead, check if the **full email address** (e.g., `orfaotechservices@gmail.com`) appears as a Sender-Level Domain record in the Domains DB. If matched, wire to the linked Company. If not matched, leave the Contact's Company relation empty — manual wiring required.
 
 ## Contact Deduplication Rules
 
@@ -243,11 +242,11 @@ Unknown contacts and domains are handled directly in their source databases. No 
 
 **Unknown domains:** When a new contact's email domain does not match any Company:
 
-1. Check for an existing placeholder first — search Companies DB for any Company (any Record Status) where Domains or Additional Domains contains this domain. If found → wire the contact to it.
+1. Check for an existing placeholder first — search the **Domains DB** for a Domain record matching this domain (any Record Status). If found, use the 💼 Companies relation to wire the contact.
 2. If no match, create a **Draft Company placeholder** with minimal properties:
    - **Company Name**: the domain (e.g., "newcompany.com")
-   - **Domains**: the domain
    - **Record Status**: Draft
+   Also create a Draft Domain record in the Domains DB with Source Type = `Primary` and wire the 💼 Companies relation.
    - **States**: All
 3. Wire the new contact's Company relation to this placeholder immediately.
 
@@ -984,11 +983,11 @@ For each broken case, capture this audit worksheet before repair and save it und
 
 ## Contact & Company Integrity
 
-12. **Do NOT create duplicate source DB records.** Before creating a Contact, search by email (all 3 fields). Before creating a placeholder Company, search by domain in Domains AND Additional Domains. Reuse existing records regardless of Record Status.
+12. **Do NOT create duplicate source DB records.** Before creating a Contact, search by email (all 3 fields). Before creating a placeholder Company, search by domain in the Domains DB. Reuse existing records regardless of Record Status.
 13. **Secondary and Tertiary emails matter.** Always check all email fields. This is the #1 source of past duplicate issues.
-14. **Domain priority in multi-domain companies.** First domain in the Domains property is the primary/canonical domain. All domains are valid for matching.
+14. **Domain priority in multi-domain companies.** Domain records with Source Type = `Primary` are canonical. All Domain records (Primary, Additional, Sender-Level) are valid for matching.
 15. **Company wiring is mandatory on ALL Action Items.** `Company` is the owning or execution context for the work item, not a blind mirror of the counterparty's employer. Use explicit beneficiary company context first, then the source calendar's Default Company for Adam-owned or pre-seeded internal work, and use the counterparty's company only when the item truly tracks that counterparty's commitment or deliverable.
-16. **Generic domain handling.** Gmail, Yahoo, Outlook, Hotmail, iCloud, AOL, Protonmail — check full email address against Domains/Additional Domains. No placeholder Companies for generic domains.
+16. **Generic domain handling.** Gmail, Yahoo, Outlook, Hotmail, iCloud, AOL, Protonmail — check full email address against Sender-Level Domain records in the Domains DB. No placeholder Companies for generic domains.
 
 ## Record Status & Lifecycle
 

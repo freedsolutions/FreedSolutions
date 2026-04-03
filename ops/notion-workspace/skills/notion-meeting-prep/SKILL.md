@@ -19,9 +19,11 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - Collect unique Companies from the Contact-to-Company chain.
 3. Query open Action Items.
    - Filter: Status != Done, linked to any resolved Contact (via Action Items.Contact) OR any resolved Company (via Action Items.Company).
-   - Deduplicate items that match on both Contact and Company.
+   - **Tag-based expansion**: If the Meeting Title or Company context suggests a business-unit focus (e.g., "Weekly Marketing Meeting"), also query Action Items where Tags includes the matching tag(s) (e.g., `Marketing`), even if they are not linked to any attendee Contact or Company. Include these under a "[Tag] - Related" group at the end.
+   - Deduplicate items that match on both Contact and Company (or Contact/Company and Tag).
    - Group Contact-linked items under their Contact.
-   - Group Company-only items (no Contact link to any attendee) under "[Company Name] - General" at the end.
+   - Group Company-only items (no Contact link to any attendee) under "[Company Name] - General".
+   - Group Tag-only items (no Contact or Company link to any attendee) under "[Tag] - Related" at the end.
 4. Query recent Emails.
    - Filter: Date within last 14 days, linked to any resolved Contact (via Emails.Contacts).
    - Group by Contact.

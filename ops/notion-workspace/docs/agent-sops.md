@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 3, 2026 (Session 52: Routing Tier removal from docs, inbox-state model)
+Last synced: April 3, 2026 (Session 55: Legacy domain field references removed — Domains DB is sole domain source)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -285,16 +285,16 @@ Archiving is Adam's UI-managed lifecycle step for records that should be hidden 
 - New or repaired Contact pages should use the `👤` page icon for visual consistency
 - `Company` is the primary operational relation
 - `LinkedIn`, `Phone`, `Pronouns`, and `Role / Title` are fill-in fields and may be updated by enrichment workflows
+- `Tags` classifies the Contact's functional area using business-unit tags. Agents set Tags during enrichment based on Role/Title and Company Type. Multiple tags are allowed.
 ## Normalization rules
 These apply when writing or matching LinkedIn URLs, emails, or domains across any workflow.
 - **LinkedIn URL**: canonical form is `https://www.linkedin.com/in/<slug>` (or `/company/<slug>` for companies). Strip query parameters, fragments, and trailing slashes before storing or comparing.
 - **Email**: lowercase and trim whitespace before storing or comparing.
-- **Domain**: extract hostname from a full URL (strip scheme, path, query). Compare against both `Domains` and `Additional Domains`.
+- **Domain**: extract hostname from a full URL (strip scheme, path, query). Look up in the **Domains DB** for matching and dedup.
 ## Companies
-- `Domains` holds primary operational domains
-- `Additional Domains` holds merged, subsidiary, alternate, or legacy domains — and may also hold **full sender email addresses** for platform companies where the domain itself is too broad for reliable matching (e.g., `workspace@google.com` instead of `google.com`)
-- Both domain fields are used for matching and dedup
-- When matching, check extracted domains against both fields first. If no domain match is found, also check the **full sender email address** against `Additional Domains` to catch platform-company sender-level entries
+- Domain information lives in the **Domains DB**, not on Companies directly. Each Domain record has a 💼 Companies relation, Source Type (Primary, Additional, Sender-Level), and Filter Shape.
+- When matching, query the Domains DB for the extracted domain. The 💼 Companies relation on the matched Domain record provides the company link.
+- Full sender email addresses for platform companies (e.g., `workspace@google.com`) are stored as Sender-Level Domain records in the Domains DB.
 - `Emails` and `Meetings` are company-side rollups from `Contacts`; if those look empty, verify the `Meeting -> Contacts -> Contact -> Company` and `Email -> Contacts -> Contact -> Company` chains before assuming the source records failed to wire
 - Placeholder companies default to `States = All`, but enrichment may replace that placeholder value when stronger evidence exists
 ## Meetings
@@ -317,6 +317,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists
 - `Due Date` should be set whenever the source text contains an explicit or relative deadline that can be resolved
 - `Status = Review` indicates a response was received on a Follow Up or Task that needs Adam's assessment. Agents set Review; Adam resolves it (Done, back to In Progress, or other action).
+- `Tags` classifies the workstream using business-unit tags (Marketing, Retail, Manufacturing, Supply Chain, Technology, HR, Finance, Executive, Operations, Admin, Wholesale, Compliance). Agents set Tags when creating Action Items based on thread content, Contact role, and Company context. Multiple tags are allowed. If uncertain, leave blank for Adam to set during review.
 - New or repaired Action Item pages should use the `🎬` page icon unless an explicit manual exception already exists
 ## Domains
 - New or repaired Domain pages should use the `🌐` page icon

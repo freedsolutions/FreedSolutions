@@ -48,76 +48,36 @@ def _load_notion_token(config: AppConfig) -> str:
 # ---------------------------------------------------------------------------
 
 def fetch_companies(config: AppConfig) -> list[dict]:
-    """Return list of {name, domains, additional_domains, status} dicts."""
-    token = _load_notion_token(config)
-    db_id = config.notion.databases.get("companies")
-    if not db_id:
-        print("ERROR: No 'companies' database ID in config.", file=sys.stderr)
-        sys.exit(1)
+    """Build company-domain mapping from the Domains DB.
+
+    Returns list of {name, domains, additional_domains, status} dicts
+    matching the legacy shape expected by build_domain_map().
+
+    The Companies DB no longer has Domains/Additional Domains rich_text
+    fields — those were replaced by the 🌐 Domains relation to the
+    Domains DB.  This function queries the Domains DB and groups
+    domains by their Gmail Label (the best available company name).
+    """
+    domain_records = fetch_domains_db(config)
+
+    # Group domains by gmail_label (≈ company name)
+    label_domains: dict[str, list[str]] = {}
+    for d in domain_records:
+        label = d["gmail_label"] or d["domain"]
+        status = d["record_status"]
+        if status not in ("Active", "Draft"):
+            continue
+        label_domains.setdefault(label, []).append(d["domain"].lower())
 
     companies: list[dict] = []
-    start_cursor: str | None = None
-
-    while True:
-        body: dict = {
-            "filter": {
-                "property": "Record Status",
-                "select": {"is_not_empty": True},
-            },
-            "page_size": 100,
-        }
-        if start_cursor:
-            body["start_cursor"] = start_cursor
-
-        resp = _notion_request(f"/databases/{db_id}/query", token, body)
-
-        for page in resp.get("results", []):
-            props = page.get("properties", {})
-
-            # Company Name — title property
-            name_parts = props.get("Company Name", {}).get("title", [])
-            name = "".join(t.get("plain_text", "") for t in name_parts).strip()
-
-            # Record Status — select
-            status_obj = props.get("Record Status", {}).get("select")
-            status = status_obj["name"] if status_obj else ""
-
-            # Only Active and Draft
-            if status not in ("Active", "Draft"):
-                continue
-
-            # Domains — rich_text (comma or newline separated)
-            domains_text = "".join(
-                t.get("plain_text", "")
-                for t in props.get("Domains", {}).get("rich_text", [])
-            ).strip()
-            domains = [
-                d.strip().lower()
-                for d in split_csv_text(domains_text)
-            ]
-
-            # Additional Domains — rich_text (comma or newline separated)
-            additional_text = "".join(
-                t.get("plain_text", "")
-                for t in props.get("Additional Domains", {}).get("rich_text", [])
-            ).strip()
-            additional = [
-                d.strip().lower()
-                for d in split_csv_text(additional_text)
-            ]
-
-            companies.append({
-                "page_id": page["id"],
-                "name": name,
-                "domains": domains,
-                "additional_domains": additional,
-                "status": status,
-            })
-
-        if resp.get("has_more") and resp.get("next_cursor"):
-            start_cursor = resp["next_cursor"]
-        else:
-            break
+    for label, domains in label_domains.items():
+        companies.append({
+            "page_id": "",
+            "name": label,
+            "domains": domains,
+            "additional_domains": [],
+            "status": "Active",
+        })
 
     return companies
 
@@ -1084,10 +1044,11 @@ def main():
         print(f"  Found {len(domain_records)} domain records.")
 
         # Audit: reconcile Domains DB against Gmail filters
+        # Map domain -> gmail_label (best available company name from Domains DB)
         domain_to_company: dict[str, str] = {}
         for d in domain_records:
             if not d["is_generic"] and d["filter_shape"] != "None":
-                domain_to_company[d["domain"]] = d["domain"]
+                domain_to_company[d["domain"]] = d["gmail_label"] or d["domain"]
 
         results = reconcile(domain_to_company, gmail_filters, label_map)
         generic_flagged = [(d["domain"], "") for d in domain_records if d["is_generic"]]

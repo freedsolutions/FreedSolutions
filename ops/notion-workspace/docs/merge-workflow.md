@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 22, 2026
+Last synced: April 3, 2026 (Session 55: Legacy domain field references removed — Domains DB is sole domain source)
 
 # When This Applies
 
@@ -14,29 +14,24 @@ Use this workflow when a placeholder Company or duplicate Contact should be merg
 
 # Company Merge Workflow
 
-## Step 1: Decide Where The Domain Belongs
+## Step 1: Decide the Domain's Source Type
 
-Use these rules:
+Use these rules in the **Domains DB**:
 
-- `Domains`
-  - primary operational domains
-  - employees actively send email from them today
-- `Additional Domains`
-  - merged domains
-  - subsidiary domains
-  - legacy domains
-  - alternate domains kept for matching and dedup
+- `Primary` — primary operational domains; employees actively send email from them today
+- `Additional` — merged, subsidiary, legacy, or alternate domains kept for matching and dedup
+- `Sender-Level` — full sender email addresses for platform companies where the domain is too broad
 
 Promotion rule:
 
-- if the merged domain becomes a current day-to-day operating domain, add it to `Domains`
-- otherwise add it to `Additional Domains`
+- if the merged domain becomes a current day-to-day operating domain, set Source Type to `Primary`
+- otherwise set Source Type to `Additional`
 
-Do not treat every merged domain as primary by default.
+Do not treat every merged domain as Primary by default.
 
-## Step 2: Update The Canonical Company
+## Step 2: Update the Domains DB
 
-Add the domain to the correct field on the canonical Company.
+Create or update a Domain record for the merged domain with the correct Source Type and wire the 💼 Companies relation to the canonical Company.
 
 ## Step 3: Rewire Contacts
 
@@ -78,7 +73,6 @@ Once the duplicate Contact has no remaining relations:
 
 # Quick Rules
 
-1. `Domains` is for active operational domains.
-2. `Additional Domains` is for merged, subsidiary, alternate, and legacy domains.
-3. Both domain fields are used for matching and dedup.
-4. Always preserve the canonical dedup signal before deleting the duplicate record.
+1. Domain records in the **Domains DB** drive all domain matching and dedup.
+2. Source Type `Primary` = active operational; `Additional` = merged/subsidiary/alternate/legacy; `Sender-Level` = full email for platform companies.
+3. Always preserve the canonical dedup signal (Domain records + 💼 Companies relation) before deleting the duplicate record.

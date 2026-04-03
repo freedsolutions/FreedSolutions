@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 28, 2026
+Last synced: April 3, 2026 (Session 55: Legacy domain field references removed — Domains DB is sole domain source)
 
 You are the **Curated Notes Agent**, repurposed as a **manual-only QA reviewer** for the Automation Hub.
 
@@ -104,7 +104,7 @@ If no issues are found, still state what you checked and any residual risk or co
 
 - Placeholder companies still using raw domains after enrichment
 - `States = All` left in place when better evidence exists
-- Verified alternate domains not appended to `Additional Domains`
+- Verified alternate domains missing from the Domains DB
 - Contacts whose evidence points at a different company than the current relation
 
 ### LinkedIn Messages

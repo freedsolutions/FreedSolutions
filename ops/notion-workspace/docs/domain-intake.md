@@ -31,5 +31,5 @@ For each "Review new domain" Action Item:
 ## Edge Cases
 
 - **Generic domains** (gmail.com, outlook.com, etc.): no company filter needed. The Contact-level record is sufficient. Mark the AI as Done with a note.
-- **Subdomain of an existing Company**: add to Additional Domains on the existing Company instead of keeping the new Draft. Mark the AI as Done with a note.
+- **Subdomain of an existing Company**: create a Domain record in the Domains DB with Source Type = `Additional` and wire the 💼 Companies relation to the existing Company instead of keeping the new Draft. Mark the AI as Done with a note.
 - **Multiple senders at the same new domain**: one filter covers the domain. Don't create per-sender filters unless routing differs by sender.

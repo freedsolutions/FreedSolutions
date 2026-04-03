@@ -285,7 +285,7 @@ Use:
 
 - [ ] Placeholder company corrected when evidence exists
 - [ ] `States = All` corrected when better evidence exists
-- [ ] Verified alternate domains appended to `Additional Domains`
+- [ ] Verified alternate domains created in the Domains DB with correct Source Type and 💼 Companies relation
 - [ ] Older unresolved records are not starved by newer ones
 - [ ] Company mismatch cases are flagged, not silently rewired
 

@@ -175,6 +175,9 @@ Every created Action Item must include the properties needed for Draft review:
 - **Due Date**:
 	- use an explicit or implicit deadline when present
 	- if no deadline exists, set Due Date to the Email record Date and append `Due Date fallback: thread date used because no deadline was stated.` to `Task Notes`
+- **Tags**: set based on the thread content, Contact's role, and Company context. Use the business-unit tags that best describe the workstream. Multiple tags are allowed. If uncertain, leave Tags blank — Adam will set them during review.
+	- Examples: Dutchie contract renewal → `[Technology]`; 420 deals campaign → `[Marketing, Retail]`; HR contact about onboarding → `[HR]`; wholesale pricing → `[Wholesale, Finance]`
+
 Set the page icon to `🎬` when creating a new Action Item or repairing an older Action Item that is missing its standard DB icon.
 ## 3.3: Duplicate protection
 Before creating a new Action Item, check existing Source Email-linked Action Items for a materially identical task. **"Materially identical" means the same Contact, same topic, and same requested action — even if the wording differs** (e.g., "Follow up on X" vs. "Follow up re: X", "Send Jake the proposal" vs. "Get the proposal to Jake"). When in doubt, flag the existing AI with a weak-match note rather than creating a duplicate.

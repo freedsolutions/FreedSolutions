@@ -18,6 +18,7 @@
 | LinkedIn | url | Canonical form: `https://www.linkedin.com/in/<slug>` |
 | Company | relation | |
 | Role / Title | rich_text | |
+| Tags | multi_select | Business-unit tags: Marketing, Retail, Manufacturing, Supply Chain, Technology, HR, Finance, Executive, Operations, Admin, Wholesale, Compliance |
 | Record Status | select | `Draft` / `Active` |
 | Contact Notes | rich_text | |
 
@@ -28,8 +29,7 @@
 | Company Name | title | |
 | Company Type | select | Tech Stack, Operator, Network, Personal |
 | QC | formula | |
-| Domains | rich_text | Primary domains — dedup field (legacy — see Domains DB) |
-| Additional Domains | rich_text | Merged/subsidiary/sender-level — dedup field. May hold full sender email for platform companies. (legacy — see Domains DB) |
+| 🌐 Domains | relation | Relation to Domains DB — all domain matching and dedup uses this |
 | States | select | Default: "All" |
 | Website | url | |
 | Contacts | relation | |
@@ -49,6 +49,7 @@
 | Type | formula | |
 | Status | select | Options: `Not started`, `In Progress`, `Done`, `Review`. `Review` is set by agents when a Follow Up receives a response. Adam reviews and decides: Done, back to In Progress, or other action. |
 | Priority | select | |
+| Tags | multi_select | Business-unit tags: Marketing, Retail, Manufacturing, Supply Chain, Technology, HR, Finance, Executive, Operations, Admin, Wholesale, Compliance |
 | Record Status | select | `Draft` / `Active` |
 | Task Notes | rich_text | |
 | Due Date | date | |
@@ -219,7 +220,7 @@ if(and(Record Status == "Active",
 | Entity | Match fields |
 |--------|-------------|
 | Contacts | Email + Secondary Email + Tertiary Email (all three checked) |
-| Companies | Domains + Additional Domains (both checked). Additional Domains may hold full sender email for platform companies. |
+| Companies | Domains DB records (query by domain title, use 💼 Companies relation). Sender-Level records hold full email for platform companies. |
 | Emails | Thread ID (exact match, not subject line) |
 
 ## Normalization
@@ -227,4 +228,4 @@ if(and(Record Status == "Active",
 - **LinkedIn URLs:** `https://www.linkedin.com/in/<slug>` (canonical form)
 - **Emails:** lowercase + trim
 - **Domains:** hostname only (no protocol, no path)
-- **Company domain matching:** Check domains first, then fall back to full sender email address against Additional Domains
+- **Company domain matching:** Query the Domains DB by domain title; Sender-Level records hold full email addresses for platform companies
