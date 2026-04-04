@@ -6,7 +6,7 @@ description: Kick off `ops/notion-workspace` work by reading the canonical hando
 # Notion Active Session
 
 Read `ops/notion-workspace/session-active.md`, `ops/notion-workspace/CLAUDE.md`, and `ops/notion-workspace/docs/agent-sops.md` first when they exist in the workspace.
-If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning because that checklist may supersede the current manual-workflow queue for that architecture lane.
+If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, check `session-active.md` Frozen Plans before planning — the local-first architecture lane is currently frozen.
 If routine repo-scoped shell, Notion MCP, or Playwright MCP actions start surfacing local approval prompts during kickoff, treat that as launcher/profile drift and switch to the documented quiet lane instead of normalizing repeated ad hoc approvals.
 
 ## Workflow
@@ -14,7 +14,7 @@ If routine repo-scoped shell, Notion MCP, or Playwright MCP actions start surfac
 1. Rebuild the active context.
    - Extract current state, priorities, follow-up items, and any `Planning Output` from `session-active.md`.
    - Extract standing approvals, sync rules, skill-publish rules, and the review gate from `CLAUDE.md`.
-   - When the request targets the local-first CRM architecture, extract any architecture-lane overrides or conflicts from `freed-solutions-execution-checklist.md`.
+   - When the request targets the local-first CRM architecture, check Frozen Plans in `session-active.md` — the architecture lane is currently frozen.
    - Read only the workflow docs, skills, and scripts that match the requested scaffolding change.
 2. Fan out targeted repo discovery.
    - Use local or parallel discovery by default when kickoff benefits from fan-out.

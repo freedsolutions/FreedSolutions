@@ -38,9 +38,9 @@ if ($validRepoRoot.RelativePath -ne 'ops/notion-workspace') {
     throw 'Repo-scoped discovery did not preserve the expected relative path for ops/notion-workspace.'
 }
 
-$validFile = Resolve-RepoScopedPath -Path 'ops/notion-workspace/docs/test-playbooks.md' -RepoRoot $repoRoot
-if ($validFile.RelativePath -ne 'ops/notion-workspace/docs/test-playbooks.md') {
-    throw 'Repo-scoped discovery did not preserve the expected relative path for docs/test-playbooks.md.'
+$validFile = Resolve-RepoScopedPath -Path 'ops/notion-workspace/docs/agent-sops.md' -RepoRoot $repoRoot
+if ($validFile.RelativePath -ne 'ops/notion-workspace/docs/agent-sops.md') {
+    throw 'Repo-scoped discovery did not preserve the expected relative path for docs/agent-sops.md.'
 }
 
 Assert-Throws -Label 'absolute repo path' -ScriptBlock {

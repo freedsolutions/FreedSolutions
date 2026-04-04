@@ -5,7 +5,7 @@ description: Run structured smoke or regression tests for Notion Custom Agents u
 
 # Notion Agent Test
 
-Read `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/docs/agent-sops.md`, and `ops/notion-workspace/docs/test-playbooks.md` first when they exist. The local playbooks are the canonical acceptance criteria.
+Read `ops/notion-workspace/CLAUDE.md` and `ops/notion-workspace/docs/agent-sops.md` first when they exist.
 If routine repo-scoped shell, Notion MCP, or Playwright MCP support actions start surfacing local approval prompts during setup or verification, treat that as launcher/profile drift and switch to the documented quiet lane instead of normalizing repeated ad hoc approvals.
 
 ## Workflow

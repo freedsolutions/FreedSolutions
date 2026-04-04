@@ -183,7 +183,6 @@ $requiredClaudeAllowEntries = @(
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-approval-baseline.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-discovery-scope.ps1" *)',
-    'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-sub-agent-contract.ps1" *)',
     'Read',
     'Edit',
     'Write',

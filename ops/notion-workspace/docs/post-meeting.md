@@ -215,6 +215,19 @@ Same format. Append, never overwrite.
 
 Same meeting, identical Task Name + Contact → keep first. Cross-layer dedup (Floppy vs Notes) happens in Step 2.2.
 
+## 2.0.8: Error Handling
+
+| Scenario | Behavior |
+|----------|----------|
+| Trigger detected but no parseable command | Log warning, skip |
+| Unrecognized command type | Default to Task, flag in Task Notes |
+| Contact name not resolved | Create item with blank Contact, flag in Task Notes |
+| Company name not resolved (Company Note) | Create Task for Adam instead of appending |
+| Due date unparseable | Leave blank, include raw text in Task Notes |
+| Duplicate trigger (same command repeated) | Keep first, log duplicate skipped |
+| No transcription block | Skip Floppy parsing, proceed to Step 2.1 |
+| 150-word cap reached | Truncate, flag in Task Notes |
+
 ---
 
 # Steps 2.1–2.3: Notes-Driven Action Items

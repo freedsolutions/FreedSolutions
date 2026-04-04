@@ -90,7 +90,7 @@ During Company enrichment, for each Active Contact wired to the current Company:
    - 💼 Companies = wired to the current Company
    - Gmail Label = match the Company's existing label pattern (check other Domain records for the Company)
    - Record Status = `Draft`
-5. Flag the new Domain for Adam's review — it needs a Gmail filter (domain-intake workflow).
+5. Flag the new Domain for Adam's review — it needs a Gmail filter.
 
 This ensures every business email domain used by a Company's contacts is represented in the Domains DB.
 

@@ -22,12 +22,9 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 | `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-04-04 (S68) |
 | `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-driven action items with summary/transcript enrichment only -> curated summary). Uses live `Calendar Name` options only. | 2026-04-04 (S67) |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction, domain cross-check, Source Type coherence, and backlog fairness rules | 2026-04-04 (S68) |
-| `docs/floppy-design.md` | - | Floppy voice-command CRM agent design doc (local only) | - |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: reasoning-only after script split — Email Notes summaries, cross-contextual matching, schema-safe action items | 2026-04-04 (S68) |
-| `docs/domain-intake.md` | - | Operator checklist for new domain routing-tier decisions from Post-Email intake | - |
-| `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | - |
 
 ## Codex Skills
 
@@ -52,13 +49,6 @@ The repo is the canonical home for session handoff docs.
 | File or Path | Purpose |
 |--------------|---------|
 | `ops/notion-workspace/session-active.md` | Canonical active handoff, priorities, and next actions |
-
-## Architecture Track
-
-The local-first CRM execution checklist (`freed-solutions-execution-checklist.md`) has been archived — removed from the repo tree, preserved in git history (`4367140`). The overhaul plan (`freed-solutions-overhaul-plan.md`) remains in the repo as a future-state reference. See `session-active.md` for active priorities.
-
-- Do not start new `ops/local_db` work until the freeze is lifted.
-- If a task appears to require local DB work, flag it and redirect to the Notion-native approach in the current priorities.
 
 ## Notion-Only Resources (access via MCP)
 
@@ -115,7 +105,7 @@ The shared `UNGATED` / `HARDENED_GATE` / `GOVERNANCE_GATE` taxonomy is the repo 
 
 For routine `ops/notion-workspace` work on this workstation:
 
-- **Claude project baseline** lives in a repo-tracked `.claude/settings.json` plus the workstation overlay `.claude/settings.local.json`. Keep the shared Notion-workspace baseline entries aligned between both files: `mcp__notion`, `mcp__google-workspace`, `mcp__playwright`, the still-needed legacy `mcp__claude_ai_Notion__notion-{fetch,search,update-page,create-pages}` entries, `mcp__claude_ai_Gmail__gmail_read_message`, repo-scoped discovery shell commands, the minimal `Bash(grep *)` compatibility alias, `Bash(python scripts/codex_review.py *)`, and the exact script approvals for `compare-notion-sync.ps1`, `test-compare-notion-sync.ps1`, `test-closeout-sanity.ps1`, `test-closeout-sanity-guard.ps1`, `publish-codex-skills.ps1`, `sync-claude-skill-wrappers.ps1`, `test-approval-baseline.ps1`, `test-discovery-scope.ps1`, and `test-sub-agent-contract.ps1`. Claude MCP permissions do not support `*` wildcards, so approve the server name itself when the intent is "all tools from this MCP server." Keep unrelated workstation shell helpers, non-Notion project allowances, and any `additionalDirectories` out of `.claude/settings.json`; those belong in `.claude/settings.local.json` only. Workstation extras must not replace or omit the shared baseline entries from `.claude/settings.json`. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
+- **Claude project baseline** lives in a repo-tracked `.claude/settings.json` plus the workstation overlay `.claude/settings.local.json`. Keep the shared Notion-workspace baseline entries aligned between both files: `mcp__notion`, `mcp__google-workspace`, `mcp__playwright`, the still-needed legacy `mcp__claude_ai_Notion__notion-{fetch,search,update-page,create-pages}` entries, `mcp__claude_ai_Gmail__gmail_read_message`, repo-scoped discovery shell commands, the minimal `Bash(grep *)` compatibility alias, `Bash(python scripts/codex_review.py *)`, and the exact script approvals for `compare-notion-sync.ps1`, `test-compare-notion-sync.ps1`, `test-closeout-sanity.ps1`, `test-closeout-sanity-guard.ps1`, `publish-codex-skills.ps1`, `sync-claude-skill-wrappers.ps1`, `test-approval-baseline.ps1`, and `test-discovery-scope.ps1`. Claude MCP permissions do not support `*` wildcards, so approve the server name itself when the intent is "all tools from this MCP server." Keep unrelated workstation shell helpers, non-Notion project allowances, and any `additionalDirectories` out of `.claude/settings.json`; those belong in `.claude/settings.local.json` only. Workstation extras must not replace or omit the shared baseline entries from `.claude/settings.json`. `enableAllProjectMcpServers` should stay on, and `enabledMcpjsonServers` should include `playwright`.
 - **Repo-scoped discovery only.** Launch discovery from the repo root and keep read-only shell enumeration scoped to repo paths. Prefer exact repo-scoped forms such as `rg --files ops/notion-workspace`, `rg --no-follow -F <text> ops/notion-workspace`, and repo-rooted file reads under `ops/notion-workspace`.
 - **PowerShell fallback shape.** If `rg` is unavailable, use explicit repo-scoped PowerShell fallback commands such as `Get-ChildItem -Path ops/notion-workspace -Recurse -File -Force | Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) }` for enumeration and pipe that result into `Select-String -SimpleMatch -Pattern <text>` for text search. Do not recurse against absolute paths, parent directories, or uncontrolled roots.
 - **Discovery path enforcement.** Kickoff discovery should normalize candidate paths against the repo root, reject absolute paths and `..` segments that escape the repo, refuse discovery when the repo root cannot be resolved cleanly, and validate the helper behavior with `ops/notion-workspace/scripts/test-discovery-scope.ps1`.
@@ -127,7 +117,7 @@ For routine `ops/notion-workspace` work on this workstation:
 - **Playwright MCP baseline** is approval-free in the default repo launch lane. Routine `mcp__playwright` navigation, capture, and bounded UI actions inside documented Notion-workspace flows should not trigger extra local client approval prompts on this workstation.
 - **Playwright bounds still apply.** Do not treat the quiet baseline as blanket approval for arbitrary browser eval, broad artifact writes, or out-of-workspace file access. Keep Playwright use inside the documented browser tools, repo/workspace-scoped outputs, and task-approved domains, normally the Notion workspace and localhost preview/test surfaces. Treat broader browsing as a task-specific decision, not as part of the standing baseline; only the normal repo workflow gates should pause the work.
 - **Quiet mode is a client baseline only.** The default quiet Codex lane suppresses local client approval prompts, but it does not waive repo workflow gates. Repo/code mutations inside autonomous repo-backed skills still require `HARDENED_GATE`, and schema, destructive, bulk, or out-of-contract lifecycle moves still require `GOVERNANCE_GATE`.
-- **Runtime proof remains explicit.** Treat the baseline as enforced only after `ops/notion-workspace/scripts/test-approval-baseline.ps1` passes and the short manual smoke in `docs/test-playbooks.md` confirms routine MCP work is approval-free while the normal repo gates still fire.
+- **Runtime proof remains explicit.** Treat the baseline as enforced only after `ops/notion-workspace/scripts/test-approval-baseline.ps1` passes and routine MCP work is confirmed approval-free while the normal repo gates still fire.
 
 ## Standing Approval Scope
 
