@@ -229,7 +229,7 @@ def upsert_thread(
         "raw_subject": subject,
         "thread_id": thread.get("id"),
         "mailbox_address": account.address,
-        "source": "LinkedIn - DMs" if classification == "linkedin_notification" else account.source_label,
+        "source": account.source_label,
         "intake_type": classification,
         "from_address": extract_sender_email(thread),
         "direction": determine_direction(

@@ -184,7 +184,6 @@ def main():
     source_to_account = {
         "Email - Freed Solutions": "adam@freedsolutions.com",
         "Email - Personal": "adamjfreed@gmail.com",
-        "LinkedIn - DMs": "adam@freedsolutions.com",
     }
 
     print("\nFetching Active Email records from Notion...")
