@@ -76,19 +76,6 @@ Naming conventions:
 - Skill source: `skills/[skill-name]/`
 ---
 # Manual Workflows And Skills
-## Workflow Docs
-<table header-row="true">
-<tr>
-<td>Workflow</td>
-<td>Purpose</td>
-<td>URL</td>
-</tr>
-<tr>
-<td>Merge Workflow</td>
-<td>Merge duplicates and run delete-safe cleanup</td>
-<td>[Merge Workflow](https://www.notion.so/323adb01222f811189c7c92eaac10ebb)</td>
-</tr>
-</table>
 ## Codex Skills
 <table header-row="true">
 <tr>
@@ -334,6 +321,17 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Email record creation is driven by inbox state (Gmail filter behavior), not by a Domains DB property. If Gmail's filter archived a labeled thread, the script creates a record. If the thread has no label and is archived, it is dismissed.
 - One Domain record per domain/subdomain, even when multiple subdomains share a parent Company
 - Agents creating new Companies must also create a corresponding Draft Domain record
+## Merge Workflow
+When a placeholder Company or duplicate Contact should be merged into a canonical record:
+**Company merge:**
+1. Create or update the merged domain's Domain record in the Domains DB (Source Type = Additional unless it's a current operating domain). Wire 💼 Companies to the canonical Company.
+2. Rewire all Contacts and Action Items from the duplicate to the canonical Company.
+3. Add a merge note, then trash the duplicate.
+**Contact merge:**
+1. Add the duplicate's email to the canonical Contact as Secondary or Tertiary Email.
+2. Rewire all Meetings, Emails, and Action Items from the duplicate to the canonical Contact.
+3. Add a merge note naming the canonical Contact, then trash the duplicate.
+Always preserve dedup signals (Domain records + emails) before trashing the duplicate. Never auto-merge — Adam initiates all merges.
 ---
 # Rules of Engagement
 1. Read `ops/notion-workspace/session-active.md` first, then the canonical local docs.
