@@ -2,7 +2,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 21, 2026
+Last synced: March 21, 2026 (S69: removed Notetaker Profiles Roadmap — pending Notion sync)
 
 **Type:** Notion Calendar AI Notetaker Profile
 **Status:** Active — original rollout in Session 38 (March 15, 2026); source reference format updated in Session 39; metadata refreshed March 21, 2026
@@ -76,14 +76,3 @@ The Post-Meeting Agent follows a **human-driven model** for Action Items. The li
 
 This means the notetaker's Action Items section is primarily a reflection of what Adam typed and spoke via Floppy — not AI-inferred commitments. The downstream agent trusts Adam's input over AI interpretation.
 
-## Notetaker Profiles Roadmap
-
-This is the first notetaker profile (**Notetaker CRM**). Future profiles for different meeting types:
-
-| Profile | Use Case | Status |
-|---------|----------|--------|
-| **Notetaker CRM** (this doc) | Default for all business meetings. Structured for Post-Meeting Agent parsing. | Active |
-| **Strategy / Workshop** | Longer brainstorm or planning sessions. Heavier on topic summaries, lighter on action items. | Planned |
-| **1:1 / Check-in** | Quick syncs. Minimal structure, focus on decisions and follow-ups. | Planned |
-
-Each profile will be a separate doc with its own instruction text, registered in `agent-sops.md`.

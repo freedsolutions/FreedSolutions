@@ -60,14 +60,6 @@ At the end of every session:
 <td>Live</td>
 <td>[Settings](https://www.notion.so/agent/323adb01222f802cb5640092af74e84a?wfv=settings)</td>
 </tr>
-<tr>
-<td>Curated Notes Agent</td>
-<td>Curated Notes Instructions</td>
-<td>`@mention` only</td>
-<td>Opus 4.6</td>
-<td>Active (manual QA reviewer)</td>
-<td>[Settings](https://www.notion.so/agent/325adb01222f802e91290092cb71c17d?wfv=settings)</td>
-</tr>
 </table>
 Naming conventions:
 - Custom Agent in Notion settings: `[Agent Name]`
@@ -146,7 +138,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- The AI summary and transcript may enrich note-derived items and provide bounded fallback recovery when Notes are sparse or empty, but they are not the default primary source when Notes are present.
 	- Series wiring is recurrence-driven. When GCal returns `recurringEventId`, Post-Meeting stores that value in Meetings.`Series Key`, reuses or auto-creates a Series Parent, and sets the instance `Series` relation.
 	- Same-title meetings without `recurringEventId` stay standalone. Legacy title-pattern Series matching is reference-only, not the automatic rule.
-	- Curated summary generation remains inside Post-Meeting, but the separate Curated Notes Agent now serves as the manual QA reviewer.
+	- Curated summary generation remains inside Post-Meeting Step 3.
 ## Post-Email Agent
 - Triggers:
 	- Daily 10:30 PM ET
@@ -174,30 +166,6 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
 	- `Record Status = Active` on Emails gates Step 3 (Action Item creation). `@mention` runs also respect this gate.
 	- Bot-only or alias-only threads may be summarized and skipped without creating action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.
-## Curated Notes Agent
-- Triggers:
-	- `@mention`
-	- Property trigger: Off
-- Notion page access:
-	- Meetings -\> Can edit content
-	- Emails -\> Can edit content
-	- Action Items -\> Can edit content
-	- Contacts -\> Can view
-	- Companies -\> Can view
-	- Agent Config -\> Can edit
-	- Curated Notes Instructions -\> Can edit
-	- Agent SOPs -\> Can view
-- Connections:
-	- Calendar: Read only
-	- Web access: On
-	- No mail required by default
-- Model: Opus 4.6
-- Role contract:
-	- Manual QA reviewer
-	- Audit and report first
-	- No new CRM records by default
-	- No `Record Status` changes by default
-	- No bulk repair unless explicitly requested in the prompt
 ## Contact & Company Agent
 - Triggers:
 	- Daily 11 PM ET
