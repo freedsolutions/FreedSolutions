@@ -1073,10 +1073,8 @@ def handle_new_thread(
 
     # Determine source label
     source_label = acct.source_label
-    # LinkedIn notification override
-    if any("linkedin" in ln.lower() for ln in user_label_names):
-        if "teams.mail.microsoft" not in (thread_meta.get("from_email") or ""):
-            source_label = "LinkedIn - DMs"
+    # LinkedIn notifications use the account's default source label;
+    # the "LinkedIn" Gmail label carries the routing metadata.
 
     # Initial Email Notes marker (agent searches for these to find records)
     email_notes = "[PENDING_AI_SUMMARY]"

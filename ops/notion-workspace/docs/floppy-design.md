@@ -421,7 +421,7 @@ This section appears between Step 1 and Step 2 in the output, matching execution
 
 ## Design Constraints Summary
 
-- **No new Floppy-specific DB properties required** — Floppy still uses the shared Action Items, Contacts, and Companies fields; optional `Target Meeting` and `Target Email` remain blank unless a later workflow explicitly wires them
+- **No new Floppy-specific DB properties required** — Floppy still uses the shared Action Items, Contacts, and Companies fields
 - **No new Contacts or Companies created** — contact/company creation is exclusively Step 1's job
 - **Record Status = Draft** on all Floppy-created Action Items — keeps the review gate, but items should be more prescriptive and faster to approve
 - **Append-only for notes** — Contact Notes and Company Notes are never overwritten

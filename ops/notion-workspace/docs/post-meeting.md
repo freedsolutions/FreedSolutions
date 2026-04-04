@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: April 3, 2026 (Session 55: Legacy domain field references removed — Domains DB is sole domain source)
+Last synced: April 4, 2026 (Session 62: Removed Target Meeting/Email from AI tables; renamed Attach File→Files)
 
 # Agent Role
 
@@ -500,7 +500,7 @@ If Tier 1 fails, search the entire Contacts DB. Floppy commands are explicit int
 
 | Property | Task (Assignee = Adam) | Follow Up (Assignee blank) |
 |----------|----------------------|---------------------------|
-| Task Name | Concise imperative from extracted action. Strip URLs — they go in Attach File. | Description of what needs to happen. Strip URLs — they go in Attach File. |
+| Task Name | Concise imperative from extracted action. Strip URLs — they go in Files. | Description of what needs to happen. Strip URLs — they go in Files. |
 | Status | "Not started" | "Not started" |
 | Priority | "High" if priority signal detected, else "Low" | "High" if priority signal detected, else blank |
 | Record Status | "Draft" | "Draft" |
@@ -510,7 +510,7 @@ If Tier 1 fails, search the entire Contacts DB. Floppy commands are explicit int
 | Company | Apply the Company ownership rule below. Never leave blank — every Action Item should have a Company. | Same |
 | Source Meeting | Wire to source meeting page | Wire to source meeting page |
 | Assignee | Adam Freed (`30cd872b-594c-81b7-99dc-0002af0f255a`) | Leave blank |
-| Attach File | If the command's rich text contains a hyperlink URL (from typed notes) or references a specific URL, set this property with the URL. This makes links clickable from the Action Item page. If no URL, leave blank. | Same |
+| Files | If the command's rich text contains a hyperlink URL (from typed notes) or references a specific URL, set this property with the URL. This makes links clickable from the Action Item page. If no URL, leave blank. | Same |
 
 ### Company ownership rule for Action Items
 
@@ -539,7 +539,7 @@ Link: [URL if hyperlink present in rich text]
 From: [Meeting Title] on [Date]
 ```
 
-> **Note:** URLs appear in BOTH Attach File (clickable property) AND Task Notes Link line (traceability). This is intentional — Attach File is for quick access, Task Notes is for audit trail.
+> **Note:** URLs appear in BOTH Files (clickable property) AND Task Notes Link line (traceability). This is intentional — Files is for quick access, Task Notes is for audit trail.
 
 The `Source:` tag (either variant) is critical — it is used by:
 - **Step 2.2** to exclude Floppy items from grouping and skip duplicate Notes items (match on `(Hey Floppy)` substring)
@@ -624,14 +624,14 @@ Read all paragraph blocks under `notes_block_id`. **Skip paragraphs that begin w
 
 For each remaining non-Floppy paragraph:
 
-1. **What** is the action? The typed note IS the action item — Adam typed it with intent. Clean into concise imperative voice. Preserve hyperlinks (store URL in Attach File, strip from Task Name).
+1. **What** is the action? The typed note IS the action item — Adam typed it with intent. Clean into concise imperative voice. Preserve hyperlinks (store URL in Files, strip from Task Name).
 2. **Who** is responsible? Look for names in the note text. Match against the meeting's Contacts relation (wired in Step 1).
 3. **Is there a deadline mentioned?** Resolve relative dates against the meeting date.
 
 **Empty or non-actionable notes:** If a paragraph is clearly not actionable (e.g., a single word, a URL with no context, a greeting), skip it. Use judgment — Adam's typed notes are intentional, so err on the side of creating an item rather than skipping.
 
 **Rich text handling:** Typed notes may contain:
-- **Hyperlinks** — preserve URL in Attach File property and Task Notes. Strip from Task Name.
+- **Hyperlinks** — preserve URL in Files property and Task Notes. Strip from Task Name.
 - **Bold/italic formatting** — ignore for parsing purposes, use plain text content.
 - **Multi-line notes** — each paragraph block is a discrete entry. Do not merge paragraphs.
 
@@ -718,7 +718,7 @@ All action items go to the **Action Items DB**. The **Type** property is a formu
 
 | Property | Value (Task) | Value (Follow Up) |
 |---|---|---|
-| Task Name | Clean action item text (concise, imperative voice). Strip URLs — they go in Attach File. | Clean description of what needs to happen. Strip URLs — they go in Attach File. |
+| Task Name | Clean action item text (concise, imperative voice). Strip URLs — they go in Files. | Clean description of what needs to happen. Strip URLs — they go in Files. |
 | Type | *(auto-computed from Assignee — do not set)* | *(auto-computed from Assignee — do not set)* |
 | Status | "Not started" | "Not started" |
 | Priority | "Low" (default — Adam will re-prioritize) | Leave blank |
@@ -727,11 +727,9 @@ All action items go to the **Action Items DB**. The **Type** property is a formu
 | Contact | Wire to the relevant counterparty using ONLY the meeting's existing Contacts relation (wired in Step 1). Match by name, nickname, or first name. If ambiguous or no clear counterparty, leave blank. One Contact per item — if multiple people, duplicate the item. | Same — match from meeting's Contacts. If no match, leave blank. |
 | Company | Apply the Company ownership rule above. Company must always be set. | Same rule. Company must always be set. |
 | Source Meeting | Wire to the source meeting page | Wire to the source meeting page |
-| Target Meeting | Leave blank unless Adam or an explicit downstream Action Item workflow asks to wire a future meeting reference. | Same |
-| Target Email | Leave blank unless Adam or an explicit downstream Action Item workflow asks to wire a future email reference. | Same |
 | Assignee | Adam Freed (Notion user ID: `30cd872b-594c-81b7-99dc-0002af0f255a`) | Leave blank |
 | Record Status | "Draft" | "Draft" |
-| Attach File | If the note's rich text contains a hyperlink URL, set this property with the URL. If no URL, leave blank. | Same |
+| Files | If the note's rich text contains a hyperlink URL, set this property with the URL. If no URL, leave blank. | Same |
 
 ## 2.4: Wire Back to the Meeting
 
@@ -935,7 +933,7 @@ When a bounded manual recovery or QA pass is needed for meetings with missing or
    - Focus on missing `Series`, missing `Series Key`, missing `Calendar Name`, failed title-based GCal lookup, and shared-personal-calendar identity issues.
 2. Then handle **Adam - Business** edge cases.
    - Focus on recurring-instance mismatches, forwarded or normalized-title mismatches, and wrong or missing `Series`, `Series Key`, or `Calendar Name`.
-3. Only after those series/calendar identity issues stabilize should you revisit `Target Meeting` / `Target Email` follow-up behavior. Target fields remain explicit-only and stay blank unless Adam or an explicit downstream workflow asks to wire them.
+3. Only after those series/calendar identity issues stabilize should you address any remaining wiring gaps.
 
 For each broken case, capture this audit worksheet before repair and save it under `ops/notion-workspace/tmp/post-meeting-recovery-worksheet-YYYY-MM-DD.md` (or append to the active day's worksheet if the session is already in progress):
 - Meeting Title
@@ -999,7 +997,7 @@ For each broken case, capture this audit worksheet before repair and save it und
 ## Action Item Property Hardening (Steps 2.0–2.3)
 
 19. **Due Date is mandatory when a date is mentioned.** If the command text, typed note, or surrounding context mentions ANY date or deadline — explicit ("due 3/16", "by Friday") or implicit ("end of week", "tomorrow", "next Tuesday") — resolve it to an absolute date and set Due Date. This is the #1 missed property from testing. Do not leave Due Date blank when a date signal exists.
-20. **Attach File captures URLs.** If an action item's source text contains a hyperlink (from typed notes rich text), set the Attach File property with the URL. URLs appear in both Attach File (quick access) and Task Notes (audit trail).
+20. **Files captures URLs.** If an action item's source text contains a hyperlink (from typed notes rich text), set the Files property with the URL. URLs appear in both Files (quick access) and Task Notes (audit trail).
 21. **Never re-process a meeting.** If Action Items relation is already populated, SKIP. This prevents duplicates.
 22. **Do not create empty items.** If the notes block has no actionable content, use summary/transcript fallback only for clearly actionable commitments; otherwise skip gracefully.
 23. **Contact matching for Notes-driven and summary/transcript fallback Action Items: ONLY use the meeting's existing Contacts relation** (wired in Step 1). Match by name, nickname, or first name. Do NOT search the full Contacts DB — contact discovery is Step 1's job via GCal attendee emails.

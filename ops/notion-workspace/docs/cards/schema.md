@@ -59,9 +59,7 @@
 | Assignee | people | |
 | Source Meeting | relation | Where the work originated |
 | Source Email | relation | Where the work originated |
-| Target Meeting | relation | Optional future touchpoint for review/close-out |
-| Target Email | relation | Optional future touchpoint for review/close-out |
-| Attach File | files | |
+| Files | files | |
 | QC | formula | |
 
 ## Meetings DB
@@ -75,7 +73,6 @@
 | Contacts | relation | |
 | Companies | rollup | |
 | Action Items | relation | |
-| Target Action Items | relation | Reciprocal of Action Items.Target Meeting |
 | Series | relation | |
 | Series Key | rich_text | Google `recurringEventId` on recurring instances and series parents |
 | Instances | relation | |
@@ -96,9 +93,8 @@
 | Contacts | relation | |
 | Companies | rollup | |
 | Action Items | relation | |
-| Target Action Items | relation | Reciprocal of Action Items.Target Email |
 | Labels | multi_select | Routing: `Primitiv`, `LinkedIn`, `DMC`. Pulled from Gmail API thread labels, filtering out system labels. |
-| Source | select | `Email - Freed Solutions`, `Email - Personal`, `LinkedIn - DMs` |
+| Source | select | `Email - Freed Solutions`, `Email - Personal` |
 | Record Status | select | `Draft` / `Active` |
 | Email Notes | rich_text | |
 | QC | formula | |

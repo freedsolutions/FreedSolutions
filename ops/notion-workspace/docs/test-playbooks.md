@@ -70,7 +70,6 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 
 ### notion-action-item regression checks
 
-- Before running the target-link behavior checks, fetch the live `Action Items`, `Meetings`, and `Emails` data sources and confirm the schema still exposes `Target Meeting`, `Target Email`, and reciprocal `Target Action Items` with those exact property names.
 - Run once with a complete pre-loaded context bundle and once with only a URL or UUID for the same Action Item; confirm the pre-execution summary matches after any minimal refresh.
 - Run once with a title search that returns multiple matching Action Items and confirm the skill stops for disambiguation instead of choosing one arbitrarily.
 - Run once with a pre-loaded context bundle missing a required field and confirm the skill fetches the missing data before any risky action.
@@ -79,9 +78,7 @@ Validate the local client baseline any time a Notion-workspace change touches Cl
 - Run once with a pre-loaded context bundle that has no capture timestamp and confirm copied notes, relations, and attachments are treated as stale and refreshed as needed.
 - Run once with a pre-loaded context bundle whose page ID does not exist, or whose supplied URL/UUID points at a different Action Item, and confirm the skill reports the mismatch and stops before execution.
 - Run once with a standard Notion URL or UUID plus an explicit execution request and confirm the pre-execution summary matches the classic fetch-first path while bounded target note/content/`Status` updates do not require an extra approval loop.
-- Run once with target relations already wired and once without them for the same Action Item; confirm the pre-execution summary reports source and target context separately after the minimum refresh.
-- Run once with stale or missing `Target Meeting` / `Target Email` details in a pre-loaded bundle and confirm the minimum refresh pulls the live target relations before risky work.
-- Run once with an explicit request to wire or rewire `Target Meeting` or `Target Email` and confirm only those target relations change while `Record Status` stays untouched unless separately authorized.
+- Run once with source relations already wired and once without them for the same Action Item; confirm the pre-execution summary reports source context after the minimum refresh.
 - Run once with an attempted `Record Status` change outside a documented workflow or test path and confirm the skill triggers `GOVERNANCE_GATE` instead of applying it.
 - Run once with unclear outbound recipients or outbound content and confirm the skill triggers the shared `HARDENED_GATE`.
 - Run once with an empty or ambiguous gate response and confirm the skill re-asks before proceeding.
@@ -201,7 +198,7 @@ Run for every repo doc changed in the session that maps to a live Notion instruc
 ### Target-link follow-up after meeting recovery
 
 - Run only after the series/calendar recovery lane is stable.
-- Verify `Target Meeting` / `Target Email` remain explicit-only and are not populated by default Post-Meeting wiring.
+- Verify default Post-Meeting wiring does not populate fields beyond the documented set.
 - Verify the source-vs-target distinction still matches the current skill/runtime contract.
 - Verify no schema change, lifecycle mutation, or bulk rewiring is implied by the follow-up check.
 

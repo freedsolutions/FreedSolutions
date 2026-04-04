@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 3, 2026 (Session 60: Post-Email Agent boundaries, PENDING_AI_SUMMARY markers, Mail Read-only enforcement)
+Last synced: April 4, 2026 (Session 62: Removed Target Meeting/Email/Action Items, Company Count; renamed Attach File→Files)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -311,7 +311,6 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - `Contact` carries the counterparty person when one is involved
 - `Source Meeting` / `Source Email` capture provenance for how the work entered the CRM
 - `Source Email` is a multi-relation. One Action Item may legitimately relate to multiple Email threads when those threads all contribute useful provenance for the same work item.
-- `Target Meeting` / `Target Email` capture optional future planning, presentation, or close-out context; leave them blank unless Adam or an explicit Action Item workflow asks to wire them
 - For Adam-owned, pre-seeded, or otherwise internally-originated work, default `Company` to the source calendar, mailbox, or explicit business context unless the source text clearly names another beneficiary company or account
 - Use the counterparty's company as `Company` only when the item is genuinely tracking that counterparty's commitment, deliverable, or follow-up
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists

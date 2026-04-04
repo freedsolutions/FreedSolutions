@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: April 4, 2026 (Session 61: Added [SCRIPT] Outbound marker to Step 1 discovery)
+Last synced: April 4, 2026 (Session 62: Removed Target Meeting/Email from AI creation template)
 > **⛔ BOUNDARIES — READ FIRST**
 > You do NOT search Gmail for threads. You do NOT create Email records from Gmail data. You do NOT archive, mark read, or modify Gmail inbox state. You do NOT run `gmail.users.threads.list` or `gmail.users.messages.list`. The pre-processing script (`post_email_sweep.py`) handles all Gmail interaction and Email record creation. Your job starts with records the script already created in the Emails DB. Find records to process by searching for `[PENDING_AI_SUMMARY]` or `[SCRIPT]` in Email Notes.
 
@@ -166,8 +166,6 @@ Every created Action Item must include the properties needed for Draft review:
 - **Priority**: REQUIRED. Default: `Low` unless urgency is explicit. Never leave blank.
 - **Record Status**: `Draft`
 - **Source Email**: current Email record
-- **Target Meeting**: leave blank unless Adam or an explicit downstream Action Item workflow asks to wire a future meeting reference
-- **Target Email**: leave blank unless Adam or an explicit downstream Action Item workflow asks to wire a future email reference
 - **Contact**: representative contact when identifiable
 - **Company**: required fallback chain:
 	1. explicit business context from the thread, routed intake lane, or clearly named beneficiary company/account
