@@ -45,9 +45,8 @@ Move any Action Items still wired to the duplicate Company to the canonical Comp
 
 Once the duplicate Company has no remaining contacts or action items:
 
-1. set `Record Status = Delete`
-2. add a note explaining the merge target
-3. trash the record — Notion automatically clears any remaining reciprocal links
+1. add a note explaining the merge target
+2. trash the record — Notion automatically clears any remaining reciprocal links
 
 ---
 
@@ -65,9 +64,8 @@ Move all relations from the duplicate Contact to the canonical Contact.
 
 Once the duplicate Contact has no remaining relations:
 
-1. set `Record Status = Delete`
-2. add a merge note that names the canonical Contact
-3. trash the record — Notion automatically clears any remaining reciprocal links
+1. add a merge note that names the canonical Contact
+2. trash the record — Notion automatically clears any remaining reciprocal links
 
 ---
 

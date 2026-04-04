@@ -27,10 +27,8 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-03-21 |
 | `docs/curated-notes.md` | `325adb01-222f-8148-b544-f592271f34e3` | Curated Notes Agent: manual-only QA reviewer for meetings, email runs, and CRM drift audits | 2026-03-20 |
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: reasoning-only after script split — Email Notes summaries, cross-contextual matching, schema-safe action items | 2026-04-04 (S62) |
-| `docs/linkedin-messages.md` | - | Local-only fallback for manual LinkedIn DM recovery when notification-email intake is insufficient | - |
 | `docs/domain-intake.md` | - | Operator checklist for new domain routing-tier decisions from Post-Email intake | - |
 | `docs/test-playbooks.md` | - | Validation playbooks for agents, workflows, and Codex skill migration | - |
-| `docs/sub-agent-contract.md` | - | Sub-agent delegation contract: bootstrap, gates, results, depth limits, parallel execution, and scaffold profiles | - |
 
 ## Codex Skills
 
@@ -99,7 +97,6 @@ The IDs listed here are Notion Data Source IDs used by MCP and Custom Agents. Th
 10. **UI steps require Adam's confirmation before marking complete.** Some tasks can only be done in the Notion UI (configuring agent triggers, pasting content too large for API, Settings changes). When a planning output or session priority includes a UI step: (a) explicitly list it as "Adam - UI step", (b) do NOT mark it complete until Adam confirms in the chat that it's done, (c) do not assume completion based on page existence or other indirect signals.
 11. **Verify content on sync, not just existence.** When marking a Notion page as "in sync" with a local doc, verify the actual content matches - not just that the page exists.
 12. **Do not claim a clean close-out with a dirty tree.** Before saying the task is done, inspect `git status --short` and disclose any unrelated modified or untracked files instead of calling the worktree clean. If unrelated local changes are present, keep them out of the review conclusion by narrowing the review gate to the intended paths.
-13. **Sub-agent delegation follows `docs/sub-agent-contract.md`.** Never delegate `GOVERNANCE_GATE` decisions. Never exceed depth 1. Never spawn parallel sub-agents with overlapping write targets.
 
 ## Skill Gate Protocol
 
@@ -112,17 +109,6 @@ Repo-backed Notion skills use this shared gate taxonomy:
 | `GOVERNANCE_GATE` | Use the same pause mechanism as `HARDENED_GATE`, but only when the existing Rules of Engagement require a pause. |
 
 When a repo-backed skill is executing autonomously, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
-
-## Sub-Agent Delegation
-
-When Claude Code or Codex spawns sub-agents (via the `Agent` tool or `codex exec`), follow the sub-agent delegation contract in `docs/sub-agent-contract.md`. Core rules:
-
-- **Depth limit:** Maximum delegation depth is 1 (parent -> sub-agent, no further nesting).
-- **Gate ceiling:** Sub-agents inherit at most `HARDENED_GATE`. `GOVERNANCE_GATE` decisions are never delegated — the sub-agent returns `needs_escalation` and the parent asks Adam.
-- **Parallel safety:** Parallel sub-agents must have completely disjoint `write_paths`. For Notion DB record creation, the parent must assign disjoint source sets, run a post-collection dedup check, or serialize through one sub-agent.
-- **Scaffold profiles:** Sub-agents load conventions from lightweight context cards under `docs/cards/` instead of parsing full docs. Four profiles are available: `explorer`, `crm-worker`, `validator`, `scaffolding-editor`.
-- **Result contract:** Every sub-agent returns a typed JSON envelope with `status`, `summary`, `findings`, `mutations_performed`, and optional escalation or error detail.
-- **Validator support:** Use `ops/notion-workspace/scripts/test-sub-agent-contract.ps1` for repo-stored manifest/result fixtures and parent-side preflight examples.
 
 ## Local Client Approval Baseline
 
@@ -221,26 +207,6 @@ For tasks that change local files in `ops/notion-workspace/`:
 
 If an autonomous repo-backed skill is executing the change, satisfy the required `HARDENED_GATE` before the first repo mutation.
 
-## Legacy Closeout Protocol
-
-The full 10-step deterministic closeout below was the active protocol through March 28, 2026. It is preserved here for re-enablement if the system reaches a state where deterministic parity and multi-step validation are worth the overhead. The lightweight protocol above is the current default.
-
-<details>
-<summary>Full 10-step protocol (archived)</summary>
-
-1. Edit the local source-of-truth files.
-2. Push the mapped instruction docs to Notion via MCP when applicable, omitting the repo-only `<!-- Notion Page ID: ... -->` comment from the published body.
-3. Re-fetch the updated Notion pages and first confirm the live page body does not contain the repo-only `<!-- Notion Page ID: ... -->` comment.
-4. Save the fetched live page body to `ops/notion-workspace/tmp/notion-sync-remote-YYYY-MM-DD-<doc>.md` and run `ops/notion-workspace/scripts/compare-notion-sync.ps1 -LocalFile <repo doc> -RemoteFile <saved live body>` to verify deterministic sync parity.
-5. If parity fails, stop. Do not mark the doc synced, do not replace the failed parity gate with visual verification, and do not update the handoff, commit, or push until the mismatch is resolved or Adam explicitly accepts the remaining drift.
-6. If the task changed repo skill sources or `.claude/skills/`, run `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 -ValidateOnly` to confirm the Claude copies still mirror the canonical repo skills.
-7. Run `ops/notion-workspace/scripts/test-closeout-sanity.ps1` and disclose any untracked-file warnings before close-out. Treat any mojibake findings as blocking.
-8. Run the Codex review gate on the current worktree. If unrelated local changes are present, pass repeated `--pathspec <repo path or glob>` arguments so the review only covers the intended files.
-9. Only after the review passes or its findings are explicitly accepted, update `ops/notion-workspace/session-active.md`.
-10. Then commit and push to `main`.
-
-</details>
-
 ## Planning Output (Repo Handoff)
 
 `ops/notion-workspace/session-active.md` may contain a **Planning Output** section from Claude Code or Codex. When present:
@@ -265,4 +231,3 @@ When changing a manual workflow skill:
 3. Publish the installed copy to `$CODEX_HOME/skills` (default: `~/.codex/skills`)
 4. Sync the Claude skill copy in `.claude/skills/` with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`
 
-When creating new scaffold profiles or context cards, update the manifest in `docs/sub-agent-contract.md` and verify that existing context cards under `docs/cards/` still reflect the current canonical source values.

@@ -39,7 +39,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 - Do not change any Meeting properties (Record Status, Calendar Name, Contacts, etc.).
 - "Next meeting" must resolve to exactly one upcoming meeting. If zero results, tell the user no upcoming meetings were found and suggest passing a URL or title instead.
 - Do not query Google Calendar. Meeting resolution uses the Meetings DB only.
-- This skill does not currently delegate to sub-agents. If a future version supports delegation, it must follow `docs/sub-agent-contract.md`.
+- This skill does not delegate to sub-agents.
 
 ## Gate Protocol
 

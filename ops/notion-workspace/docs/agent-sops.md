@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 4, 2026 (Session 62: Removed Target Meeting/Email/Action Items, Company Count; renamed Attach File→Files)
+Last synced: April 4, 2026 (Session 63: Removed LinkedIn Messages workflow, sub-agent delegation section, stale references)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -82,11 +82,6 @@ Naming conventions:
 <td>Workflow</td>
 <td>Purpose</td>
 <td>URL</td>
-</tr>
-<tr>
-<td>LinkedIn Messages</td>
-<td>Local fallback for manual LinkedIn DM recovery when notification-email intake is insufficient</td>
-<td>`ops/notion-workspace/docs/linkedin-messages.md`</td>
 </tr>
 <tr>
 <td>Merge Workflow</td>
@@ -380,17 +375,6 @@ Claude Code is the default execution surface. Start from the repo and use the sk
 - For broader Notion workspace work without a matching skill: use Claude Code directly against the local docs and live Notion workspace
 Optional planning chat surfaces can still help think through a problem, but they are not the authoritative workflow owner and do not replace the repo-backed source files.
 
-## Sub-Agent Delegation
-
-When Claude Code or Codex spawns sub-agents within a session, delegation follows the sub-agent contract in `docs/sub-agent-contract.md`. Key constraints:
-
-- Maximum delegation depth is 1 (parent -> sub-agent, no further nesting).
-- `GOVERNANCE_GATE` decisions are never delegated. Sub-agents return `needs_escalation` and the parent asks Adam.
-- Parallel sub-agents must have disjoint write targets. For Notion DB record creation, serialize or dedup-before-create.
-- Sub-agents load conventions from lightweight context cards under `docs/cards/` using one of four scaffold profiles: `explorer`, `crm-worker`, `validator`, `scaffolding-editor`.
-- Every sub-agent returns a typed result envelope with status, findings, and mutations performed.
-
-This contract does not apply to Notion Custom Agents (server-side) or to sequential user-invoked skill execution.
 ---
 # Maintenance
 Update this document whenever:

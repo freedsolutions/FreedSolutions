@@ -107,12 +107,6 @@ If no issues are found, still state what you checked and any residual risk or co
 - Verified alternate domains missing from the Domains DB
 - Contacts whose evidence points at a different company than the current relation
 
-### LinkedIn Messages
-
-- Same-name ambiguity treated as a confident match
-- LinkedIn URL written without company or headline confirmation
-- Existing `Thread ID` skipped instead of updated
-- Gmail-labeled LinkedIn notification intake treated as primary but left unresolved without an explicit recovery note
 
 ---
 

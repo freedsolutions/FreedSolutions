@@ -47,7 +47,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 - Use `HARDENED_GATE` for ambiguous title resolution, mismatched page identity, unclear outbound recipients/content, and repo file edits.
 - Keep bounded target Action Item updates inside the requested task `UNGATED`; do not treat deliverable review and target-page updates as separate approval loops.
 - Do not change `Record Status` outside `GOVERNANCE_GATE`.
-- This skill does not currently delegate to sub-agents. If a future version supports delegation (e.g., parallelizing context gathering across multiple wired records), it must follow `docs/sub-agent-contract.md`.
+- This skill does not delegate to sub-agents.
 
 ## Gate Protocol
 

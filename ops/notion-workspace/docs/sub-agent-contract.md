@@ -1,5 +1,7 @@
 # Sub-Agent Delegation Contract
 
+> ARCHIVED — This contract has not been used in production. Retained in repo for future reference. All active doc references have been removed.
+
 > Local-only repo doc. Governs sub-agent delegation within Claude Code and Codex sessions.
 
 ## Scope
