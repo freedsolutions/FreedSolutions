@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: April 4, 2026 (Session 71: Added §2.4 Cross-Contextual Follow-Up Detection)
+Last synced: April 4, 2026 (Session 72: Expanded §2.4 to all AI types + Done→Review reopening)
 
 You are the **Post-Meeting Agent**. You run a 4-step pipeline on meetings in the Meetings DB:
 
@@ -299,18 +299,23 @@ This step runs AFTER Step 2.3 (AI creation) so newly created AIs from this meeti
 
 For each Contact wired to the current meeting:
 
-1. Query Action Items where `Type` formula evaluates to `Follow Up`, `Status` is not `Done`, `Record Status` is `Draft` or `Active`, and `Contact` matches.
-2. Compare the meeting's Notes, AI summary, and discussion topics against each AI's Task Name and Task Notes. Use semantic judgment — did this meeting address the Follow Up's subject?
-3. **Strong match** (meeting clearly discussed or resolved the Follow Up's topic):
+1. **Primary query:** Query Action Items where `Status` is not `Done`, `Record Status` is `Draft` or `Active`, and `Contact` matches. Check ALL Action Item types (Tasks and Follow Ups).
+2. **Secondary query:** Query Action Items where `Status` = `Done`, `Record Status` is `Draft` or `Active`, and `Contact` matches. These are candidates for reopening.
+3. Compare the meeting's Notes, AI summary, and discussion topics against each AI's Task Name and Task Notes. Use semantic judgment — did this meeting discuss, advance, or resolve the AI's work?
+4. **Strong match** (meeting clearly discussed or resolved the AI's topic):
 	- Set `Status = Review` on the matched Action Item
 	- Append `⚡ MEETING FOLLOW-UP [YYYY-MM-DD]` to Task Notes with 1-2 sentence context from the meeting
 	- Add the current Meeting to `Source Meeting` (if not already wired)
-4. **Weak match** (same Contact, related topic, but not clearly resolved):
+5. **Strong match on Done AI** (new activity clearly reopens completed work):
+	- Set `Status = Review` (reopens the AI into "Needs My Attention")
+	- Append `⚡ REOPENED [YYYY-MM-DD]` to Task Notes with 1-2 sentence context from the meeting
+	- Add the current Meeting to `Source Meeting` (if not already wired)
+6. **Weak match** (same Contact, related topic, but not clearly connected):
 	- Append `⚠️ Possibly discussed in: [Meeting Title] on [Date]` to Task Notes
 	- Do NOT change Status
-5. **Completion rule**: If the matched AI has `Record Status = Active` AND the meeting clearly shows the work is complete (deliverable confirmed, commitment fulfilled, request resolved), set `Status = Done` with `[YYYY-MM-DD] Completed — [1-line evidence]` appended to Task Notes. If the evidence is ambiguous, set `Status = Review` and flag only.
+7. **Completion rule**: If the matched AI has `Record Status = Active` AND the meeting clearly shows the work is complete (deliverable confirmed, commitment fulfilled, request resolved), set `Status = Done` with `[YYYY-MM-DD] Completed — [1-line evidence]` appended to Task Notes. If the evidence is ambiguous, set `Status = Review` and flag only.
 
-If no Contact-level Follow Up matches were found, also query at the Company level: Action Items where `Type` = `Follow Up`, `Status` is not `Done`, `Record Status` is `Draft` or `Active`, and `Company` matches any Company wired on the current Meeting. Apply the same flagging logic. This catches Company-level Follow Ups where the meeting participant is a different Contact at the same org.
+If no Contact-level matches were found, also query at the Company level: Action Items where `Status` is not `Done` (primary) and `Status` = `Done` (secondary), `Record Status` is `Draft` or `Active`, and `Company` matches any Company wired on the current Meeting. Apply the same matching logic. This catches Company-level Action Items where the meeting participant is a different Contact at the same org.
 
 ---
 
@@ -387,7 +392,7 @@ The `📋 Curated Notes` text is the idempotency sentinel. If found mid-write, a
 11. **Transcript never creates Action Items.** It enriches Notes-derived and Floppy items only. "Hey Floppy" detection (Step 2.0.1 Source 3) is the sole exception — it detects Floppy commands, which are human-driven by definition.
 12. **No Notes + no Floppy = no Action Items.** The meeting gets CRM wiring and Curated Notes only.
 13. **Enrichment ≠ creation.** Transcript context is appended to Task Notes on existing AIs. It never triggers a new AI record.
-14. **Step 2.4 runs after Step 2.3** to avoid self-matching. Only pre-existing Follow Up AIs are checked — AIs created from the current meeting in Steps 2.0–2.3 are excluded.
+14. **Step 2.4 runs after Step 2.3** to avoid self-matching. Only pre-existing AIs (all types) are checked — AIs created from the current meeting in Steps 2.0–2.3 are excluded. Done AIs that get a strong match are reopened with `Status = Review` and `⚡ REOPENED`.
 
 ---
 

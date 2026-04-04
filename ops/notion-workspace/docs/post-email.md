@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: April 4, 2026 (Session 68: Added scheduling match example, clarified dual obligation on thread updates)
+Last synced: April 4, 2026 (Session 72: Expanded §2.3.1 to all AI types + Done→Review reopening)
 > **⛔ BOUNDARIES — READ FIRST**
 > You do NOT search Gmail for threads. You do NOT create Email records from Gmail data. You do NOT archive, mark read, or modify Gmail inbox state. You do NOT run `gmail.users.threads.list` or `gmail.users.messages.list`. The pre-processing script (`post_email_sweep.py`) handles all Gmail interaction and Email record creation. Your job starts with records the script already created in the Emails DB. Find records to process by searching for `[PENDING_AI_SUMMARY]` or `[SCRIPT]` in Email Notes.
 
@@ -117,16 +117,22 @@ If this Email record already appears in any Action Item's `Source Email` relatio
 
 ### 2.3.1: Follow-up detection (priority check)
 For each wired Contact on the current Email record:
-1. Query Action Items where the `Type` formula evaluates to `Follow Up`, `Status` is not `Done`, and `Record Status` is `Draft` or `Active`.
-2. If one or more matching Follow Up items exist, flag **all** of them — Adam determines which is resolved. For each:
+1. **Primary query:** Query Action Items where `Status` is not `Done`, `Record Status` is `Draft` or `Active`, and `Contact` matches. Check ALL Action Item types (Tasks and Follow Ups).
+2. **Secondary query:** Query Action Items where `Status` = `Done`, `Record Status` is `Draft` or `Active`, and `Contact` matches. These are candidates for reopening.
+3. Compare the email thread's subject, participants, and content against each AI's Task Name and Task Notes. Use semantic judgment — did this email discuss, advance, or resolve the AI's work?
+4. **Strong match** (email clearly discusses or resolves the AI's topic):
 	- Set `Status = Review` on the matched Action Item
 	- Append `⚡ FOLLOW-UP RECEIVED [YYYY-MM-DD]` to `Task Notes`, followed by a 1-2 sentence summary of the email thread context. The Status change makes the item filterable in the "Needs My Attention" view. The Task Notes text preserves the context and timestamp.
 	- Add the current Email record to the `Source Email` relation
-3. After flagging, apply the completion rule:
+5. **Strong match on Done AI** (new activity clearly reopens completed work):
+	- Set `Status = Review` (reopens the AI into "Needs My Attention")
+	- Append `⚡ REOPENED [YYYY-MM-DD]` to `Task Notes` with 1-2 sentence context from the email
+	- Add the current Email record to the `Source Email` relation
+6. After flagging, apply the completion rule:
 	- If the matched Action Item has `Record Status = Active` **and** the email clearly shows the work is complete (deliverable received, confirmation sent, request fulfilled), set `Status = Done` (not `Review`). Append `[YYYY-MM-DD] Completed — [1-line evidence summary]` to `Task Notes`.
 	- If the evidence is ambiguous (partial delivery, related but not conclusive), do **not** set `Status = Done`. Set `Status = Review` and flag only.
-4. Mark the follow-up work as handled for this Contact. Do **not** create a duplicate Follow Up Action Item in Step 3. If the email thread contains additional actionable work beyond the follow-up subject, those items still proceed to 2.3.2 and Step 3 normally.
-If no Contact-level Follow Up matches were found, also query Action Items where the `Type` formula evaluates to `Follow Up`, `Status` is not `Done`, `Record Status` is `Draft` or `Active`, and `Company` matches any Company wired on the current Email record. Apply the same flagging logic. This catches Company-level Follow Ups where the responding person is a different Contact at the same org.
+7. Mark the follow-up work as handled for this Contact. Do **not** create a duplicate Action Item in Step 3. If the email thread contains additional actionable work beyond the matched subject, those items still proceed to 2.3.2 and Step 3 normally.
+If no Contact-level matches were found, also query at the Company level: Action Items where `Status` is not `Done` (primary) and `Status` = `Done` (secondary), `Record Status` is `Draft` or `Active`, and `Company` matches any Company wired on the current Email record. Apply the same matching logic. This catches Company-level Action Items where the responding person is a different Contact at the same org.
 ### 2.3.2: General semantic matching
 For each actionable item parsed from the email thread (same parsing logic as Step 3.1):
 1. Query open Action Items (`Status` is not `Done`, `Record Status` is `Draft` or `Active`) for any wired Contact or Company on the current Email record.
