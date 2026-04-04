@@ -1082,7 +1082,7 @@ def handle_new_thread(
     email_notes = "[PENDING_AI_SUMMARY]"
     if is_outbound:
         today = datetime.now(timezone(timedelta(hours=-4))).strftime("%Y-%m-%d")
-        email_notes = f"[{today}] Outbound: Adam sent — pending AI summary."
+        email_notes = f"[SCRIPT] Outbound ({today}): Adam sent — pending AI summary."
 
     # Create Email record (initially without contacts)
     email_record = create_email_record(
@@ -1162,7 +1162,7 @@ def handle_updated_thread(
     if new_msg_count > 0:
         today = datetime.now(timezone(timedelta(hours=-4))).strftime("%Y-%m-%d")
         msg_word = "message" if new_msg_count == 1 else "messages"
-        append_notes = f"[{today}] Thread update: {new_msg_count} new {msg_word} — pending AI summary."
+        append_notes = f"[SCRIPT] Thread update ({today}): {new_msg_count} new {msg_word}."
 
     # Check for new labels on updated thread
     existing_labels = extract_multi_select_names(props.get("Labels"))

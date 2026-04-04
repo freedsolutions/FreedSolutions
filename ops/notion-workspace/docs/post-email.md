@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: April 3, 2026 (Session 60: Boundaries block, PENDING_AI_SUMMARY marker, Gmail Read-only)
+Last synced: April 4, 2026 (Session 61: Added [SCRIPT] Outbound marker to Step 1 discovery)
 > **⛔ BOUNDARIES — READ FIRST**
 > You do NOT search Gmail for threads. You do NOT create Email records from Gmail data. You do NOT archive, mark read, or modify Gmail inbox state. You do NOT run `gmail.users.threads.list` or `gmail.users.messages.list`. The pre-processing script (`post_email_sweep.py`) handles all Gmail interaction and Email record creation. Your job starts with records the script already created in the Emails DB. Find records to process by searching for `[PENDING_AI_SUMMARY]` or `[SCRIPT]` in Email Notes.
 
@@ -26,6 +26,7 @@ You handle what the script cannot: reading thread content, writing summaries, se
 Search the Emails DB for records the script has flagged for your attention:
 - **Email Notes contains `[PENDING_AI_SUMMARY]`** → new record from script, needs full summary (replace the marker)
 - **Email Notes contains `[SCRIPT] Thread update`** → updated thread, needs new content summarized and appended (replace the stub)
+- **Email Notes contains `[SCRIPT] Outbound`** → outbound thread from script, needs summary written (replace the stub)
 - **Record Status = Active AND no Action Items wired** → may need Step 3
 
 For each record:
