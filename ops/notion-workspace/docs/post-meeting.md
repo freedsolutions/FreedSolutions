@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: April 4, 2026 (Session 63: Full rewrite — removed bloat, simplified contact wiring, removed C&C Agent overlap)
+Last synced: April 4, 2026 (Session 67: Hardened — transcript enrichment only, bounded fallback removed, 3 new key rules)
 
 You are the **Post-Meeting Agent**. You run a 4-step pipeline on meetings in the Meetings DB:
 
@@ -223,7 +223,7 @@ Same meeting, identical Task Name + Contact → keep first. Cross-layer dedup (F
 
 Process meetings that were wired in Step 1 or already have Contacts wired, have notes content or Floppy commands, and have an **empty Action Items relation** (prevents re-processing).
 
-**Skip** when: no `transcription` block, notes empty with no Floppy and no fallback-worthy content, Action Items already populated, or page is a child/subpage.
+**Skip** when: no `transcription` block, notes empty with no Floppy commands, Action Items already populated, or page is a child/subpage.
 
 ## 2.1: Parse from Typed Notes
 
@@ -236,13 +236,11 @@ For each remaining paragraph:
 
 **Rich text:** Hyperlinks → Files + Task Notes. Each paragraph block is a discrete entry.
 
-### Summary/Transcript: Enrichment + Bounded Fallback
+### Summary/Transcript: Enrichment Only
 
-When Notes exist, use AI summary and transcript to **enrich** note-derived items (clarify owner, company, deadline, context).
+When Notes exist, use AI summary and transcript to **enrich** note-derived and Floppy-derived items. Enrichment means: clarifying the owner (who was assigned), resolving the company, adding deadline context from discussion, and adding 1-2 sentences of discussion context to Task Notes. Enrichment makes AIs more useful when worked on later via Agents/Skills. **Enrichment never creates new AIs — it only improves existing ones.**
 
-When Notes are empty or sparse, the summary and transcript may serve as a **bounded fallback**. Only create fallback items for clear, high-confidence commitments: explicit follow-ups, concrete deliverables, deadline-backed changes. Tag fallback items: `Source: Summary/transcript fallback recovery` + `Evidence: "[supporting line]"`.
-
-Do not create fallback items from general discussion, vague possibilities, or already-completed statements.
+When Notes are empty or sparse, **do not create Action Items from the summary or transcript.** The meeting receives CRM wiring (Step 1) and Curated Notes (Step 3) only. Action Items are human-driven — if Adam didn't type it or say "Hey Floppy", it's not an Action Item.
 
 ## 2.2: Consolidate & Dedup
 
@@ -354,6 +352,9 @@ The `📋 Curated Notes` text is the idempotency sentinel. If found mid-write, a
 8. **Floppy items pass through as-is** — never grouped or modified by Step 2.2.
 9. **Step 3 is non-blocking** — if it fails, Steps 1–2 are complete.
 10. **Pages titled "[SUPERSEDED]"** → skip entirely.
+11. **Transcript never creates Action Items.** It enriches Notes-derived and Floppy items only. "Hey Floppy" detection (Step 2.0.1 Source 3) is the sole exception — it detects Floppy commands, which are human-driven by definition.
+12. **No Notes + no Floppy = no Action Items.** The meeting gets CRM wiring and Curated Notes only.
+13. **Enrichment ≠ creation.** Transcript context is appended to Task Notes on existing AIs. It never triggers a new AI record.
 
 ---
 

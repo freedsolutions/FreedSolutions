@@ -1,7 +1,7 @@
 # Floppy: Voice-Command CRM Agent
 
-**Status:** Implemented — Session 37b (March 15, 2026), updated Session 39 (typed notes channel, summary-first parsing)
-**Integration point:** Post-Meeting Agent, Step 2.0 (before AI summary parsing)
+**Status:** Implemented — Session 37b (March 15, 2026), updated Session 39 (typed notes channel, summary-first parsing), updated Session 67 (2-source creation model alignment)
+**Integration point:** Post-Meeting Agent, Step 2.0 (before Notes-driven Action Item parsing)
 
 ---
 
@@ -34,20 +34,21 @@ Both channels feed into the same `### Action Items` section of the AI summary (L
 
 ### Where it runs
 
-Floppy parsing is **Step 2.0** — a sub-step before AI summary parsing:
+Floppy parsing is **Step 2.0** — a sub-step before Notes-driven Action Item parsing:
 
 ```
 Step 1:   CRM Wiring (Contacts, Companies, Series, Calendar Name)
 Step 2.0: Floppy Command Parsing (summary-first, notes + transcript fallback)
-Step 2.1: AI Summary Action Item Parsing (non-Floppy items only)
-Step 2.2: Group Related Action Items (Floppy items excluded from grouping;
-          AI items that duplicate Floppy items are skipped)
+Step 2.1: Notes-Driven Action Items (non-Floppy typed notes only;
+          summary/transcript enrich but never create AIs)
+Step 2.2: Consolidate & Dedup (Floppy items excluded from grouping;
+          Notes items that duplicate Floppy items are skipped)
 Step 2.3: Route to Action Items DB
-Step 2.4: Wire Back to Meeting (includes Floppy + AI items)
-Step 3:   GCal Event Sync-Back (Floppy items serve as anchor points for TL;DR)
+Step 2.4: Wire Back to Meeting (includes Floppy + Notes items)
+Step 3:   Curated Notes (Floppy items serve as anchor points for TL;DR)
 ```
 
-**Why before AI parsing:** Floppy items are the higher-confidence signal. By creating them first, Step 2.2 can compare AI-parsed items against existing Floppy items and skip duplicates. The Floppy version wins because it reflects Adam's exact intent, not the AI's interpretation.
+**Why before Notes parsing:** Floppy items are the higher-confidence signal. By creating them first, Step 2.2 can compare Notes-parsed items against existing Floppy items and skip duplicates. The Floppy version wins because it reflects Adam's exact intent.
 
 ### Step 3 anchor point role
 
@@ -354,18 +355,18 @@ Because Floppy commands are spoken into the meeting, the AI summarizer often inc
 
 ### Layer 2: Agent reconciliation
 
-The agent parses Floppy commands from the summary, notes block, and transcript (Step 2.0), then parses non-Floppy AI items from the summary (Step 2.1). Reconciliation happens in Step 2.2:
+The agent parses Floppy commands from the summary, notes block, and transcript (Step 2.0), then parses non-Floppy items from typed Notes (Step 2.1). Reconciliation happens in Step 2.2:
 
 1. Read all Floppy items created in Step 2.0 (identified by `(Hey Floppy)` substring in the Task Notes `Source:` line).
-2. For each AI-parsed action item candidate, check if a Floppy item already covers the same deliverable (fuzzy match on Task Name + Contact).
-3. **If a match is found:** Skip the AI-parsed item — the Floppy version is more prescriptive. Log: "AI item '[title]' skipped — covered by Floppy command."
-4. **If no match:** Process the AI item normally (group, route, wire).
+2. For each Notes-parsed action item candidate, check if a Floppy item already covers the same deliverable (fuzzy match on Task Name + Contact).
+3. **If a match is found:** Skip the Notes-parsed item — the Floppy version is more prescriptive. Log: "Notes item '[title]' skipped — covered by Floppy command."
+4. **If no match:** Process the Notes item normally (group, route, wire).
 
 **Floppy items are never grouped, merged, or modified** by Step 2.2. They represent Adam's exact words and pass through to the Action Items DB as-is.
 
-### Why Floppy wins over AI
+### Why Floppy wins over Notes
 
-The AI summary is an interpretation. Floppy is explicit intent. When they overlap:
+Floppy is the most explicit intent signal. When a Floppy command and a typed Note overlap:
 - Floppy's Task Name is what Adam actually said → more prescriptive
 - Floppy's Contact resolution uses the spoken name → more accurate
 - Floppy's priority/due date is what Adam specified → not inferred
@@ -391,7 +392,7 @@ Contact Notes and Company Notes from Floppy don't overlap with AI parsing — St
 
 ### Non-blocking principle
 
-Floppy errors must never block the rest of Step 2. If Floppy parsing fails entirely (e.g., malformed transcript), log the error and continue with Step 2.1 (AI summary parsing). The meeting still gets its AI-parsed action items — Floppy is an enhancement layer, not a dependency.
+Floppy errors must never block the rest of Step 2. If Floppy parsing fails entirely (e.g., malformed transcript), log the error and continue with Step 2.1 (Notes-driven parsing). The meeting still gets its Notes-parsed action items — Floppy is an enhancement layer, not a dependency. If both Floppy and Notes are empty, no Action Items are created (the transcript is never mined for AI-inferred items).
 
 ---
 
@@ -407,7 +408,7 @@ Add a **Step 2.0** section to the existing Output Summary format:
 - Follow Ups created: [count]
 - Contact Notes appended: [count]
 - Company Notes appended: [count]
-- AI items skipped (covered by Floppy): [count]
+- Notes items skipped (covered by Floppy): [count]
 - Commands skipped (unparseable): [count]
 - Commands skipped (duplicate): [count]
 - Unresolved contacts (left blank): [count]
@@ -415,7 +416,7 @@ Add a **Step 2.0** section to the existing Output Summary format:
 - Transcript fallback commands (not in AI summary): [count]
 ```
 
-This section appears between Step 1 and Step 2 in the output, matching execution order. The "AI items skipped" line specifically tracks the Layer 2 reconciliation — how many AI-parsed items were suppressed because Floppy already covered them.
+This section appears between Step 1 and Step 2 in the output, matching execution order. The "Notes items skipped" line specifically tracks the Layer 2 reconciliation — how many Notes-parsed items were suppressed because Floppy already covered them.
 
 ---
 
@@ -425,8 +426,9 @@ This section appears between Step 1 and Step 2 in the output, matching execution
 - **No new Contacts or Companies created** — contact/company creation is exclusively Step 1's job
 - **Record Status = Draft** on all Floppy-created Action Items — keeps the review gate, but items should be more prescriptive and faster to approve
 - **Append-only for notes** — Contact Notes and Company Notes are never overwritten
-- **Non-blocking** — Floppy failures don't prevent AI summary parsing
-- **Layered, not replacing** — Floppy enhances the AI summary (Layer 1) and provides independent parsing (Layer 2). It doesn't replace the AI summary pipeline.
+- **Non-blocking** — Floppy failures don't prevent Notes-driven parsing
+- **2-source creation model** — Only typed Notes and Floppy ("Hey Floppy" voice + typed) create Action Items. The transcript is scanned ONLY for "Hey Floppy" trigger phrases — never for AI-inferred commitments. The AI summary enriches existing items but never creates new ones.
+- **Layered, not replacing** — Floppy enhances the AI summary (Layer 1) and provides independent parsing (Layer 2). It works alongside Notes-driven parsing, not instead of it.
 
 ---
 
