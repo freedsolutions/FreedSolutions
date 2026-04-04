@@ -274,7 +274,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - **Email**: lowercase and trim whitespace before storing or comparing.
 - **Domain**: extract hostname from a full URL (strip scheme, path, query). Look up in the **Domains DB** for matching and dedup.
 ## Companies
-- Domain information lives in the **Domains DB**, not on Companies directly. Each Domain record has a 💼 Companies relation, Source Type (Primary, Additional, Sender-Level), and Filter Shape.
+- Domain information lives in the **Domains DB**, not on Companies directly. Each Domain record has a 💼 Companies relation and Source Type (Primary, Additional, Sender-Level).
 - When matching, query the Domains DB for the extracted domain. The 💼 Companies relation on the matched Domain record provides the company link.
 - Full sender email addresses for platform companies (e.g., `workspace@google.com`) are stored as Sender-Level Domain records in the Domains DB.
 - `Emails` and `Meetings` are company-side rollups from `Contacts`; if those look empty, verify the `Meeting -> Contacts -> Contact -> Company` and `Email -> Contacts -> Contact -> Company` chains before assuming the source records failed to wire
@@ -317,7 +317,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 ## Domains
 - `Domain` (title) is the canonical domain or subdomain
 - `💼 Companies` relation wires to the parent Company
-- `Filter Shape` determines the `from:` criteria format (`Domain` = `*@domain`, `Sender` = `from:user@domain`, `None` = no filter)
+- `Source Type` determines the filter shape: Primary/Additional = `from:*@domain`, Sender-Level = `from:user@domain`. Gmail Filter IDs are tracked locally, not in Notion.
 - Email record creation is driven by inbox state (Gmail filter behavior), not by a Domains DB property. If Gmail's filter archived a labeled thread, the script creates a record. If the thread has no label and is archived, it is dismissed.
 - One Domain record per domain/subdomain, even when multiple subdomains share a parent Company
 - Agents creating new Companies must also create a corresponding Draft Domain record

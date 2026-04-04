@@ -72,12 +72,8 @@ SKIP_SUBJECT_PREFIXES = (
     "Mail delivery failed",
 )
 
-SKIP_SENDER_PATTERNS = (
-    "noreply@", "no-reply@", "donotreply@",
-    "mailer-daemon@", "postmaster@",
-)
-
-# Senders that indicate delivery/security noise (not CRM-relevant)
+# Senders that indicate delivery/security noise (not CRM-relevant).
+# Only applied to unlabeled threads — labeled threads bypass sender filters.
 SKIP_NOISE_SENDERS = (
     "dmarc-", "dmarc_", "dmarcreport@",
 )
@@ -448,38 +444,31 @@ def _assess_completeness(record: dict) -> str:
 # Skip filter (Step 1.3) — deterministic only
 # ---------------------------------------------------------------------------
 
-def should_skip(thread_meta: dict) -> tuple[bool, str]:
+def should_skip(thread_meta: dict, *, has_user_labels: bool = False) -> tuple[bool, str]:
     """Apply deterministic skip filter. Returns (should_skip, reason).
 
-    Teams and LinkedIn notification senders are EXCLUDED from the automated-sender
-    skip — they are chat wrappers around real human conversations, not bot noise.
+    Gmail labels are the intake-route truth.  If Adam's filters labeled a
+    thread, the script processes it — sender-pattern and DMARC checks are
+    bypassed entirely for labeled threads.
     """
     subject = thread_meta.get("subject", "")
     from_email = (thread_meta.get("from_email") or "").lower()
 
-    # Calendar status replies
+    # Calendar status replies (always skip regardless of labels)
     for prefix in SKIP_SUBJECT_PREFIXES:
         if subject.startswith(prefix):
             return True, f"Calendar/delivery skip: subject starts with '{prefix}'"
 
-    # Teams and LinkedIn notifications are NOT skippable — they wrap human content
-    is_notification_wrapper = (
-        "teams.mail.microsoft" in from_email
-        or "linkedin.com" in from_email
-    )
+    # Labeled threads bypass all sender-based filters
+    if has_user_labels:
+        return False, ""
 
-    # Automated senders that are never CRM-relevant (except notification wrappers)
-    if not is_notification_wrapper:
-        for pattern in SKIP_SENDER_PATTERNS:
-            if from_email.startswith(pattern):
-                return True, f"Automated sender: {from_email}"
-
-    # DMARC / security noise
+    # DMARC / security noise (unlabeled only)
     for noise in SKIP_NOISE_SENDERS:
         if noise in from_email:
             return True, f"Security/DMARC noise: {from_email}"
 
-    # Password reset / security alert subjects
+    # Password reset / security alert subjects (unlabeled only)
     subject_lower = subject.lower()
     if any(kw in subject_lower for kw in ("password reset", "security alert", "verify your email")):
         return True, f"Security alert: {subject}"
@@ -625,22 +614,25 @@ def create_draft_company(
     return result
 
 
+GENERIC_DOMAINS = frozenset({
+    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
+    "icloud.com", "aol.com", "protonmail.com",
+})
+
+
 def create_draft_domain(
     domain: str,
     company_page_id: str,
     domains_db_id: str,
     notion_token: str,
     *,
-    is_generic: bool = False,
     verbose: bool = False,
 ) -> dict:
     """Create a Draft Domain record in the Domains DB."""
     properties: dict = {
         "Domain": {"title": [{"text": {"content": domain}}]},
         "\U0001f4bc Companies": {"relation": [{"id": company_page_id}]},  # 💼
-        "Filter Shape": {"select": {"name": "Domain"}},
         "Source Type": {"select": {"name": "Primary"}},
-        "Is Generic": {"checkbox": is_generic},
         "Record Status": {"select": {"name": "Draft"}},
     }
     body = {
@@ -876,7 +868,6 @@ def wire_crm_for_thread(
     Returns list of Contact page IDs wired to the Email record.
     """
     adam_aliases = set(config.adam.exclude_emails)
-    generic_domains = set(config.adam.generic_domains)
     contacts_db_id = config.notion.databases["contacts"]
     domains_db_id = config.notion.databases["domains"]
     companies_db_id = config.notion.databases["companies"]
@@ -895,12 +886,11 @@ def wire_crm_for_thread(
     # Remove Adam aliases
     participant_emails = {e for e in all_emails if e.lower() not in adam_aliases}
 
-    # Remove obvious automated senders entirely from Contact creation
-    # (Teams/LinkedIn are kept in the thread for classification but not as Contacts)
+    # Remove obvious automated senders from Contact creation (not CRM contacts)
+    _BOT_PREFIXES = ("mailer-daemon@", "postmaster@", "notification@", "notifications@", "newsletter@", "updates@")
     participant_emails = {
         e for e in participant_emails
-        if not any(e.startswith(p) for p in SKIP_SENDER_PATTERNS)
-        and not any(e.startswith(p) for p in ("notification@", "notifications@", "newsletter@", "updates@"))
+        if not any(e.startswith(p) for p in _BOT_PREFIXES)
         and "noreply" not in e.replace("-", "").replace("_", "")
     }
 
@@ -944,7 +934,7 @@ def wire_crm_for_thread(
 
             # Domain/Company wiring for new contact
             domain = email_lower.split("@")[1] if "@" in email_lower else None
-            if domain and domain not in generic_domains:
+            if domain and domain not in GENERIC_DOMAINS:
                 company_id = _resolve_company_for_domain(
                     domain, email_lower, email_page_id,
                     thread_meta.get("subject", ""),
@@ -1026,10 +1016,9 @@ def _resolve_company_for_domain(
         counts["companies_created"] = counts.get("companies_created", 0) + 1
 
     # Create Draft Domain
-    is_generic = domain in set(config.adam.generic_domains)
     new_domain = create_draft_domain(
         domain, company_id, domains_db_id, notion_token,
-        is_generic=is_generic, verbose=verbose,
+        verbose=verbose,
     )
     entity_cache.setdefault("domains", {})[domain] = {
         "domain_id": new_domain["id"],
@@ -1378,7 +1367,7 @@ def run_sweep(args: argparse.Namespace) -> None:
                         print(f"  LABELS PARITY: Missing option \"{label_name}\" in Emails.Labels schema")
 
             # Apply skip filter (Step 1.3)
-            skip, skip_reason = should_skip(thread_meta)
+            skip, skip_reason = should_skip(thread_meta, has_user_labels=bool(user_label_names))
             if skip:
                 counts["skipped"] += 1
                 if args.verbose:

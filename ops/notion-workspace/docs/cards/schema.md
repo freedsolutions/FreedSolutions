@@ -104,13 +104,10 @@
 
 | Property | Type | Notes |
 |----------|------|-------|
-| Domain | title | Canonical domain or subdomain. Page icon: 🌐 |
+| Domain | title | Canonical domain or full email address. Page icon: 🌐 |
 | 💼 Companies | relation | Parent Company |
-| Filter Shape | select | Domain, Sender, None |
-| Gmail Label | rich_text | |
-| Gmail Filter ID | rich_text | |
-| Is Generic | checkbox | |
-| Source Type | select | Primary, Additional, Sender-Level |
+| Source Type | select | Primary, Additional, Sender-Level. Determines filter shape: Primary/Additional = `from:*@domain`, Sender-Level = `from:user@domain` |
+| Gmail Label | rich_text | Which Gmail label the filter applies (blank = no filter) |
 | Notes | rich_text | |
 | Record Status | select | `Draft` / `Active` |
 
@@ -197,7 +194,7 @@ if(empty(Source), "missing:source", "TRUE"))))))
 
 ### Domains QC
 
-Checks: Domain, Record Status, Company, Source Type. Conditionally checks Gmail Label and Gmail Filter ID only for Active domains.
+Checks: Domain, Record Status, Company, Source Type. Conditionally checks Gmail Label for Active domains.
 
 ```
 if(empty(Domain), "missing:domain",
@@ -206,9 +203,7 @@ if(empty(Companies), "missing:company",
 if(empty(Source Type), "missing:source_type",
 if(and(Record Status == "Active",
        empty(Gmail Label)), "missing:gmail_label",
-if(and(Record Status == "Active",
-       empty(Gmail Filter ID)), "missing:filter_id",
-"TRUE"))))))
+"TRUE")))))
 ```
 
 ## Dedup Rules

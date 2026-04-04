@@ -38,6 +38,28 @@ from ops.local_db.lib.config import load_config, AppConfig, split_csv_text
 from ops.local_db.lib.gmail_auth import build_gmail_service
 from ops.local_db.lib.notion_api import notion_request as _notion_request, load_notion_token
 
+GENERIC_DOMAINS = frozenset({
+    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
+    "icloud.com", "aol.com", "protonmail.com",
+})
+
+_FILTER_IDS_PATH = Path(__file__).resolve().parent / "gmail_filter_ids.json"
+
+
+def _load_filter_ids() -> dict[str, str]:
+    """Load domain -> Gmail Filter ID mapping from local JSON."""
+    if _FILTER_IDS_PATH.exists():
+        return json.loads(_FILTER_IDS_PATH.read_text(encoding="utf-8"))
+    return {}
+
+
+def _save_filter_ids(mapping: dict[str, str]) -> None:
+    """Persist domain -> Gmail Filter ID mapping to local JSON."""
+    _FILTER_IDS_PATH.write_text(
+        json.dumps(mapping, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
 
 def _load_notion_token(config: AppConfig) -> str:
     return load_notion_token(config.notion.token_path)
@@ -402,6 +424,7 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
         print("ERROR: No 'domains' database ID in config.", file=sys.stderr)
         sys.exit(1)
 
+    local_filter_ids = _load_filter_ids()
     domains: list[dict] = []
     start_cursor: str | None = None
 
@@ -418,18 +441,19 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
             title_parts = props.get("Domain", {}).get("title", [])
             domain = "".join(t.get("plain_text", "") for t in title_parts).strip()
 
-            shape_select = props.get("Filter Shape", {}).get("select")
-            filter_shape = shape_select["name"] if shape_select else ""
+            source_type_select = props.get("Source Type", {}).get("select")
+            source_type = source_type_select["name"] if source_type_select else ""
+            # Derive filter shape from Source Type
+            filter_shape = "Sender" if source_type == "Sender-Level" else (
+                "Domain" if source_type in ("Primary", "Additional") else "None"
+            )
 
             status_select = props.get("Record Status", {}).get("select")
             record_status = status_select["name"] if status_select else ""
 
-            is_generic = props.get("Is Generic", {}).get("checkbox", False)
-
-            gmail_filter_text = "".join(
-                t.get("plain_text", "")
-                for t in props.get("Gmail Filter ID", {}).get("rich_text", [])
-            ).strip()
+            is_generic = domain.split("@")[-1].lower() in GENERIC_DOMAINS if "@" in domain else (
+                domain.lower() in GENERIC_DOMAINS
+            )
 
             gmail_label_text = "".join(
                 t.get("plain_text", "")
@@ -445,7 +469,7 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
                 "filter_shape": filter_shape,
                 "record_status": record_status,
                 "is_generic": is_generic,
-                "gmail_filter_id": gmail_filter_text,
+                "gmail_filter_id": local_filter_ids.get(domain, ""),
                 "gmail_label": gmail_label_text,
                 "company_ids": company_ids,
             })
@@ -458,35 +482,11 @@ def fetch_domains_db(config: AppConfig) -> list[dict]:
     return domains
 
 
-def _update_domain_filter_id(config: AppConfig, page_id: str, filter_id: str):
-    """Write Gmail Filter ID back to a Domain record."""
-    token = _load_notion_token(config)
-    url = f"{NOTION_BASE}/pages/{page_id}"
-    body = {
-        "properties": {
-            "Gmail Filter ID": {
-                "rich_text": [{"text": {"content": filter_id}}],
-            },
-        },
-    }
-    data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Notion-Version": NOTION_API_VERSION,
-            "Content-Type": "application/json",
-        },
-        method="PATCH",
-    )
-    try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8", errors="replace")
-        print(f"ERROR: Notion PATCH {e.code} on {url}\n  {error_body}", file=sys.stderr)
-        raise
+def _update_domain_filter_id(domain: str, filter_id: str):
+    """Write Gmail Filter ID to local JSON tracking file."""
+    mapping = _load_filter_ids()
+    mapping[domain] = filter_id
+    _save_filter_ids(mapping)
 
 
 def _fetch_company_types(config: AppConfig, company_ids: set[str]) -> dict[str, str]:
@@ -616,8 +616,8 @@ def run_create_from_domains(
 
             new_filter_id = result.get("id", "")
             if new_filter_id:
-                _update_domain_filter_id(config, entry["page_id"], new_filter_id)
-                print(f"    -> Filter ID {new_filter_id} written to Domain record")
+                _update_domain_filter_id(entry["domain"], new_filter_id)
+                print(f"    -> Filter ID {new_filter_id} saved to local tracking")
 
             created += 1
 
