@@ -1078,8 +1078,8 @@ def handle_new_thread(
         if "teams.mail.microsoft" not in (thread_meta.get("from_email") or ""):
             source_label = "LinkedIn - DMs"
 
-    # Outbound notes stub
-    email_notes = ""
+    # Initial Email Notes marker (agent searches for these to find records)
+    email_notes = "[PENDING_AI_SUMMARY]"
     if is_outbound:
         today = datetime.now(timezone(timedelta(hours=-4))).strftime("%Y-%m-%d")
         email_notes = f"[{today}] Outbound: Adam sent — pending AI summary."

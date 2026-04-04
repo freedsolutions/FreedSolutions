@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 3, 2026 (Session 58: Tag simplification — Action Items Tags now optional manual field)
+Last synced: April 3, 2026 (Session 60: Post-Email Agent boundaries, PENDING_AI_SUMMARY markers, Mail Read-only enforcement)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -180,12 +180,12 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- Agent SOPs -\> Can view
 - Connections:
 	- Mail: runtime may show `adam@freedsolutions.com` and `adamjfreed@gmail.com`, and both are currently in scope for the live agent
-	- Expected mail permission set is `Read` only. The agent does not modify Gmail inbox state (no archiving, no marking read). `Send` and `Draft` should stay off; treat any broader runtime scope as config drift and log it during agent audits.
+	- Expected mail permission set is `Read` only. The agent reads Gmail thread content (via Thread ID) for writing summaries but does NOT search, list, or modify Gmail threads. Gmail sweep, thread discovery, and Email record creation are handled by `post_email_sweep.py`. The agent processes pre-wired records only. `Send` and `Draft` should stay off; treat any broader runtime scope as config drift and log it during agent audits.
 	- Web access: Off
 	- No calendar access
 - Model: Opus 4.6
 - Notes:
-	- The agent's 4-step pipeline: (1) identify records needing attention (blank Email Notes or script stubs), (2) write Email Notes summaries + cross-contextual Action Item matching, (3) schema-safe Action Item creation on Active records, (4) CRM completion logging.
+	- The agent's 4-step pipeline: (1) identify records needing attention (search for `[PENDING_AI_SUMMARY]` or `[SCRIPT]` markers in Email Notes), (2) write Email Notes summaries + cross-contextual Action Item matching, (3) schema-safe Action Item creation on Active records, (4) CRM completion logging.
 	- The agent trusts the script's CRM wiring. It does not re-wire Contacts or Companies. If wiring looks wrong, it logs the issue in Email Notes but does not modify relations.
 	- The agent does NOT update Agent Config Last Run — the script handles this.
 	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail, `LinkedIn` for LinkedIn message notifications, and `DMC` for DMC routed company mail.
