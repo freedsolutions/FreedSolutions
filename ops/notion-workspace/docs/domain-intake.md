@@ -1,6 +1,6 @@
 # Domain Intake Workflow
 
-Operator checklist for when the Post-Email script creates a "Review new domain: [domain]" Action Item.
+Operator checklist for when the Post-Email script creates a new Draft Domain.
 
 ## Gmail Filter Decision Model
 
@@ -13,10 +13,10 @@ The script classifies threads by **inbox state** — whether Gmail's filters lab
 
 ## Decision Checklist
 
-For each "Review new domain" Action Item:
+For each new Draft Domain (visible in Adam's morning Notion review):
 
-1. Open the Draft Company record linked to the Action Item.
-2. Review the domain, sender, and email thread context in Task Notes.
+1. Open the Draft Company record linked to the Domain.
+2. Review the domain, sender, and email thread context.
 3. **Create Gmail filter?**
    - If yes: create a filter matching the domain (`from:*@[domain]`) or specific sender.
    - Apply the Gmail label matching the company name (create the label first if needed).
@@ -26,10 +26,9 @@ For each "Review new domain" Action Item:
    - If not worth keeping: trash the record directly.
    - Verify the Gmail label exists as an `Emails.Labels` option in the Emails DB schema.
 5. Promote the Domain record to Active (Record Status = Active).
-6. Mark the Action Item as Done.
 
 ## Edge Cases
 
-- **Generic domains** (gmail.com, outlook.com, etc.): no company filter needed. The Contact-level record is sufficient. Mark the AI as Done with a note.
-- **Subdomain of an existing Company**: create a Domain record in the Domains DB with Source Type = `Additional` and wire the 💼 Companies relation to the existing Company instead of keeping the new Draft. Mark the AI as Done with a note.
+- **Generic domains** (gmail.com, outlook.com, etc.): no company filter needed. The Contact-level record is sufficient.
+- **Subdomain of an existing Company**: create a Domain record in the Domains DB with Source Type = `Additional` and wire the 💼 Companies relation to the existing Company instead of keeping the new Draft.
 - **Multiple senders at the same new domain**: one filter covers the domain. Don't create per-sender filters unless routing differs by sender.

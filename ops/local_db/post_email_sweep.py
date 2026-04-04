@@ -654,49 +654,6 @@ def create_draft_domain(
     return result
 
 
-def create_domain_review_action_item(
-    domain: str,
-    company_name: str,
-    company_page_id: str,
-    contact_page_id: str,
-    email_page_id: str,
-    email_subject: str,
-    sender_email: str,
-    domain_page_id: str,
-    action_items_db_id: str,
-    notion_token: str,
-    *,
-    verbose: bool = False,
-) -> dict:
-    """Create a 'Review new domain' Draft Action Item (Step 2.4.1)."""
-    task_name = f"Review new domain: {domain} ({company_name})"
-    task_notes = (
-        f"Originating thread: \"{email_subject}\"\n"
-        f"Sender: {sender_email}\n"
-        f"Domain record created: {domain}\n"
-        f"Action: Create Gmail filter for this domain or dismiss"
-    )
-    properties: dict = {
-        "Task Name": {"title": [{"text": {"content": task_name}}]},
-        "Status": {"status": {"name": "Not started"}},
-        "Priority": {"select": {"name": "Low"}},
-        "Record Status": {"select": {"name": "Draft"}},
-        "Company": {"relation": [{"id": company_page_id}]},
-        "Contact": {"relation": [{"id": contact_page_id}]},
-        "Source Email": {"relation": [{"id": email_page_id}]},
-        "Task Notes": {"rich_text": [{"text": {"content": task_notes}}]},
-    }
-    body = {
-        "parent": {"database_id": action_items_db_id},
-        "icon": {"type": "emoji", "emoji": "\U0001f3ac"},  # 🎬
-        "properties": properties,
-    }
-    result = notion_request("/pages", notion_token, body)
-    if verbose:
-        print(f"    CREATED AI: \"{task_name}\" -> {result['id'][:8]}")
-    return result
-
-
 # ---------------------------------------------------------------------------
 # Notion: Email record create + update
 # ---------------------------------------------------------------------------
@@ -923,7 +880,6 @@ def wire_crm_for_thread(
     contacts_db_id = config.notion.databases["contacts"]
     domains_db_id = config.notion.databases["domains"]
     companies_db_id = config.notion.databases["companies"]
-    action_items_db_id = config.notion.databases["action_items"]
 
     # Collect all participant emails (excluding Adam)
     all_emails: set[str] = set()
@@ -1036,7 +992,6 @@ def _resolve_company_for_domain(
     """Lookup or create Company for a domain. Returns Company page ID or None."""
     domains_db_id = config.notion.databases["domains"]
     companies_db_id = config.notion.databases["companies"]
-    action_items_db_id = config.notion.databases["action_items"]
 
     # Check domain cache
     if domain in entity_cache.get("domains", {}):
@@ -1057,7 +1012,7 @@ def _resolve_company_for_domain(
             print(f"    MATCHED Domain: {domain} -> Company {company_id[:8]}")
         return company_id
 
-    # No Domain record — create Draft Company + Draft Domain + review AI
+    # No Domain record — create Draft Company + Draft Domain
     # Derive company name from domain
     company_name = domain.split(".")[0].title()
 
@@ -1081,17 +1036,6 @@ def _resolve_company_for_domain(
         "company_id": company_id,
     }
     counts["domains_created"] = counts.get("domains_created", 0) + 1
-
-    # Create "Review new domain" Action Item
-    try:
-        create_domain_review_action_item(
-            domain, company_name, company_id, contact_page_id,
-            email_page_id, email_subject, sender_email, new_domain["id"],
-            action_items_db_id, notion_token, verbose=verbose,
-        )
-        counts["domain_review_ais"] = counts.get("domain_review_ais", 0) + 1
-    except Exception as e:
-        print(f"    WARNING: Failed to create domain review AI: {e}", file=sys.stderr)
 
     return company_id
 
@@ -1369,7 +1313,6 @@ def run_sweep(args: argparse.Namespace) -> None:
         "contacts_created": 0,
         "companies_created": 0,
         "domains_created": 0,
-        "domain_review_ais": 0,
         "subjects_synced": 0,
     }
 
@@ -1562,7 +1505,6 @@ def _print_summary(counts: dict, since: datetime, dry_run: bool) -> None:
         print(f"  Contacts created:      {counts.get('contacts_created', 0)}")
         print(f"  Companies created:     {counts.get('companies_created', 0)}")
         print(f"  Domains created:       {counts.get('domains_created', 0)}")
-        print(f"  Domain review AIs:     {counts.get('domain_review_ais', 0)}")
         print(f"  Subjects synced:       {counts.get('subjects_synced', 0)}")
     if counts.get("labels_missing"):
         print(f"\nLabels parity gaps:      {', '.join(counts['labels_missing'])}")
