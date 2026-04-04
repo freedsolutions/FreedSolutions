@@ -1134,6 +1134,9 @@ def handle_updated_thread(
     if existing_date_str:
         try:
             existing_date = datetime.fromisoformat(existing_date_str)
+            # Normalize date-only values (naive) to tz-aware (ET midnight)
+            if existing_date.tzinfo is None:
+                existing_date = existing_date.replace(tzinfo=timezone(timedelta(hours=-4)))
         except ValueError:
             pass
 

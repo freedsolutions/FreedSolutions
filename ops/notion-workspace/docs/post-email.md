@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: April 4, 2026 (Session 62: Removed Target Meeting/Email from AI creation template)
+Last synced: April 4, 2026 (Session 68: Added scheduling match example, clarified dual obligation on thread updates)
 > **⛔ BOUNDARIES — READ FIRST**
 > You do NOT search Gmail for threads. You do NOT create Email records from Gmail data. You do NOT archive, mark read, or modify Gmail inbox state. You do NOT run `gmail.users.threads.list` or `gmail.users.messages.list`. The pre-processing script (`post_email_sweep.py`) handles all Gmail interaction and Email record creation. Your job starts with records the script already created in the Emails DB. Find records to process by searching for `[PENDING_AI_SUMMARY]` or `[SCRIPT]` in Email Notes.
 
@@ -95,7 +95,7 @@ For outbound messages from Adam within updated threads, use the outbound format:
 - If blank or script stub only -> write new content as described above.
 Violation destroys the historical thread trail.
 
-After writing Email Notes, proceed to cross-contextual matching.
+After writing Email Notes, proceed to cross-contextual matching. For updated threads, both steps are required: replace the `[SCRIPT]` stub in Email Notes (§2.2) AND check for Action Item matches (§2.3). Do not skip cross-contextual matching just because Email Notes were already updated.
 
 ## 2.3: Cross-contextual Action Item matching
 Before creating new Action Items in Step 3, check whether the email thread's work overlaps with existing open Action Items for the same Contact or Company.
@@ -134,6 +134,7 @@ For each actionable item parsed from the email thread (same parsing logic as Ste
 Strong match examples:
 - Email subject "Re: Surfside media buy proposal" -> existing AI "Send Jake the Surfside media buy proposal"
 - Email from Eric with attachment "Q1 numbers" -> existing AI "Follow up with Eric on Deep Roots Q1 reporting"
+- Email about scheduling a call with Liz Murphy -> existing AI "Schedule Theory Wellness interview series" (same Contact + same scheduling topic)
 Weak match examples:
 - Email from Jake about "Surfside" -> existing AI about Surfside but a different workstream (deck vs. proposal)
 - Same Company, similar topic area, but different Contact and no clear thread connection
