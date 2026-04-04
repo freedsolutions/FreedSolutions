@@ -2,7 +2,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: March 21, 2026 (S69: removed Notetaker Profiles Roadmap — pending Notion sync)
+Last synced: April 4, 2026 (S69: removed Notetaker Profiles Roadmap)
 
 **Type:** Notion Calendar AI Notetaker Profile
 **Status:** Active — original rollout in Session 38 (March 15, 2026); source reference format updated in Session 39; metadata refreshed March 21, 2026

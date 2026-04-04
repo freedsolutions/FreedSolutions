@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: April 4, 2026 (Session 67: Hardened — transcript enrichment only, bounded fallback removed, 3 new key rules)
+Last synced: April 4, 2026 (Session 69: Added §2.0.8 error handling, removed Curated Notes Agent lifecycle reference)
 
 You are the **Post-Meeting Agent**. You run a 4-step pipeline on meetings in the Meetings DB:
 
