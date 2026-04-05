@@ -778,6 +778,16 @@ def update_last_run(
     """Update the Post-Email Agent Last Run timestamp in Agent Config.
 
     Finds the table row in the Post-Email Agent section and overwrites it.
+
+    INVARIANT — replace-in-place, never append (S77/S78):
+      The Agent Config table must always have exactly 1 header + 1 data row
+      per agent section.  This function PATCHes the existing data row by its
+      Notion block ID (not by appending a child block).  The write is scoped
+      to the Post-Email section via the ``in_post_email_section`` heading
+      guard — it must never touch other agents' sections.
+      See post-email.md Hard rule #14: "Do NOT update Agent Config Last Run
+      — the script already handles this."  The Notion Custom Agent relies on
+      the script owning this write exclusively.
     """
     agent_config_id = config.notion.databases.get("agent_config")
     if not agent_config_id:
