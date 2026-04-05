@@ -1,4 +1,4 @@
-<!-- Generated from "ops/notion-workspace/skills/notion-action-item/references/workflow.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+<!-- Generated from "ops/notion-workspace/skills/notion-action-items/references/workflow.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Notion Action Item Workflow
 

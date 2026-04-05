@@ -1,9 +1,7 @@
 ---
-name: notion-action-item
+name: notion-action-items
 description: Execute a Notion Action Item end-to-end from its URL, UUID, title, or a pre-loaded context bundle using CRM wiring, related records, and the shared gate taxonomy. Use when the user wants an Action Item worked, its meeting or email context reviewed, or a deliverable produced and the target record updated.
 ---
-
-<!-- Generated from "ops/notion-workspace/skills/notion-action-item/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Notion Action Item
 

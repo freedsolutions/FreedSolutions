@@ -84,8 +84,8 @@ Naming conventions:
 <td>Purpose</td>
 </tr>
 <tr>
-<td>`notion-action-item`</td>
-<td>`ops/notion-workspace/skills/notion-action-item/`</td>
+<td>`notion-action-items`</td>
+<td>`ops/notion-workspace/skills/notion-action-items/`</td>
 <td>Execute a single Action Item end to end</td>
 </tr>
 <tr>
@@ -389,7 +389,7 @@ Repo-backed Notion skills use this shared gate taxonomy:
 Inside an autonomous repo-backed skill run, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
 ## Kickoff Conventions
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.
-- For Action Item execution: use `notion-action-item`
+- For Action Item execution: use `notion-action-items`
 - For Custom Agent config audits or edits: use `notion-agent-config`
 - For pre-call meeting context: use `notion-meeting-prep`
 - For broader Notion workspace work without a matching skill: use Claude Code directly against the local docs and live Notion workspace

@@ -10,7 +10,7 @@ Skills for Notion CRM/PMO automation. Canonical source: `ops/notion-workspace/sk
 
 | Skill | Purpose | Claude.ai Synced? | Last Updated |
 |-------|---------|-------------------|--------------|
-| `notion-action-item` | Execute a single Action Item end-to-end | Yes | S76 |
+| `notion-action-items` | Execute a single Action Item end-to-end | Yes | S76 |
 | `notion-agent-config` | Audit/update Notion Custom Agent settings | Yes | S75 |
 | `notion-meeting-prep` | Pre-call context brief for meeting attendees | Yes | S75 |
 
