@@ -66,7 +66,7 @@ At the end of every session:
 <td>`@mention`</td>
 <td>Opus 4.6</td>
 <td>Live</td>
-<td>Settings URL TBD — Adam creates agent</td>
+<td>[Settings](https://www.notion.so/agent/339adb01222f80cba3ee0092cec1e1a2?wfv=settings)</td>
 </tr>
 </table>
 Naming conventions:
