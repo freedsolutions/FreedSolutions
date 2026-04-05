@@ -25,6 +25,7 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-04-04 (S69) |
 | `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: reasoning-only after script split — Email Notes summaries, cross-contextual matching, schema-safe action items | 2026-04-04 (S73) |
 | `docs/follow-up.md` | `338adb01-222f-8177-88ba-f29b1e8998cc` | Follow-Up Agent: manual cross-contextual AI matching on @mention — checks all AI types, wires context, sets Review | 2026-04-04 (S73) |
+| `docs/skills-registry.md` | — | Canonical inventory of all skills, sync workflow, and update tracking (repo-only) | 2026-04-05 (S75) |
 
 ## Codex Skills
 

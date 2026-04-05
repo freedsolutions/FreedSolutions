@@ -12,7 +12,7 @@ Read these first:
 
 Then read only the workflow docs, skill sources, and scripts that are directly relevant to the requested scaffolding change.
 
-If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning. Treat it as an architecture-lane brief, not as a silent replacement for the current handoff.
+If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, check `session-active.md` Frozen Plans — the local-first architecture lane is currently frozen.
 
 ## Suggested Discovery Lanes
 
@@ -27,7 +27,7 @@ Inspect the active handoff plus `CLAUDE.md`. Report:
 - review-gate or sync requirements
 - anything that must wait for Adam
 
-If the request touches the local-first architecture lane, also report whether `freed-solutions-execution-checklist.md` changes the relevant priority order or execution contract.
+If the request touches the local-first architecture lane, note that it is currently frozen per `session-active.md`.
 
 ### Lane 2: Existing patterns
 

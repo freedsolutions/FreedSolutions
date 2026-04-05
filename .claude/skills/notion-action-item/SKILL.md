@@ -17,9 +17,9 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - If the user already provided the target record and wiring context, use that as the starting point and refresh the minimum required field set defined in `references/workflow.md` before risky work.
    - Otherwise fetch the record immediately before doing any work from memory.
 2. Summarize the record before execution.
-   - Include status, priority, due date, wired Contact and Company, source Meeting or Email, target Meeting or Email, notes, and attachments.
+   - Include status, priority, due date, wired Contact and Company, source Meeting or Email, notes, and attachments.
 3. Follow the wiring.
-   - Fetch only the related records that matter to the task: Contact, Company, Source Meeting, Source Email, Target Meeting, Target Email, and attached files.
+   - Fetch only the related records that matter to the task: Contact, Company, Source Meeting, Source Email, and attached files.
    - Use the wired records as the context backbone instead of ad hoc searching.
 4. Gather extra context only when needed.
    - Use Gmail, Calendar, web, or uploaded files when the task actually depends on them.
@@ -32,9 +32,10 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - Show reasoning for analytical work before the final artifact.
 7. Close the loop carefully.
    - Update target Action Item notes/content and bounded `Status` changes as routine follow-through after an explicit execution request.
-   - Set or clear `Target Meeting` / `Target Email` only when the user explicitly asks to wire or rewire that planning context.
+   - Keep changes scoped to the target Action Item unless the user expands scope.
    - Use `GOVERNANCE_GATE` for `Record Status` changes unless the request or a documented workflow/test path already authorizes that exact lifecycle move.
    - Do not modify unrelated CRM records.
+   - After completing the Action Item, suggest tagging `@Follow-Up Agent` on the source Meeting or Email page if cross-contextual matching could surface related Action Items. This is informational — do not invoke the agent automatically.
 
 ## Guardrails
 
@@ -49,7 +50,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 - Use `HARDENED_GATE` for ambiguous title resolution, mismatched page identity, unclear outbound recipients/content, and repo file edits.
 - Keep bounded target Action Item updates inside the requested task `UNGATED`; do not treat deliverable review and target-page updates as separate approval loops.
 - Do not change `Record Status` outside `GOVERNANCE_GATE`.
-- This skill does not currently delegate to sub-agents. If a future version supports delegation (e.g., parallelizing context gathering across multiple wired records), it must follow `docs/sub-agent-contract.md`.
+- This skill does not delegate to sub-agents.
 
 ## Gate Protocol
 

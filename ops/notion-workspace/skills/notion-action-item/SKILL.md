@@ -33,6 +33,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - Keep changes scoped to the target Action Item unless the user expands scope.
    - Use `GOVERNANCE_GATE` for `Record Status` changes unless the request or a documented workflow/test path already authorizes that exact lifecycle move.
    - Do not modify unrelated CRM records.
+   - After completing the Action Item, suggest tagging `@Follow-Up Agent` on the source Meeting or Email page if cross-contextual matching could surface related Action Items. This is informational — do not invoke the agent automatically.
 
 ## Guardrails
 

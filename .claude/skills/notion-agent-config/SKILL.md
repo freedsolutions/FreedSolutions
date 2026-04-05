@@ -39,7 +39,7 @@ If routine repo-scoped shell, Notion MCP, or Playwright MCP support actions star
 - Always capture before and after evidence for live config changes.
 - Do not silently "fix" runtime drift when the spec is unclear; use `HARDENED_GATE`.
 - Treat instruction-page content edits as a separate Notion MCP task, not a browser settings task.
-- This skill does not currently delegate to sub-agents. If a future version supports delegation, it must follow `docs/sub-agent-contract.md`.
+- This skill does not delegate to sub-agents.
 
 ## Gate Protocol
 

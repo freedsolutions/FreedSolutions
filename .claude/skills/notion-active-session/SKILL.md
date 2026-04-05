@@ -8,7 +8,7 @@ description: Kick off `ops/notion-workspace` work by reading the canonical hando
 # Notion Active Session
 
 Read `ops/notion-workspace/session-active.md`, `ops/notion-workspace/CLAUDE.md`, and `ops/notion-workspace/docs/agent-sops.md` first when they exist in the workspace.
-If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, also read `ops/notion-workspace/freed-solutions-execution-checklist.md` before planning because that checklist may supersede the current manual-workflow queue for that architecture lane.
+If the request touches `ops/local_db`, direct Gmail or GCal ingestion, SQLite sync, or broader CRM architecture migration, check `session-active.md` Frozen Plans before planning — the local-first architecture lane is currently frozen.
 If routine repo-scoped shell, Notion MCP, or Playwright MCP actions start surfacing local approval prompts during kickoff, treat that as launcher/profile drift and switch to the documented quiet lane instead of normalizing repeated ad hoc approvals.
 
 ## Workflow
@@ -16,12 +16,12 @@ If routine repo-scoped shell, Notion MCP, or Playwright MCP actions start surfac
 1. Rebuild the active context.
    - Extract current state, priorities, follow-up items, and any `Planning Output` from `session-active.md`.
    - Extract standing approvals, sync rules, skill-publish rules, and the review gate from `CLAUDE.md`.
-   - When the request targets the local-first CRM architecture, extract any architecture-lane overrides or conflicts from `freed-solutions-execution-checklist.md`.
+   - When the request targets the local-first CRM architecture, check Frozen Plans in `session-active.md` — the architecture lane is currently frozen.
    - Read only the workflow docs, skills, and scripts that match the requested scaffolding change.
 2. Fan out targeted repo discovery.
    - Use local or parallel discovery by default when kickoff benefits from fan-out.
    - Delegate only when the client supports it and the user explicitly asked for or approved delegation.
-   - When delegating scoped discovery or bounded work to sub-agents, follow `docs/sub-agent-contract.md`. Pass a delegation manifest with explicit scope boundaries and the appropriate scaffold profile (default: `explorer` for discovery).
+   - When delegating scoped discovery or bounded work to sub-agents, pass explicit scope boundaries.
    - Split discovery by concern: repo conventions, likely touched files, validation path, and workflow-specific context.
 3. Synthesize the next execution slice.
    - Summarize the active priorities that matter to the request, the likely touched files, the validation path, and any "Adam - UI step".
@@ -53,7 +53,7 @@ If routine repo-scoped shell, Notion MCP, or Playwright MCP actions start surfac
 - Use `GOVERNANCE_GATE` for schema changes, destructive actions, bulk CRM edits, or ambiguous lifecycle changes.
 - Do not mark UI-only work complete until Adam confirms it in chat.
 - Ignore unrelated repo areas unless the current task truly depends on them.
-- Do not delegate repo-mutation or Notion-mutation work to sub-agents without including those targets in the delegation manifest `write_paths`.
+- Do not delegate repo-mutation or Notion-mutation work to sub-agents without explicit scope boundaries.
 
 ## Gate Protocol
 
@@ -61,7 +61,7 @@ Use the shared gate taxonomy from `ops/notion-workspace/CLAUDE.md` and `ops/noti
 
 | Operation | Gate | Notes |
 | --- | --- | --- |
-| Read the handoff, use local or parallel repo discovery, synthesize the kickoff summary, sync docs to Notion, publish skills, and run validation scripts | `UNGATED` | Delegate only when the client supports it and the user explicitly asked for or approved delegation. Delegated discovery uses the `explorer` scaffold profile by default. |
+| Read the handoff, use local or parallel repo discovery, synthesize the kickoff summary, sync docs to Notion, publish skills, and run validation scripts | `UNGATED` | Delegate only when the client supports it and the user explicitly asked for or approved delegation. |
 | Kickoff scope, naming, or risk questions and the first repo/code mutation in a skill run | `HARDENED_GATE` | Name intended files and change types before the first edit, and re-ask if the reply is empty or unclear. |
 | Schema changes, destructive actions, bulk CRM edits, or ambiguous lifecycle changes | `GOVERNANCE_GATE` | Follow the existing Rules of Engagement. |
 
