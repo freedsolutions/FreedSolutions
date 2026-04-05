@@ -143,7 +143,7 @@ class CodexReviewTests(unittest.TestCase):
     def test_filter_changed_entries_exact_directory_pathspec_includes_descendants(self) -> None:
         entries = [
             {"status": " M", "path": "ops/notion-workspace/CLAUDE.md"},
-            {"status": " M", "path": "ops/notion-workspace/skills/notion-active-session/SKILL.md"},
+            {"status": " M", "path": "ops/notion-workspace/skills/notion-action-items/SKILL.md"},
             {"status": " M", "path": "scripts/codex_review.py"},
         ]
 
@@ -157,26 +157,26 @@ class CodexReviewTests(unittest.TestCase):
             [entry["path"] for entry in filtered],
             [
                 "ops/notion-workspace/CLAUDE.md",
-                "ops/notion-workspace/skills/notion-active-session/SKILL.md",
+                "ops/notion-workspace/skills/notion-action-items/SKILL.md",
             ],
         )
 
     def test_filter_changed_entries_honors_glob_pathspecs(self) -> None:
         entries = [
-            {"status": " M", "path": "ops/notion-workspace/skills/notion-active-session/SKILL.md"},
-            {"status": " M", "path": "ops/notion-workspace/skills/notion-action-item/SKILL.md"},
+            {"status": " M", "path": "ops/notion-workspace/skills/notion-action-items/SKILL.md"},
+            {"status": " M", "path": "ops/notion-workspace/skills/notion-agent-config/SKILL.md"},
             {"status": " M", "path": "ops/notion-workspace/CLAUDE.md"},
         ]
 
         filtered = codex_review.filter_changed_entries(
             entries,
             codex_review.DEFAULT_CONFIG,
-            ["ops/notion-workspace/skills/notion-active-session/**"],
+            ["ops/notion-workspace/skills/notion-action-items/**"],
         )
 
         self.assertEqual(
             [entry["path"] for entry in filtered],
-            ["ops/notion-workspace/skills/notion-active-session/SKILL.md"],
+            ["ops/notion-workspace/skills/notion-action-items/SKILL.md"],
         )
 
     def test_get_tracked_diff_uses_only_filtered_tracked_paths(self) -> None:

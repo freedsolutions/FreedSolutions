@@ -283,7 +283,7 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Every Action Item should have a reliable `Company` whenever a trustworthy fallback exists
 - `Due Date` should be set whenever the source text contains an explicit or relative deadline that can be resolved
 - `Status = Review` indicates a response was received on a Follow Up or Task that needs Adam's assessment. Agents set Review; Adam resolves it (Done, back to In Progress, or other action).
-- `Tags` is an optional manual field on Action Items. Tag context comes from the Contact relation. Agents do not set Tags when creating Action Items — Adam sets them during review when needed.
+- Tag context comes from the Contact relation. Action Items do not have a Tags property — use the wired Contact's Tags for any tag-based filtering or grouping.
 - New or repaired Action Item pages should use the `🎬` page icon unless an explicit manual exception already exists
 ## Domains
 - New or repaired Domain pages should use the `🌐` page icon
