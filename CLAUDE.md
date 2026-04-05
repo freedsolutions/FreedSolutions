@@ -9,8 +9,14 @@ FreedSolutions/
 |  |- linkedin-carousel/   # LinkedIn carousel slide designer
 |- ops/                    # Migration prompts, internal ops, and private service scaffolds
 |  |- notion-workspace/      # Notion CRM automation docs + workflow config
+|- privacy-policy/         # Privacy policy page (GitHub Pages)
+|- website/                # Website static assets (favicons, OG images, photos)
+|- scripts/                # Repo-level utility scripts (codex_review.py)
+|- tests/                  # Repo-level test suite (codex review, closeout sanity, local DB)
 |- brand/                  # Brand assets - local only (.gitignore)
 ```
+
+> **Note:** `scripts/` and `tests/` at the repo root are repo-level utilities, distinct from `ops/notion-workspace/scripts/` which contains Notion-workspace-specific automation scripts.
 
 ## Project Routing
 Each project has its own CLAUDE.md or README with workflow details.
@@ -24,6 +30,10 @@ Each project has its own CLAUDE.md or README with workflow details.
 **Notion Workspace** -> `ops/notion-workspace/CLAUDE.md`
 - Docs: `ops/notion-workspace/docs/`
 - Notes: instruction docs and session handoff are local source of truth; CRM data stays in Notion (via MCP)
+
+## Artifact Cleanup
+- After any session that uses Playwright MCP, delete all files in `.playwright-mcp/` before closeout
+- `git status --short` should show no `.playwright-mcp/` entries at session end (directory is gitignored, but stale files waste disk)
 
 ## Repo-Level Rules
 - Direct push to `main`

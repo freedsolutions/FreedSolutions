@@ -16,7 +16,13 @@ FreedSolutions/
 |- projects/
 |  |- linkedin-carousel/         # LinkedIn carousel slide designer
 |- ops/                          # Internal ops, migration docs, and private service scaffolds
+|- privacy-policy/               # Privacy policy page (GitHub Pages)
+|- website/                      # Website static assets (favicons, OG images, photos)
+|- scripts/                      # Repo-level utility scripts (codex_review.py)
+|- tests/                        # Repo-level test suite
 ```
+
+> `scripts/` and `tests/` at the repo root are repo-level utilities, distinct from `ops/notion-workspace/scripts/`.
 
 ### Projects
 
