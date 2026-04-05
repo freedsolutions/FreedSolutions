@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 4, 2026 (Session 69: Removed Curated Notes Agent)
+Last synced: April 4, 2026 (Session 73: Added Follow-Up Agent to registry + trigger config)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -59,6 +59,14 @@ At the end of every session:
 <td>Opus 4.6</td>
 <td>Live</td>
 <td>[Settings](https://www.notion.so/agent/323adb01222f802cb5640092af74e84a?wfv=settings)</td>
+</tr>
+<tr>
+<td>Follow-Up Agent</td>
+<td>Follow-Up Instructions</td>
+<td>`@mention`</td>
+<td>Opus 4.6</td>
+<td>Live</td>
+<td>Settings URL TBD — Adam creates agent</td>
 </tr>
 </table>
 Naming conventions:
@@ -185,6 +193,25 @@ This section is the canonical desired state for Notion Custom Agent settings.
 - Notes:
 	- Queue fairness matters. Old Draft and QC-gap records must not starve behind newer ones.
 	- Placeholder correction is allowed when evidence is stronger than the placeholder default.
+## Follow-Up Agent
+- Triggers:
+	- `@mention` only (no schedule, no property triggers)
+- Notion page access:
+	- Action Items -\> Can edit content
+	- Meetings -\> Can view
+	- Emails -\> Can view
+	- Contacts -\> Can view
+	- Companies -\> Can view
+	- Follow-Up Instructions -\> Can edit
+	- Agent SOPs -\> Can view
+- Connections:
+	- No mail, no calendar, no web
+- Model: Opus 4.6
+- Notes:
+	- Cross-contextual Action Item matcher. Checks all AI types (Tasks and Follow Ups) including Done status.
+	- Manual @mention only — no schedule or property triggers.
+	- Sets matched AIs to Status = Review for Adam's "Needs My Attention" view.
+	- Does not create CRM records. Does not change Record Status (Draft/Active).
 ---
 # Database Quick Reference
 <table header-row="true">

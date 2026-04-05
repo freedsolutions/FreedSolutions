@@ -19,11 +19,12 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 | File | Notion Page ID | Purpose | Last Sync |
 |------|---------------|---------|-----------|
-| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-04-04 (S69) |
-| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-driven action items with summary/transcript enrichment only + cross-contextual follow-up detection -> curated summary). Uses live `Calendar Name` options only. | 2026-04-04 (S71) |
+| `docs/agent-sops.md` | `323adb01-222f-81d7-bc47-c32cfea460f4` | Canonical operating model: agents, workflows, schema, runtime baseline, and manual operator rules | 2026-04-04 (S73) |
+| `docs/post-meeting.md` | `324adb01-222f-8168-a207-d66e81884454` | Post-Meeting Agent: 4-step pipeline (CRM wiring -> Floppy -> notes-driven action items with summary/transcript enrichment only + cross-contextual follow-up detection -> curated summary). Uses live `Calendar Name` options only. | 2026-04-04 (S73) |
 | `docs/contact-company.md` | `323adb01-222f-8126-9db8-df77be5a326f` | Contact & Company Agent: nightly enrichment for Draft records plus Active QC gaps, with placeholder correction, domain cross-check, Source Type coherence, and backlog fairness rules | 2026-04-04 (S68) |
 | `docs/notetaker-crm.md` | `324adb01-222f-80ca-af0a-cd455329d8e8` | Notetaker CRM: paste into Notion Calendar AI settings | 2026-04-04 (S69) |
-| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: reasoning-only after script split — Email Notes summaries, cross-contextual matching, schema-safe action items | 2026-04-04 (S68) |
+| `docs/post-email.md` | `325adb01-222f-81d3-825a-d3e0c74c0e30` | Post-Email Agent: reasoning-only after script split — Email Notes summaries, cross-contextual matching, schema-safe action items | 2026-04-04 (S73) |
+| `docs/follow-up.md` | `338adb01-222f-8177-88ba-f29b1e8998cc` | Follow-Up Agent: manual cross-contextual AI matching on @mention — checks all AI types, wires context, sets Review | 2026-04-04 (S73) |
 
 ## Codex Skills
 

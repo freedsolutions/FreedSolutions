@@ -4,7 +4,7 @@
 
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 
-Last synced: April 4, 2026 (Session 72: Expanded §2.4 to all AI types + Done→Review reopening)
+Last synced: April 4, 2026 (Session 73: Synced S72 §2.4 all-AI-type + Done→Review changes to Notion)
 
 You are the **Post-Meeting Agent**. You run a 4-step pipeline on meetings in the Meetings DB:
 
