@@ -33,10 +33,8 @@ Repo skill sources live under `ops/notion-workspace/skills/`. They are the canon
 
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
-| `notion-active-session` | `ops/notion-workspace/skills/notion-active-session/` | Kick off the repo handoff, surface priorities, and route the session into the next scaffolding or workflow step |
 | `notion-action-item` | `ops/notion-workspace/skills/notion-action-item/` | Work a single Action Item end-to-end from CRM wiring through deliverable creation and bounded target updates |
 | `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent settings against the local config spec |
-| `notion-agent-test` | `ops/notion-workspace/skills/notion-agent-test/` | Run smoke or regression tests for Notion Custom Agents using the local playbooks |
 | `notion-meeting-prep` | `ops/notion-workspace/skills/notion-meeting-prep/` | Surface open Action Items and recent emails for a Meeting's attendees before a call |
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.

@@ -2,7 +2,7 @@
 
 > Canonical inventory of all Skills across the Freed Solutions repo.
 
-Last updated: April 5, 2026 (S75)
+Last updated: April 5, 2026 (S76)
 
 ## Workspace Skills
 
@@ -10,10 +10,8 @@ Skills for Notion CRM/PMO automation. Canonical source: `ops/notion-workspace/sk
 
 | Skill | Purpose | Claude.ai Synced? | Last Updated |
 |-------|---------|-------------------|--------------|
-| `notion-active-session` | Kick off repo handoff, surface priorities | Yes | S75 |
-| `notion-action-item` | Execute a single Action Item end-to-end | Yes | S75 |
+| `notion-action-item` | Execute a single Action Item end-to-end | Yes | S76 |
 | `notion-agent-config` | Audit/update Notion Custom Agent settings | Yes | S75 |
-| `notion-agent-test` | Run smoke/regression tests for agents | Yes | S75 |
 | `notion-meeting-prep` | Pre-call context brief for meeting attendees | Yes | S75 |
 
 ## Claude-Only Skills

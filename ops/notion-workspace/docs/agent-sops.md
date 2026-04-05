@@ -2,7 +2,7 @@
 # Agent SOPs
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
 The canonical operating spec for Adam's Notion workspace automation system.
-Last synced: April 4, 2026 (Session 73: Added Follow-Up Agent to registry + trigger config)
+Last synced: April 5, 2026 (Session 76: Added QC Requirements, removed deleted skills from Codex Skills table)
 ---
 # Operating Model
 Claude Code plus repo-backed Codex skills is the primary manual execution surface. Notion Custom Agents are bounded automation workers for scheduled or reactive workflows. Use the local docs in `ops/notion-workspace/docs/` as the source of truth and keep the mapped Notion instruction pages in sync with them.
@@ -84,11 +84,6 @@ Naming conventions:
 <td>Purpose</td>
 </tr>
 <tr>
-<td>`notion-active-session`</td>
-<td>`ops/notion-workspace/skills/notion-active-session/`</td>
-<td>Kick off the repo handoff, surface priorities, and route into the next scaffolding or workflow step</td>
-</tr>
-<tr>
 <td>`notion-action-item`</td>
 <td>`ops/notion-workspace/skills/notion-action-item/`</td>
 <td>Execute a single Action Item end to end</td>
@@ -97,11 +92,6 @@ Naming conventions:
 <td>`notion-agent-config`</td>
 <td>`ops/notion-workspace/skills/notion-agent-config/`</td>
 <td>Audit or update Notion Custom Agent settings against the local config spec</td>
-</tr>
-<tr>
-<td>`notion-agent-test`</td>
-<td>`ops/notion-workspace/skills/notion-agent-test/`</td>
-<td>Run smoke or regression tests for Notion Custom Agents using the local playbooks</td>
 </tr>
 <tr>
 <td>`notion-meeting-prep`</td>
@@ -316,6 +306,45 @@ These apply when writing or matching LinkedIn URLs, emails, or domains across an
 - Email record creation is driven by inbox state (Gmail filter behavior), not by a Domains DB property. If Gmail's filter archived a labeled thread, the script creates a record. If the thread has no label and is archived, it is dismissed.
 - One Domain record per domain/subdomain, even when multiple subdomains share a parent Company
 - Agents creating new Companies must also create a corresponding Draft Domain record
+## QC Requirements
+Each database has a `QC` formula that returns `"TRUE"` when all required fields are populated or a `"missing:<field>"` failure string for the first missing field. Agents and skills should treat QC failures as gaps to flag or repair.
+<table header-row="true">
+<tr>
+<td>Database</td>
+<td>Required Fields (check order)</td>
+<td>Special Rules</td>
+</tr>
+<tr>
+<td>Contacts</td>
+<td>Contact Name, Record Status, Email, Role / Title, Company, Tags</td>
+<td>Tags is required — the QC formula checks `missing:tags` as a failure condition. Tag context lives on Contacts only (not on Action Items or other DBs).</td>
+</tr>
+<tr>
+<td>Companies</td>
+<td>Company Name, Record Status, Company Type, 🌐 Domains, States, Website, Contacts</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Action Items</td>
+<td>Task Name, Record Status, Status, Priority, Due Date, Contact, Company, Source Meeting OR Source Email</td>
+<td>Also flags `past_due` when Due Date < today and Status ≠ Done. Source requires at least one of Source Meeting or Source Email.</td>
+</tr>
+<tr>
+<td>Meetings</td>
+<td>Meeting Title, Record Status, Calendar Name, Calendar Event ID, Date, Contacts</td>
+<td>Series Parents (`Is Series Parent` = checked) auto-pass QC regardless of field state.</td>
+</tr>
+<tr>
+<td>Emails</td>
+<td>Email Subject, Record Status, Thread ID, Date, Contacts, Source, Labels</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Domains</td>
+<td>Domain, Record Status, 💼 Companies, Source Type</td>
+<td>—</td>
+</tr>
+</table>
 ## Merge Workflow
 When a placeholder Company or duplicate Contact should be merged into a canonical record:
 **Company merge:**
@@ -360,10 +389,8 @@ Repo-backed Notion skills use this shared gate taxonomy:
 Inside an autonomous repo-backed skill run, any repo/code mutation must go through `HARDENED_GATE` before the first edit, even when the broader workflow is standing-approved. This includes edits under `docs/`, `skills/`, `ops/notion-workspace/CLAUDE.md`, `ops/notion-workspace/session-active.md`, and repo scripts. Outside an autonomous skill run, the normal standing-approval rules still apply.
 ## Kickoff Conventions
 Claude Code is the default execution surface. Start from the repo and use the skill source that best fits the task.
-- For repo bootstrap, priority review, or planned scaffolding kickoff: use `notion-active-session`
 - For Action Item execution: use `notion-action-item`
 - For Custom Agent config audits or edits: use `notion-agent-config`
-- For Custom Agent smoke or regression testing: use `notion-agent-test`
 - For pre-call meeting context: use `notion-meeting-prep`
 - For broader Notion workspace work without a matching skill: use Claude Code directly against the local docs and live Notion workspace
 Optional planning chat surfaces can still help think through a problem, but they are not the authoritative workflow owner and do not replace the repo-backed source files.

@@ -1,9 +1,0 @@
-# Generated from "ops/notion-workspace/skills/notion-agent-test/agents/openai.yaml". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly.
-
-interface:
-  display_name: "Notion Agent Test"
-  short_description: "Run smoke or regression tests"
-  default_prompt: "Use $notion-agent-test to run a smoke or regression test, batch any known HARDENED_GATE questions into one compact prompt, and continue the bounded test slice once approved."
-
-policy:
-  allow_implicit_invocation: true

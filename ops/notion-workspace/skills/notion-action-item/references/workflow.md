@@ -17,8 +17,10 @@
 ```text
 ## Action Item: [Task Name]
 - Status: [Status] | Priority: [Priority] | Due: [Due Date or "none"]
+- Review Trigger: [⚡ marker text from Task Notes, or omit if Status ≠ Review]
 - Contact: [name(s)] | Company: [name(s)]
-- Source: [Meeting title or Email subject or "none"]
+- Source Meeting: [Meeting title or "none"]
+- Source Email: [Email subject(s) — list all wired emails, or "none"]
 - Target: [Meeting title or Email subject or "none"]
 - Notes/Sub-tasks: [brief summary]
 - Attached files: [list]
@@ -63,6 +65,29 @@ Fetch only what the current task needs.
 - `HARDENED_GATE`: use for ambiguous identity, unclear business intent, missing source data that changes execution, unclear outbound recipients/content, or any repo file edit. Re-ask if the reply is empty or unclear.
 - `GOVERNANCE_GATE`: use when `Record Status`, schema, destructive or bulk work, or unrelated-record mutations would invoke the existing Rules of Engagement.
 
+## Review Resolution
+
+When Status = Review, the Action Item has been flagged by a nightly agent or the Follow-Up Agent because new context was received. Review is not a terminal state — it means "needs Adam's assessment."
+
+### Marker vocabulary
+
+| Marker | Set by | Meaning |
+| --- | --- | --- |
+| `⚡ FOLLOW-UP RECEIVED [date]` | Post-Email Agent (§2.3.1) | An email reply was received on a thread related to this AI |
+| `⚡ MEETING FOLLOW-UP [date]` | Post-Meeting Agent (§2.4) | A meeting discussed or advanced this AI's topic |
+| `⚡ REOPENED [date]` | Post-Meeting or Post-Email (Done→Review) | New activity surfaced after the AI was marked Done |
+| `⚡ FOLLOW-UP FLAGGED [date]` | Follow-Up Agent (manual @mention) | Adam tagged @Follow-Up Agent on a page related to this AI |
+
+### Resolution flow
+
+1. Parse the `⚡` marker(s) from Task Notes to understand what triggered the Review.
+2. Read all wired Source Emails (multi-relation) and Source Meetings for full context.
+3. Present resolution options to Adam:
+   - **Done** — the work is resolved by the new context.
+   - **In progress** — more work is needed; update Task Notes with next steps.
+   - **Escalate** — surface specific questions or blockers for Adam's decision.
+4. Apply the chosen status update. This is `UNGATED` after an explicit execution request.
+
 ## Rules
 
 - Follow the wiring.
@@ -91,3 +116,5 @@ Fetch only what the current task needs.
 - Title search with multiple matching Action Items: confirm the skill asks for disambiguation instead of selecting one arbitrarily.
 - Unclear outbound recipient or outbound content: confirm the skill uses `HARDENED_GATE` before proceeding.
 - Empty or ambiguous reply to a required gate question: confirm the skill re-asks before proceeding.
+- Review-status AI: confirm the skill surfaces the `⚡` trigger context from Task Notes and presents resolution options (Done / In progress / escalate) rather than treating Review as a normal starting status.
+- Review-status AI with multiple Source Emails: confirm the skill reads all wired Source Emails for context, not just the first.

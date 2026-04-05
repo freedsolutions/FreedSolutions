@@ -1,9 +1,0 @@
-# Generated from "ops/notion-workspace/skills/notion-active-session/agents/openai.yaml". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly.
-
-interface:
-  display_name: "Notion Active Session"
-  short_description: "Kick off ops/notion-workspace work"
-  default_prompt: "Use $notion-active-session to read the current handoff, fan out repo discovery, ask only the minimum HARDENED_GATE questions if needed, and continue autonomously once the bounded slice is approved."
-
-policy:
-  allow_implicit_invocation: true

@@ -18,8 +18,17 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - Otherwise fetch the record immediately before doing any work from memory.
 2. Summarize the record before execution.
    - Include status, priority, due date, wired Contact and Company, source Meeting or Email, notes, and attachments.
+   - When Status = Review, highlight the review trigger first. Look for `⚡` markers in Task Notes (`⚡ FOLLOW-UP RECEIVED`, `⚡ MEETING FOLLOW-UP`, `⚡ REOPENED`, `⚡ FOLLOW-UP FLAGGED`) and present what triggered the Review before asking for direction. Review is not a terminal state — it means "needs Adam's assessment."
+2.5. Resolve the Review when Status = Review.
+   - When Adam says "work this AI" and Status = Review, treat this as "resolve the Review."
+   - Summarize the trigger by parsing `⚡` markers from Task Notes. If the AI was previously Done and is now Review, the `⚡ REOPENED` marker means new context surfaced after completion.
+   - Read all wired Source Emails (multi-relation) and Source Meetings for full context on what triggered the Review.
+   - Present resolution options: mark Done (work is resolved), move back to In progress (needs more work), or escalate to Adam with specific questions.
+   - This step is `UNGATED` — it is bounded target AI status work after an explicit execution request.
 3. Follow the wiring.
    - Fetch only the related records that matter to the task: Contact, Company, Source Meeting, Source Email, and attached files.
+   - Source Email is a multi-relation — read all wired Source Emails, not just the first. Multiple threads may contribute provenance for the same work item.
+   - Trust pre-wired relations from nightly agents (Post-Meeting, Post-Email, Follow-Up) as the context backbone. Do not re-query for context that is already present in Source Meeting/Source Email relations.
    - Use the wired records as the context backbone instead of ad hoc searching.
 4. Gather extra context only when needed.
    - Use Gmail, Calendar, web, or uploaded files when the task actually depends on them.
@@ -35,10 +44,11 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
    - Keep changes scoped to the target Action Item unless the user expands scope.
    - Use `GOVERNANCE_GATE` for `Record Status` changes unless the request or a documented workflow/test path already authorizes that exact lifecycle move.
    - Do not modify unrelated CRM records.
-   - After completing the Action Item, suggest tagging `@Follow-Up Agent` on the source Meeting or Email page if cross-contextual matching could surface related Action Items. This is informational — do not invoke the agent automatically.
+   - After completing the Action Item, suggest tagging `@Follow-Up Agent` on the source Meeting or Email page when: the AI is a Follow Up type (completion may affect the counterparty's related AIs), or the AI's Contact has other open AIs that might be affected by this completion. This is informational — do not invoke the agent automatically.
 
 ## Guardrails
 
+- Tags are required on Contacts (QC-enforced), not on Action Items. When summarizing an AI, pull Tag context from the wired Contact relation. Reference `QC Requirements` in `agent-sops.md` for the full required-fields spec per DB.
 - Always resolve the Action Item against the Notion page before risky work.
 - Treat an explicit pre-loaded context bundle as valid input, but verify the page exists and refresh the minimum required field set from `references/workflow.md` before proceeding.
 - A valid pre-loaded context bundle should identify the target page by URL or page ID and include the current Task Name plus whatever status, relations, notes, or attachment context the user already has.
