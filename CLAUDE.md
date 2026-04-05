@@ -33,6 +33,7 @@ Each project has its own CLAUDE.md or README with workflow details.
 
 ## Artifact Cleanup
 - After any session that uses Playwright MCP, delete all files in `.playwright-mcp/` before closeout
+- `test-closeout-sanity.ps1` enforces this gate — closeout fails if `.playwright-mcp/` contains any files
 - `git status --short` should show no `.playwright-mcp/` entries at session end (directory is gitignored, but stale files waste disk)
 
 ## Repo-Level Rules

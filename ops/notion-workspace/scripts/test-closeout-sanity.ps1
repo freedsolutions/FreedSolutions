@@ -199,6 +199,22 @@ if ($stagedTmpArtifacts.Count -gt 0) {
     exit 1
 }
 
+$playwrightDir = Join-Path $repoRoot.Path '.playwright-mcp'
+if (Test-Path $playwrightDir -PathType Container) {
+    $playwrightFiles = @(Get-ChildItem -Path $playwrightDir -Recurse -File -Force |
+        ForEach-Object {
+            $_.FullName.Substring($repoRoot.Path.TrimEnd('\', '/').Length + 1).Replace('\', '/')
+        })
+
+    if ($playwrightFiles.Count -gt 0) {
+        foreach ($relativePath in $playwrightFiles) {
+            Write-Error "Stale Playwright artifact must be deleted before closeout: $relativePath"
+        }
+
+        exit 1
+    }
+}
+
 if ($untrackedScopedPaths.Count -gt 0) {
     foreach ($relativePath in $untrackedScopedPaths) {
         if ($RequireCleanScope) {
