@@ -261,15 +261,27 @@ def fetch_thread_metadata(service, thread_id: str) -> dict | None:
 
     # Extract headers from all messages for participant collection
     all_participants: dict[str, set[str]] = {"from": set(), "to": set(), "cc": set(), "bcc": set()}
+    # Thread-level display-name map: email_lower -> display_name.
+    # First non-empty display name wins (From headers usually carry the most reliable name).
+    name_map: dict[str, str] = {}
     messages_meta: list[dict] = []
     for msg in messages:
         msg_headers = _headers_dict(msg)
-        msg_from = _extract_email_address(msg_headers.get("from", ""))
+        from_header = msg_headers.get("from", "")
+        msg_from = _extract_email_address(from_header)
         if msg_from:
             all_participants["from"].add(msg_from.lower())
+            if msg_from.lower() not in name_map:
+                display = _extract_display_name_only(from_header)
+                if display:
+                    name_map[msg_from.lower()] = display
         for field in ("to", "cc", "bcc"):
-            for addr in _extract_email_addresses(msg_headers.get(field, "")):
-                all_participants[field].add(addr.lower())
+            header_value = msg_headers.get(field, "")
+            for name, addr in _extract_name_email_pairs(header_value):
+                addr_lower = addr.lower()
+                all_participants[field].add(addr_lower)
+                if name and addr_lower not in name_map:
+                    name_map[addr_lower] = name
 
         messages_meta.append({
             "id": msg.get("id", ""),
@@ -291,6 +303,7 @@ def fetch_thread_metadata(service, thread_id: str) -> dict | None:
         "all_cc": all_participants["cc"],
         "all_bcc": all_participants["bcc"],
         "messages_meta": messages_meta,
+        "name_map": name_map,
     }
 
 
@@ -316,12 +329,9 @@ def _extract_email_addresses(header_value: str) -> list[str]:
 
 def _extract_display_name(header_value: str) -> str:
     """Extract display name from 'Display Name <email@example.com>' header."""
-    # Try to extract the part before <email>
-    angle = header_value.find("<")
-    if angle > 0:
-        name = header_value[:angle].strip().strip('"').strip("'").strip()
-        if name:
-            return name
+    name = _extract_display_name_only(header_value)
+    if name:
+        return name
     # Fallback: derive from email local part
     email = _extract_email_address(header_value)
     if email:
@@ -329,6 +339,39 @@ def _extract_display_name(header_value: str) -> str:
         # Convert dots/underscores to spaces and title-case
         return local.replace(".", " ").replace("_", " ").replace("-", " ").title()
     return ""
+
+
+def _extract_display_name_only(header_value: str) -> str:
+    """Return the display-name portion of a single-address header, or '' if absent.
+
+    Unlike `_extract_display_name`, does NOT synthesize a name from the local part.
+    Use this when the caller wants to know whether a real display name was present.
+    """
+    if not header_value:
+        return ""
+    angle = header_value.find("<")
+    if angle > 0:
+        name = header_value[:angle].strip().strip('"').strip("'").strip()
+        return name
+    return ""
+
+
+def _extract_name_email_pairs(header_value: str) -> list[tuple[str, str]]:
+    """Parse a To/Cc/Bcc header into [(display_name, email_lower), ...] pairs.
+
+    Uses stdlib `email.utils.getaddresses` for RFC-aware multi-address parsing.
+    Empty display names come back as ''.
+    """
+    if not header_value:
+        return []
+    from email.utils import getaddresses
+    pairs = []
+    for raw_name, raw_addr in getaddresses([header_value]):
+        if not raw_addr or "@" not in raw_addr:
+            continue
+        name = raw_name.strip().strip('"').strip("'").strip()
+        pairs.append((name, raw_addr.lower()))
+    return pairs
 
 
 def _parse_internal_date(internal_date_ms: str) -> datetime | None:
@@ -1007,8 +1050,30 @@ def wire_crm_for_thread(
     }
 
     if not participant_emails:
+        # Bot-only thread (e.g. LinkedIn newsletter from a known Contact).
+        # Before skipping, check whether any pre-strip sender matches an existing
+        # Contact by Email / Secondary Email / Tertiary Email. If so, wire that
+        # Contact to the Email record without creating new Draft records.
+        pre_strip_emails = {e for e in all_emails if e.lower() not in adam_aliases}
+        matched_ids: list[str] = []
+        for email_addr in sorted(pre_strip_emails):
+            email_lower = email_addr.lower()
+            if email_lower in entity_cache.get("contacts", {}):
+                matched_ids.append(entity_cache["contacts"][email_lower])
+                continue
+            contact = lookup_contact_by_email(email_lower, contacts_db_id, notion_token)
+            time.sleep(0.05)
+            if contact:
+                cid = contact["id"]
+                entity_cache.setdefault("contacts", {})[email_lower] = cid
+                matched_ids.append(cid)
+                if verbose:
+                    cname = extract_plain_text(contact.get("properties", {}).get("Contact Name"))
+                    print(f"    BOT-ONLY thread MATCHED existing Contact: \"{cname}\" <{email_lower}>")
+        if matched_ids:
+            return matched_ids
         if verbose:
-            print(f"    No human participants after alias/bot removal")
+            print(f"    No human participants after alias/bot removal (no Contact match on pre-strip sender)")
         return []
 
     # Build display name map from message headers
@@ -1067,15 +1132,8 @@ def wire_crm_for_thread(
 
 
 def _build_name_map(thread_meta: dict) -> dict[str, str]:
-    """Build email -> display name map from all message From/To headers."""
-    name_map: dict[str, str] = {}
-    for msg in thread_meta.get("messages_meta", []):
-        # We only have limited header info in messages_meta
-        # The from field already has the email extracted
-        pass
-    # For more complete name mapping, we'd need the raw headers
-    # For now, the display name extraction happens in create_draft_contact
-    return name_map
+    """Return the pre-built email -> display name map from fetch_thread_metadata."""
+    return thread_meta.get("name_map", {}) or {}
 
 
 def _resolve_company_for_domain(
