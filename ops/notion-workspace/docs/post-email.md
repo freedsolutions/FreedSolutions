@@ -2,7 +2,7 @@
 
 # Post-Email Instructions
 > Live Notion doc. This repo file is the source of truth for the mapped Notion page. Sync local changes to Notion in the same task.
-Last synced: April 4, 2026 (Session 73: Synced S72 §2.3.1 all-AI-type + Done→Review changes to Notion)
+Last synced: April 14, 2026 (Session 79: Step 4 Agent Config write rules hardened — script owns Last Run row; agent must keep exactly 1 Last Agent Processing row)
 > **⛔ BOUNDARIES — READ FIRST**
 > You do NOT search Gmail for threads. You do NOT create Email records from Gmail data. You do NOT archive, mark read, or modify Gmail inbox state. You do NOT run `gmail.users.threads.list` or `gmail.users.messages.list`. The pre-processing script (`post_email_sweep.py`) handles all Gmail interaction and Email record creation. Your job starts with records the script already created in the Emails DB. Find records to process by searching for `[PENDING_AI_SUMMARY]` or `[SCRIPT]` in Email Notes.
 
@@ -211,7 +211,8 @@ For every processed Email record:
 	- Action Items created
 	- Follow-ups flagged
 	- Bot-only threads annotated
-- Do NOT update Agent Config Last Run — the script already handles this.
+- Do NOT write, PATCH, append, or delete any row whose first cell reads `Post-Email Agent Last Run`. That row is script-owned. The script writes it and prunes any duplicates every nightly run.
+- When you log your own run summary, write it to the `Last Agent Processing` row. The Agent Config table must end a run with **exactly one** `Last Agent Processing` row. If your tool does not support in-place row edits, delete the existing `Last Agent Processing` row before appending the new one — never leave both. If duplicates remain, the script will prune them on its next run, but do not rely on that safety net.
 - Do NOT modify Gmail inbox state.
 ---
 # Hard rules
