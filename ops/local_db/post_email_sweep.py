@@ -777,17 +777,22 @@ def update_last_run(
 ) -> None:
     """Update the Post-Email Agent Last Run timestamp in Agent Config.
 
-    Finds the table row in the Post-Email Agent section and overwrites it.
+    Finds the table row in the Post-Email Agent section, PATCHes the first
+    "Post-Email Agent Last Run" row with fresh values, and DELETEs any
+    duplicates of it plus any duplicates of "Last Agent Processing" beyond
+    the single newest row.
 
-    INVARIANT — replace-in-place, never append (S77/S78):
-      The Agent Config table must always have exactly 1 header + 1 data row
-      per agent section.  This function PATCHes the existing data row by its
-      Notion block ID (not by appending a child block).  The write is scoped
-      to the Post-Email section via the ``in_post_email_section`` heading
-      guard — it must never touch other agents' sections.
+    INVARIANT — replace-in-place, never append (S77/S78/S79):
+      The Agent Config table must always have exactly 1 header + 1 "Post-Email
+      Agent Last Run" row + 1 "Last Agent Processing" row per agent section.
+      This function PATCHes the existing Last Run row by its Notion block ID
+      (never appends) and DELETEs any duplicates it finds. The delete pass is
+      defensive: S79 observed 8 Last Run duplicates with microsecond-identical
+      timestamps, proving something other than the script (likely the Notion
+      Custom Agent) was reading and copying rows. Script-side pruning keeps
+      the table clean even if the upstream appender can't be fully eliminated.
       See post-email.md Hard rule #14: "Do NOT update Agent Config Last Run
-      — the script already handles this."  The Notion Custom Agent relies on
-      the script owning this write exclusively.
+      — the script already handles this."
     """
     agent_config_id = config.notion.databases.get("agent_config")
     if not agent_config_id:
@@ -822,39 +827,136 @@ def update_last_run(
                 print(f"WARNING: Failed to read Agent Config table rows: {e}", file=sys.stderr)
                 return
 
+            # Classify rows by key
+            last_run_rows: list[dict] = []
+            agent_processing_rows: list[dict] = []
             for row in rows:
                 if row.get("type") != "table_row":
                     continue
                 cells = row.get("table_row", {}).get("cells", [])
                 if len(cells) < 2:
                     continue
-                key = "".join(t.get("plain_text", "") for t in cells[0]).strip()
-                if "last run" not in key.lower():
-                    continue
+                key = "".join(t.get("plain_text", "") for t in cells[0]).strip().lower()
+                if "last run" in key:
+                    last_run_rows.append(row)
+                elif "last agent processing" in key:
+                    agent_processing_rows.append(row)
 
-                # Found the data row — update it
-                now = datetime.now(timezone(timedelta(hours=-4)))
-                timestamp_str = now.isoformat()
-                updated_str = f"Post-Email Sweep (Script {now.strftime('%I:%M %p ET — %b %d')}). {run_summary}"
-
-                new_cells = [
-                    [{"type": "text", "text": {"content": key}}],
-                    [{"type": "text", "text": {"content": timestamp_str}}],
-                ]
-                # If there's a 3rd column (Updated), include it
-                if len(cells) >= 3:
-                    new_cells.append([{"type": "text", "text": {"content": updated_str}}])
-
-                update_body = {"table_row": {"cells": new_cells}}
-                try:
-                    notion_request(f"/blocks/{row['id']}", notion_token, update_body, method="PATCH")
-                    if verbose:
-                        print(f"  Updated Agent Config Last Run: {timestamp_str}")
-                except Exception as e:
-                    print(f"WARNING: Failed to update Agent Config Last Run: {e}", file=sys.stderr)
+            if not last_run_rows:
+                print("WARNING: Could not find Post-Email Agent Last Run row to update.", file=sys.stderr)
                 return
 
-    print("WARNING: Could not find Post-Email Agent Last Run row to update.", file=sys.stderr)
+            # PATCH the first Last Run row with fresh values
+            primary = last_run_rows[0]
+            primary_cells = primary.get("table_row", {}).get("cells", [])
+            primary_key = "".join(t.get("plain_text", "") for t in primary_cells[0]).strip()
+
+            now = datetime.now(timezone(timedelta(hours=-4)))
+            timestamp_str = now.isoformat()
+
+            # Gap detection: flag runs that follow an unusually long quiet period.
+            # The nightly schedule is every 24h; >26h indicates a missed run.
+            gap_flag = ""
+            prev_timestamp_str = (
+                "".join(t.get("plain_text", "") for t in primary_cells[1]).strip().strip("`").strip()
+                if len(primary_cells) >= 2 else ""
+            )
+            try:
+                prev_dt = datetime.fromisoformat(prev_timestamp_str) if prev_timestamp_str else None
+            except (ValueError, TypeError):
+                prev_dt = None
+            if prev_dt is not None:
+                gap_hours = (now - prev_dt).total_seconds() / 3600
+                if gap_hours > 26:
+                    gap_flag = f"🚨 GAP DETECTED: {gap_hours:.1f}h since previous run. "
+
+            updated_str = f"{gap_flag}Post-Email Sweep (Script {now.strftime('%I:%M %p ET — %b %d')}). {run_summary}"
+
+            new_cells = [
+                [{"type": "text", "text": {"content": primary_key}}],
+                [{"type": "text", "text": {"content": timestamp_str}}],
+            ]
+            if len(primary_cells) >= 3:
+                new_cells.append([{"type": "text", "text": {"content": updated_str}}])
+
+            try:
+                notion_request(
+                    f"/blocks/{primary['id']}",
+                    notion_token,
+                    {"table_row": {"cells": new_cells}},
+                    method="PATCH",
+                )
+                if verbose:
+                    print(f"  Updated Agent Config Last Run: {timestamp_str}")
+            except Exception as e:
+                print(f"WARNING: Failed to update Agent Config Last Run: {e}", file=sys.stderr)
+                return
+
+            # Prune duplicate Last Run rows
+            _delete_duplicate_rows(
+                last_run_rows[1:],
+                label="Post-Email Agent Last Run",
+                notion_token=notion_token,
+                verbose=verbose,
+            )
+
+            # Prune Last Agent Processing duplicates, keeping the newest by timestamp
+            if len(agent_processing_rows) > 1:
+                to_delete = _pick_stale_rows(agent_processing_rows)
+                _delete_duplicate_rows(
+                    to_delete,
+                    label="Last Agent Processing",
+                    notion_token=notion_token,
+                    verbose=verbose,
+                )
+
+            return
+
+    print("WARNING: Could not find Post-Email Agent section in Agent Config.", file=sys.stderr)
+
+
+def _delete_duplicate_rows(
+    rows: list[dict],
+    *,
+    label: str,
+    notion_token: str,
+    verbose: bool = False,
+) -> None:
+    """DELETE the given table_row blocks. Logs each outcome."""
+    for row in rows:
+        try:
+            notion_request(f"/blocks/{row['id']}", notion_token, method="DELETE")
+            if verbose:
+                print(f"  Deleted duplicate {label} row: {row['id']}")
+        except Exception as e:
+            print(f"WARNING: Failed to delete duplicate {label} row {row['id']}: {e}", file=sys.stderr)
+
+
+def _pick_stale_rows(rows: list[dict]) -> list[dict]:
+    """Return all rows except the one with the newest parseable timestamp in cell[1].
+
+    Falls back to keeping the last row in document order when timestamps are
+    unparseable (preserves script-safe behavior — never deletes the only row).
+    """
+    def _row_timestamp(row: dict) -> datetime | None:
+        cells = row.get("table_row", {}).get("cells", [])
+        if len(cells) < 2:
+            return None
+        value = "".join(t.get("plain_text", "") for t in cells[1]).strip()
+        # Notion may wrap ISO timestamps in code ticks (`...`) — strip them
+        value = value.strip("`").strip()
+        try:
+            return datetime.fromisoformat(value)
+        except (ValueError, TypeError):
+            return None
+
+    ranked = [(r, _row_timestamp(r)) for r in rows]
+    parseable = [(r, ts) for r, ts in ranked if ts is not None]
+    if parseable:
+        newest = max(parseable, key=lambda pair: pair[1])[0]
+    else:
+        newest = rows[-1]
+    return [r for r in rows if r["id"] != newest["id"]]
 
 
 # ---------------------------------------------------------------------------
