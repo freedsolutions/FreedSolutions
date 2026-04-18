@@ -36,6 +36,7 @@ Repo skill sources live under `ops/notion-workspace/skills/`. They are the canon
 | `notion-action-items` | `ops/notion-workspace/skills/notion-action-items/` | Work a single Action Item end-to-end from CRM wiring through deliverable creation and bounded target updates |
 | `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent settings against the local config spec |
 | `notion-meeting-prep` | `ops/notion-workspace/skills/notion-meeting-prep/` | Surface open Action Items and recent emails for a Meeting's attendees before a call |
+| `pandoc-deliverable` | `ops/notion-workspace/skills/pandoc-deliverable/` | Regenerate DOCX + PDF deliverables from a source `.md` using the Calibri/Consolas baseline with glyph-substitution preprocessing |
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
 
