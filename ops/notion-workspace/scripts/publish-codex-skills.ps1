@@ -6,8 +6,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$sourceRoot = Join-Path $repoRoot "skills"
+$workspaceRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$repoRoot = Resolve-Path (Join-Path (Join-Path $workspaceRoot "..") "..")
+# Skill source roots, in order. Must match sync-claude-skill-wrappers.ps1.
+$sourceRoots = @(
+    (Join-Path $workspaceRoot "skills"),
+    (Join-Path $repoRoot "freed-solutions/skills")
+) | Where-Object { Test-Path $_ }
+
+function Get-SkillSourcePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+        [Parameter(Mandatory = $true)]
+        [object[]]$Roots
+    )
+
+    foreach ($root in $Roots) {
+        $candidate = Join-Path $root $Name
+        if (Test-Path (Join-Path $candidate "SKILL.md")) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+    return $null
+}
 
 $codexHome = if ($env:CODEX_HOME) {
     $env:CODEX_HOME
@@ -42,18 +64,37 @@ $env:PYTHONPATH = if ($originalPythonPath) {
 $skills = if ($SkillName -and $SkillName.Count -gt 0) {
     $SkillName
 } else {
-    Get-ChildItem -Path $sourceRoot -Directory | Select-Object -ExpandProperty Name
+    $discovered = @()
+    $collisions = @{}
+    foreach ($root in $sourceRoots) {
+        $names = Get-ChildItem -Path $root -Directory |
+            Where-Object { Test-Path (Join-Path $_.FullName "SKILL.md") } |
+            Select-Object -ExpandProperty Name
+        foreach ($n in $names) {
+            if ($discovered -contains $n) {
+                $collisions[$n] = $true
+            } else {
+                $discovered += $n
+            }
+        }
+    }
+    if ($collisions.Count -gt 0) {
+        $collided = ($collisions.Keys | Sort-Object) -join ", "
+        $env:PYTHONPATH = $originalPythonPath
+        throw "Skill name collision across source roots: $collided. Rename or consolidate."
+    }
+    $discovered
 }
 
 if (-not $skills) {
-    throw "No skills found under $sourceRoot"
+    throw "No skills found under any of: $($sourceRoots -join ', ')"
 }
 
 foreach ($name in $skills) {
-    $skillPath = Join-Path $sourceRoot $name
-    if (-not (Test-Path $skillPath)) {
+    $skillPath = Get-SkillSourcePath -Name $name -Roots $sourceRoots
+    if (-not $skillPath) {
         $env:PYTHONPATH = $originalPythonPath
-        throw "Skill source not found: $skillPath"
+        throw "Skill source not found: $name"
     }
 
     Write-Host "Validating $name ..."
@@ -75,7 +116,11 @@ if (-not (Test-Path $resolvedInstallRoot)) {
 }
 
 foreach ($name in $skills) {
-    $skillPath = Join-Path $sourceRoot $name
+    $skillPath = Get-SkillSourcePath -Name $name -Roots $sourceRoots
+    if (-not $skillPath) {
+        $env:PYTHONPATH = $originalPythonPath
+        throw "Skill source not found during publish: $name"
+    }
     $targetPath = Join-Path $resolvedInstallRoot $name
 
     if (Test-Path $targetPath) {

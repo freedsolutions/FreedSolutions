@@ -29,7 +29,7 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 ## Codex Skills
 
-Repo skill sources live under `ops/notion-workspace/skills/`. They are the canonical source for both Codex and Claude. Installed Codex copies belong in `$CODEX_HOME/skills` (default: `~/.codex/skills`; Windows default: `C:\Users\adamj\.codex\skills`). Claude should use synced generated skill copies under `.claude/skills/` produced from the repo with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.
+Repo skill sources live under two roots: `ops/notion-workspace/skills/` (workspace automation skills) and `freed-solutions/skills/` (general Freed Solutions operator skills). Both are canonical sources for both Codex and Claude. Installed Codex copies belong in `$CODEX_HOME/skills` (default: `~/.codex/skills`; Windows default: `C:\Users\adamj\.codex\skills`). Claude should use synced generated skill copies under `.claude/skills/` produced from the repo with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`. Skill names must be unique across the two roots — the sync + publish scripts both detect and reject collisions.
 
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
@@ -37,8 +37,10 @@ Repo skill sources live under `ops/notion-workspace/skills/`. They are the canon
 | `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent settings against the local config spec |
 | `notion-meeting-prep` | `ops/notion-workspace/skills/notion-meeting-prep/` | Surface open Action Items and recent emails for a Meeting's attendees before a call |
 | `pandoc-deliverable` | `ops/notion-workspace/skills/pandoc-deliverable/` | Regenerate DOCX + PDF deliverables from a source `.md` using the Calibri/Consolas baseline with glyph-substitution preprocessing |
+| `cannabis-tech-sitemap` | `freed-solutions/skills/cannabis-tech-sitemap/` | Generate a Mermaid-based tech-stack sitemap + Option A/B/C scenario canvas from client discovery interview notes |
+| `resume-builder` | `freed-solutions/skills/resume-builder/` | Tailor resume + cover letter + application answers for a specific job opening, using a base resume as the DOCX style anchor |
 
-Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`.
+Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`. Adding a new source root: append to `$sourceRoots` in both scripts; collision detection is built in.
 
 The `Notion Page ID` values in the local-doc table above are the canonical page mapping. Individual repo docs may also carry a local `<!-- Notion Page ID: ... -->` comment for convenience, but that comment is optional and must never appear in a live Notion page.
 

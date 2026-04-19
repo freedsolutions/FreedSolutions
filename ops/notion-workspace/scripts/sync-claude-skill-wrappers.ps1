@@ -8,7 +8,12 @@ $ErrorActionPreference = "Stop"
 
 $workspaceRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $repoRoot = Resolve-Path (Join-Path (Join-Path $workspaceRoot "..") "..")
-$sourceRoot = Join-Path $workspaceRoot "skills"
+# Skill source roots, in order. A skill directory with a SKILL.md under any of these is a valid source.
+# Adding a new root: append here and every downstream consumer (publish-codex-skills.ps1) picks it up.
+$sourceRoots = @(
+    (Join-Path $workspaceRoot "skills"),
+    (Join-Path $repoRoot "freed-solutions/skills")
+) | Where-Object { Test-Path $_ }
 
 $resolvedWrapperRoot = if ($PSBoundParameters.ContainsKey("WrapperRoot")) {
     $WrapperRoot
@@ -27,13 +32,42 @@ function Get-SkillNames {
         Select-Object -ExpandProperty Name
 }
 
+function Get-SkillSourcePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+        [Parameter(Mandatory = $true)]
+        [object[]]$Roots
+    )
+
+    foreach ($root in $Roots) {
+        $candidate = Join-Path $root $Name
+        if (Test-Path (Join-Path $candidate "SKILL.md")) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+    return $null
+}
+
+function Get-SkillRelativeFromRepoRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SkillPath,
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRootPath
+    )
+
+    $rel = $SkillPath.Substring($RepoRootPath.Length).TrimStart('\', '/').Replace('\', '/')
+    return $rel
+}
+
 function Get-ClaudeSkillCopyContent {
     param(
         [Parameter(Mandatory = $true)]
         [string]$SourceFile,
 
         [Parameter(Mandatory = $true)]
-        [string]$SkillName,
+        [string]$SkillRepoRelative,
 
         [Parameter(Mandatory = $true)]
         [string]$RelativePath
@@ -41,7 +75,7 @@ function Get-ClaudeSkillCopyContent {
 
     $raw = Get-Content -Path $SourceFile -Raw -Encoding UTF8
     $newline = if ($raw -match "`r`n") { "`r`n" } else { "`n" }
-    $sourcePath = "ops/notion-workspace/skills/$SkillName/$RelativePath".Replace('\', '/')
+    $sourcePath = "$SkillRepoRelative/$RelativePath".Replace('\', '/')
     $message = "Generated from `"$sourcePath`". Edit the repo skill source and rerun `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`; do not edit this Claude copy directly."
     $banner = switch ([System.IO.Path]::GetExtension($RelativePath).ToLowerInvariant()) {
         ".md" { "<!-- $message -->" }
@@ -96,7 +130,7 @@ function Test-DirectoryMatchesSource {
         [string]$TargetDir,
 
         [Parameter(Mandatory = $true)]
-        [string]$SkillName
+        [string]$SkillRepoRelative
     )
 
     if (-not (Test-Path $TargetDir)) {
@@ -115,17 +149,8 @@ function Test-DirectoryMatchesSource {
             return $false
         }
 
-        if ($relativePath -eq "SKILL.md") {
-            $expectedContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $SkillName -RelativePath $relativePath
-            $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw -Encoding UTF8
-            $normalizedExpected = $expectedContent -replace "\r\n", "`n"
-            $normalizedActual = $actualContent -replace "\r\n", "`n"
-
-            if ($normalizedExpected -ne $normalizedActual) {
-                return $false
-            }
-        } elseif ($relativePath -match '\.(md|ya?ml)$') {
-            $expectedContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $SkillName -RelativePath $relativePath
+        if ($relativePath -eq "SKILL.md" -or $relativePath -match '\.(md|ya?ml)$') {
+            $expectedContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillRepoRelative $SkillRepoRelative -RelativePath $relativePath
             $actualContent = Get-Content -Path $targetFiles[$relativePath] -Raw -Encoding UTF8
             $normalizedExpected = $expectedContent -replace "\r\n", "`n"
             $normalizedActual = $actualContent -replace "\r\n", "`n"
@@ -146,7 +171,22 @@ function Test-DirectoryMatchesSource {
     return $true
 }
 
-$availableSkills = Get-SkillNames -Root $sourceRoot
+$availableSkills = @()
+$skillNameCollisions = @{}
+foreach ($root in $sourceRoots) {
+    foreach ($n in (Get-SkillNames -Root $root)) {
+        if ($availableSkills -contains $n) {
+            $skillNameCollisions[$n] = $true
+        } else {
+            $availableSkills += $n
+        }
+    }
+}
+
+if ($skillNameCollisions.Count -gt 0) {
+    $collided = ($skillNameCollisions.Keys | Sort-Object) -join ", "
+    throw "Skill name collision across source roots: $collided. Rename or consolidate."
+}
 
 $skills = if ($SkillName -and $SkillName.Count -gt 0) {
     $SkillName
@@ -155,7 +195,7 @@ $skills = if ($SkillName -and $SkillName.Count -gt 0) {
 }
 
 if (-not $skills) {
-    throw "No skills found under $sourceRoot"
+    throw "No skills found under any of: $($sourceRoots -join ', ')"
 }
 
 foreach ($name in $skills) {
@@ -164,22 +204,23 @@ foreach ($name in $skills) {
     }
 }
 
+$repoRootPath = $repoRoot.Path
+
 if (-not $ValidateOnly -and -not (Test-Path $resolvedWrapperRoot)) {
     New-Item -ItemType Directory -Path $resolvedWrapperRoot | Out-Null
 }
 
 foreach ($name in $skills) {
-    $skillPath = Join-Path $sourceRoot $name
-    $skillFile = Join-Path $skillPath "SKILL.md"
-
-    if (-not (Test-Path $skillFile)) {
-        throw "Skill source not found: $skillFile"
+    $skillPath = Get-SkillSourcePath -Name $name -Roots $sourceRoots
+    if (-not $skillPath) {
+        throw "Skill source not found for: $name"
     }
 
+    $skillRepoRelative = Get-SkillRelativeFromRepoRoot -SkillPath $skillPath -RepoRootPath $repoRootPath
     $targetPath = Join-Path $resolvedWrapperRoot $name
 
     if ($ValidateOnly) {
-        $matches = Test-DirectoryMatchesSource -SourceDir $skillPath -TargetDir $targetPath -SkillName $name
+        $matches = Test-DirectoryMatchesSource -SourceDir $skillPath -TargetDir $targetPath -SkillRepoRelative $skillRepoRelative
 
         if (-not $matches) {
             throw "Claude skill copy is missing or out of sync: $targetPath"
@@ -201,16 +242,16 @@ foreach ($name in $skills) {
         }
 
         $targetFile = Join-Path $targetPath ($relativePath -replace '/', '\')
-        $targetContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillName $name -RelativePath $relativePath
+        $targetContent = Get-ClaudeSkillCopyContent -SourceFile $sourceFiles[$relativePath] -SkillRepoRelative $skillRepoRelative -RelativePath $relativePath
         [System.IO.File]::WriteAllText($targetFile, $targetContent, [System.Text.UTF8Encoding]::new($false))
     }
 
-    $writtenMatches = Test-DirectoryMatchesSource -SourceDir $skillPath -TargetDir $targetPath -SkillName $name
+    $writtenMatches = Test-DirectoryMatchesSource -SourceDir $skillPath -TargetDir $targetPath -SkillRepoRelative $skillRepoRelative
     if (-not $writtenMatches) {
         throw "Claude skill copy verification failed after sync: $targetPath"
     }
 
-    Write-Host "Synced Claude skill copy $name -> $targetPath"
+    Write-Host "Synced Claude skill copy $name -> $targetPath (source: $skillRepoRelative)"
 }
 
 if ($ValidateOnly) {
