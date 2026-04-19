@@ -40,7 +40,9 @@ If any prerequisite is missing, stop and surface the gap rather than installing 
    subs = {
        '\u2705': '[x]',          # CHECK MARK BUTTON
        '\u2B1C': '[ ]',          # WHITE LARGE SQUARE
-       '\u26A1': '\u2605',       # HIGH VOLTAGE -> BLACK STAR
+       '\u26A1': '*',            # HIGH VOLTAGE -> asterisk (Calibri-safe)
+       '\u2B50': '*',            # WHITE MEDIUM STAR -> asterisk
+       '\u2605': '*',            # BLACK STAR -> asterisk (catch any leftovers)
        '\U0001F4DD': '\u2022',   # MEMO -> BULLET
        '\u26A0\uFE0F': '!',      # WARNING SIGN + VARIATION SELECTOR
        '\u26A0': '!',            # WARNING SIGN
@@ -80,13 +82,15 @@ If a caller wants a different style (different font, no TOC, different margins),
 |---|---|---|
 | U+2705 (CHECK MARK BUTTON) | `[x]` | Calibri lacks |
 | U+2B1C (WHITE LARGE SQUARE) | `[ ]` | Calibri lacks |
-| U+26A1 (HIGH VOLTAGE) | U+2605 (BLACK STAR) | Calibri lacks |
+| U+26A1 (HIGH VOLTAGE) | `*` (asterisk) | Calibri lacks |
+| U+2B50 (WHITE MEDIUM STAR) | `*` (asterisk) | Calibri lacks |
+| U+2605 (BLACK STAR) | `*` (asterisk) | Calibri lacks — included defensively in case upstream content swapped to it |
 | U+1F4DD (MEMO) | U+2022 (BULLET) | Calibri lacks |
 | U+26A0 U+FE0F (WARNING SIGN + variation selector) | `!` | Calibri lacks |
 | U+26A0 (WARNING SIGN) | `!` | Calibri lacks |
 | U+2713 (CHECK MARK) | `[x]` | Calibri lacks |
 
-If new missing-character warnings appear in pandoc output, add the missing codepoint to the map and to the Python escape block above. Always use `\u` / `\U` escapes in the source — never paste high-codepoint glyphs directly into this file.
+If new missing-character warnings appear in pandoc output, add the missing codepoint to the map and to the Python escape block above. Always use `\u` / `\U` escapes in the source — never paste high-codepoint glyphs directly into this file. When picking a replacement, verify Calibri actually supports it (BLACK STAR U+2605 was previously assumed to render and does not — ASCII fallbacks are safer than mid-range symbol codepoints).
 
 ## Guardrails
 
