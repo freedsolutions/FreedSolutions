@@ -85,7 +85,7 @@ For each page in scope:
 ### Contact Wiring
 
 1. **Exclude** these addresses from attendee matching:
-   - adam@freedsolutions.com, adam@primitivgroup.com, adamjfreed@gmail.com, freedsolutions@gmail.com
+   - adam@freedsolutions.com, adamjfreed@gmail.com, freedsolutions@gmail.com, plus any client-mailbox aliases Adam uses (e.g., `adam@<client-domain>`) — maintained in the local canonical-facts file
    - Addresses ending in @resource.calendar.google.com or @group.calendar.google.com
    - no-reply@zoom.us
 

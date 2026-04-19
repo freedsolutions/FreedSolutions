@@ -16,7 +16,7 @@ Extract the tech-stack landscape from discovery interview notes and produce a tw
 ## Inputs
 
 - **Interview notes path** (required): the running stakeholder interview notes MD file.
-- **Client slug** (required): kebab-case client name (e.g., `theory-wellness`, `primitiv-ma`).
+- **Client slug** (required): kebab-case client name (e.g., `acme-co`).
 - **Output path for Mermaid source** (optional, default = `clients/<slug>/discovery/<slug>-tech-stack-mermaid.md`).
 - **Output path for rendered PDF** (optional, default = OneDrive client folder).
 - **Scenario framing** (optional): if the client's engagement already established scenario options (A / B / C or similar), use those names verbatim. Default: Streamline / Targeted Replacement / Transformative.
@@ -119,7 +119,7 @@ flowchart LR
 ```
 ```
 
-Follow the Theory Wellness reference (`clients/theory-wellness/discovery/theory-wellness-tech-stack-mermaid.md`) for:
+Follow the canonical reference under `clients/<slug>/discovery/<slug>-tech-stack-mermaid.md` (gitignored — lives in each local engagement folder) for:
 - Subgraph naming and direction (`flowchart LR` for landscape; `TB` if the stack is simpler)
 - Style color conventions (`#e8f5e9` green for Compliance, `#e3f2fd` blue for Core, etc.)
 - Badge placement for scenarios (in node labels with colons)
@@ -153,17 +153,17 @@ A full-resolution version is attached alongside this document as `<Client> — P
 
 When the sitemap changes post-delivery, edit the Mermaid MD file, regenerate the Figma via another Claude session, re-convert to PNG, and re-render the deliverable. The Mermaid file is the single source of truth going forward — not the Figma board.
 
-## Reference Implementation: Theory Wellness (April 2026)
+## Reference Implementation (generalized)
 
-The Theory Wellness sitemap at `clients/theory-wellness/discovery/theory-wellness-tech-stack-mermaid.md` is the canonical worked example. Notable moves:
+The first end-to-end exercise of this recipe lives locally under `clients/<slug>/discovery/<slug>-tech-stack-mermaid.md` (gitignored). When building a new sitemap, read the most recent prior engagement's Mermaid file + deliverable for a worked example. Notable moves from the canonical first run:
 
-- 11 department subgraphs (Legend, Org, External, Compliance, Labeling, Core, StateCompliance, Data, SheetsERP, Procurement, Finance, HR, RetailOps)
+- ~10 department subgraphs (Legend, Org, External, Compliance, Labeling, Core, StateCompliance, Data, SheetsERP, Procurement, Finance, HR, RetailOps) — prune or combine to match the client's actual org
 - ~30 nodes total
-- Owner names embedded in subgraph titles ("Compliance — Shaun Seward")
-- Scenario treatment inline in node labels ("Apex — B: transition to Dutchie B2B")
-- Shadow IT flagged (MakeCom with red border)
-- Replacement candidates shown with dashed arrows (Wherefour → Mainstem, BOM)
-- Four consolidation / constraint callouts (FlowerBracket, MakeCom, CannMenus, Clasp) with distinct colored borders
+- Owner names embedded in subgraph titles (e.g., `Compliance — <Owner>`)
+- Scenario treatment inline in node labels (e.g., `<System> — B: transition to <Replacement>`)
+- Shadow IT flagged with a distinct red border
+- Replacement candidates shown with dashed arrows from replacement to legacy
+- Consolidation / constraint callouts with distinct colored borders
 
 The full Mermaid source and rendered PDF are the reference artifacts this skill aims to reproduce for new clients.
 

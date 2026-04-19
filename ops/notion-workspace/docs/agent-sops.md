@@ -160,7 +160,7 @@ This section is the canonical desired state for Notion Custom Agent settings.
 	- The agent's 4-step pipeline: (1) identify records needing attention (search for `[PENDING_AI_SUMMARY]` or `[SCRIPT]` markers in Email Notes), (2) write Email Notes summaries + cross-contextual Action Item matching, (3) schema-safe Action Item creation on Active records, (4) CRM completion logging.
 	- The agent trusts the script's CRM wiring. It does not re-wire Contacts or Companies. If wiring looks wrong, it logs the issue in Email Notes but does not modify relations.
 	- The agent does NOT update Agent Config Last Run — the script handles this.
-	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: `Primitiv` for all Primitiv-related mail, `LinkedIn` for LinkedIn message notifications, and `DMC` for DMC routed company mail.
+	- Routed Gmail labels are part of the intake contract for `adam@freedsolutions.com`: top-level client labels (e.g., `<Client A>`, `<Client B>`) for all mail routed to a given client, `LinkedIn` for LinkedIn message notifications.
 	- Teams and LinkedIn notifications are chat wrappers around human conversations, not bot-only terminal mail by default.
 	- `Record Status = Active` on Emails gates Step 3 (Action Item creation). `@mention` runs also respect this gate.
 	- Bot-only or alias-only threads may be summarized and skipped without creating action items. Leave them as `Draft` with an explicit `Email Notes` annotation; Adam archives terminal stubs from the UI.

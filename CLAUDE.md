@@ -7,8 +7,7 @@ FreedSolutions/
 |- CNAME, .nojekyll        # GitHub Pages config
 |- projects/
 |  |- linkedin-carousel/   # LinkedIn carousel slide designer
-|- clients/                # Client engagement folders (one per client)
-|  |- theory-wellness/     # Theory Wellness — Data, Systems & AI Discovery
+|- clients/                # Client engagement folders - local only (.gitignore)
 |- ops/                    # Migration prompts, internal ops, and private service scaffolds
 |  |- notion-workspace/      # Notion CRM automation docs + workflow config
 |- privacy-policy/         # Privacy policy page (GitHub Pages)
@@ -34,11 +33,7 @@ Each project has its own CLAUDE.md or README with workflow details.
 - Notes: instruction docs and session handoff are local source of truth; CRM data stays in Notion (via MCP)
 
 ## Client Engagements
-Client engagement folders live under `clients/<client-slug>/`. Each client folder gets a lightweight `CLAUDE.md` (engagement context, POC, status) and topic subfolders (`discovery/`, `deliverables/`, etc.) as needed. CRM source of truth for client work (Action Items, Meetings, Emails, Contacts) stays in Notion — repo files are working artifacts and final deliverables, not the system of record.
-
-**Theory Wellness** -> `clients/theory-wellness/CLAUDE.md`
-- Engagement: Data, Systems & AI Discovery (Mar 23 – Apr 23, 2026)
-- Discovery notes: `clients/theory-wellness/discovery/theory-wellness-interview-notes.md`
+Client engagement folders live under `clients/<client-slug>/` and are **local-only** (see `.gitignore`). Each client folder gets a lightweight `CLAUDE.md` (engagement context, POC, status) and topic subfolders (`discovery/`, `deliverables/`, etc.) as needed. CRM source of truth for client work (Action Items, Meetings, Emails, Contacts) stays in Notion; working artifacts and final deliverables live locally and are never committed. Do not reference specific client names, engagements, or discovery content in any tracked file.
 
 ## Artifact Cleanup
 - After any session that uses Playwright MCP, delete all files in `.playwright-mcp/` before closeout

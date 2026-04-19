@@ -1,3 +1,12 @@
+# Client engagement folders - local only (confidential client work)
+clients/
+
+# Personal application artifacts - local only (resumes, cover letters, answers)
+freed-solutions/applications/
+
+# Rolling session state for Notion workspace automation - local only
+ops/notion-workspace/session-active.md
+
 # Brand assets (large binaries - keep most local)
 brand/*
 !brand/logo-square-purple-text.png

@@ -140,7 +140,7 @@ For each actionable item parsed from the email thread (same parsing logic as Ste
 Strong match examples:
 - Email subject "Re: Surfside media buy proposal" -> existing AI "Send Jake the Surfside media buy proposal"
 - Email from Eric with attachment "Q1 numbers" -> existing AI "Follow up with Eric on Deep Roots Q1 reporting"
-- Email about scheduling a call with Liz Murphy -> existing AI "Schedule Theory Wellness interview series" (same Contact + same scheduling topic)
+- Email about scheduling a call with a client contact -> existing AI "Schedule <client> interview series" (same Contact + same scheduling topic)
 Weak match examples:
 - Email from Jake about "Surfside" -> existing AI about Surfside but a different workstream (deck vs. proposal)
 - Same Company, similar topic area, but different Contact and no clear thread connection
@@ -220,7 +220,7 @@ For every processed Email record:
 2. Do not create Action Items with a blank Company.
 3. Do not leave `Email Notes` blank on a processed thread.
 4. Teams and LinkedIn notifications are not bot-only by default. Treat them as chat wrappers until the body proves otherwise.
-5. Routed Gmail labels are the canonical intake-route truth. Preserve labels such as `Primitiv`, `LinkedIn`, and `Dutchie` exactly as received.
+5. Routed Gmail labels are the canonical intake-route truth. Preserve labels such as client labels (e.g., `<Client A>`), `LinkedIn`, and vendor labels (e.g., `Dutchie`) exactly as received.
 6. Do not invent new `Source` values when the live schema does not support them. Use `Labels` plus `Email Notes` for channel specificity instead.
 7. Treat runtime drift explicitly. If live permissions or required page access are missing, log it and stop the affected step.
 8. Trust the script's CRM wiring. Do not re-wire Contacts or Companies. If wiring looks wrong, log the issue in Email Notes but do not modify relations.

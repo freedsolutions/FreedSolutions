@@ -22,17 +22,14 @@ Produce tailored resume, cover letter, and application-question answers for a sp
 
 If any required input is missing or ambiguous, use `HARDENED_GATE` to ask a compact decision-shaped question.
 
-## Canonical Facts (do not re-ask unless contradicted)
+## Canonical Facts
 
-- **Name:** Adam Freed
-- **Address:** [REDACTED-ADDRESS], [REDACTED-ADDRESS]
-- **Phone:** [REDACTED-PHONE]
-- **Email (canonical outbound):** adam@freedsolutions.com *(not freedsolutions@gmail.com — see `memory/feedback_adam_email_canonical.md`)*
-- **Website:** www.freedsolutions.com
-- **Age 21+:** Yes (required for cannabis applications)
-- **Education:** B.S. Environmental Science, UMass Amherst, GPA 3.753, Dean's List
-- **Citizenship / work auth:** US citizen, no sponsorship required
-- **Cover letter letterhead style:** Adam Freed / Freed Solutions / adam@freedsolutions.com / www.freedsolutions.com / date / recipient org / recipient role
+Adam maintains his canonical contact-info block (name, address, phone, email, age confirmation, education, work-auth, letterhead format) in a local-only file outside this repo. Do not re-ask unless contradicted.
+
+- **Source of truth:** `~/.config/freed-solutions/canonical-facts.md` (gitignored; maintained by Adam).
+- **Public identifiers safe to reference in repo:** `adam@freedsolutions.com`, `www.freedsolutions.com`, Freed Solutions company name.
+
+When invoking this skill, read the canonical-facts file at session start and hold the contents in working memory only — never write any element of it (address, phone, DOB, etc.) into a committed file.
 
 ## Folder Structure
 
@@ -53,7 +50,7 @@ All artifacts land under `freed-solutions/applications/<company-slug>/`:
 ### 1. Intake
 
 - Confirm base resume, JD, company slug. If the company has a dedicated folder already, check it for prior tailoring work.
-- Check Notion for a wired Action Item (`Contact: Eddie Benjamin`-style). If one exists, the AI's `Task Notes` and `Source Meeting` often contain crucial context (e.g., Eddie's 4/15 "interest signal" framing for the Theory application).
+- Check Notion for a wired Action Item linked to the hiring manager Contact. If one exists, the AI's `Task Notes` and `Source Meeting` often contain crucial context (e.g., a prior-manager "interest signal" framing that reshapes the cover letter's tone).
 - Read the JD carefully. Identify the Required vs. Preferred bullets, the Application Questions, and the compensation bracket.
 
 ### 2. Resume tailoring
@@ -62,7 +59,7 @@ All artifacts land under `freed-solutions/applications/<company-slug>/`:
 - Adjust the **Profile** headline and paragraph to match the JD's role name and focus. Keep Adam's voice ("Cannabis Operations & IT SME", "Data, Systems & AI Leader", etc. — pick the framing that aligns).
 - Update **Core Competencies** to match the JD's skill emphasis while staying honest to Adam's actual strengths. See Voice Rules below for "don't overclaim" guidance.
 - Expand the current **Freed Solutions (Fractional)** section with any new client engagements / wins not yet on the base resume. Default structure:
-  - Sub-blocks per engagement (e.g., `*Primitiv (MA / High Street Cannabis Group) — Retainer → Fractional 25% (sunsetting mid-May 2026)* — Multi-store Adult Use Retail operator`).
+  - Sub-blocks per engagement (format: `*<Client Name> (<Region>) — <Engagement Type>* — <Operator Type>`). Specific client names and engagement terms come from the local `canonical-facts.md` or the caller, not from this skill file.
   - 3-5 tight bullets per engagement.
   - Internal (Freed Solutions) sub-block for personal infra (Notion CRM, Claude Code skill library, etc.).
 - Leave earlier roles largely intact. Minor tech-up of verbs OK ("Architected API-driven Dutchie Backoffice integrations" beats "Automated Dutchie Backoffice workflows"). Don't invent scope that wasn't there.
@@ -75,7 +72,7 @@ All artifacts land under `freed-solutions/applications/<company-slug>/`:
 - Two-beat argument body, Adam's voice:
   - **Beat 1: domain depth.** Name the specific cannabis operators / roles / systems that differentiate Adam from non-cannabis applicants.
   - **Beat 2: current Fractional / AI-paired direction.** Notion CRM + Claude Code + MCP integrations. Honest about "AI-paired builder, not a traditional software engineer."
-- If the target is a client Adam has discovery context on (e.g., Theory Wellness), weave in a specific observation from the engagement as proof-of-depth.
+- If the target is a current or former client Adam has discovery context on, weave in a specific observation from the engagement as proof-of-depth (subject to the Confidentiality rule below).
 - Optional closing paragraph: "connective tissue" framing — the role's scope extends Adam's cross-functional strengths beyond the JD's narrow scope as breadth and operational depth build over time.
 - Close with openness to alternative structures (Fractional path) if relevant.
 
@@ -83,10 +80,7 @@ All artifacts land under `freed-solutions/applications/<company-slug>/`:
 
 - Produce `application-answers.md` with the posting's questions verbatim as headers, answers below each.
 - Respect character limits (many platforms enforce 1500-char per answer).
-- Use specific, quantified examples from Adam's actual career:
-  - Nightjar: first PIM in Google Sheets, $200K→$400K revenue scale, $70K credit splits recovered in FY 2024
-  - NETA: 10x production alongside a strong team (do NOT name Eddie directly in application — save for phone call)
-  - Primitiv MA + MI: ~$200K+ combined savings (SaaS/tech, ad spend, genetics, CATM 2x returns)
+- Use specific, quantified examples from Adam's actual career. Specific figures, prior-manager names, and per-engagement savings numbers belong in the local `canonical-facts.md`, not in this skill file. The skill's job is the workflow; the facts come from the local-only source of truth.
   - JCHE: $100K+ saved, 6-month schedule compression on a 200-resident relocation
   - Node Labs: GAS barcode label maker shipped 2021, 4+ years in production, 3x'd label production, zero support calls
   - Current: multi-agent Notion CRM, Claude Code skill library, MCP integrations
@@ -146,7 +140,7 @@ If Adam wants the application submitted through Indeed / LinkedIn / company ATS:
 
 - **Never overclaim.** Adam is a low-code + AI-paired builder. Not a traditional software engineer. Not a data scientist in the strict ML/stats sense. Not a cloud architect. Owning those boundaries on paper is a strength; pretending otherwise will surface in a technical interview.
 - **Cannabis depth is the differentiator.** Always foreground Adam's MSO / retail / compliance / operations experience. It's rare in the applicant pool and it's real.
-- **Confidentiality.** If Adam is applying to a current client (e.g., Theory Wellness while the discovery engagement is active), do not cite specific discovery findings in the application text. Generalize or anonymize.
+- **Confidentiality.** If Adam is applying to a current client (while an engagement is active), do not cite specific discovery findings in the application text. Generalize or anonymize.
 - **Do not modify Adam's canonical base resumes.** Always tailor a copy; leave the base versions in OneDrive untouched.
 - **Do not commit rendered DOCX files.** Repo convention: `.md` source in, generated artifacts local only.
 
@@ -167,15 +161,13 @@ If Adam wants the application submitted through Indeed / LinkedIn / company ATS:
 - Application platforms vary in how they handle character limits (some truncate silently, some block). Keep answers under stated limits with 5-10% buffer.
 - FigJam / design tools are not in scope for this skill — resume artifacts are text-first.
 
-## Reference: Theory Wellness (April 2026) example
+## Reference Pattern (generalized)
 
-The Theory Wellness Director of Business Intelligence & Automation application (April 18, 2026) exercised the full recipe end-to-end. Artifacts at `freed-solutions/applications/theory-wellness/` are the canonical reference pattern. Notable moves from that session:
+The first end-to-end exercise of this recipe lives locally under `freed-solutions/applications/<company-slug>/` (gitignored). When working a new application, read the most recent prior folder's three `.md` files for a worked example of voice, structure, and calibration. Notable moves from the canonical first run:
 
-- Base resume: Fractional. Tailored in place with expanded Freed Solutions Mar 2025–Present section (3 sub-blocks: DMC, Primitiv MA, Primitiv MI, plus Internal).
-- Core Competencies rewritten from AI-consultant-sounding to honest-operator ("Department Building & Leadership" up top instead of "Data Infrastructure & BI" which Adam directs but doesn't do).
-- Cover letter: two-beat argument (cannabis depth + AI-first 2025), closed with Fractional openness as a phone-call hook.
-- Application answers: six questions, all trimmed under 1500 char.
+- Base resume: Fractional. Tailored in place with expanded Freed Solutions Mar 2025–Present section broken into engagement sub-blocks plus Internal.
+- Core Competencies rewritten from AI-consultant-sounding to honest-operator ("Department Building & Leadership" up top instead of the sexier "Data Infrastructure & BI" framing that overclaimed scope Adam directs but doesn't do himself).
+- Cover letter: two-beat argument (domain depth + AI-first current direction), closed with Fractional openness as a phone-call hook.
+- Application answers: multiple questions, all trimmed under the platform's character limit with buffer.
 - AI-tell pass after initial draft — em dashes removed from prose, triadic rhythms broken up, consultant vocabulary swapped to operator voice.
-- Post-submission: Notion AI page Status flipped to Done, final ⚡ marker captured what landed, Indeed profile now carries the resume as Adam's active document.
-
-Read that folder's three `.md` files for a worked example of the voice, structure, and calibration this skill aims to reproduce.
+- Post-submission: Notion AI page Status flipped to Done, final ⚡ marker captured what landed, Indeed profile updated to carry the tailored resume.

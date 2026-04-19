@@ -27,13 +27,13 @@ gmail:
     - address: adam@freedsolutions.com
       source_label: Email - Freed Solutions
       routing_labels:
-        - label: Primitiv/PRI_Outlook
+        - label: ClientA/CA_Outlook
           type: forwarded_outlook
-        - label: Primitiv/PRI_Teams
+        - label: ClientA/CA_Teams
           type: teams_notification
         - label: LinkedIn
           type: linkedin_notification
-        - label: DMC/DMC_GMail
+        - label: ClientB/CB_GMail
           type: standard_email
       ignore_labels:
         - Action Items
@@ -55,10 +55,9 @@ calendars:
 adam:
   exclude_emails:
     - adam@freedsolutions.com
-    - adam@primitivgroup.com
     - adamjfreed@gmail.com
     - freedsolutions@gmail.com
-    - systems@thccrafts.com
+    # plus any client-mailbox aliases (e.g., adam@clienta-domain.com) maintained per local deployment
   generic_domains:
     - gmail.com
     - yahoo.com
