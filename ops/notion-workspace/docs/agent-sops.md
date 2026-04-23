@@ -327,7 +327,7 @@ Each database has a `QC` formula that returns `"TRUE"` when all required fields 
 <tr>
 <td>Action Items</td>
 <td>Task Name, Record Status, Status, Priority, Due Date, Contact, Company, Source Meeting OR Source Email</td>
-<td>Also flags `past_due` when Due Date < today and Status ≠ Done. Source requires at least one of Source Meeting or Source Email.</td>
+<td>Also flags `past_due` when the Due Date range's end (or start, if no end is set) is &lt; today and Status ≠ Done. Source requires at least one of Source Meeting or Source Email.</td>
 </tr>
 <tr>
 <td>Meetings</td>
