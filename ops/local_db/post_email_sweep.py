@@ -443,6 +443,10 @@ def classify_thread(
     if is_adam_only:
         if existing_record:
             return Classification.OUTBOUND_UPDATE
+        # New outbound follows the same intake rule as inbound: skip if
+        # unlabeled AND archived (no signal that Adam wants it tracked).
+        if not has_user_label and not in_inbox:
+            return Classification.DISMISS
         return Classification.OUTBOUND_NEW
 
     # Has existing record?
