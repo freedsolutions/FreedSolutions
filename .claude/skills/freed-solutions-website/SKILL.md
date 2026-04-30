@@ -76,19 +76,32 @@ Edit in place using the existing markup pattern. Common recipes:
 
 ### 3. Visually QA
 
-Serve locally and verify with Playwright MCP at desktop + mobile widths.
+Serve locally and verify with Playwright MCP at desktop + mobile widths. Run `npx serve` in the background and poll for "Accepting connections" before navigating — don't `sleep`.
 
 ```bash
-npx serve C:/Users/adamj/Code/FreedSolutions --listen 5173
+npx --yes serve C:/Users/adamj/Code/FreedSolutions --listen 5173
 ```
 
 Via Playwright:
 - Navigate to `http://localhost:5173/`
 - `browser_resize` to 1280×800 (desktop) and 390×844 (mobile); snapshot each
-- Confirm: edited block renders, no broken images, nav not overlapping, CTAs still clickable
-- For new external links: confirm `target` + `rel`, then `browser_click` to verify the destination loads
+- **If the change touches `.nav-links`** (LinkedIn, new nav anchor, etc.): at mobile width also `browser_click` the `button.hamburger` and snapshot the open menu. Anything in `.nav-links` is `display:none` at mobile until the hamburger expands it — a desktop-only pass will miss broken layout in the open menu.
+- Use `browser_evaluate` to scroll long pages (`window.scrollTo(0, document.body.scrollHeight)`) so footer-area changes land in the viewport snapshot.
+- Confirm: edited block renders, no broken images, nav not overlapping, CTAs still clickable.
 
-Fix any regressions in the same edit pass before committing. Delete files in `.playwright-mcp/` at session end (closeout sanity gate enforces it).
+For new external links, prefer attribute extraction over a click — many destinations (LinkedIn, auth-walled apps) bot-block and a click-and-wait probe will look like a failure:
+
+```js
+// browser_evaluate
+() => {
+  const a = document.querySelector('.nav-social');
+  return { href: a?.href, target: a?.target, rel: a?.rel, label: a?.getAttribute('aria-label') };
+}
+```
+
+Then `curl -sIL -o /dev/null -w "%{http_code} %{url_effective}\n" "<href>"` to confirm the URL is well-formed and reaches the host. A `999` from LinkedIn (or similar bot-blocking response) is fine — it confirms the request reached the destination's edge; real-browser visits work normally.
+
+Fix any regressions in the same edit pass before committing. Delete files in `.playwright-mcp/` and any `qa-*.png` screenshots at session end (closeout sanity gate enforces `.playwright-mcp/`; QA screenshots at repo root are your own to scrub).
 
 ### 4. Commit + push
 
@@ -104,7 +117,13 @@ Do not stage `.playwright-mcp/`, `clients/`, or `brand/` — all gitignored.
 
 ### 5. Verify deploy
 
-GitHub Pages publishes within 1-2 minutes. Open `https://www.freedsolutions.com/` in a fresh tab and hard-refresh to confirm the change is live.
+GitHub Pages publishes within 1-2 minutes. Poll the live URL for a marker string from the change rather than relying on a manual hard-refresh — faster and machine-verifiable. Run the poll in the background so the wait doesn't block:
+
+```bash
+until curl -s "https://www.freedsolutions.com/?cb=$RANDOM" | grep -q "<marker-from-the-diff>"; do sleep 5; done && echo "live"
+```
+
+Pick a marker that uniquely identifies the change (a new class name like `footer-social`, a new anchor href, a reordered headline). The `?cb=$RANDOM` cache-busts the apex domain edge cache.
 
 ## Guardrails
 
