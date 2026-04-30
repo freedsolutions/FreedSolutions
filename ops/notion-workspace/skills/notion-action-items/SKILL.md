@@ -37,6 +37,7 @@ Read `ops/notion-workspace/CLAUDE.md` first when that file exists in the workspa
 6. Produce the real deliverable.
    - Prefer actual files, Gmail drafts, or direct Notion edits over describing what you would do.
    - Show reasoning for analytical work before the final artifact.
+   - When the work falls inside a specialized downstream skill (see `references/workflow.md` → Domain Skill Routing), invoke that skill as the doer rather than reproducing its workflow inline. Notion-action-items still owns intake, summary, and target-record updates.
 7. Close the loop carefully.
    - Update target Action Item notes/content and bounded `Status` changes as routine follow-through after an explicit execution request.
    - Keep changes scoped to the target Action Item unless the user expands scope.

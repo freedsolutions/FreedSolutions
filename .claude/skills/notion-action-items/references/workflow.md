@@ -90,6 +90,23 @@ When Status = Review, the Action Item has been flagged by a nightly agent or the
    - **Escalate** — surface specific questions or blockers for Adam's decision.
 4. Apply the chosen status update. This is `UNGATED` after an explicit execution request.
 
+## Domain Skill Routing
+
+When the Action Item's work falls inside a specialized skill, invoke that skill as the doer rather than reproducing its workflow inline. Notion-action-items still owns intake, the pre-execution summary, and target-record updates; the domain skill owns the actual deliverable.
+
+| Action Item topic | Downstream skill |
+|---|---|
+| Edits to www.freedsolutions.com (landing page, privacy policy, assets) | `freed-solutions-website` |
+| Resume / cover letter / job application materials | `resume-builder` |
+| Cannabis MSO discovery sitemap (Phase 1 decision canvas) | `cannabis-tech-sitemap` |
+| Pre-call brief for an upcoming meeting | `notion-meeting-prep` |
+| Regenerate DOCX/PDF from a deliverable's Markdown source | `pandoc-deliverable` |
+| Notion Custom Agent settings audit/update | `notion-agent-config` |
+| New Sheets formula or refactor in a Sheet Adam owns | `google-sheets-patterns` |
+| Scaffolding a new SKILL | `create-skill` |
+
+If the routing is ambiguous (the AI touches multiple domains, or none cleanly fit), stay within notion-action-items and use `HARDENED_GATE` to confirm the doer before producing the deliverable.
+
 ## Rules
 
 - Follow the wiring.
