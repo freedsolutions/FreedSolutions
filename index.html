@@ -122,6 +122,14 @@ nav .container { display: flex; justify-content: space-between; align-items: cen
   transition: background 0.3s, transform 0.2s !important;
 }
 .nav-cta:hover { background: var(--accent-light); transform: translateY(-1px); }
+.nav-social {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  color: var(--text-secondary);
+  transition: color 0.3s, transform 0.2s !important;
+}
+.nav-social:hover { color: var(--accent-light); transform: translateY(-1px); }
+.nav-social svg { display: block; }
 .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; background: none; border: none; padding: 4px; }
 .hamburger span { width: 24px; height: 2px; background: var(--text-primary); transition: all 0.3s; border-radius: 2px; }
 
@@ -501,6 +509,23 @@ footer .container {
   color: var(--text-muted);
   font-size: 0.82rem;
 }
+.footer-social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.25rem auto 0;
+}
+.footer-social a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+  transition: color 0.3s, transform 0.2s;
+}
+.footer-social a:hover {
+  color: var(--accent-light);
+  transform: translateY(-1px);
+}
+.footer-social svg { display: block; }
 
 /* Animations */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
@@ -584,6 +609,9 @@ footer .container {
       <a href="#framework">Framework</a>
       <a href="#process">How I Work</a>
       <a href="#experience">Experience</a>
+      <a href="https://www.linkedin.com/in/adam-freed-60173568" target="_blank" rel="noopener" class="nav-social" aria-label="LinkedIn — Adam Freed">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      </a>
       <a href="#contact" class="nav-cta">Let&rsquo;s Talk</a>
     </div>
     <button class="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')" aria-label="Menu">
@@ -768,6 +796,11 @@ footer .container {
     <div class="exp-grid">
       <div class="exp-list reveal">
         <div class="exp-item">
+          <h4>Freed Solutions</h4>
+          <div class="exp-role">Fractional Data &amp; Operations Partner &middot; Now</div>
+          <div class="exp-detail">Working with founder-led cannabis teams who want their data to finally match their values.</div>
+        </div>
+        <div class="exp-item">
           <h4>Nightjar</h4>
           <div class="exp-role">VP, Systems & Technology &middot; 2023&ndash;2025</div>
           <div class="exp-detail">Scaled retail from $200K to $400K monthly gross revenue. Directed procurement, planning, and master data management across NJ and CT operations.</div>
@@ -781,11 +814,6 @@ footer .container {
           <h4>Parallel / NETA</h4>
           <div class="exp-role">Director of IT &middot; 2015&ndash;2021</div>
           <div class="exp-detail">Grew from Inventory Coordinator to Director of Systems. Implemented master data alignment, help desk protocols, and eCommerce across enterprise.</div>
-        </div>
-        <div class="exp-item">
-          <h4>Freed Solutions</h4>
-          <div class="exp-role">Fractional Data &amp; Operations Partner &middot; Now</div>
-          <div class="exp-detail">Working with founder-led cannabis teams who want their data to finally match their values.</div>
         </div>
       </div>
       <div class="exp-stats reveal">
@@ -862,6 +890,11 @@ footer .container {
     <p class="footer-kicker">Freed Solutions</p>
     <p class="footer-copy">Cannabis data, systems, and operations advisory based in Northampton,&nbsp;Massachusetts.</p>
     <p class="footer-meta">Published 2025 &nbsp;&middot;&nbsp; &copy; <span id="footerYear"></span> Freed Solutions &nbsp;&middot;&nbsp; All rights reserved.</p>
+    <p class="footer-social">
+      <a href="https://www.linkedin.com/in/adam-freed-60173568" target="_blank" rel="noopener" aria-label="LinkedIn — Adam Freed">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      </a>
+    </p>
     <p class="footer-links"><a href="/privacy-policy/">Privacy Policy</a></p>
     <p class="footer-tagline">Clarity and confidence in every decision.</p>
   </div>
