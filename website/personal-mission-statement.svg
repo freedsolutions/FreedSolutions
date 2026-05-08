@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080" role="img" aria-label="Adam Freed personal mission statement: Be transparent, seek justice, be curious, keep learning, and don't take yourself seriously.">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.14"/>
+      <stop offset="60%" stop-color="#6366f1" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#111113" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1080" height="1080" fill="#111113"/>
+  <rect width="1080" height="1080" fill="url(#glow)"/>
+
+  <!-- Subtle inset frame -->
+  <rect x="60" y="60" width="960" height="960" fill="none" stroke="#1f1f24" stroke-width="1"/>
+
+  <!-- Section label -->
+  <text x="540" y="200" text-anchor="middle"
+        font-family="'JetBrains Mono', 'Courier New', monospace"
+        font-size="20" font-weight="500" letter-spacing="4.4"
+        fill="#818cf8">PERSONAL COMPASS</text>
+
+  <!-- Thin separator under label -->
+  <line x1="490" y1="232" x2="590" y2="232" stroke="#818cf8" stroke-width="1" stroke-opacity="0.4"/>
+
+  <!-- Statement (3 lines) -->
+  <g font-family="'DM Serif Display', Georgia, 'Times New Roman', serif"
+     font-size="60" fill="#f0f0f2" text-anchor="middle">
+    <text x="540" y="430">Be <tspan fill="#818cf8" font-style="italic">transparent</tspan>, seek <tspan fill="#818cf8" font-style="italic">justice</tspan>,</text>
+    <text x="540" y="530">be <tspan fill="#818cf8" font-style="italic">curious</tspan>, keep <tspan fill="#818cf8" font-style="italic">learning</tspan>,</text>
+    <text x="540" y="640">and don&apos;t take yourself <tspan fill="#818cf8" font-style="italic">seriously</tspan>.</text>
+  </g>
+
+  <!-- Attribution -->
+  <text x="540" y="780" text-anchor="middle"
+        font-family="'DM Sans', -apple-system, sans-serif"
+        font-size="20" fill="#6b6b75" letter-spacing="0.5">— Adam Freed</text>
+
+  <!-- Bottom kicker -->
+  <line x1="490" y1="930" x2="590" y2="930" stroke="#222226" stroke-width="1"/>
+  <text x="540" y="970" text-anchor="middle"
+        font-family="'JetBrains Mono', 'Courier New', monospace"
+        font-size="14" font-weight="500" letter-spacing="3.5"
+        fill="#a0a0a8">FREED SOLUTIONS</text>
+</svg>

@@ -438,6 +438,43 @@ section { padding: 6rem 0; position: relative; z-index: 1; }
   border-radius: 4px; color: var(--text-secondary);
 }
 
+/* ===== COMPASS BAND ===== */
+.compass-band {
+  padding: 5rem 0;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+.compass-band::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center top, rgba(99,102,241,0.08), transparent 65%);
+  pointer-events: none;
+}
+.compass-band .container { position: relative; z-index: 1; }
+.compass-band .section-label { margin-bottom: 1.75rem; text-align: center; }
+.compass-statement {
+  font-family: var(--serif);
+  font-size: clamp(1.45rem, 2.6vw, 2.05rem);
+  line-height: 1.45;
+  max-width: 760px;
+  margin: 0 auto;
+  letter-spacing: -0.01em;
+}
+.compass-statement em {
+  color: var(--accent-light);
+  font-style: italic;
+}
+.compass-attr {
+  margin-top: 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
 /* ===== CTA ===== */
 .cta-section { padding: 6rem 0 4.5rem; text-align: center; position: relative; }
 .cta-section::before {
@@ -860,6 +897,17 @@ footer .container {
   <div class="container reveal">
     <div class="quote-text">&ldquo;Spreadsheets are great. Building your whole company on them <em>isn't.</em>&rdquo;</div>
     <div class="quote-attr">&mdash; Adam Freed</div>
+  </div>
+</section>
+
+<!-- ===== COMPASS BAND ===== -->
+<section class="compass-band">
+  <div class="container reveal">
+    <div class="section-label">Personal Compass</div>
+    <div class="compass-statement">
+      Be <em>transparent</em>, seek <em>justice</em>, be <em>curious</em>, keep <em>learning</em>, and don&rsquo;t take yourself <em>seriously</em>.
+    </div>
+    <div class="compass-attr">&mdash; Adam Freed</div>
   </div>
 </section>
 
