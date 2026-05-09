@@ -192,6 +192,20 @@ When auto-binding adds an unwanted dim that becomes the sort key (e.g., adding P
 
 ## Known Gotchas
 
+### Same-named field on different views can have different semantics (CRITICAL)
+
+The Inventory and Products views both expose a field called `Product Grams`, but they mean **different things**:
+- `Products.Product Grams` = per-unit grams of a product (1.0g pre-roll, 3.5g flower) — the value space sales data uses
+- `Inventory.Product Grams` = some other LookML-derived metric (observed values 119, 50, 120, 117, 100, 86 — likely package weight or similar)
+
+If Q1 (Sales) uses `Products.Product_Grams` and Q2 (Inventory) uses `Inventory.Product_Grams`, the merge rule `Q1.products.product_grams = Q2.inventory.product_grams` joins on **incompatible value spaces** — almost nothing matches. Symptom: most merge rows show `Empty Value` for inventory measures, OR a single dramatically-low number (whatever inventory row happened to have a matching value).
+
+**Always prefer `Products.X` fields in Q2 (Inventory) when the products view is joined into the Inventory explore in LookML** (it usually is). The dim swap is: open Q2 inner editor → Field Picker → search the field name → click `Products > X` to add → click `Inventory > X` to deselect. Looker auto-rewrites the merge rule.
+
+Real example: Buyers_2 Q2 originally used `Inventory.Product_Grams`. Pre-Rolls 1g showed Inventory Total Quantity=1 (one accidental match across the whole HSCG inventory). After swapping to `Products.Product_Grams`: 2,068 units (the actual sum across all brands).
+
+Same warning applies for Brand Name, Size, Category — verify they reference `Products.X` not `Inventory.X` if the merge fails to populate. Category is often safe (values match across views) but Brand Name can have casing mismatches ("Wyld" vs "WYLD") and Size can have format mismatches ("5pk" vs "5").
+
 ### Adding a dim auto-creates merge rules across same-view source queries
 
 Adding `products.product_size` to Q1 auto-creates a Q1.size = Q3.size merge rule when Q3 also has the products view. Usually desirable. The flip side: it can also auto-set sort on the new dim, which is rarely what you want.
