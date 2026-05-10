@@ -259,6 +259,20 @@ const field = findField(treeitem[propsKey].children, 0);
 
 Use this to verify before adding — `sum_distinct` ≠ `sum`, and the same-labeled field can have different semantics across views (see `Inventory.X vs Products.X` gotcha below).
 
+**Renaming a dashboard tile title** — React rejects synthetic `onChange` events on the title input (state immediately reverts). Workaround: real keyboard via `Ctrl+A` + `Delete` to clear, then `document.execCommand('insertText', false, 'New Title')`. Both the keyboard select+clear AND the execCommand insert produce events React's controlled input accepts:
+```js
+// 1. Focus the existing title input (.value contains old title)
+const i = Array.from(document.querySelectorAll('input[type="text"]')).find(x => x.value.includes('(Copy)'));
+i.focus(); i.select();
+// 2. Press Ctrl+A then Delete via Playwright keyboard (NOT synthetic events)
+// 3. Then in evaluate:
+document.execCommand('insertText', false, 'New Title');
+// 4. Tab/Enter to commit; click dashboard Save
+```
+Why execCommand and not direct value setter: React's controlled inputs reject value mutations from outside React's onChange flow. execCommand is a real DOM operation that fires a real `beforeinput` + `input` event sequence.
+
+**Discovering a duplicated tile's merge did** — when you "Duplicate tile" in dashboard edit mode, the new tile's element_id IS the new merge did. Find it via `data-testid="dashboard-tile-title"` H2's `id` attribute (`element-title-NNNNNN` → did = NNNNNN). Then navigate `/embed/merge/edit?did=NNNNNN&dbnx=1` directly — the duplicate creates a NEW merge query, not a shared reference. Saving inner queries / outer merge updates only the new mid bound to the (Copy) tile, not the original.
+
 **Editing a calc's expression** — set value on the React-bound `<textarea>` (not the Ace `.ace_content` div) and dispatch `input`. Ace re-renders from the textarea automatically:
 ```js
 const ta = doc.querySelector('[role="dialog"] textarea');
@@ -350,10 +364,12 @@ These are stable; treat as canonical.
 | Buyers_3 merge (Brand granularity, units) | did=185905 |
 | Buyers_2 merge (Product Type / Cat+Grams, units) | did=185926 |
 | Buyers_1 merge (Category, **gram-weighted** as of 2026-05-09) | did=186802 |
+| Buyers_0 merge (Master Category, **gram-weighted** as of 2026-05-09) | did=186807 |
 | Chelsea legacy "Reorder of Inventory Sold" | did=185826 (preserved, untouched) |
 | Buyers_3 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185905&dbnx=1 |
 | Buyers_2 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185926&dbnx=1 |
 | Buyers_1 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186802&dbnx=1 |
+| Buyers_0 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186807&dbnx=1 |
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
 
