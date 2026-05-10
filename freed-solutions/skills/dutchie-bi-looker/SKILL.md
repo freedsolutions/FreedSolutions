@@ -301,6 +301,32 @@ Same warning applies for Brand Name, Size, Category — verify they reference `P
 
 Adding `products.product_size` to Q1 auto-creates a Q1.size = Q3.size merge rule when Q3 also has the products view. Usually desirable. The flip side: it can also auto-set sort on the new dim, which is rarely what you want.
 
+### Swapping dims breaks merge rules — sometimes silently
+
+When you replace a shared dim across source queries (e.g., deselect `products.category` and select `products.product_name` in Q1, Q2, and Q3), Looker handles it inconsistently:
+- **Q1↔Q3 (sometimes)**: auto-rewrites the merge rule from Category=Category → Product Name=Product Name. ✓
+- **Q1↔Q2 (often)**: drops the merge rule entirely. The merge then becomes a Cartesian product (each Q1 row × each Q2 row), and the table shows duplicate dim columns side-by-side ("Products Product Name" twice in headers). Symptom in the data: same SKU appears in N rows pairing with every other SKU's Q2 measure.
+
+**Fix**: scroll to the merge rules section — the broken Q1↔Q2 line shows a `+ Add merge rule for Inventory` link. Clicking it auto-creates the missing Product Name = Product Name rule. Re-Run; the table should now show one Product Name column with correctly joined values.
+
+**Detection in scripted workflows**: after dim swaps, scan `body.innerText` for the `MERGE RULES` section. If it contains `+ Add merge rule for` text, a rule is missing. Also check the table headers — duplicate column names (same field appearing 2× or 3×) indicates Cartesian merge.
+
+### Cloning Buyers_X for a new grain
+
+Workflow that worked end-to-end (Buyers_0 from Buyers_1, Buyers_4 from Buyers_1):
+1. Adam manually duplicates the source tile via dashboard editor → Tile actions → Duplicate tile, then saves the dashboard. (Scripted Duplicate tile clicks were unreliable.)
+2. Find the new tile's merge did via `h2[data-testid="dashboard-tile-title"]` element id (`element-title-NNNNNN` → did = NNNNNN).
+3. Navigate `/embed/merge/edit?did=NNNNNN&dbnx=1` directly.
+4. Q1: deselect old grain dim, select new grain dim (use the React `onKeyDown` Enter trick), Save inner.
+5. Q2: same, paying attention to Inventory.X vs Products.X (prefer Products.X). Save inner.
+6. Q3: same. Save inner.
+7. Verify merge rules in the rendered text — if any `+ Add merge rule for X` appears, click it to add the missing rule.
+8. Edit Product Line calc to `concat("", ${products.<new_dim>})`. Save calc.
+9. Run, verify, Save outer.
+10. In dashboard editor, click tile title → `Ctrl+A` + `Delete` + `document.execCommand('insertText', false, 'New Title')` to rename. Tab to commit. Save dashboard.
+
+**Cloning gram-weighted Buyers_1 vs unit-based Buyers_3**: Buyers_1 is the cleaner template (1 dim only → 1 merge rule per join). Buyers_3 has 4 dims (Brand+Cat+Grams+Size) → 4 merge rules per join, all of which need cleanup when narrowing to a single SKU dim. Even with rules deleted, the inherited gram-weighted calcs from Buyers_1 still produce correct procurement signals at finer grains (each SKU has consistent grams, so units and grams sort identically).
+
 ### Outer Run sometimes returns transient empty calcs
 
 After Q1/Q2/Q3 source-query changes, the first outer Run may show calc columns as Empty Value. Run again — usually recovers on second attempt.
@@ -365,11 +391,13 @@ These are stable; treat as canonical.
 | Buyers_2 merge (Product Type / Cat+Grams, units) | did=185926 |
 | Buyers_1 merge (Category, **gram-weighted** as of 2026-05-09) | did=186802 |
 | Buyers_0 merge (Master Category, **gram-weighted** as of 2026-05-09) | did=186807 |
+| Buyers_4 merge (SKU / Product Name, **gram-weighted** as of 2026-05-09) | did=186810 |
 | Chelsea legacy "Reorder of Inventory Sold" | did=185826 (preserved, untouched) |
 | Buyers_3 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185905&dbnx=1 |
 | Buyers_2 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185926&dbnx=1 |
 | Buyers_1 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186802&dbnx=1 |
 | Buyers_0 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186807&dbnx=1 |
+| Buyers_4 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186810&dbnx=1 |
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
 
