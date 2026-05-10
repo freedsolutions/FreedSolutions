@@ -178,6 +178,14 @@ When the store re-opens Sundays, revert by editing Operating Days In Stock to ju
 
 Click the column header dropdown → "Hide this field from visualization". Persists through outer Save. The column stays in the row schema but isn't rendered on the tile.
 
+**Hidden state inherits across tile duplication** — when you Duplicate tile in dashboard editor, the new (Copy) tile preserves all column hide settings AND sort state from the source. So if Buyers_1 has Inventory Snapshot Sum Total Quantity + Operating Days In Stock hidden + OTB-21 DESC sorted, a Buyers_X clone of Buyers_1 inherits all three. Phase 5 work (column hiding + sort) on a clone is usually just hiding the new dim column (the one you swapped to) — everything else carries over.
+
+**Scripted detection of hidden state**: open the column dropdown and read menu items:
+- `'Hide this field from visualization'` → currently visible
+- `'Show this field in visualization'` → currently hidden
+
+This is more reliable than trying to detect the column header's hidden state from DOM attributes.
+
 ### Delete a custom calc
 
 Click the calc's column dropdown → "Delete". No confirmation dialog. Calc is gone from the merge query immediately. **Verify** no other calcs reference the deleted one before pulling the trigger.
