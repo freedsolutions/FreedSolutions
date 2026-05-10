@@ -192,6 +192,85 @@ When auto-binding adds an unwanted dim that becomes the sort key (e.g., adding P
 
 ## Known Gotchas
 
+### Gram-weighted measures for cross-grain comparability
+
+At Category or Master Category grain, **unit counts mix products of different gram weights** (1g pre-rolls + 0.5g pre-rolls counted as 2 units, but only 1.5g actual product). This makes velocity / DoH / OTB-21 misleading at coarser grains. Switch to gram-weighted measures.
+
+The Dutchie / leaflogix model exposes built-in `sum(quantity × per-unit grams)` measures — no custom measure needed:
+
+| Source query | Field | Type | Use |
+|---|---|---|---|
+| Q1 (Transactions) | `transaction_items.total_product_grams` | sum | Sales numerator |
+| Q2 (Inventory) | `inventory.total_product_grams` | sum | Current inventory |
+| Q3 (Inventory Snapshot) | `inventory_snapshot.sum_total_product_grams` | sum | NOT NEEDED (Q3 only contributes `days_in_stock` to the calcs; the snapshot grams field has weird semantics — values way off vs Q1/Q2 ratios — so don't use it) |
+
+**Avoid `products.total_product_grams`** — it's `sum_distinct(products.product_grams)`, which sums grams across distinct catalog products in the result set (NOT weighted by quantity sold/inventoried). For Pre-Rolls in HSCG it returned 80g vs the correct 2,023g from `transaction_items.total_product_grams` — a 25× discrepancy.
+
+**Calc rewrites for grain ≤ Category** (when switching from unit-based to gram-based):
+
+| Calc | Unit-based (wrong at Category grain) | Gram-based (correct) |
+|---|---|---|
+| Daily Avg Sales | `${transaction_items.total_quantity} / ${operating_days_in_stock}` | `${transaction_items.total_product_grams} / ${operating_days_in_stock}` |
+| Days On Hand | `coalesce(${inventory.total_quantity}, 0) / ${daily_avg_sales}` | `coalesce(${inventory.total_product_grams}, 0) / ${daily_avg_sales}` |
+| OTB-21 | `... 21 * ${daily_avg_sales} - coalesce(${inventory.total_quantity}, 0) ...` | `... 21 * ${daily_avg_sales} - coalesce(${inventory.total_product_grams}, 0) ...` |
+
+Keep the unit measures visible too (Total Quantity, Inventory Total Quantity) as reference columns — buyers want to see units alongside the gram-based math.
+
+**When NOT to use gram-weighted**: any tile where Product Grams is already a dim (Buyers_2 Cat+Grams, Buyers_3 Brand+Cat+Grams+Size, Buyers_4 SKU). Each row already has consistent per-unit grams, so unit-based math is meaningful.
+
+### Adding a Custom Measure / dim selection via Playwright (cross-origin React)
+
+The field-picker treeitems in the source-query inner editor (loaded as same-origin iframe `editQueryDialogId1`) **do NOT respond to `.click()` or synthetic mouse events** — Looker uses React `onKeyDown` for selection toggle.
+
+Working pattern:
+```js
+const treeitems = doc.querySelectorAll('[role="treeitem"]');
+for (const ti of treeitems) {
+  if (ti.textContent.replace(/\s+/g, ' ').trim() === '<Field Label>') {
+    const propsKey = Object.keys(ti).find(k => k.startsWith('__reactProps'));
+    const props = ti[propsKey];
+    const fakeEvent = {
+      key: 'Enter', code: 'Enter', keyCode: 13, charCode: 13,
+      target: ti, currentTarget: ti,
+      preventDefault: () => {}, stopPropagation: () => {},
+      nativeEvent: {key: 'Enter', code: 'Enter', keyCode: 13}
+    };
+    props.onKeyDown(fakeEvent);
+    break;
+  }
+}
+// aria-pressed flips false ↔ true to confirm selection state
+```
+
+To **inspect** a field's underlying LookML metadata (name, type, view, sql, description) — useful to disambiguate same-labeled fields (e.g., two "Total Product Grams" entries):
+```js
+function findField(node, depth=0) {
+  if (!node || depth > 30) return null;
+  if (node.props?.field?.name) return node.props.field;
+  if (Array.isArray(node)) {
+    for (const c of node) { const r = findField(c, depth+1); if (r) return r; }
+    return null;
+  }
+  if (node.props?.children) return findField(node.props.children, depth+1);
+  return null;
+}
+const propsKey = Object.keys(treeitem).find(k => k.startsWith('__reactProps'));
+const field = findField(treeitem[propsKey].children, 0);
+// field.name, field.type ('sum' / 'sum_distinct' / 'count'), field.view, field.label
+```
+
+Use this to verify before adding — `sum_distinct` ≠ `sum`, and the same-labeled field can have different semantics across views (see `Inventory.X vs Products.X` gotcha below).
+
+**Editing a calc's expression** — set value on the React-bound `<textarea>` (not the Ace `.ace_content` div) and dispatch `input`. Ace re-renders from the textarea automatically:
+```js
+const ta = doc.querySelector('[role="dialog"] textarea');
+ta.focus();
+const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+setter.call(ta, '<new formula>');
+ta.dispatchEvent(new Event('input', {bubbles: true}));
+// Then click dialog Save button
+```
+
 ### Same-named field on different views can have different semantics (CRITICAL)
 
 The Inventory and Products views both expose a field called `Product Grams`, but they mean **different things**:
@@ -270,11 +349,13 @@ These are stable; treat as canonical.
 | Resource | ID |
 |---|---|
 | Dashboard | 26549 |
-| Buyers_3 merge (Brand granularity) | did=185905 |
-| Buyers_2 merge (Product Type granularity) | did=185926 |
+| Buyers_3 merge (Brand granularity, units) | did=185905 |
+| Buyers_2 merge (Product Type / Cat+Grams, units) | did=185926 |
+| Buyers_1 merge (Category, **gram-weighted** as of 2026-05-09) | did=186802 |
 | Chelsea legacy "Reorder of Inventory Sold" | did=185826 (preserved, untouched) |
 | Buyers_3 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185905&dbnx=1 |
 | Buyers_2 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185926&dbnx=1 |
+| Buyers_1 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186802&dbnx=1 |
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
 
