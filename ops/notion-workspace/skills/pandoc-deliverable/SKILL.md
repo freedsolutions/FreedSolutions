@@ -35,7 +35,7 @@ If any prerequisite is missing, stop and surface the gap rather than installing 
    ```bash
    "$PANDOC" "$SRC" -o "$OUT_DIR/$BASENAME.docx" --from gfm --toc --toc-depth=2
    ```
-3. **Preprocess glyphs for PDF.** Calibri/Consolas lack several common chars (checkmark, ballot box, high-voltage, memo, warning) — substitute to safe alternates in a temp copy (do not modify the source `.md`). Use Python with explicit Unicode escapes so the SKILL.md file stays cp1252-safe for the Codex validator:
+3. **Preprocess glyphs in memory.** Calibri/Consolas lack several common chars (checkmark, ballot box, high-voltage, memo, warning, color circles) — substitute to safe alternates and pipe to pandoc on stdin (do not modify the source `.md`, and do not write a temp file). Use Python with explicit Unicode escapes so the SKILL.md file stays cp1252-safe for the Codex validator:
    ```python
    subs = {
        '\u2705': '[x]',          # CHECK MARK BUTTON
@@ -53,14 +53,23 @@ If any prerequisite is missing, stop and surface the gap rather than installing 
        '\U0001F7E2': '\u25CF',   # LARGE GREEN CIRCLE -> BLACK CIRCLE
    }
    ```
-   Write the substituted text to a temp file under `c:/tmp/` (or the system temp dir on non-Windows).
-4. **Build the PDF** from the preprocessed temp file:
+4. **Build the PDF** by piping the preprocessed markdown to pandoc via stdin:
    ```bash
-   PATH="$MIKTEX_BIN:$PATH" "$PANDOC" "$TMP_SRC" \
-     -o "$OUT_DIR/$BASENAME.pdf" \
-     --from gfm --pdf-engine=xelatex --toc --toc-depth=2 \
-     -V geometry:margin=0.75in -V mainfont="Calibri" -V monofont="Consolas" -V fontsize=10pt
+   python -c "
+   subs = { ... as above ... }
+   with open('$SRC', encoding='utf-8') as f:
+       text = f.read()
+   for k, v in subs.items():
+       text = text.replace(k, v)
+   import sys
+   sys.stdout.reconfigure(encoding='utf-8')
+   sys.stdout.write(text)
+   " | PATH=\"$MIKTEX_BIN:$PATH\" \"$PANDOC\" \
+     -f gfm -o \"$OUT_DIR/$BASENAME.pdf\" \
+     --pdf-engine=xelatex --toc --toc-depth=2 \
+     -V geometry:margin=0.75in -V mainfont=\"Calibri\" -V monofont=\"Consolas\" -V fontsize=10pt
    ```
+   The stdin pipe is intentional: passing a `.md` file path to pandoc 3.9.0.2 with certain content (tables + circled-digit tier markers triggered it in practice) makes pandoc try to `mkdir <source-file-path>/media-XXX` and fail because the source path is a file, not a directory. Piping via stdin bypasses the bug entirely. DOCX builds (step 2) are unaffected because pandoc takes a different code path for DOCX output.
 5. **Verify.** Confirm both output files exist and are non-empty. Surface any pandoc errors verbatim, especially missing-character warnings (those indicate the glyph-substitution map needs an addition).
 6. **Report.** Output the two file paths + sizes. Do not commit the DOCX or PDF — repo convention is `.md` source committed, generated artifacts kept local. Closeout commit/push of the source `.md` is the caller's job, not this skill's.
 
@@ -122,3 +131,4 @@ Use the shared gate taxonomy from `ops/notion-workspace/CLAUDE.md` and `ops/noti
 - Style baseline assumes Windows fonts (Calibri, Consolas). On non-Windows hosts the caller must supply substitutes via `HARDENED_GATE`.
 - First-time PDF builds may take 1–3 minutes while MiKTeX auto-installs missing packages. Subsequent builds are fast (~5–10s).
 - Glyph map is curated for the project's typical content (status emojis, marker glyphs). Documents using broader Unicode (CJK, mathematical symbols, etc.) may need an expanded map or a different mainfont.
+- Pandoc 3.9.0.2 has a media-extraction bug when given a `.md` file path as input with certain content (tables + circled-digit tier markers triggered it in practice). The PDF step uses stdin piping (step 4 above) to bypass it. If a future pandoc release fixes the bug, the file-source approach can be restored, but stdin is the safer default. DOCX builds are unaffected.
