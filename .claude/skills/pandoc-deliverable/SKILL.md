@@ -49,6 +49,10 @@ If any prerequisite is missing, stop and surface the gap rather than installing 
        '\u26A0\uFE0F': '!',      # WARNING SIGN + VARIATION SELECTOR
        '\u26A0': '!',            # WARNING SIGN
        '\u2713': '[x]',          # CHECK MARK
+       '\U0001F534': '\u25CF',   # LARGE RED CIRCLE -> BLACK CIRCLE
+       '\U0001F535': '\u25CF',   # LARGE BLUE CIRCLE -> BLACK CIRCLE
+       '\U0001F7E1': '\u25CF',   # LARGE YELLOW CIRCLE -> BLACK CIRCLE
+       '\U0001F7E2': '\u25CF',   # LARGE GREEN CIRCLE -> BLACK CIRCLE
    }
    ```
    Write the substituted text to a temp file under `c:/tmp/` (or the system temp dir on non-Windows).
@@ -91,6 +95,10 @@ If a caller wants a different style (different font, no TOC, different margins),
 | U+26A0 U+FE0F (WARNING SIGN + variation selector) | `!` | Calibri lacks |
 | U+26A0 (WARNING SIGN) | `!` | Calibri lacks |
 | U+2713 (CHECK MARK) | `[x]` | Calibri lacks |
+| U+1F534 (LARGE RED CIRCLE) | U+25CF (BLACK CIRCLE) | Calibri lacks emoji color; mono-tone bullet substitute |
+| U+1F535 (LARGE BLUE CIRCLE) | U+25CF (BLACK CIRCLE) | Calibri lacks emoji color; mono-tone bullet substitute |
+| U+1F7E1 (LARGE YELLOW CIRCLE) | U+25CF (BLACK CIRCLE) | Calibri lacks emoji color; mono-tone bullet substitute |
+| U+1F7E2 (LARGE GREEN CIRCLE) | U+25CF (BLACK CIRCLE) | Calibri lacks emoji color; mono-tone bullet substitute |
 
 If new missing-character warnings appear in pandoc output, add the missing codepoint to the map and to the Python escape block above. Always use `\u` / `\U` escapes in the source — never paste high-codepoint glyphs directly into this file. When picking a replacement, verify Calibri actually supports it (BLACK STAR U+2605 was previously assumed to render and does not — ASCII fallbacks are safer than mid-range symbol codepoints).
 
