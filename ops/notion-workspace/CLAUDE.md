@@ -29,16 +29,18 @@ For every doc that maps to a live Notion page, keep a visible banner directly un
 
 ## Codex Skills
 
-Repo skill sources live under two roots: `ops/notion-workspace/skills/` (workspace automation skills) and `freed-solutions/skills/` (general Freed Solutions operator skills). Both are canonical sources for both Codex and Claude. Installed Codex copies belong in `$CODEX_HOME/skills` (default: `~/.codex/skills`; Windows default: `C:\Users\adamj\.codex\skills`). Claude should use synced generated skill copies under `.claude/skills/` produced from the repo with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`. Skill names must be unique across the two roots — the sync + publish scripts both detect and reject collisions.
+Repo skill sources for Freed Solutions Claude/Codex work live under `freed-solutions/skills/`. Claude reads synced generated copies under `.claude/skills/` produced by `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`. Codex copies belong in `$CODEX_HOME/skills` (default: `~/.codex/skills`; Windows default: `C:\Users\adamj\.codex\skills`).
+
+**Skills migrated to TheoryWellness (2026-05-22):** `notion-action-items`, `notion-agent-config`, `notion-meeting-prep`, and `pandoc-deliverable` previously lived in `ops/notion-workspace/skills/` here. They were moved to `c:\Users\adamj\Code\TheoryWellness\skills\` as canonical source and are now published to `~/.claude/skills/` (user-level), making them invocable from any Claude Code session — including this one — without per-repo wrappers. The Freed `mcp__notion` server still points at the Freed Notion workspace they operate against, so behavior is unchanged for Freed CRM work; only the source-file location moved. See `c:\Users\adamj\Code\TheoryWellness\CLAUDE.md` for the user-scope sync command.
+
+Skills still canonical in this repo:
 
 | Skill | Canonical Source | Purpose |
 |------|------------------|---------|
-| `notion-action-items` | `ops/notion-workspace/skills/notion-action-items/` | Work a single Action Item end-to-end from CRM wiring through deliverable creation and bounded target updates |
-| `notion-agent-config` | `ops/notion-workspace/skills/notion-agent-config/` | Audit or update Notion Custom Agent settings against the local config spec |
-| `notion-meeting-prep` | `ops/notion-workspace/skills/notion-meeting-prep/` | Surface open Action Items and recent emails for a Meeting's attendees before a call |
-| `pandoc-deliverable` | `ops/notion-workspace/skills/pandoc-deliverable/` | Regenerate DOCX + PDF deliverables from a source `.md` using the Calibri/Consolas baseline with glyph-substitution preprocessing |
 | `cannabis-tech-sitemap` | `freed-solutions/skills/cannabis-tech-sitemap/` | Generate a Mermaid-based tech-stack sitemap + Option A/B/C scenario canvas from client discovery interview notes |
 | `resume-builder` | `freed-solutions/skills/resume-builder/` | Tailor resume + cover letter + application answers for a specific job opening, using a base resume as the DOCX style anchor |
+
+Other `freed-solutions/skills/` entries (`codex-review`, `create-skill`, `dutchie-bi-looker`, `freed-solutions-website`, `google-sheets-patterns`) follow the same pattern.
 
 Publish or validate them with `ops/notion-workspace/scripts/publish-codex-skills.ps1`. Adding a new source root: append to `$sourceRoots` in both scripts; collision detection is built in.
 
@@ -218,8 +220,6 @@ When adding new agents, workflows, or databases, update:
 
 When changing a manual workflow skill:
 
-1. Update the canonical repo skill under `ops/notion-workspace/skills/`
-2. Validate it with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`
-3. Publish the installed copy to `$CODEX_HOME/skills` (default: `~/.codex/skills`)
-4. Sync the Claude skill copy in `.claude/skills/` with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`
+- **Skills migrated to TheoryWellness** (`notion-action-items`, `notion-agent-config`, `notion-meeting-prep`, `pandoc-deliverable`): edit source at `c:\Users\adamj\Code\TheoryWellness\skills\<name>\SKILL.md`, then re-sync to `~/.claude/skills/` per the user-scope sync command in `TheoryWellness/CLAUDE.md`. Wrapper update propagates to all Claude Code sessions (including this repo) on next session start.
+- **Skills still canonical here** (under `freed-solutions/skills/`): update the source, validate with `ops/notion-workspace/scripts/publish-codex-skills.ps1 -ValidateOnly`, publish the Codex copy to `$CODEX_HOME/skills`, and sync the Claude copy in `.claude/skills/` with `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.
 

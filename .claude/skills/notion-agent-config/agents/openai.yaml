@@ -1,9 +1,0 @@
-# Generated from "ops/notion-workspace/skills/notion-agent-config/agents/openai.yaml". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly.
-
-interface:
-  display_name: "Notion Agent Config"
-  short_description: "Audit or update Custom Agent settings"
-  default_prompt: "Use $notion-agent-config to audit or update this Notion Custom Agent configuration, batch any known HARDENED_GATE drift into one compact prompt, and continue the bounded repair once approved."
-
-policy:
-  allow_implicit_invocation: true
