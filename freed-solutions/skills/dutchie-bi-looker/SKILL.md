@@ -87,9 +87,39 @@ Caveats worth knowing before relying on it:
 Once the merge is saved and bound to a dashboard tile, **stop using the standalone URL** and
 switch to the tile-bound editor below; further standalone saves create orphan mids.
 
+### Committing merge edits to a tile — the binding rule
+
+**A `did` in the URL is not a binding.** Opening `/embed/merge/edit?did=<n>&dbnx=1` directly
+gives a fully working editor — you can add calcs, run, sort, and see correct results — but
+there is **no Save control anywhere on the page**. The header holds only Run and a gear, and
+that gear offers just `Save to Dashboard...` / `Clear Cache & Refresh` / `Clear Merge`.
+`Save to Dashboard...` opens the *Add to a Dashboard* dialog with Title `New Tile`, i.e. it
+would create a **second tile**, not update the one you are editing. Everything done in that
+session is lost on navigation.
+
+Merge edits only commit when the editor is opened **from a dashboard already in edit mode**:
+
+1. Open the dashboard → `Dashboard actions` → **Edit dashboard**.
+2. On the tile → `Tile actions` → **Edit Merged Query**.
+3. Make the changes, Run to verify.
+4. Return and **Save the dashboard**.
+
+### Making Save appear (dirty-state workaround)
+
+Looker only enables the dashboard Save control once it considers the dashboard *dirty*, and
+merge-query edits alone may not mark it dirty — leaving finished work with no way to commit.
+
+**Fix: make a trivial edit to the dashboard title** (e.g. append an underscore) while in edit
+mode. That marks the dashboard dirty and the Save option appears. Save, then rename the title
+back if you want it clean.
+
+This is the difference between losing an hour of calc-building and keeping it. Apply it any
+time you have unsaved merge work and no visible Save.
+
 ### Tile-bound vs standalone merge editor
 
-- **Tile-bound** (`/embed/merge/edit?did=<merge_id>&dbnx=1`): outer Save commits the new mid to the tile binding on the dashboard. **Use this.**
+- **Tile-bound** (`/embed/merge/edit?did=<merge_id>&dbnx=1`): read/verify only unless reached
+  via dashboard edit mode — see the binding rule above.
 - **Standalone "Explore from here"** (`/embed/merge?mid=<some_mid>`): saves create orphan mids not bound to any tile. **Avoid.** This is a recurring footgun.
 - "Edit Merged Query" from a tile's hover-menu in Edit-mode dashboard view also lands on the tile-bound URL.
 
@@ -142,7 +172,26 @@ Verified by direct probing — Looker docs are occasionally wrong. See `feedback
 - `coalesce(value, fallback)` — null fallback.
 - `replace(string, find, replacement)` — literal find/replace (no regex).
 - `to_number(string)` — parse string to number; returns null on parse failure.
-- `match(string, regex)` — **returns Number** (1-based position, 0/null no-match), NOT YesNo despite docs. To use as boolean: `match(...) > 0`. For category-membership checks, prefer `${cat}="x" OR ${cat}="y"`.
+- `match(string, pattern)` — **treat as unusable.** Probed directly against a product name
+  containing the literal text `(SAMPLE)`: `match(name,"(?i)sample|test")` returned null, and
+  so did SQL-style `match(name,"%SAMPLE%")`. Neither regex nor LIKE syntax matches anything.
+  Do not build flags on it — the calc saves and runs, it just silently never fires.
+
+  **Substring test that works**, using only verified functions:
+
+  ```
+  if(replace(${field}, "needle", "") != ${field}, 1, 0)
+  ```
+
+  If removing the needle changes the string, the string contained it. **Case-sensitive**, so
+  enumerate the casings that actually occur — real catalog data had both `(Sample)` and
+  `(SAMPLE)`, and testing one variant alone missed five rows. Chain with `OR`:
+
+  ```
+  if(replace(${n},"(SAMPLE)","")!=${n} OR replace(${n},"(Sample)","")!=${n}, "SAMPLE; ", "")
+  ```
+
+  For category-membership checks, still prefer `${cat}="x" OR ${cat}="y"`.
 
 **Functions NOT available**
 - `format(value, fmt)` — Excel-style formatting NOT in table calc. Use a workaround (see "Trailing-zero pad" pattern below).
@@ -156,6 +205,37 @@ Verified by direct probing — Looker docs are occasionally wrong. See `feedback
   angular.element(thElement).scope().col.field.name
   ```
 - Merge-level field references: `${view.field_name}` (e.g. `${products.brand_name}`), NOT source-query alias `${q1.field}`. Calcs reference each other by bare name: `${daily_avg_sales}`. See `feedback_looker_merge_field_refs.md`.
+
+## Dosage Encoding — check the business rules before profiling
+
+`products.product_grams` is the **universal dosage field**, and for mg-dosed categories the
+milligram value is stored **as grams**:
+
+| Label | Stored `product_grams` |
+|---|---|
+| 5mg / 10mg / 25mg / 50mg / 100mg | 0.005 / 0.01 / 0.025 / 0.05 / 0.1 |
+| 1.0g / 2.0g / 3.5g / 7.0g | 1 / 2 / 3.5 / 7 |
+
+So `mg = product_grams × 1000`. A 100mg 20-pack edible stores `0.1`.
+
+```
+if(<mg category>, concat(round(${products.product_grams}*1000, 0), "mg"),
+                  concat(round(${products.product_grams}, 2), "g"))
+```
+
+Two traps this avoids:
+
+- **`products.thccontent` is not the dose.** In some tenants it is unpopulated entirely; where
+  it does hold a value it is the *lab-tested* THC figure, not the label dosage. Profiling it
+  as the mg source produces a false "100% of the catalog is missing dosage" finding.
+- **`products.Product_Size` is only populated for multipacks.** Null means single unit, which
+  matches the taxonomy rule that singles never take the `(x Npk)` parenthetical. A null-rate
+  around 90% is *expected*, not a defect. The real check is "populated but unparseable", plus
+  a dosage that implies a multipack with no pack count to explain it.
+
+**Read the client's Product Line business rules before profiling their master data.** Getting
+this backwards produces confident, wrong findings about data quality. The pack/dosage
+conventions live with the product-line maintenance workflow, not in the BI tooling.
 
 ## Common Patterns
 
@@ -230,6 +310,90 @@ Click the calc's column dropdown → "Delete". No confirmation dialog. Calc is g
 Click the column header's sort button (NOT the dropdown). Single click on a numeric column defaults to DESC (right behavior for "show me biggest first"). Click again to flip ASC. Replaces any existing sort (single-sort behavior); use `Shift+Enter` for multi-sort.
 
 When auto-binding adds an unwanted dim that becomes the sort key (e.g., adding Product Size auto-creates a Size DESC sort), explicitly click the intended sort column to replace the sort, then hide the unwanted column.
+
+## What Is and Isn't Scriptable
+
+Looker's embed UI mixes Angular and React, and the automation approach differs per control.
+Verified by direct probing; check here before assuming a click "doesn't work".
+
+| Control | Technique |
+|---|---|
+| Explore picker in merge builder (`a[lk-track-action="Explore"]`) | plain `.click()` (Angular `ng-click`) |
+| View-group expand/collapse in field tree | plain `.click()` |
+| Field **selection** in field tree | synthetic React `onKeyDown` Enter (see below) |
+| Filter **field** picker (`button[role="treeitem"]`) | plain `.click()` |
+| Filter value — string | native value setter + `input` event, then Enter to commit the chip |
+| Filter value — yesno | click input, then `.click()` the `li[role="option"]` |
+| Filter value — date | click the expression input → `li` "is in the last" → set number → unit dropdown |
+| Column sort | `.click()` on `div.sorting[role="button"]` inside the `th` — **not** the `Toggle Dropdown` button |
+| Delete a calc | column `Toggle Dropdown` → `[role="menuitem"]` "Delete" |
+| Calc expression textarea | native `HTMLTextAreaElement` value setter + `input` event |
+| **Explore-actions gear menu items** | ❌ needs a real user click |
+| **`New Dashboard` button** | ❌ needs a real user click |
+| **`Edit Merged Query` tile menu item** | ❌ needs a real user click |
+| **Row Limit / dashboard Title inputs** | ❌ `execCommand` only, and only with genuine user focus |
+
+### The user-activation rule
+
+`document.execCommand('insertText', …)` **works only when the element already has genuine
+user focus.** A programmatic `.focus()` does not grant user activation, so the value is set
+and then reverted by the next Angular `$digest` — which looks like "the input rejects
+scripting" but is really a missing activation. Once a human has clicked into the field, the
+exact same code sticks.
+
+Practical division of labour: ask the user to click into the field, then script the typing.
+For Row Limit specifically, `ngModel.$setViewValue()` also updates the model but is still
+reverted on re-render — don't trust it.
+
+### Long calc expressions
+
+SKILL's older advice to switch to `fill()` past ~1,000 chars is unnecessary with the
+value-setter approach: a **1,127-character** expression saved cleanly, no truncation and no
+paren damage. Set the textarea value directly and dispatch `input`.
+
+### Reusable calc helper
+
+```js
+window.__addCalc = async function(name, expr) {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  Array.from(document.querySelectorAll('button,[role="button"],a'))
+    .find(x => /Add calculation/i.test(x.textContent||'')).click();
+  await sleep(3500);
+  const dlg = document.querySelector('[role="dialog"],.modal');
+  const ta = dlg.querySelector('textarea');
+  const nameInp = Array.from(dlg.querySelectorAll('input'))
+    .find(i => i.placeholder === 'Create a custom field name');
+  const taSet = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;
+  const inSet = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+  ta.focus();      taSet.call(ta, expr);   ta.dispatchEvent(new Event('input',{bubbles:true}));
+  await sleep(2000);
+  nameInp.focus(); inSet.call(nameInp, name); nameInp.dispatchEvent(new Event('input',{bubbles:true}));
+  await sleep(1800);
+  Array.from(dlg.querySelectorAll('button')).find(b => b.textContent.trim()==='Save').click();
+  await sleep(4500);
+  return !document.querySelector('[role="dialog"],.modal');
+};
+```
+
+### `prompt()` is blocked in the embed
+
+Looker's **New Dashboard** button calls `window.prompt()` for the name. The embed context
+blocks it, so the button silently does nothing — for scripted *and* human clicks alike. The
+console shows:
+
+```
+Error: prompt() is not supported.  at x.createNewDashboard
+```
+
+Polyfill before clicking:
+
+```js
+window.prompt = () => 'Your Dashboard Name';
+```
+
+Saving to an **existing** dashboard never hits this. Note the button is also disabled until
+the tile Title field is non-default, so set Title first — a disabled button and a
+`prompt()`-blocked one both look like "nothing happened".
 
 ## Known Gotchas
 
