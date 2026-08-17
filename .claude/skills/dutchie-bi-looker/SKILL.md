@@ -54,6 +54,41 @@ omega.backoffice.dutchie.com/reports/bi-tools/<page>
    ```
 4. Wait 12–15s for the Looker app to render in the iframe.
 
+### Creating a new merge query
+
+Merge queries are **created from an Explore**, not from a dashboard. The entry point is the
+gear icon labelled **"Explore actions"**, above the fold in the page header immediately to
+the right of Run / Auto Run → **"Merge results"**.
+
+That opens the **Merged Results** backend view — a standalone builder at
+`https://leaflogix.looker.com/embed/merge` showing `Source Queries` / `Add Query` /
+`MERGE RULES` / `Visualization` / `Data`. **This backend view is the preferred surface to
+work in**: it is the same view you return to for later edits, so building here matches how
+the query will be maintained.
+
+The bare URL renders the builder directly, which is the fastest way in:
+
+```
+https://leaflogix.looker.com/embed/merge
+```
+
+Caveats worth knowing before relying on it:
+
+- Appending `?qid=<explore_qid>` does **not** seed the first source query — the builder
+  still opens empty ("Add a query to get started"). Use the gear → Merge results path when
+  you want the current explore query carried in as Q1, or add queries manually via
+  `Add Query`.
+- The gear menu items **do not respond to synthetic events** — not `.click()`, and not a
+  full `pointerdown`/`mousedown`/`mouseup`/`click` sequence. The menu opens fine
+  programmatically, but selecting "Merge results" requires a real click (Playwright, or the
+  browser pane displayed so `computer` can composite). Same class of problem as the field
+  picker's `onKeyDown` requirement.
+- Locate the gear by matching `aria-label` / `title` / text against `Explore actions` —
+  it carries no stable `data-testid`.
+
+Once the merge is saved and bound to a dashboard tile, **stop using the standalone URL** and
+switch to the tile-bound editor below; further standalone saves create orphan mids.
+
 ### Tile-bound vs standalone merge editor
 
 - **Tile-bound** (`/embed/merge/edit?did=<merge_id>&dbnx=1`): outer Save commits the new mid to the tile binding on the dashboard. **Use this.**
