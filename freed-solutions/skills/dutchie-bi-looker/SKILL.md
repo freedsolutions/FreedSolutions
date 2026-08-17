@@ -87,34 +87,30 @@ Caveats worth knowing before relying on it:
 Once the merge is saved and bound to a dashboard tile, **stop using the standalone URL** and
 switch to the tile-bound editor below; further standalone saves create orphan mids.
 
-### Committing merge edits to a tile — the binding rule
+### Committing merge edits to a tile
 
-**A `did` in the URL is not a binding.** Opening `/embed/merge/edit?did=<n>&dbnx=1` directly
-gives a fully working editor — you can add calcs, run, sort, and see correct results — but
-there is **no Save control anywhere on the page**. The header holds only Run and a gear, and
-that gear offers just `Save to Dashboard...` / `Clear Cache & Refresh` / `Clear Merge`.
-`Save to Dashboard...` opens the *Add to a Dashboard* dialog with Title `New Tile`, i.e. it
-would create a **second tile**, not update the one you are editing. Everything done in that
-session is lost on navigation.
+Navigating straight to `/embed/merge/edit?did=<n>&dbnx=1` works fine. The tile's saved
+source queries, merge rules, and calcs all load, and edits commit back to that same tile.
 
-Merge edits only commit when the editor is opened **from a dashboard already in edit mode**:
+**The Save button is at the BOTTOM-RIGHT of the page (~x 1109, y 750), not in the header.**
+The header carries only Run and a gear, and the gear's `Save to Dashboard...` is a different
+action that would create a *second* tile — do not use it to save edits to an existing one.
 
-1. Open the dashboard → `Dashboard actions` → **Edit dashboard**.
-2. On the tile → `Tile actions` → **Edit Merged Query**.
-3. Make the changes, Run to verify.
-4. Return and **Save the dashboard**.
+**Save is disabled until the query is dirty.** A freshly loaded editor shows
+`button.btn-primary` "Save" with `disabled=true`; it enables as soon as you change something.
+A disabled Save and a missing Save look identical if you only scan the header, which is the
+easy mistake here — scan the whole page before concluding a control is absent.
 
-### Making Save appear (dirty-state workaround)
+If Save is still greyed after real edits, make a trivial change to force the dirty state:
+**edit the title** (e.g. append an underscore), which reliably enables it. Rename back
+afterwards if you want the title clean.
 
-Looker only enables the dashboard Save control once it considers the dashboard *dirty*, and
-merge-query edits alone may not mark it dirty — leaving finished work with no way to commit.
+Opening the editor from the dashboard (`Dashboard actions` → **Edit dashboard** → tile's
+`Tile actions` → **Edit Merged Query**) reaches the same editor and also works — it is just
+not required, and its menu items need real user clicks.
 
-**Fix: make a trivial edit to the dashboard title** (e.g. append an underscore) while in edit
-mode. That marks the dashboard dirty and the Save option appears. Save, then rename the title
-back if you want it clean.
-
-This is the difference between losing an hour of calc-building and keeping it. Apply it any
-time you have unsaved merge work and no visible Save.
+Either way, Save returns you to the dashboard. **Hard-reload** (`location.reload(true)`)
+before trusting what the tile renders; stale tile data after save is normal.
 
 ### Tile-bound vs standalone merge editor
 
@@ -328,10 +324,16 @@ Verified by direct probing; check here before assuming a click "doesn't work".
 | Column sort | `.click()` on `div.sorting[role="button"]` inside the `th` — **not** the `Toggle Dropdown` button |
 | Delete a calc | column `Toggle Dropdown` → `[role="menuitem"]` "Delete" |
 | Calc expression textarea | native `HTMLTextAreaElement` value setter + `input` event |
+| Source-query open (`a.query-name`) | plain `.click()` |
+| Merge Save (bottom-right `button.btn-primary`) | plain `.click()` |
 | **Explore-actions gear menu items** | ❌ needs a real user click |
 | **`New Dashboard` button** | ❌ needs a real user click |
 | **`Edit Merged Query` tile menu item** | ❌ needs a real user click |
 | **Row Limit / dashboard Title inputs** | ❌ `execCommand` only, and only with genuine user focus |
+
+Because the merge editor is reachable by URL and its Save is scriptable, a full
+edit → run → save cycle needs **no user clicks at all**. The ❌ rows only matter for
+*creating* a dashboard or entering dashboard edit mode.
 
 ### The user-activation rule
 
