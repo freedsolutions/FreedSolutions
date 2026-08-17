@@ -418,6 +418,17 @@ Merge mids rotate every save — don't memorize. Look up current mid via "Edit M
 
 ## References
 
+- `references/explore-field-catalog.md` — **read before writing any Looker query.** Opens
+  with the mandatory filter set: the instance is **multi-tenant**, so every query needs
+  `lsp_location.lsp_name` pinned to one tenant (omitting it blends clients and produces
+  plausible-looking wrong numbers), plus `is_sandbox = No` and `transactions.is_void = No`
+  on sales-side queries. Then: every explore, view, and LookML field name in the
+  `sql_server` model; the LookML-name-vs-display-label traps (Cultivation is `plant`,
+  Purchase Orders is `purchase_order`); a recipes table mapping questions to explores; the
+  top-level embed escape (skip the iframe entirely by opening `leaflogix.looker.com/embed/...`
+  in a plain tab once the Backoffice cookie is set); driving queries by URL params; and the
+  hidden-iframe + `window`-parked-async pattern for automation that outlives the 30s tool
+  timeout.
 - Memory files (load when relevant):
   - `feedback_looker_table_calc_syntax.md` — full operator + function cheat sheet
   - `feedback_looker_merge_field_refs.md` — `${view.field}` vs `${q1.field}` syntax
