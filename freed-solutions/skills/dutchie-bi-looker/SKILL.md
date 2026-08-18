@@ -114,8 +114,8 @@ before trusting what the tile renders; stale tile data after save is normal.
 
 ### Tile-bound vs standalone merge editor
 
-- **Tile-bound** (`/embed/merge/edit?did=<merge_id>&dbnx=1`): read/verify only unless reached
-  via dashboard edit mode — see the binding rule above.
+- **Tile-bound** (`/embed/merge/edit?did=<merge_id>&dbnx=1`): full read/write. Save is
+  bottom-right and disabled until dirty — see above. **Use this.**
 - **Standalone "Explore from here"** (`/embed/merge?mid=<some_mid>`): saves create orphan mids not bound to any tile. **Avoid.** This is a recurring footgun.
 - "Edit Merged Query" from a tile's hover-menu in Edit-mode dashboard view also lands on the tile-bound URL.
 
@@ -346,6 +346,30 @@ exact same code sticks.
 Practical division of labour: ask the user to click into the field, then script the typing.
 For Row Limit specifically, `ngModel.$setViewValue()` also updates the model but is still
 reverted on re-render — don't trust it.
+
+### Source-query dialog: the iframe persists after Save
+
+`editQueryDialogId1` **stays in the DOM after you save the inner query** — its presence is not
+evidence the dialog is still open. Two consequences:
+
+- Do not treat `document.getElementById('editQueryDialogId1')` as an "is open" check.
+- **Never click that lingering dialog's Cancel.** It reverts the inner-query save you just
+  made, silently restoring deselected fields. Confirm the save by re-reading the outer table's
+  column headers instead.
+
+If the dialog genuinely wedges (Save stops closing it, columns stop updating), reload
+`/embed/merge/edit?did=<n>&dbnx=1` and redo the edit — cheaper than untangling the state.
+
+### Embed sessions expire mid-session
+
+The signed embed grants ~24h (`session_length=86400`), but the session can lapse sooner — the
+symptom is a Looker page that loads to a blank shell and never renders (`Add calculation`
+never appears). It is not a login problem.
+
+Fix: navigate to any Backoffice BI-tools page (e.g.
+`omega.backoffice.dutchie.com/reports/bi-tools/explore`). It issues a **fresh signed nonce**
+and re-sets the cookie. Then go back to the Looker URL. No re-login needed if the Backoffice
+session is still good. Saved merge work is unaffected.
 
 ### Long calc expressions
 
@@ -619,6 +643,13 @@ Merge mids rotate every save — don't memorize. Look up current mid via "Edit M
 
 ## References
 
+- `references/mdm-product-line-rules.md` — **canonical Product Type / Product Line / Variety
+  naming and attribute rules.** Read before profiling any catalog master data. Covers the
+  `Category | Dosage | Brand` conventions, g-vs-mg UoM by Master Category, 0.1g / 1mg
+  rounding, the `Grams / Concentration`-is-the-dosage rule (and why `THC Content` is not),
+  Size-for-multipacks, the many-to-one attribute relationships that are QC surfaces, Variety /
+  CPG-vs-Herb, and the grain architecture. Supersedes the `dutchie-taxonomy` skill wherever
+  they disagree.
 - `references/explore-field-catalog.md` — **read before writing any Looker query.** Opens
   with the mandatory filter set: the instance is **multi-tenant**, so every query needs
   `lsp_location.lsp_name` pinned to one tenant (omitting it blends clients and produces
