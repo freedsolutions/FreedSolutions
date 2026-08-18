@@ -435,7 +435,43 @@ session is still good. Saved merge work is unaffected.
 
 SKILL's older advice to switch to `fill()` past ~1,000 chars is unnecessary with the
 value-setter approach: a **1,127-character** expression saved cleanly, no truncation and no
-paren damage. Set the textarea value directly and dispatch `input`.
+paren damage. Set the textarea value directly and dispatch `input`. (2026-08-18: a
+2,033-char QC Fails expression saved the same way, no issues.)
+
+### Reading & recreating custom fields at scale (2026-08-18)
+
+Verified end-to-end while building the PT/PL Product Mix tiles:
+
+- **Read an expression**: hover the custom-field row with a REAL pointer (browser-pane
+  `computer` hover) → a kebab (⋮) appears at the row's right edge → real click → menu
+  (Edit / Duplicate / Delete / Bin / Group). Menu items respond to synthetic `.click()`
+  once visible (`getBoundingClientRect().width > 0`). Edit dialog →
+  `win.ace.edit(el).getValue()`. **Stash harvested expressions in `localStorage`** —
+  `window` state dies on navigation, localStorage survives the whole session.
+- **Create**: Custom Fields header → **Add → Custom Dimension** — the Add button AND its
+  menu items respond to synthetic clicks inside the inner-editor iframe (unlike the
+  outer gear menus). The dialog is the same Ace + name-input pattern (native setters).
+- **New custom fields auto-select on creation** — deselect helper dims afterward via the
+  React `onKeyDown` trick.
+- **Budget ≤2 dialog creations per `javascript_tool` call**: a 4-dim loop exceeds the
+  30s tool timeout — the in-page async loop keeps running, but the result is lost.
+- The React treeitem props do NOT expose custom-field expressions, and the Angular merge
+  scope only holds merge-level dynamic_fields — the Edit dialog is the only read path.
+
+### Custom measures: duplicate-and-repoint
+
+Fastest way to a new filtered measure (e.g. Min/Max Price with the sample-exclusion
+chips): **Duplicate an existing custom measure that already carries the filter set**
+(kebab → Duplicate), then Edit the copy — **"Field to measure" IS editable**, so change
+field + Measure type + name. The filter rows carry over untouched; no chip re-entry.
+
+- The field combobox is grouped (Inventory vs **Products** duplicates — pick Products
+  per the value-space rule). It rejects synthetic input events: click it for REAL, then
+  type with real keystrokes to filter; the option click is synthetic-OK. If typing ever
+  concatenates junk into it, `triple_click` + ctrl+a + Delete, then retype.
+- Changing the field resets Measure type ("An aggregation type is required") — re-pick.
+- At merge level, source-query **custom measures get BARE names** (`${min_price}`),
+  like table calcs — not `${view.field_name}`.
 
 ### Reusable calc helper
 
@@ -602,12 +638,27 @@ When you replace a shared dim across source queries (e.g., deselect `products.ca
 
 **Fix**: scroll to the merge rules section — the broken Q1↔Q2 line shows a `+ Add merge rule for Inventory` link. Clicking it auto-creates the missing Product Name = Product Name rule. Re-Run; the table should now show one Product Name column with correctly joined values.
 
+**Custom-dimension rules NEVER auto-rewrite** (2026-08-18): swapping the grain to a
+per-query custom dim (Product Type, Product Line) leaves only the surviving rules plus
+duplicate grain columns in the headers — even when an info banner claims "Merged X to X".
+Fix: the MERGE RULES **"+ Add dimension"** link (plain click) auto-pairs the same-named
+custom dims across sources. The merge-rule dropdowns are custom components, not native
+`<select>`s — but you rarely need to touch them; the auto-pair does the work.
+
 **Detection in scripted workflows**: after dim swaps, scan `body.innerText` for the `MERGE RULES` section. If it contains `+ Add merge rule for` text, a rule is missing. Also check the table headers — duplicate column names (same field appearing 2× or 3×) indicates Cartesian merge.
 
 ### Cloning Buyers_X for a new grain
 
-Workflow that worked end-to-end (Buyers_0 from Buyers_1, Buyers_4 from Buyers_1):
-1. Adam manually duplicates the source tile via dashboard editor → Tile actions → Duplicate tile, then saves the dashboard. (Scripted Duplicate tile clicks were unreliable.)
+Workflow that worked end-to-end (Buyers_0 from Buyers_1, Buyers_4 from Buyers_1).
+**2026-08-18 update: step 1 no longer needs Adam** — the browser pane's `computer` real
+(CDP) clicks drive the whole duplicate flow: Dashboard actions ⋮ → Edit dashboard →
+tile ⋮ → Duplicate tile → rename → Save. Tile **rename**: real-click the title (it
+becomes an input with genuine focus), then in JS `document.activeElement.select()` +
+`document.execCommand('insertText', false, 'New Title')` — a bare Ctrl+A can select the
+wrong scope and splice the new text mid-string. Multiple duplicates can be made in one
+edit-mode pass; dids mint on dashboard Save (`element-title-NNNNNN`).
+
+1. Adam manually duplicates the source tile via dashboard editor → Tile actions → Duplicate tile, then saves the dashboard. (Scripted Duplicate tile clicks were unreliable — superseded by the CDP-click flow above.)
 2. Find the new tile's merge did via `h2[data-testid="dashboard-tile-title"]` element id (`element-title-NNNNNN` → did = NNNNNN).
 3. Navigate `/embed/merge/edit?did=NNNNNN&dbnx=1` directly.
 4. Q1: deselect old grain dim, select new grain dim (use the React `onKeyDown` Enter trick), Save inner.
@@ -693,6 +744,21 @@ These are stable; treat as canonical.
 | Buyers_4 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186810&dbnx=1 |
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
+
+## Reference IDs (HSCG / Dashboard 28006 "Master Data QC")
+
+Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff.md`.
+
+| Tile | did |
+|---|---|
+| Product QC (16-rule fails queue incl. BAD_FLOWER_EQ) | 193267 |
+| Brand/Vendor QC | 193272 |
+| Product Mix - Master Category | 193274 |
+| Product Mix - Category | 193296 |
+| Product Mix - Product Type | 193297 |
+| Product Mix - Product Line | 193298 |
+
+Editor URL pattern is the same: `https://leaflogix.looker.com/embed/merge/edit?did=<n>&dbnx=1`.
 
 ## House Style Notes
 

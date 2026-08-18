@@ -211,6 +211,31 @@ An inferred grid produces false positives on legitimate values: infused pre-roll
 1.4g (1g flower plus infusion weight, or a 2-pack at 0.7g each) are real products that a
 naive grid rejects.
 
+### Flower Equivalent IS a QC rule (MA class constants)
+
+Unlike dosage, `Flower Equivalent` follows deterministic per-class math (verified against
+the full HSCG catalog 2026-08-18; constants confirmed by Adam — MA: 1 oz = 28 g ≡ 5 g
+concentrate ≡ 500 mg THC in edibles):
+
+| Class (by Category) | Expected FL EQ |
+|---|---|
+| Flower, Pre-Rolls | `product_grams × 1` |
+| Concentrate, Vaporizer, Disposable Vaporizers, **Tinctures**, Transdermals | `product_grams × 5.6` |
+| Edibles, Drink Mix, **Beverages** | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
+| Infused Pre-Rolls, Infused Flower | blended (flower + concentrate×5.6, per-product split) — bounds-check only: `grams ≤ FL EQ ≤ grams×5.6` |
+| Non-cannabis (gate on `is_cannabis`) | n/a |
+
+**Tinctures deliberately take the concentrate constant (×5.6), not the edible one** — a
+100 mg shot carries 0.56 g FL EQ as a Tincture vs 5.6 g as an Edible, a 10× difference
+against customer purchase limits. This is why concentrated liquids (THC shots, syrups,
+beverage enhancers, drink drops) are POS-classified as Tinctures at HSCG; reclassifying
+them to Beverages/Edibles is a compliance change, not a merchandising one.
+
+Implemented as the `BAD_FLOWER_EQ` rule on the Product QC tile (±5% two-sided compare —
+SQL context has no `abs()`; precompute 5.32/5.88/53.2/58.8). On first run it caught 17
+mis-multiplied beverages and 8 grams-vs-name mismatches. Categories with no branch pass
+silently — extend the chain when a new category appears.
+
 ---
 
 ## Working order
