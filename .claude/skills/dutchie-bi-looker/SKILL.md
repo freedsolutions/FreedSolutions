@@ -349,6 +349,64 @@ Practical division of labour: ask the user to click into the field, then script 
 For Row Limit specifically, `ngModel.$setViewValue()` also updates the model but is still
 reverted on re-render — don't trust it.
 
+### The backend is Snowflake, and custom dimensions beat table calcs
+
+**The `sql_server` model name lies — queries execute on Snowflake.** Error banners say
+"The Snowflake database encountered an error while running this query." Two consequences:
+
+- **SQL-context expression language** (custom dimensions/measures) is narrower than table
+  calcs: `to_number` fails ("Invalid function for sql context"), and implicit string→number
+  coercion is rejected by the type checker ("first argument for `*` must be a Number").
+  Available and verified: `if`, `coalesce`, `concat`, `round`, `replace`, `=`, `AND`/`OR`/`NOT`,
+  arithmetic, `null` literal, `diff_days(date, now())`.
+- **`coalesce(${products.is_cannabis},"")` compiles in a table calc but errors on Snowflake**
+  in a custom dimension: the LookML string field sits on a BOOLEAN column, and
+  `COALESCE(boolean, varchar)` is a Snowflake compile error. Use comparison form instead:
+  `${x}="true" OR ${x}="false"` (implicit cast works in comparisons, not in COALESCE).
+  A filter on a broken custom dimension injects its SQL into WHERE — the query errors even
+  when the dimension is not selected.
+- **The expression dialog's Save button enables even when the expression is invalid.** The
+  only validity signal is the inline error text under the editor. Check for
+  `Invalid function|must be a |Expression incomplete` before saving, or you persist a broken
+  field.
+
+**Prefer source-query custom dimensions over merge-level table calcs** for any derived
+attribute (Product Line, Product Type, QC flags, pack-count parsing):
+
+| Capability | Table calc (merge) | Custom dimension (source query) |
+|---|---|---|
+| Filterable | ❌ | ✅ (e.g. `QC Fails is > 0` → fails-only tile) |
+| Groupable in viz "Grouping" | ❌ (dims only) | ✅ |
+| Can define a true grain (drop item dim → PL grain) | ❌ | ✅ |
+| Survives tile duplication | ✅ | ✅ |
+| `to_number`, full Lexp | ✅ | ❌ (SQL context) |
+
+Custom dimensions **can reference other custom dimensions** (`${pack_count}` inside
+`Per Unit Dosage` works), so expressions stay composable. The enumerated `#pk` pack-count
+parser (pure `replace`/`if` chain) is SQL-safe; the `to_number` version is not.
+
+`concat` with a NULL argument returns NULL in SQL context (Snowflake semantics), whereas
+table calcs treated null as "" — a Product Line built from a null Brand becomes NULL rather
+than `"Category | "`. Usually the better semantics, but a behavior change to know about.
+
+**Custom measures on date dimensions offer only Count distinct.** For last-sold /
+last-received dates: custom dimension `diff_days(${view.date}, now())`, then a custom
+measure `Min` over it — numeric measures offer Sum/Average/Min/Max/Median, and Min(days
+since) = most recent. Re-aggregates correctly at any grain.
+
+### Two header sets render simultaneously
+
+When the Visualization panel is expanded, the DOM holds viz-table headers ("Column Options",
+hover-revealed, width 0, unscriptable) AND data-panel headers (with
+`button[data-testid="toggle"]`, scriptable). Scope header searches with
+`.filter(h => h.querySelector('button[data-testid="toggle"]'))` or you will click dead
+controls. Merge-level calc columns carry `calculation` in the th class — the way to
+distinguish a calc column from a same-named source-query dimension column when both exist.
+
+Menu items from CLOSED menus (source-query Edit/Rename/Delete, gear items) linger in the
+DOM. Never act on a menuitem without checking `getBoundingClientRect().width > 0` —
+an exact-text "Delete" match can hit a source-query's Delete.
+
 ### Source-query dialog: the iframe persists after Save
 
 `editQueryDialogId1` **stays in the DOM after you save the inner query** — its presence is not
