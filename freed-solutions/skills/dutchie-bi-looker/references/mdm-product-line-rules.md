@@ -215,12 +215,16 @@ Unlike dosage, `Flower Equivalent` follows deterministic per-class math (verifie
 the full HSCG catalog 2026-08-18; constants confirmed by Adam — MA: 1 oz = 28 g ≡ 5 g
 concentrate ≡ 500 mg THC in edibles):
 
-| Class (by Category) | Expected FL EQ |
+Since the 2026-08-19 category granularization, the rule is keyed on **Master Category**
+(new categories inherit their class automatically):
+
+| Class (by Master Category) | Expected FL EQ |
 |---|---|
-| Flower, Pre-Rolls | `product_grams × 1` |
-| Concentrate, Vaporizer, Disposable Vaporizers, **Tinctures**, Transdermals | `product_grams × 5.6` |
-| Edibles, Drink Mix, **Beverages** | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
-| Infused Pre-Rolls, Infused Flower | blended (flower + concentrate×5.6, per-product split) — bounds-check only: `grams ≤ FL EQ ≤ grams×5.6` |
+| Flower (incl. all non-infused pre-roll categories) | `product_grams × 1` |
+| Concentrate, Vaporizer, **Tinctures** | `product_grams × 5.6` |
+| Edibles, **Beverages** | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
+| Infused Flower (Infused Blunt/Bud/Pre-Roll/Pre-Roll Pack) | blended (flower + concentrate×5.6, per-product split) — bounds-check only: `grams ≤ FL EQ ≤ grams×5.6` |
+| **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). FL EQ is set in Dutchie to the lowest possible value (likely 0.001) so it never eats into customer limits. Any expected-value check would false-positive; do not add one until the exact convention value is confirmed. |
 | Non-cannabis (gate on `is_cannabis`) | n/a |
 
 **Tinctures deliberately take the concentrate constant (×5.6), not the edible one** — a
