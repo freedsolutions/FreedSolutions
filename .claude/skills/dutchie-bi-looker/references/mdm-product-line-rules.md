@@ -232,8 +232,8 @@ Since the 2026-08-19 category granularization, the rule is keyed on **Master Cat
 | Flower (incl. all non-infused pre-roll categories) | `product_grams × 1` |
 | Concentrate, Vaporizer, **Tinctures** | `product_grams × 5.6` |
 | Edibles, **Beverages** | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
-| Infused Flower (Infused Blunt/Bud/Pre-Roll/Pre-Roll Pack) | blended (flower + concentrate×5.6, per-product split) — bounds-check only: `grams ≤ FL EQ ≤ grams×5.6` |
-| **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). FL EQ is set in Dutchie to the lowest possible value (likely 0.001) so it never eats into customer limits. Any expected-value check would false-positive; do not add one until the exact convention value is confirmed. |
+| Infused Flower (Infused Blunt/Bud/Pre-Roll/Pre-Roll Pack) | blended (flower + concentrate×5.6, per-product split) — **NO branch as of 2026-08-19** (Adam removed the bounds check; grams-vs-name inconsistencies are worked on the Dutchie side, not the QC queue) |
+| **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). Convention CONFIRMED: FL EQ = **0.001g** on every topical item (never eats customer limits, and clears the NO_FLOWER_EQ null-or-zero rule). Any expected-value check would false-positive by design. |
 | Non-cannabis (gate on `is_cannabis`) | n/a |
 
 **Tinctures deliberately take the concentrate constant (×5.6), not the edible one** — a
