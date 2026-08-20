@@ -92,9 +92,28 @@ compliance) but still take **cannabis-style dosage naming**:
 - **FL EQ remains NULL** for CBD items — no expected-value branch, no NO_FLOWER_EQ /
   NO_DOSAGE exposure (those rules gate on `is_cannabis`, which stays false).
 
-Implementation: the naming dims (Dosage Label, Per Unit Dosage, Product Type, Product
-Line) gate on `${products.is_cannabis}="true" OR ${products.master_category}="CBD"`
-instead of the bare cannabis flag. QC rules keep the bare `is_cannabis` gate.
+### Dosage-attribute presence rule (REFINED 2026-08-20 — grams-driven)
+
+Adam's generalisation of the CBD exception: **the dosage segment renders iff
+`product_grams` is populated (> 0)** — the cannabis flag is not the gate.
+
+- Grams present → `Category | Dosage [| Brand]` (g/mg per the MC g-list), regardless of
+  `is_cannabis`. CBD gets its mg this way.
+- Grams absent → the segment is omitted entirely: PT = `Category`,
+  PL = `Category | Brand` (Battery, Lighter, Merch, Apparel).
+
+Canonical form (SQL-context-safe and table-calc-safe):
+
+```
+if(coalesce(${products.product_grams},0)>0, <g/mg logic>, <no-dosage form>)
+```
+
+Implementations: **Buyers 26549 PT/PL** (all four tiles, rebuilt 2026-08-20) use the
+grams-driven gate verbatim. **28006's dims** (193267/193297/193298/193334) use the earlier
+`${products.is_cannabis}="true" OR ${products.master_category}="CBD"` gate — equivalent on
+current data (QC forces grams on cannabis items; no non-CBD NCI item carries grams), but
+align them to grams-driven whenever next touched. QC rules keep the bare `is_cannabis` gate
+either way.
 
 ### Size
 

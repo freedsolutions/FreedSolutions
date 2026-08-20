@@ -453,8 +453,51 @@ Verified end-to-end while building the PT/PL Product Mix tiles:
   React `onKeyDown` trick.
 - **Budget ≤2 dialog creations per `javascript_tool` call**: a 4-dim loop exceeds the
   30s tool timeout — the in-page async loop keeps running, but the result is lost.
-- The React treeitem props do NOT expose custom-field expressions, and the Angular merge
-  scope only holds merge-level dynamic_fields — the Edit dialog is the only read path.
+- ~~The React treeitem props do NOT expose custom-field expressions~~ **SUPERSEDED
+  2026-08-20**: they DO — see below.
+
+### Custom-field automation, corrected (2026-08-20)
+
+Verified during the CBD-rule rollout across 28006 + 26549:
+
+- **READ custom-field expressions & filters via React fiber — no dialog needed.** The
+  field-picker treeitem's props expose the full field object: walk
+  `ti[__reactProps].children` for `node.props.field` (the `findField` helper) and read
+  `field.expression` (full text, 1,800+ chars fine) and `field.filters` (the raw
+  advanced-filter expression, e.g. the 12-value sample exclusion). This replaces the
+  kebab→Edit→ace read for audit passes entirely.
+- **The kebab can be revealed synthetically** — no real hover required: dispatch
+  `pointerover/pointerenter/pointermove/mouseover/mouseenter/mousemove` (PointerEvent /
+  MouseEvent, bubbles, clientX at the row's right end) on the treeitem and its children.
+  The hover buttons render (Pivot/Filter/Info/More — last = kebab); kebab + menu items
+  then respond to synthetic `.click()`. Works with the pane hidden.
+- **⚠ Inner-query Save/Cancel live INSIDE the `editQueryDialogId1` iframe** (blue
+  "Merge Query | Explore from Here | Cancel | Save" bar, y<60 in the iframe doc). A
+  top-document `Save`-text click finds the OUTER merge Save — disabled = silent no-op —
+  and the per-field dialog edits then sit in the iframe's DRAFT. Clicking the iframe's
+  Cancel afterwards **discards all per-field edits**. Correct commit: iframe header Save
+  → outer merge goes dirty (bottom Save enables) → Run → outer Save.
+- **Flip a merge's primary source**: non-primary query gear menu has **Make Primary**
+  (primary's menu is Edit/Rename only — no Delete until demoted). Flip = Inventory gear
+  → Make Primary → Reference Data gear → Delete. Both respond to synthetic clicks.
+  This is how the Product Mix PT/PL/Category tiles went inventory-primary (2026-08-20).
+- **Merge-level calc dialog (top document)**: write via `ace.edit(el).setValue(expr,-1)`
+  ONLY — poking the backing textarea desyncs the parser ("Expression incomplete" with a
+  polluted buffer). After setValue: real-click into the ace area, `navigateFileEnd()` via
+  JS, then real-type one space — the keystroke makes Looker re-parse; a trailing space is
+  accepted. Verify `getValue() === expected` before saving.
+- **Plain query tiles** (non-merge, e.g. the Daily Sales tiles on 26549): `merge/edit?
+  did=` renders an EMPTY builder — never save there. Edit path: dashboard edit mode →
+  Tile actions → Edit → "Edit Tile" explore dialog (TOP document, no iframe); custom-dim
+  kebab flow as above; dialog header Save commits to the dashboard DRAFT — the dashboard
+  edit-mode Save must follow. Tile-actions buttons respond to synthetic `.click()` when
+  scrolled into view (scroll the `DashboardMain` container via JS; page scrollIntoView
+  doesn't move it).
+- **Dashboard-level filters** are fully drivable: Filters → Add Filter → field search →
+  config panel (match-type combobox has native "doesn't start with"; typing
+  comma-separated values commits chips exactly, whitespace preserved). Per-tile mapping
+  lives in "Tiles to update"; a merge tile's mode dropdown offers **"Do not filter"** to
+  unmap it (used to keep Product QC 193267 sample-inclusive).
 
 ### Custom measures: duplicate-and-repoint
 
@@ -722,41 +765,54 @@ When merge Save commits but the dashboard tile is still in edit mode, navigating
 2. Sample a few rows in the Run output — for the proportional Sunday formula, verify days=28 gives ops=24 AND a partial-window row (e.g., days=23) gives ops=20 (round(23×6/7) = 20).
 3. Hard-reload the parent dashboard page and re-verify on the tile-rendered values.
 
-## Reference IDs (HSCG / Dashboard 26549)
+## Reference IDs (HSCG / Dashboard 26549 "Reorder & Velocity")
 
-These are stable; treat as canonical.
+**Restructured by Adam before 2026-08-20** — the Buyers_0–4 tiles are GONE (old dids
+185905/185926/186802/186810 dead; Chelsea's 185826 no longer on the dashboard). Now 12
+tiles: a "Reorder & Velocity" MERGE tile + a "Daily Sales" PLAIN QUERY tile per grain.
+Element ids captured 2026-08-20 (R&V dids work with `merge/edit?did=`; Daily Sales tiles
+are NOT merges — edit them via dashboard edit mode → Tile actions → Edit):
 
-| Resource | ID |
-|---|---|
-| Dashboard | 26549 |
-| Buyers_3 merge (Brand granularity, units) | did=185905 |
-| Buyers_2 merge (Product Type / Cat+Grams, units) | did=185926 |
-| Buyers_1 merge (Category, **gram-weighted** as of 2026-05-09) | did=186802 |
-| Buyers_0 merge (Master Category, **gram-weighted** as of 2026-05-09) | did=186807 |
-| Buyers_4 merge (SKU / Product Name, **gram-weighted** as of 2026-05-09) | did=186810 |
-| Chelsea legacy "Reorder of Inventory Sold" | did=185826 (preserved, untouched) |
-| Buyers_3 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185905&dbnx=1 |
-| Buyers_2 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=185926&dbnx=1 |
-| Buyers_1 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186802&dbnx=1 |
-| Buyers_0 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186807&dbnx=1 |
-| Buyers_4 merge editor URL | https://leaflogix.looker.com/embed/merge/edit?did=186810&dbnx=1 |
+| Grain | R&V (merge did) | Daily Sales (element id, plain query) |
+|---|---|---|
+| Master Category | 187548 | 187004 |
+| Category | 187541 | 187540 |
+| Product Type | 187552 | 187553 |
+| Product Line | 187556 | 187557 |
+| Product | 187542 | 187543 |
+| Vendor & Brand | 186807 | 187549 |
+
+R&V merges: 3 source queries (Transactions primary, Inventory, Inventory Snapshot), PT/PL
+as MERGE-LEVEL table calcs. Daily Sales tiles: single query, PT/PL as custom dims, pivoted
+by date. All four PT/PL naming calcs rebuilt to canon 2026-08-20 (grams-driven dosage
+gate, MC-keyed g-list, logical rounding — the legacy calcs still keyed the mg class on
+pre-migration category names). Dashboard filters as of 2026-08-20: Product Name
+doesn't-start-with (12 sample values, all tiles) + Master Category is-not Accessory,Merch
+(replaces Is Cannabis=true so CBD shows — Adam ruling).
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
 
-## Reference IDs (HSCG / Dashboard 28006 "Master Data QC")
+## Reference IDs (HSCG / Dashboard 28006 "Dutchie Catalog QC")
 
 Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff.md`.
 
-| Tile | did |
-|---|---|
-| Product QC (16-rule fails queue incl. BAD_FLOWER_EQ) | 193267 |
-| Brand/Vendor QC | 193272 |
-| Product Mix - Master Category | 193274 |
-| Product Mix - Category | 193296 |
-| Product Mix - Product Type | 193297 |
-| Product Mix - Product Line | 193298 |
+| Tile | did | Spine (as of 2026-08-20) |
+|---|---|---|
+| Product QC (fails-only queue) | 193267 | reference_data primary (full catalog; samples IN scope by design) |
+| Brand/Vendor QC | 193272 | reference_data single-source |
+| Product Mix - Master Category | 193274 | reference_data primary (keeps ∅ catalog-gap signal) |
+| Product Mix - Category | 193296 | **inventory single-source** (flipped 2026-08-20, stocked-only) |
+| Product Mix - Product Type | 193297 | **inventory single-source** (flipped 2026-08-20) |
+| Product Mix - Product Line | 193298 | **inventory single-source** (flipped 2026-08-20) |
+| Product Mix - Rollup (Sandbox) | 193334 | reference_data single-source |
 
 Editor URL pattern is the same: `https://leaflogix.looker.com/embed/merge/edit?did=<n>&dbnx=1`.
+
+Dashboard filter (2026-08-20): **Product Name doesn't-start-with** the 12 sample values
+(copy chips from a 193274 measure filter — raw expression
+`-SAMPLE%,-Sample%,-TEST%,-Test Product%,-Display%,-DISPLAY%,-(Limited)%,-(LIMITED)%,-Limited |%,-LIMITED |%,-(Sample)%,-(SAMPLE)%`),
+default applied, mapped to every tile EXCEPT Product QC ("Do not filter" — its
+availability rules need samples).
 
 ## House Style Notes
 
