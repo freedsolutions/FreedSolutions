@@ -787,8 +787,8 @@ as MERGE-LEVEL table calcs. Daily Sales tiles: single query, PT/PL as custom dim
 by date. All four PT/PL naming calcs rebuilt to canon 2026-08-20 (grams-driven dosage
 gate, MC-keyed g-list, logical rounding — the legacy calcs still keyed the mg class on
 pre-migration category names). Dashboard filters as of 2026-08-20: Product Name
-doesn't-start-with (12 sample values, all tiles) + Master Category is-not Accessory,Merch
-(replaces Is Cannabis=true so CBD shows — Adam ruling).
+doesn't-start-with (16 values — 12 sample + 4 Promo prefixes, all tiles) + Master
+Category is-not Accessory,Merch (replaces Is Cannabis=true so CBD shows — Adam ruling).
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
 
@@ -808,11 +808,14 @@ Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff
 
 Editor URL pattern is the same: `https://leaflogix.looker.com/embed/merge/edit?did=<n>&dbnx=1`.
 
-Dashboard filter (2026-08-20): **Product Name doesn't-start-with** the 12 sample values
-(copy chips from a 193274 measure filter — raw expression
-`-SAMPLE%,-Sample%,-TEST%,-Test Product%,-Display%,-DISPLAY%,-(Limited)%,-(LIMITED)%,-Limited |%,-LIMITED |%,-(Sample)%,-(SAMPLE)%`),
-default applied, mapped to every tile EXCEPT Product QC ("Do not filter" — its
-availability rules need samples).
+Dashboard filter (2026-08-20): **Product Name doesn't-start-with** the **16** exclusion
+values — the 12 sample values (copy chips from a 193274 measure filter — raw expression
+`-SAMPLE%,-Sample%,-TEST%,-Test Product%,-Display%,-DISPLAY%,-(Limited)%,-(LIMITED)%,-Limited |%,-LIMITED |%,-(Sample)%,-(SAMPLE)%`)
+plus the 4 Promo prefixes `(Promo)`, `(PROMO)`, `Promo`, `PROMO` (Adam ruling same day:
+promo items are excluded from price ranges/mix; mirror the Is Promo QC dim's prefix set).
+Default applied, mapped to every tile EXCEPT Product QC ("Do not filter" — its
+availability rules need samples). NOTE: the per-measure chips on Products/Brands/Min/Max
+still carry only the 12 sample values — the dashboard filter is what adds Promo.
 
 ## House Style Notes
 
