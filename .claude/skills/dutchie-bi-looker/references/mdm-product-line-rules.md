@@ -248,10 +248,14 @@ Type:        the effect bucket (rules below)
 
 Notes: names can lie about composition — verify stated mg before naming. Where a
 brand prints both a ratio and a lean (Wyld), the ratio entry wins and the lean
-informs only the Type. The `(1to1)` name-suffix pattern ("Strawnana (1to1)") remains
-a smokable/vape-line convention only. True abbreviations of existing entries collapse
-even when active (Trop Cherry → Tropicana Cherry, Adam ruling) — contrast
-brand-distinct spellings, which stay.
+informs only the Type. The ratio name-suffix pattern for smokable/vape lines is
+**colon format**: "Strawnana (1:1)", "Mango Passionfruit (2:1)" — Adam renamed the
+live entries from the older "(1to1)"/"(2to1)" style 2026-08-20, aligning with the
+edible-side colon notation. Type-disambiguation suffixes follow the same parens
+pattern ("Pina Colada (H)", "Honeydew (S)"). True abbreviations of existing entries
+collapse even when active (Trop Cherry → Tropicana Cherry; Candy Pineapple →
+Platinum Candy Pineapple, both Adam rulings) — contrast brand-distinct spellings,
+which stay.
 
 ### CPG vs. Herb
 
