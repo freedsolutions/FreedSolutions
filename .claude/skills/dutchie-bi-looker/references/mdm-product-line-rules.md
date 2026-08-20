@@ -194,38 +194,64 @@ Raspberry", "Half & Half"). Variety/mixed packs = `Assorted`. Genuinely unflavor
 items = the explicit value `Unflavored` (never blank — blank means "not yet
 backfilled").
 
-**Strain on edibles rides GENERIC entries**; named strains only where the brand names a
-cultivar. Generic entries: `Sativa` / `Hybrid` / `Indica` (brand-printed leans),
-`THC` (Type Hybrid — lean-less default; typed Hybrid as an Ecom-effects workaround,
-Description disclaims the lean), `1to1` (Type "1 to 1"), `CBD` (Type CBD — the ratio
-stand-in). The `(1to1)` name-suffix pattern ("Strawnana (1to1)") remains a
-smokable/vape-line convention only.
+**Strain on edibles**: named strains where the brand names a cultivar;
+**composition-named ratio entries** for stated ratio blends; generic entries otherwise.
+Generic entries: `Sativa` / `Hybrid` / `Indica` (brand-printed leans), `THC` (Type
+Hybrid — lean-less default; typed Hybrid as an Ecom-effects workaround, Description
+disclaims the lean), `CBD` (Type CBD — **pure-CBD / THC-free products only**).
 
-**Ratio ladder** (decision order, Adam's refinement 2026-08-20):
+**Ratio entries are composition-named, NOT generic** (Adam correction 2026-08-20 —
+supersedes the brief generic-`1to1` convention):
+
+```
+StrainName:  <ratio> (<cannabinoid list>)     e.g.  1:1 (THC:CBD) · 2:1 (CBN:THC)
+                                                     2:1:1 (THC:CBD:CBN) · 20:1 (CBD:THC)
+Type:        the effect bucket (rules below)
+```
+
+- **Order**: dominant cannabinoid first; THC first on ties; minors in fixed
+  precedence CBD → CBN → CBG → CBC → THCV. Ratios in lowest terms
+  (100:100:50 → `2:2:1`). Normalized order, NOT brand-printed order (brands are
+  inconsistent: Wyld "CBC:THC" vs InHouse "THC:CBC" — one entry per composition).
+- **Only STATED compositions get ratio names** — a ratio format in the name/desc, or
+  printed mg amounts (derive the ratio: 50mg THC/300mg CBD → `6:1 (CBD:THC)`).
+  Unstated cannabinoid blends ("infused with THC and CBN") ride the generic effect
+  lean instead. Name composition-TRUE when the brand print is misleading
+  (Incredibles "5:1 CBN" is 5mg THC : 1mg CBN → `5:1 (THC:CBN)`).
+
+**Type (effect bucket) rules for ratio entries**:
+
+- CBD-dominant → **CBD**.
+- CBN present → **Indica** (sleep family; CBN-dominant or THC-dominant alike:
+  `2:1 (CBN:THC)`, `2:1:1 (THC:CBD:CBN)` all Indica).
+- CBG / THCV / CBC leaner **with sativa/energy marketing → Sativa** (marketing
+  decides, not mere presence).
+- Balanced without an effect signal → **"1 to 1"**. When one composition serves
+  items with conflicting marketing (HV Focus vs Trifecta on `1:1:1 (THC:CBD:CBG)`),
+  the shared entry **defaults to "1 to 1"** — no suffix variants (Adam ruling).
+- THC-dominant with no marketed lean (`2:1 (THC:CBG)`, `5:1 (THC:THCV)`) →
+  **Hybrid** (same workaround as the THC generic).
+
+**Item ladder** (decision order):
 
 1. Brand names a cultivar (LE "Flavor x Cultivar" crosses, terpene-infused
    strain beverages, hash-rosin cultivar lines) → the **named strain**
    (brand-label-wins). Dialed In LE and Happy Valley Live Hash Rosin naming is
    **flavor x cultivar**, NOT a strain cross — the flavor half goes to Flavor.
-2. CBD-dominant (CBD ≥ THC: 20:1/5:1/2:1 CBD:THC, 1:3 THC:CBD, THC-free CBD MC)
-   → **CBD**.
-3. **Anything with CBN → Indica** — trumps balanced ratios (a 1:1:1 THC:CBD:CBN
-   sleep blend is Indica, not 1to1). THC-dominant sleep+CBN blends (2:1:1
-   THC:CBD:CBN) likewise → Indica; no longer-ratio generics get minted.
-4. CBG / THCV / CBC leaner **with sativa/energy/focus marketing → Sativa**; with a
-   printed Hybrid lean → Hybrid.
-5. Balanced blends **without an effect leaner** (1:1 THC:CBD, and
-   balanced-marketed THC:CBD:CBG per the Trifecta precedent) → **1to1**.
-6. Printed S/H/I lean, no ratio → the generic lean.
-7. No signal at all → **THC**.
+2. Stated ratio blend → the **composition-named ratio entry** (Type per the bucket
+   rules above).
+3. Pure-CBD / THC-free → generic **CBD**.
+4. Unstated cannabinoid blend → the generic **effect lean** (CBN/sleep → Indica;
+   sativa-marketed → Sativa).
+5. Printed S/H/I lean, no ratio → the generic lean.
+6. No signal at all → **THC**.
 
-Notes: the marketing copy decides leaner cases, not the mere presence of the
-cannabinoid (Trifecta THC:CBD:CBG with balanced copy = 1to1; HV Focus THC:CBD:CBG
-with clarity copy = Sativa — both Adam rulings). Names can lie about composition —
-verify stated mg (Incredibles "5:1 CBN" is actually 5:1 THC:CBN). Where a brand
-prints both a ratio and a lean (Wyld), the ladder order above wins. True
-abbreviations of existing entries collapse even when active (Trop Cherry →
-Tropicana Cherry, Adam ruling) — contrast brand-distinct spellings, which stay.
+Notes: names can lie about composition — verify stated mg before naming. Where a
+brand prints both a ratio and a lean (Wyld), the ratio entry wins and the lean
+informs only the Type. The `(1to1)` name-suffix pattern ("Strawnana (1to1)") remains
+a smokable/vape-line convention only. True abbreviations of existing entries collapse
+even when active (Trop Cherry → Tropicana Cherry, Adam ruling) — contrast
+brand-distinct spellings, which stay.
 
 ### CPG vs. Herb
 
