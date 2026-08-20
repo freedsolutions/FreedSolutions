@@ -76,6 +76,26 @@ Two traps:
 - There is also a separate hidden `Dosage` field in Dutchie. Not used. Use
   `Grams / Concentration`.
 
+### Master Category `CBD` — dosage exception (Adam ruling 2026-08-19)
+
+CBD items are flagged `is_cannabis = false` in Dutchie (treated Non-Cannabis for
+compliance) but still take **cannabis-style dosage naming**:
+
+- Dosage comes from `Grams / Concentration` (`products.product_grams`), same field as
+  everything else — **NOT from the `CBD Content` field** (`products.cbdcontent`), which
+  the convention no longer relies on.
+- Semantic exception: for MC `CBD`, `product_grams` represents **total mg of
+  cannabinoids** (÷1000), not THC content. Everywhere else it is THC.
+- Renders in **mg** (CBD is not in the smokable g-list, so it falls through to the mg
+  branch by design).
+- PT/PL take the cannabis form: `Category | Dosage | Brand`, multipack notation included.
+- **FL EQ remains NULL** for CBD items — no expected-value branch, no NO_FLOWER_EQ /
+  NO_DOSAGE exposure (those rules gate on `is_cannabis`, which stays false).
+
+Implementation: the naming dims (Dosage Label, Per Unit Dosage, Product Type, Product
+Line) gate on `${products.is_cannabis}="true" OR ${products.master_category}="CBD"`
+instead of the bare cannabis flag. QC rules keep the bare `is_cannabis` gate.
+
 ### Size
 
 Used **only for multipacks**, formatted `<count>pk` (`2pk`, `10pk`, `20pk`) — a
@@ -141,6 +161,50 @@ For smokable/vape-able this splits Sativa / Hybrid / Indica; for everything else
 THC / CBD / specific ratios, plus Sativa / Hybrid / Indica where applicable.
 
 `Product Line | Variety` is a strong aggregation grain.
+
+### Edible-side Strain + Flavor conventions (LOCKED 2026-08-20, flavor workstream)
+
+Applies to non-smokable MCs (Edibles, Beverages, Tinctures, Topical, CBD). Smokable MCs
+are untouched: flavor/line names ride Strain there and **Flavor stays empty**.
+
+**Flavor is FREE TEXT** — no dropdown rules to maintain. Format: Title Case, the
+brand-printed flavor descriptor minus form/dose/ratio/line tokens ("Sour Blue
+Raspberry", "Half & Half"). Variety/mixed packs = `Assorted`. Genuinely unflavored
+items = the explicit value `Unflavored` (never blank — blank means "not yet
+backfilled").
+
+**Strain on edibles rides GENERIC entries**; named strains only where the brand names a
+cultivar. Generic entries: `Sativa` / `Hybrid` / `Indica` (brand-printed leans),
+`THC` (Type Hybrid — lean-less default; typed Hybrid as an Ecom-effects workaround,
+Description disclaims the lean), `1to1` (Type "1 to 1"), `CBD` (Type CBD — the ratio
+stand-in). The `(1to1)` name-suffix pattern ("Strawnana (1to1)") remains a
+smokable/vape-line convention only.
+
+**Ratio ladder** (decision order, Adam's refinement 2026-08-20):
+
+1. Brand names a cultivar (LE "Flavor x Cultivar" crosses, terpene-infused
+   strain beverages, hash-rosin cultivar lines) → the **named strain**
+   (brand-label-wins). Dialed In LE and Happy Valley Live Hash Rosin naming is
+   **flavor x cultivar**, NOT a strain cross — the flavor half goes to Flavor.
+2. CBD-dominant (CBD ≥ THC: 20:1/5:1/2:1 CBD:THC, 1:3 THC:CBD, THC-free CBD MC)
+   → **CBD**.
+3. **Anything with CBN → Indica** — trumps balanced ratios (a 1:1:1 THC:CBD:CBN
+   sleep blend is Indica, not 1to1). THC-dominant sleep+CBN blends (2:1:1
+   THC:CBD:CBN) likewise → Indica; no longer-ratio generics get minted.
+4. CBG / THCV / CBC leaner **with sativa/energy/focus marketing → Sativa**; with a
+   printed Hybrid lean → Hybrid.
+5. Balanced blends **without an effect leaner** (1:1 THC:CBD, and
+   balanced-marketed THC:CBD:CBG per the Trifecta precedent) → **1to1**.
+6. Printed S/H/I lean, no ratio → the generic lean.
+7. No signal at all → **THC**.
+
+Notes: the marketing copy decides leaner cases, not the mere presence of the
+cannabinoid (Trifecta THC:CBD:CBG with balanced copy = 1to1; HV Focus THC:CBD:CBG
+with clarity copy = Sativa — both Adam rulings). Names can lie about composition —
+verify stated mg (Incredibles "5:1 CBN" is actually 5:1 THC:CBN). Where a brand
+prints both a ratio and a lean (Wyld), the ladder order above wins. True
+abbreviations of existing entries collapse even when active (Trop Cherry →
+Tropicana Cherry, Adam ruling) — contrast brand-distinct spellings, which stay.
 
 ### CPG vs. Herb
 
@@ -232,6 +296,7 @@ Since the 2026-08-19 category granularization, the rule is keyed on **Master Cat
 | Edibles, **Beverages** | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
 | Infused Flower (Infused Blunt/Bud/Pre-Roll/Pre-Roll Pack) | blended (flower + concentrate×5.6, per-product split) — **NO branch as of 2026-08-19** (Adam removed the bounds check; grams-vs-name inconsistencies are worked on the Dutchie side, not the QC queue) |
 | **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). Convention CONFIRMED: FL EQ = **0.001g** on every topical item (never eats customer limits, and clears the NO_FLOWER_EQ null-or-zero rule). Any expected-value check would false-positive by design. |
+| **CBD** | **NO branch — FL EQ remains NULL** (considered Non-Cannabis; `is_cannabis = false`, so the cannabis-gated rules never fire). Dosage naming still applies — see the CBD dosage exception above. |
 | Non-cannabis (gate on `is_cannabis`) | n/a |
 
 **Tinctures deliberately take the concentrate constant (×5.6), not the edible one** — a
