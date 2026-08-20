@@ -224,9 +224,11 @@ Type:        the effect bucket (rules below)
   `2:1 (CBN:THC)`, `2:1:1 (THC:CBD:CBN)` all Indica).
 - CBG / THCV / CBC leaner **with sativa/energy marketing → Sativa** (marketing
   decides, not mere presence).
-- Balanced without an effect signal → **"1 to 1"**. When one composition serves
-  items with conflicting marketing (HV Focus vs Trifecta on `1:1:1 (THC:CBD:CBG)`),
-  the shared entry **defaults to "1 to 1"** — no suffix variants (Adam ruling).
+- Balanced without an effect signal → **CBD** (Adam ruling 2026-08-20: the "1 to 1"
+  Type is RETIRED — CBD absorbs the whole ratio bucket, no 1to1-specific rule; the
+  Dutchie dropdown value goes unused). When one composition serves items with
+  conflicting marketing (HV Focus vs Trifecta on `1:1:1 (THC:CBD:CBG)`), the shared
+  entry defaults to **CBD** — no suffix variants.
 - THC-dominant with no marketed lean (`2:1 (THC:CBG)`, `5:1 (THC:THCV)`) →
   **Hybrid** (same workaround as the THC generic).
 
