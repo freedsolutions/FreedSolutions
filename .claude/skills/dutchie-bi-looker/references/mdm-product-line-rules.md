@@ -254,7 +254,12 @@ informs only the Type. The ratio name-suffix pattern for smokable/vape lines is
 **colon format**: "Strawnana (1:1)", "Mango Passionfruit (2:1)" — Adam renamed the
 live entries from the older "(1to1)"/"(2to1)" style 2026-08-20, aligning with the
 edible-side colon notation. Type-disambiguation suffixes follow the same parens
-pattern ("Pina Colada (H)", "Honeydew (S)"). True abbreviations of existing entries
+pattern ("Pina Colada (H)", "Honeydew (S)") — and **the suffix marks the VARIANT;
+the canonical entry keeps the bare name**. Canonical = typically first-created; but
+when the bare-name holder is retired-only and an active different-leaner arrives,
+rewrite history: the old holder takes the suffix and the active variant becomes the
+canonical bare (Watermelon [Indica] + Watermelon (H) [Hybrid, retired refs] — Adam
+ruling 2026-08-20). True abbreviations of existing entries
 collapse even when active (Trop Cherry → Tropicana Cherry; Candy Pineapple →
 Platinum Candy Pineapple, both Adam rulings) — contrast brand-distinct spellings,
 which stay.
