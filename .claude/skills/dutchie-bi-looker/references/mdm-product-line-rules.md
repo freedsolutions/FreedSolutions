@@ -43,16 +43,23 @@ Define the `g` list **positively** and let everything else fall through to `mg`.
 mg list positively means a newly introduced category (Suppositories, Sprays) silently renders
 in grams.
 
-### Rounding
+### Rounding (REVISED 2026-08-19 — "logical rounding")
 
-- smokable / vape-able → round to **0.1g**, always rendered with one decimal: `1.0g`, `3.5g`
-- everything else → round to the **nearest 1mg**, no decimals: `50mg`, `5mg`
+Both UoM classes round to **0.1** and render decimals **only when they exist** (Adam's
+ruling after sorting moved to the numeric Product Grams field, making a fixed-width
+"1.0g" unnecessary, and a 0.5mg-per-unit Wyld 20pk exposed the old whole-mg floor):
 
-Looker table calcs have no `format()`, so the forced decimal is a conditional concat:
+- smokable / vape-able → `1g`, `3.5g`, `0.5g` (no forced trailing `.0`)
+- everything else → `50mg`, `0.5mg` (no forced whole-number rounding)
+
+Conditional concat (no `format()` in Looker):
 
 ```
-if(round(x,1)=round(x,0), concat(round(x,0),".0"), concat("",round(x,1)))
+if(round(x,1)=round(x,0), concat(round(x,0),"g"), concat(round(x,1),"g"))
 ```
+
+(mg branch identical over `x*1000`.) SUPERSEDES the original "always one decimal for g /
+nearest whole mg" rule. Sort on `products.product_grams`, never on the label.
 
 ### Dosage
 
