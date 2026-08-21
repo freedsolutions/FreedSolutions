@@ -807,6 +807,20 @@ are NOT merges — edit them via dashboard edit mode → Tile actions → Edit):
 | Vendor & Brand | 186807 | 187549 |
 | **Product Line + Variety** | **193361** | **193364** |
 | **Product Line + Strain Type** | **193362** | **193363** |
+| **A-Items at Zero ($/Day at Risk)** | **193374** | — (queue tile, no Daily Sales twin) |
+
+**Phase 2 bolt-ons (2026-08-21)**: `Velocity Validity` (`if(${in_stock_percent} < 0.6,
+"WATCH", "OK")`; In Stock Percent = `${days_in_stock}/28`, scale 0–1) on ALL 8 R&V
+merges. `Open To Buy ($ est)` on MC + Category — **those two tiles are GRAM-based**
+(`open_to_buy_g`, `daily_avg_sales_g`); PL/Product/lane tiles are (ea)-based. Check a
+tile's `Days On Hand` expression to learn its basis + slug convention before writing
+calcs. OTB $ = `OTB(g) × inventory.total_cost / inventory.total_product_grams`
+(inventory.total_cost added to Q2, hidden). A-Items tile: Q1 + total_price/discount
+(hidden), `$/Day at Risk` calc sorted DESC as the queue key. **⚠ Snowflake DESC sorts
+NULLS FIRST** — a null else-branch floats ∅ rows to the top of a DESC-sorted queue;
+return `0` instead of null for "not applicable" rows on any queue calc. The
+edit-calc-dialog textarea desync ("Expression incomplete") reproduced during the fix —
+the 2026-08-20 recipe (ace.setValue + real keystroke nudge) resolved it.
 
 R&V merges: 3 source queries (Transactions primary, Inventory, Inventory Snapshot), PT/PL
 as MERGE-LEVEL table calcs. Daily Sales tiles: single query, pivoted by date — **PL is a
