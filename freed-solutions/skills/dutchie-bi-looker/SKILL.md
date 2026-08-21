@@ -829,7 +829,17 @@ Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff
 | Product Mix - Product Type | 193297 | **inventory single-source** (flipped 2026-08-20) |
 | Product Mix - Product Line | 193298 | **inventory single-source** (flipped 2026-08-20) |
 | Product Mix - PL + Variety | 193356 | inventory single-source (duplicated from 193298, 2026-08-21) — adds `Variety` custom dim (THC/Ratio, binary per Adam's spec: Ratio = `strain.type="CBD"` OR colon in `strain.name`; reads the strain view per mdm canon) |
+| Product Mix - PL + Strain Type | 193357 | inventory single-source (duplicated from 193298, 2026-08-21) — adds native `strain.type` dim (OOTB S/H/I/SH/IH/CBD break-out, no custom formula) |
 | Product Mix - Rollup (Sandbox) | 193334 | reference_data single-source |
+
+**⚠ Strain-view join is effectively INNER**: any query that references `strain.*`
+(natively or inside a custom dim) drops rows with no strain — 193356/193357 both show
+96 distinct PLs vs the base PL tile's larger set: Accessory/Merch/no-strain PLs are
+absent, and CBD-MC items survive only because they carry the generic CBD strain entry.
+Correct for strain-analysis grains (no ∅ noise; post-cleanup all cannabis actives carry
+a strain, and NO_STRAIN on Product QC catches regressions), but never use a
+strain-view field on a tile that must keep its non-cannabis rows — use
+`products.strain_name` / `products.Strain_Type` there instead.
 
 Editor URL pattern is the same: `https://leaflogix.looker.com/embed/merge/edit?did=<n>&dbnx=1`.
 
