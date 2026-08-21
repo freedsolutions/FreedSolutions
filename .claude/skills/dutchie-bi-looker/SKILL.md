@@ -807,10 +807,43 @@ are NOT merges — edit them via dashboard edit mode → Tile actions → Edit):
 | Product Line | 187556 | 187557 |
 | Product | 187542 | 187543 |
 | Vendor & Brand | 186807 | 187549 |
+| **Product Line + Variety** | **193361** | **193364** |
+| **Product Line + Strain Type** | **193362** | **193363** |
 
 R&V merges: 3 source queries (Transactions primary, Inventory, Inventory Snapshot), PT/PL
-as MERGE-LEVEL table calcs. Daily Sales tiles: single query, PT/PL as custom dims, pivoted
-by date. All four PT/PL naming calcs rebuilt to canon 2026-08-20 (grams-driven dosage
+as MERGE-LEVEL table calcs. Daily Sales tiles: single query, pivoted by date — **PL is a
+TABLE CALCULATION there, not a custom dim** (corrected 2026-08-21; the lane dims added
+that day ARE custom dimensions, which is what actually moves the grain).
+
+### Lane grains (2026-08-21): Variety / Strain Type on 26549
+
+Built by duplicating the PL pair. **The lane dim must be added to ALL THREE source
+queries** of an R&V merge (Transactions, Inventory, Inventory Snapshot) — otherwise
+inventory and days-in-stock fan out across lanes instead of splitting. Looker
+auto-paired the new same-named dim into both join sections (6 `Variety` mentions in
+MERGE RULES = 3 pairs × 2 sections); no `+ Add dimension` repair was needed, unlike the
+2026-08-18 custom-dim experience.
+
+**Field choice differs from 28006**: `transaction_items` and `inventory_snapshot`
+expose **no `strain` view**, so 26549 uses `products.Strain_Type` / `products.strain_name`
+rather than `strain.type` / `strain.name`. Consequence: **no inner-join row drop here** —
+no-strain PLs (Battery, Lighter, Rolling Paper) DO come back in the editor; the
+dashboard's `Master Category is-not Accessory,Merch` filter removes them at render, so
+editor row counts read higher than the tile.
+
+**⚠ Merge tables cap at 6 sort keys.** The PL tiles already sort MC / Category / Grams /
+Size / Brand / Product Line = 6, and a 7th (the lane dim) silently refuses: shift-click
+adds-then-drops it, Shift+Enter does nothing, and invoking `$ctrl.canSortColumn(col,
+false, {shiftKey:true})` returns without effect. Tell: the column's `aria-label` loses
+its "Press Shift and Enter to sort additional columns" clause once the cap is hit —
+compare against an unsorted column before concluding a click failed. Practical impact is
+nil: the 5 leading keys plus PL are identical across a PL's lane rows, so they render
+adjacent anyway; only the order *within* the pair is arbitrary.
+
+**Tile-edit dialog trap**: in dashboard edit mode the top document has TWO "Add" buttons
+— the dashboard's own (Visualization/Text/Markdown/Button/Tab) and the field picker's
+Custom Fields Add. Scope to the `Custom Fields` treeitem
+(`[role="treeitem"]` whose text starts with "Custom Fields") or you open the wrong menu. All four PT/PL naming calcs rebuilt to canon 2026-08-20 (grams-driven dosage
 gate, MC-keyed g-list, logical rounding — the legacy calcs still keyed the mg class on
 pre-migration category names). Dashboard filters as of 2026-08-20: Product Name
 doesn't-start-with (16 values — 12 sample + 4 Promo prefixes, all tiles) + Master
