@@ -267,10 +267,45 @@ Two further naming conventions (Adam, 2026-08-20 late):
 - **Brand tier/line names get NAMED entries with type suffixes**, not generics:
   Farnsworth `Bold (I)` / `Classic (H)` / `Light (S)` — SUPERSEDES the earlier
   "subbrand tiers ride generic Blend" ruling. With this, NO smokable item rides a
-  bare generic; generics serve only the non-smokable side (plus THC/CBD). True abbreviations of existing entries
-collapse even when active (Trop Cherry → Tropicana Cherry; Candy Pineapple →
-Platinum Candy Pineapple, both Adam rulings) — contrast brand-distinct spellings,
-which stay.
+  bare generic; generics serve only the non-smokable side (plus THC/CBD).
+
+### Branding wins all (Adam ruling 2026-08-21 — SUPERSEDES abbreviation-collapse)
+
+**Each brand's published spelling of a strain gets its OWN entry** — one entry per
+brand-spelling, never one canonical absorbing variants. The 2026-08-20
+abbreviation-collapse rule (Trop Cherry → Tropicana Cherry; Waui → Maui Waui;
+Candy Pineapple → Platinum Candy Pineapple) is RETIRED; Trop Cherry and Waui were
+re-minted as their own entries. Live per-brand splits: `Maui Waui` (Rove) / `Waui`
+(Rove Classics cart line — Rove brands BOTH) / `Maui Wowie` (Jeeter, InHouse) /
+`Mowie Wowie` (Dime) · `Granddaddy Purp` (Rove, Baby Jeeter) / `Granddaddy Purple`
+(The Tank, Fernway) · `Watermelon Zkittlez` (Rove) / `Watermelon ZKZ` (Jeeter) ·
+`Truffle Popz` (Advanced Cultivators) / `Truffle Pops` (QIC House) · `Superglue`
+(InHouse) · `Glitterbomb` (Impressed) · `BrrBerry` (Pride Packz).
+
+Operating rules:
+
+- **Verify the brand's spelling externally before minting** — internal product-name
+  prints are NOT trusted; the brand's own site / official brand menus are the
+  authority. (Fernway printed two spellings in-catalog, but fernway.com says
+  "Granddaddy Purple" — both items ride that entry and the product names were fixed.)
+- **Same-brand inconsistencies are product-name typos, not new entries** (Rove
+  "Granddady" Reload; NH "Dosi-Woah"/"Dosi Woah" → normalized to "Dosi Woah").
+  Where a short print is the brand's own abbreviation of its full strain name, the
+  product name is expanded to match the entry instead (Beast Coast Berry Cannon;
+  Platinum Candy Pineapple dispo; Pride Edition (Blue Dream Sour Jack); GMO
+  Zkittlez Hitmaker).
+- **Renaming an entry requires an inactive-ref check**: an entry still referenced by
+  retired items must NOT be renamed to a different strain — create the new entry and
+  leave the old one to its retired refs (Grape Stomper [retired refs] kept alongside
+  new Grape Stomper OG; Grape Gaspby kept for a retired Mello Farms item). Pure
+  spelling/case renames with zero conflicting refs are fine (BrrrBerry → BrrBerry,
+  Aj's → AJ's Sour Diesel).
+- Type-suffix disambiguation still applies when two brands' identical spellings
+  collide on different leans (Honeydew [Hybrid, Muze] vs Honeydew (S) [Sativa,
+  Jeeter/Baby Jeeter]).
+- After the 2026-08-21 sweep, the only deliberate name≠strain exceptions are the
+  Farnsworth tiers (package prints the bare tier name; the (I)/(H)/(S) suffix is
+  table-side) and Honeydew (S).
 
 ### CPG vs. Herb
 
