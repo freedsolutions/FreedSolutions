@@ -110,12 +110,9 @@ Canonical form (SQL-context-safe and table-calc-safe):
 if(coalesce(${products.product_grams},0)>0, <g/mg logic>, <no-dosage form>)
 ```
 
-Implementations: **Buyers 26549 PT/PL** (all four tiles, rebuilt 2026-08-20) use the
-grams-driven gate verbatim. **28006's dims** (193267/193297/193298/193334) use the earlier
-`${products.is_cannabis}="true" OR ${products.master_category}="CBD"` gate — equivalent on
-current data (QC forces grams on cannabis items; no non-CBD NCI item carries grams), but
-align them to grams-driven whenever next touched. QC rules keep the bare `is_cannabis` gate
-either way.
+Implementations: **the entire estate is on the grams-driven gate as of 2026-08-20** —
+Buyers 26549 PT/PL (all four tiles) and all 13 naming dims on 28006
+(193267 ×4, 193297 ×2, 193298 ×3, 193334 ×4). QC rules keep the bare `is_cannabis` gate.
 
 ### Size
 
