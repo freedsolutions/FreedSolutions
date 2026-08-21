@@ -863,6 +863,55 @@ Category is-not Accessory,Merch (replaces Is Cannabis=true so CBD shows — Adam
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
 
+## Reference IDs (HSCG / Dashboard 28037 "Margin & Discount")
+
+Built 2026-08-21 (greenfield, fully scripted incl. dashboard creation); economics
+layer over the same transaction_items explore. As-built detail + Phase 0
+reconciliation numbers: handoff doc §"MARGIN & DISCOUNT DASHBOARD BUILT".
+
+| Tile | element id | Grain |
+|---|---|---|
+| Margin by Master Category | 193368 | MC × $ measures + Fair Share Index |
+| Discount Programs | 193369 | transaction_item_discounts.name (own-grain) |
+| Brand / Vendor Margin | 193370 | Vendor + Brand × $ measures |
+| PL Economics | 193371 | R&V PL merge + $ measures (from 187556 draft via Save-to-Dashboard) |
+
+**Locked $ semantics (reconciled vs Dutchie canned exports, 2026-08-21)**:
+`transaction_items.total_price` = GROSS (tied to the penny); Net Sales = total_price
+− total_discount; Margin $ = Net − total_cost (== canned "Order Profit"); Discount
+Rate = total_discount / total_price. Baseline sales-side filters must include
+**`transactions.type` = Retail** (R&V Q1 carries it; canned reports are retail-scoped).
+No `was_returned` filter (parity with R&V Q1; returns ≈ 0.2%).
+
+### Dashboard-creation + explore-save automation (2026-08-21, all pane-hidden unless noted)
+
+- **URL-driven explores are the fastest recon harness**:
+  `/embed/explore/sql_server/<explore>?fields=a,b&f[view.field]=value&...` resolves to
+  a qid; click Run; read the table. Used for the Phase 0 reconciliation.
+- **"Save… → As a new dashboard" from an explore is a modern DIALOG** — title input +
+  folder tree, NO `prompt()` (that footgun is merge-builder "New Dashboard" only).
+  Folder-tree nodes are React treeitems: DOM clicks do nothing — invoke
+  `__reactProps.onClick` (aria-selected flips true, Save enables). Fully scripted.
+- **"To an existing dashboard"**: set the tile Title AFTER navigating the folder tree
+  (tree clicks re-render and can revert an earlier title → tile lands as "New Tile").
+  Tree path: HSCG node → the child row whose parent class contains `child` (three
+  same-text "Shared" nodes exist: breadcrumb, quick-nav, child row).
+- **Auto-promotion trap**: saving an explore as a NEW dashboard converts the explore's
+  filters into dashboard filters — mapped ONLY to that first tile. Later tiles need
+  each filter's Tiles-to-update → **All** → Update, or dashboard-level filter changes
+  silently skip them.
+- **`sum(${measure})` column totals WORK in table calcs** (fair-share = share-of-rev ÷
+  share-of-SKUs). Not in the confirmed-functions list before; now verified.
+- **⚠ Filter-panel synthetic-Enter trap**: while the Add-Filter field-search combobox
+  is live, ANY bubbling synthetic Enter spawns a stray "Add Filter: <highlighted
+  field>" panel (three spawned in one session). The Product-Name-style
+  native-setter+Enter chip commit only works when no field-search dropdown is active.
+  For advanced match types (`is not`, etc.): REAL clicks with the pane open — Control
+  type → Advanced → token `[is ▾]` dropdown → real-type value → click the suggestion
+  checkbox → Done. Leftover typeahead text in the box is harmless (chips commit alone).
+- Legacy dashboards "Discount Board Prep" / "Discounts Performance" exist in the HSCG
+  shared folder — pre-date 28037.
+
 ## Reference IDs (HSCG / Dashboard 28006 "Dutchie Catalog QC")
 
 Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff.md`.
