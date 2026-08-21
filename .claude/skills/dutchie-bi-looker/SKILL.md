@@ -831,19 +831,31 @@ no-strain PLs (Battery, Lighter, Rolling Paper) DO come back in the editor; the
 dashboard's `Master Category is-not Accessory,Merch` filter removes them at render, so
 editor row counts read higher than the tile.
 
-**⚠ Merge tables cap at 6 sort keys.** The PL tiles already sort MC / Category / Grams /
-Size / Brand / Product Line = 6, and a 7th (the lane dim) silently refuses: shift-click
-adds-then-drops it, Shift+Enter does nothing, and invoking `$ctrl.canSortColumn(col,
-false, {shiftKey:true})` returns without effect. Tell: the column's `aria-label` loses
-its "Press Shift and Enter to sort additional columns" clause once the cap is hit —
-compare against an unsorted column before concluding a click failed. Practical impact is
-nil: the 5 leading keys plus PL are identical across a PL's lane rows, so they render
-adjacent anyway; only the order *within* the pair is arbitrary.
+**⚠ A 7th sort key refused on these tiles — cause NOT established.** The PL tiles sort
+MC / Category / Grams / Size / Brand / Product Line, and adding the lane dim on top
+silently failed: shift-click adds-then-drops it, Shift+Enter does nothing, and
+`$ctrl.canSortColumn(col, false, {shiftKey:true})` returns without effect. Observable
+tell: the column's `aria-label` loses its "Press Shift and Enter to sort additional
+columns" clause. **I inferred a "6-key cap" from this; Adam corrected it — "not actually
+a max issue"**, his fix being to drop **Product Line** from the sort. Note PL is a TABLE
+CALCULATION on these tiles and Looker constrains sorting on calcs (a sibling calc's
+aria-label reads "Sorted calculations cannot depend on offset, running_total"), so the
+calc is the likelier culprit than any count. Do not encode a key-count threshold —
+see `feedback_rules_before_profiling`.
 
 **Tile-edit dialog trap**: in dashboard edit mode the top document has TWO "Add" buttons
 — the dashboard's own (Visualization/Text/Markdown/Button/Tab) and the field picker's
 Custom Fields Add. Scope to the `Custom Fields` treeitem
-(`[role="treeitem"]` whose text starts with "Custom Fields") or you open the wrong menu. All four PT/PL naming calcs rebuilt to canon 2026-08-20 (grams-driven dosage
+(`[role="treeitem"]` whose text starts with "Custom Fields") or you open the wrong menu.
+
+**⚠ Tile-edit edits live in the dashboard DRAFT and are silently discarded.** A custom
+field added in the "Edit Tile" explore dialog is NOT persisted until BOTH the dialog's
+header Save AND the dashboard's Save run. Anything that closes the dialog first — an
+`Escape` keypress aimed at dismissing a popover, or leaving edit mode — throws the work
+away with no warning, and the field is simply absent next time you look (lost a
+`Strain Type Sort` dim exactly this way, 2026-08-21). **Save the dialog the moment the
+field verifies; do exploratory poking (hide/sort/menu hunting) only after it is
+committed.** Never send a bare `Escape` while an unsaved tile-edit dialog is open. All four PT/PL naming calcs rebuilt to canon 2026-08-20 (grams-driven dosage
 gate, MC-keyed g-list, logical rounding — the legacy calcs still keyed the mg class on
 pre-migration category names). Dashboard filters as of 2026-08-20: Product Name
 doesn't-start-with (16 values — 12 sample + 4 Promo prefixes, all tiles) + Master
