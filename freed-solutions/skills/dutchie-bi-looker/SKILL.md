@@ -855,8 +855,10 @@ away with no warning, and the field is simply absent next time you look (lost a
 field verifies; do exploratory poking (hide/sort/menu hunting) only after it is
 committed.** Never send a bare `Escape` while an unsaved tile-edit dialog is open. All four PT/PL naming calcs rebuilt to canon 2026-08-20 (grams-driven dosage
 gate, MC-keyed g-list, logical rounding — the legacy calcs still keyed the mg class on
-pre-migration category names). Dashboard filters as of 2026-08-20: Product Name
-doesn't-start-with (16 values — 12 sample + 4 Promo prefixes, all tiles) + Master
+pre-migration category names). Dashboard filters as of 2026-08-21: Product Name
+doesn't-start-with (**12 sample values — the 4 Promo prefixes were REMOVED 2026-08-21**,
+Adam reversal: "Removing Promo prefix is on me, that should be kept in the datasets";
+promo items are real sales and belong in velocity/mix/margin data) + Master
 Category is-not Accessory,Merch (replaces Is Cannabis=true so CBD shows — Adam ruling).
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
@@ -888,14 +890,16 @@ strain-view field on a tile that must keep its non-cannabis rows — use
 
 Editor URL pattern is the same: `https://leaflogix.looker.com/embed/merge/edit?did=<n>&dbnx=1`.
 
-Dashboard filter (2026-08-20): **Product Name doesn't-start-with** the **16** exclusion
-values — the 12 sample values (copy chips from a 193274 measure filter — raw expression
-`-SAMPLE%,-Sample%,-TEST%,-Test Product%,-Display%,-DISPLAY%,-(Limited)%,-(LIMITED)%,-Limited |%,-LIMITED |%,-(Sample)%,-(SAMPLE)%`)
-plus the 4 Promo prefixes `(Promo)`, `(PROMO)`, `Promo`, `PROMO` (Adam ruling same day:
-promo items are excluded from price ranges/mix; mirror the Is Promo QC dim's prefix set).
+Dashboard filter (as of 2026-08-21): **Product Name doesn't-start-with** the **12**
+sample exclusion values (raw expression
+`-SAMPLE%,-Sample%,-TEST%,-Test Product%,-Display%,-DISPLAY%,-(Limited)%,-(LIMITED)%,-Limited |%,-LIMITED |%,-(Sample)%,-(SAMPLE)%`).
 Default applied, mapped to every tile EXCEPT Product QC ("Do not filter" — its
-availability rules need samples). NOTE: the per-measure chips on Products/Brands/Min/Max
-still carry only the 12 sample values — the dashboard filter is what adds Promo.
+availability rules need samples). The per-measure chips on Products/Brands/Min/Max carry
+the same 12 values. **History**: 4 Promo prefixes (`(Promo)`, `(PROMO)`, `Promo`,
+`PROMO`) were added 2026-08-20 (promo excluded from price ranges/mix) and **REMOVED
+2026-08-21 on both 28006 and 26549** — Adam reversal: promo items are real sales and
+stay in the datasets; the Is Promo QC dim on Product QC is unaffected. Consequence to
+expect: promo-priced items re-enter Min Price / Price Range and mix counts.
 
 ## House Style Notes
 
