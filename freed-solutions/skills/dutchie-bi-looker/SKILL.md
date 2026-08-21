@@ -499,6 +499,30 @@ Verified during the CBD-rule rollout across 28006 + 26549:
   lives in "Tiles to update"; a merge tile's mode dropdown offers **"Do not filter"** to
   unmap it (used to keep Product QC 193267 sample-inclusive).
 
+### Pane-hidden dashboard automation (2026-08-21)
+
+Verified during the PL + Variety tile build — the whole duplicate flow now runs
+**fully synthetic with the browser pane hidden** (supersedes "Duplicate tile needs
+real CDP clicks"):
+
+- **Dashboard actions → Edit dashboard**: the menu opens on plain `.click()`; the
+  menu ITEM responds to a full synthetic pointer sequence
+  (`pointerover/enter/move/pointerdown/mousedown/pointerup/mouseup/click` with
+  clientX/Y at the item's center). Same recipe drives tile kebab → **Duplicate
+  tile**, filter-menu Edit, and edit-mode exit.
+- **Tile title rename sticks via native setter + `input` event** on the edit-mode
+  title input (then `blur` to commit) — contradicts the older "React rejects
+  synthetic onChange on the title input" note; no real click or `execCommand`
+  needed. Rename BEFORE dashboard Save; the did mints on Save
+  (`element-title-NNNNNN`).
+- **Duplicated tiles inherit the dashboard-filter "Tiles to update" mapping** from
+  the source tile — no re-mapping needed (verified: 193356 carried the 16-value
+  Product Name exclusion; Product QC stayed unmapped).
+- **⚠ Dashboard tiles do NOT render viz bodies while the pane is hidden** — every
+  tile card shows only its title (no table, no spinner, no error). Not a save
+  failure. The merge editor's Data table DOES render headless, so do data
+  verification there; on-tile visual QA needs the pane displayed.
+
 ### Custom measures: duplicate-and-repoint
 
 Fastest way to a new filtered measure (e.g. Min/Max Price with the sample-exclusion
@@ -804,6 +828,7 @@ Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff
 | Product Mix - Category | 193296 | **inventory single-source** (flipped 2026-08-20, stocked-only) |
 | Product Mix - Product Type | 193297 | **inventory single-source** (flipped 2026-08-20) |
 | Product Mix - Product Line | 193298 | **inventory single-source** (flipped 2026-08-20) |
+| Product Mix - PL + Variety | 193356 | inventory single-source (duplicated from 193298, 2026-08-21) — adds `Variety` custom dim (THC/Ratio, binary per Adam's spec: Ratio = `strain.type="CBD"` OR colon in `strain.name`; reads the strain view per mdm canon) |
 | Product Mix - Rollup (Sandbox) | 193334 | reference_data single-source |
 
 Editor URL pattern is the same: `https://leaflogix.looker.com/embed/merge/edit?did=<n>&dbnx=1`.
