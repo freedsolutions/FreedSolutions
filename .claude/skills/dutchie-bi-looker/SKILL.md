@@ -831,7 +831,7 @@ Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff
 | Product Mix - Product Type | 193297 | **inventory single-source** (flipped 2026-08-20) |
 | Product Mix - Product Line | 193298 | **inventory single-source** (flipped 2026-08-20) |
 | Product Mix - PL + Variety | 193356 | inventory single-source (duplicated from 193298, 2026-08-21) — adds `Variety` custom dim (THC/Ratio, binary per Adam's spec: Ratio = `strain.type="CBD"` OR colon in `strain.name`; reads the strain view per mdm canon) |
-| Product Mix - PL + Strain Type | 193357 | inventory single-source (duplicated from 193298, 2026-08-21) — adds native `strain.type` dim (OOTB S/H/I/SH/IH/CBD break-out, no custom formula) |
+| Product Mix - Product Line + Strain Type (renamed by Adam) | 193357 | inventory single-source (duplicated from 193298, 2026-08-21) — `Strain Type` custom dim COLLAPSES the OOTB types (Sativa-Hybrid→Sativa, Indica-Hybrid→Indica; native `strain.type` deselected same day) + hidden `Strain Type Sort` helper (S=1 H=2 I=3 THC=4 CBD=5; THC pre-built for Dutchie's effects fix), appended as 4th sort key ASC after Adam's Is Cannabis DESC / MC ASC / PL ASC |
 | Product Mix - Rollup (Sandbox) | 193334 | reference_data single-source |
 
 **⚠ Strain-view join is effectively INNER**: any query that references `strain.*`
