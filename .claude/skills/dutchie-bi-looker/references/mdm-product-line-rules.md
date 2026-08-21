@@ -259,7 +259,20 @@ the canonical entry keeps the bare name**. Canonical = typically first-created; 
 when the bare-name holder is retired-only and an active different-leaner arrives,
 rewrite history: the old holder takes the suffix and the active variant becomes the
 canonical bare (Watermelon [Indica] + Watermelon (H) [Hybrid, retired refs] — Adam
-ruling 2026-08-20). True abbreviations of existing entries
+ruling 2026-08-20).
+
+Two further naming conventions (Adam, 2026-08-20 late):
+
+- **" + " joins two UNIQUE strains co-packaged in one product** (dual disposables,
+  two-strain jars, dual rosin) — a joint entry named `Strain A + Strain B`, typed by
+  the blend (mixed leans → Hybrid): `Double Krush + Lilac Diesel`,
+  `Platinum Candy Pineapple + Guava Now n Later`. Distinct from **" x " = a genetic
+  cross** (one cultivar): `GSC x Thin Mint`. Known exception: `Mac + Cheese` is
+  Bountiful's brand spelling of a cross — brand-faithful, kept.
+- **Brand tier/line names get NAMED entries with type suffixes**, not generics:
+  Farnsworth `Bold (I)` / `Classic (H)` / `Light (S)` — SUPERSEDES the earlier
+  "subbrand tiers ride generic Blend" ruling. With this, NO smokable item rides a
+  bare generic; generics serve only the non-smokable side (plus THC/CBD). True abbreviations of existing entries
 collapse even when active (Trop Cherry → Tropicana Cherry; Candy Pineapple →
 Platinum Candy Pineapple, both Adam rulings) — contrast brand-distinct spellings,
 which stay.
