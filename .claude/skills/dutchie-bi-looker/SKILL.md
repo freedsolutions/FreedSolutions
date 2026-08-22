@@ -932,6 +932,21 @@ No `was_returned` filter (parity with R&V Q1; returns ≈ 0.2%).
   filters into dashboard filters — mapped ONLY to that first tile. Later tiles need
   each filter's Tiles-to-update → **All** → Update, or dashboard-level filter changes
   silently skip them.
+- **⚠⚠ The mapping "Update" button MUST be panel-scoped.** A global
+  `find(text==='Update')` matches the dashboard HEADER's Update button first (it
+  precedes the filter panel in DOM order) — the click is a silent no-op and the
+  mapping draft is discarded when the next panel opens. This shipped 28037 with
+  filters that only tile 1 listened to (caught by Adam's v1.5 margin review: "90d by
+  design but only MC tile listens"). Correct finder: the Update whose parent also
+  contains a Cancel button. **Commit signature: the filter panel CLOSES on a real
+  Update** — if it stays open, the click hit the wrong button.
+- **Merge tiles need per-query date mapping**: a date filter auto-maps only to the
+  query with the same field (Transactions). Map it manually to
+  `inventory_snapshot.snapshot_date` on the snapshot query (Tiles-to-update row
+  combobox — click it for REAL; typing while the row combobox lacks focus lands in
+  the top "Filter by" box, which can silently re-point the ENTIRE filter, and stray
+  keystrokes can rename a tile title behind the modal — both happened and needed
+  repair). Leave current-inventory queries "Do not filter".
 - **`sum(${measure})` column totals WORK in table calcs** (fair-share = share-of-rev ÷
   share-of-SKUs). Not in the confirmed-functions list before; now verified.
 - **⚠ Filter-panel synthetic-Enter trap**: while the Add-Filter field-search combobox
