@@ -889,15 +889,22 @@ reconciliation numbers: handoff doc §"MARGIN & DISCOUNT DASHBOARD BUILT".
 | Discount Programs | 193369 | transaction_item_discounts.name (own-grain) |
 | Brand Margin | 193370 | brand_name only × $ measures (Vendor dim removed 2026-08-22; was "Brand / Vendor Margin") |
 | PL Economics | 193371 | R&V PL merge + $ measures (from 187556 draft via Save-to-Dashboard) |
-| Vendor Margin | 193377 | **`Vendor Normalized` custom dim** × $ measures (added 2026-08-22) |
+| Vendor Margin | 193377 | normalized-vendor custom dim × $ measures (added 2026-08-22; **column renamed to "Vendor Name"** per Adam) |
 
-**Vendor Normalized is the canon vendor rollup** — harvested verbatim from Brand/Vendor
-QC 193272 (where it has lived since the relationship-QC work):
+**The canon vendor rollup** — harvested verbatim from Brand/Vendor QC 193272 (where it
+has lived since the relationship-QC work):
 `replace(replace(${products.Vendor_Name}," (P)","")," (C)","")` — collapses the (C)/(P)
-license-suffix pairs into one vendor. Ranking impact is real: HVV Massachusetts
-consolidates to #1 vendor ($112.9K YTD gross vs $82K as its largest single suffix row).
-**Remaining raw-vendor surface: 26549's Vendor & Brand pair (186807 / 187549)** still
-groups on raw `products.Vendor_Name` — normalize when next touched.
+license-suffix pairs into one vendor. On 193377 the custom dim is NAMED **"Vendor
+Name"** (renamed from "Vendor Normalized" 2026-08-22 — display preference; expression
+unchanged). Ranking impact is real: HVV Massachusetts consolidates to #1 vendor
+($112.9K YTD gross vs $82K as its largest single suffix row).
+**26549's Vendor & Brand pair (186807 / 187549) already carries its own normalization**
+— a merge-level calc `Vendor Name Short` =
+`if(position(${products.Vendor_Name}," (") > 0, substring(...,1,position(...)-1), ...)`
+(strips EVERYTHING from " (" onward — broader than the canon replace). Display-level
+only (the grain/join stays on raw Vendor_Name), and Adam is satisfied with it as-is —
+do NOT restructure without an ask. Note `position`/`substring` are usable in merge
+table calcs (not previously in the confirmed-function list).
 
 **Locked $ semantics (reconciled vs Dutchie canned exports, 2026-08-21)**:
 `transaction_items.total_price` = GROSS (tied to the penny); Net Sales = total_price
