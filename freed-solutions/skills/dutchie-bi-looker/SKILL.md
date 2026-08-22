@@ -263,7 +263,21 @@ if(coalesce(${products.Product_Size}, "") != ""
 
 `pack_count = to_number(replace(${products.Product_Size}, "pk", ""))` parses "5pk" → 5. The `>0` guard prevents division-by-zero on malformed Product_Size (returns null from to_number → falls back to plain `(Npk)` format).
 
-### Sunday-exclusion methodology
+### Sunday-exclusion methodology (RETIRED 2026-08-22 — store now open Sundays)
+
+**HSCG reopened Sundays; `Operating Days In Stock = ${days_in_stock}` (plain) is live
+on all 10 merges** (26549's 9 incl. A-Items + PL Economics 193371 on 28037). The
+proportional 6/7 formula below is kept for reference / other single-store tenants.
+Same day, the 28-day window became adjustable: **"Sales Window" dashboard filter on
+26549** (Advanced date control, default "is in the last 28 days") mapped to every
+tile's `transactions.transaction_date` AND to `inventory_snapshot.snapshot_date` on
+all 9 merges — map BOTH or velocity math goes window-inconsistent. The /28 literals
+were replaced window-aware: `In Stock % = ${days_in_stock} / max(${days_in_stock})`
+and No Sales % likewise (**`max()` column-aggregate works in merge calcs**, like
+`sum()`). The filter-value popover commits on close (click outside), not on Enter.
+The dashboard's text tile still hardcodes "28-Day Sales Look Back" — Adam to reword.
+
+### Sunday-exclusion methodology (historical)
 
 HSCG (and similar single-store retailers) may be closed Sundays while the Inventory Snapshot writes a row every calendar day. Days In Stock then over-counts by the # of Sundays in the window — inflating the Daily Avg Sales denominator and understating procurement signals (OTB-21) by ~1/7.
 
