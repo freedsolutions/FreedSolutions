@@ -889,8 +889,17 @@ reconciliation numbers: handoff doc §"MARGIN & DISCOUNT DASHBOARD BUILT".
 |---|---|---|
 | Margin by Master Category | 193368 | MC × $ measures + Fair Share Index |
 | Discount Programs | 193369 | transaction_item_discounts.name (own-grain) |
-| Brand / Vendor Margin | 193370 | Vendor + Brand × $ measures |
+| Brand Margin | 193370 | brand_name only × $ measures (Vendor dim removed 2026-08-22; was "Brand / Vendor Margin") |
 | PL Economics | 193371 | R&V PL merge + $ measures (from 187556 draft via Save-to-Dashboard) |
+| Vendor Margin | 193377 | **`Vendor Normalized` custom dim** × $ measures (added 2026-08-22) |
+
+**Vendor Normalized is the canon vendor rollup** — harvested verbatim from Brand/Vendor
+QC 193272 (where it has lived since the relationship-QC work):
+`replace(replace(${products.Vendor_Name}," (P)","")," (C)","")` — collapses the (C)/(P)
+license-suffix pairs into one vendor. Ranking impact is real: HVV Massachusetts
+consolidates to #1 vendor ($112.9K YTD gross vs $82K as its largest single suffix row).
+**Remaining raw-vendor surface: 26549's Vendor & Brand pair (186807 / 187549)** still
+groups on raw `products.Vendor_Name` — normalize when next touched.
 
 **Locked $ semantics (reconciled vs Dutchie canned exports, 2026-08-21)**:
 `transaction_items.total_price` = GROSS (tied to the penny); Net Sales = total_price
