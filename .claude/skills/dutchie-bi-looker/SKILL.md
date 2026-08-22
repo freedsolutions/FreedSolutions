@@ -267,9 +267,22 @@ if(coalesce(${products.Product_Size}, "") != ""
 
 ### Sunday-exclusion methodology (RETIRED 2026-08-22 — store now open Sundays)
 
-**HSCG reopened Sundays; `Operating Days In Stock = ${days_in_stock}` (plain) is live
-on all 10 merges** (26549's 9 incl. A-Items + PL Economics 193371 on 28037). The
-proportional 6/7 formula below is kept for reference / other single-store tenants.
+**HSCG reopened Sundays. SUPERSEDED SAME DAY by the ADAPTIVE formula (Adam's
+insight: "if there are no retail sales on a day, it can be safely factored out") —
+live on all 10 merges** (26549's 9 incl. A-Items + PL Economics 193371 on 28037):
+
+```
+Operating Days In Stock =
+  round(${days_in_stock} * max(${count_of_transaction_date}) / max(${days_in_stock}), 0)
+```
+
+`max(count_of_transaction_date)` = days the STORE transacted in the window (the
+busiest row sells every open day — verified: top rows show 28/28); `max(days_in_stock)`
+= window length. Ratio = 1 on current 7-day weeks (numbers identical to plain
+days_in_stock), ≈6/7 automatically on windows spanning the closed-Sundays era, and
+any ad-hoc closure (holiday, snow day) is excluded with zero maintenance. Works at
+any Sales Window setting. The proportional 6/7 formula below is retired — kept only
+for reference on tenants without this pattern.
 Same day, the 28-day window became adjustable: **"Sales Window" dashboard filter on
 26549** (Advanced date control, default "is in the last 28 days") mapped to every
 tile's `transactions.transaction_date` AND to `inventory_snapshot.snapshot_date` on
@@ -277,7 +290,17 @@ all 9 merges — map BOTH or velocity math goes window-inconsistent. The /28 lit
 were replaced window-aware: `In Stock % = ${days_in_stock} / max(${days_in_stock})`
 and No Sales % likewise (**`max()` column-aggregate works in merge calcs**, like
 `sum()`). The filter-value popover commits on close (click outside), not on Enter.
-The dashboard's text tile still hardcodes "28-Day Sales Look Back" — Adam to reword.
+The header text tile subtitle now reads "Sales Look Back = Sales Window Filter
+(default 28 days)" (updated 2026-08-22).
+
+**Text/bumper tile mechanics (2026-08-22)**: the dashboard Add menu has TWO text
+options — **Add → Markdown** opens the classic Title / Subtitle / Body dialog (the
+R&V header style; body `---` renders a rule; native-setter friendly) — USE THIS for
+headers/bumpers. **Add → Text** creates the newer inline RICH-TEXT tile that does
+NOT parse markdown (`##` renders literally) — avoid. New tiles land at the BOTTOM of
+the grid; repositioning is drag-only (left to Adam). Header+bumper sets added to
+28006 (header + "QC Queues" + "Product Mix") and 28037 (header + "Category & Product
+Economics" + "Discounts, Brands & Vendors") for consistency with 26549.
 
 ### Sunday-exclusion methodology (historical)
 
