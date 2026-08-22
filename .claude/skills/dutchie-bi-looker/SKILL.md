@@ -925,6 +925,92 @@ Category is-not Accessory,Merch (replaces Is Cannabis=true so CBD shows — Adam
 
 Merge mids rotate every save — don't memorize. Look up current mid via "Edit Merged Query" or read the dashboard YAML if needed.
 
+## Reference IDs (HSCG / Dashboard 28041 "Menu Rationalization (80/20)")
+
+Built 2026-08-22 per `clients/primitiv/rationalization-dashboard-kickoff-2026-08-22.md`
+(as-built notes there). Serves the monthly bottom-20%-by-MC cut workflow; dispositions
+live in the rationalization workbook, never on the dashboard.
+
+| Tile | element id | Source (duplicated from) |
+|---|---|---|
+| MC Fair-Share (Margin by Master Category) | 193387 | 28037's 193368 via Explore-from-here → Save as new dashboard |
+| Bottom PLs by MC (80/20) | 193388 | 193371 draft + 4 ranking calcs, Save-to-Dashboard |
+| PL Economics Quadrant (CUT / PROMO / TERMS / PROTECT) | 193389 | same draft + Disposition calc |
+| Bottom SKUs by MC (80/20) | 193390 | 187542 draft + $ measures on Q1 + 8 calcs |
+| Coverage Guard - PL + Strain Type | 193391 | 28006's 193357, unmodified |
+| Coverage Guard - PL + Variety | 193392 | 28006's 193356, unmodified |
+| Depth-Up Feeder (A-Items Thin or Out) | 193393 | 193374 draft, `day_at_risk` broadened |
+
+Ranking calcs (Bottom PLs/SKUs): `% of MC Net` = `coalesce(${net_sales},0) / sum(${net_sales})`
+(coalesce matters — null-sales inventory rows poison running_total and the flags go ∅);
+`Cum % of MC Net` = `running_total(${of_mc_net})` (**running_total works in merge calcs**);
+`BOTTOM20` = cum ≤ 0.2; `LOW TRIAL` = in_stock < 0.6. Sort = single key Net Sales ASC —
+cum math is EXACT when the MC filter is set to one Master Category (the documented
+workflow); unfiltered it reads storewide. Multi-key sort append refused via every
+scripted path (synthetic shiftKey, Shift+Enter, real shift-click); Adam can shift-click
+manually if he wants MC-grouped display.
+`Disposition` = LOW TRIAL → WATCH; BOTTOM20 → margin fork (<50% CUT / ≥55% PROMO-MERCH /
+else REVIEW); not-bottom → <50% TERMS else PROTECT.
+Depth-Up `day_at_risk` = `if(daily_avg >= 0.8 AND (in_stock < 0.6 OR coalesce(DOH,0) < 14),
+round(net / if(operating>0, operating, 1), 0), 0)` — **table-calc branches evaluate
+EAGERLY: a division that can hit /0 in the true branch ERRORs every row even when the
+condition guards it.** Denominator-guard inside the branch, and coalesce every input.
+
+Filters (all mapped, panel-committed): Lsp Name / Is Sandbox / Is Void / Type (baseline,
+auto-promoted, tile-1-scoped — merge tiles carry these inside their source queries);
+Transaction Date default `90 days ago for 90 days` mapped to ALL 4 merge tiles as
+"Apply to merged results" with Q1 transaction_date + Q3 **snapshot_date** (inventory Q2
+"Do not filter"; Coverage Guards unmapped — current-state mix tiles); Master Category
+`is not Merch or Accessory`; Brand Name any; Product Name doesn't-start-with the 12
+sample values. **"min In-Stock %" from the design spec is NOT implementable** — merge
+table calcs are not filterable (the Filterable ❌ row above); the LOW TRIAL flag column
+serves that purpose.
+
+### 28041-build automation learnings (2026-08-22, Claude-Browser pane)
+
+- **NEVER `$ctrl.setSorts()` with plain objects** — Looker's sorts collection is a class
+  instance; plain objects crash every later digest (`this.sorts.sortFieldType is not a
+  function`) and the whole app blanks. This wiped the editor 3× before diagnosis. Sort
+  via synthetic `.click()` on the `.sorting` div only (numeric: click twice for ASC).
+- **`computer` coordinates are in the SCREENSHOT frame** — at the 746×790 pane that is
+  CSS px × 1.0724. Any `getBoundingClientRect()` coordinate must be scaled before a
+  `computer` click, and the screenshot cache invalidates on page mutation (re-screenshot
+  or a coordinate click throws). Un-scaled clicks landed on Add-calculation, tile-title
+  inputs (typed text splices into titles — check `input.value` for concatenation damage
+  after any stray typing), and the dashboard-title-vs-tile-title trap (both are inputs
+  with the same value in edit mode; dashboard title sits higher in the DOM).
+- **Merge editor gear → keyboard shortcut `Shift+Ctrl+A` opens "Save to Dashboard"**
+  without needing real clicks on gear menu items. The dialog is the OLD-style
+  "Add to a Dashboard in this folder": tree path Shared → High Street Cannabis Group →
+  child row with parent class `child-space` (three same-text "Shared" nodes; the
+  quick-nav one bounces you back to root). Set Title AFTER the tree navigation. Saving
+  a DIRTY DRAFT to another dashboard leaves the source tile untouched — this is the
+  duplicate-across-dashboards pattern (bottom-right Save would overwrite the source).
+- **Filter "Tiles to update" panel**: merge tiles take mode "Apply to merged results",
+  which expands per-source-query sub-rows — map Q1 transaction_date (auto), snapshot
+  query to Snapshot Date, leave current-inventory "Do not filter". In the field tree,
+  **groups are DIVs with aria-expanded, leaves are LI/BUTTONs; only a LEAF click commits
+  (the dropdown closing itself is the commit signature — click-outside REVERTS)**. The
+  dimension-group "Snapshot Date" contains a same-named leaf; click the LAST exact-text
+  match. Rows below the panel fold: wheel-scroll the panel first or the click falls
+  through to the dashboard behind it.
+- **The "Fields to Filter: All" link maps every tile (incl. per-query merge rows) in one
+  click** when the field lives on the products view — used for Master Category / Brand
+  Name / Product Name. Only the date filter needs the manual per-query grind.
+- **Advanced-control default values**: the match-type combobox REVERTS free-typed text
+  (Escape/click-outside restore the old token); you must SELECT a match type from its
+  list ("matches (advanced)" for date expressions like `90 days ago for 90 days`,
+  "is not"/"doesn't start with" for strings), then type values in the value box — comma
+  commits each chip. ⚠ Leftover typeahead text can MERGE into a malformed chip on
+  Add/Done (got `AccessoryMerch` — the filter silently didn't exclude Accessory):
+  re-open the chip popover and verify every chip after creating a filter. Suggestion
+  checkboxes toggle via their LABEL text, not the checkbox square; the suggestion list
+  is NOT tenant-scoped (other tenants' values appear — never select those).
+- Save-as-new-dashboard from an explore (modern dialog) + Explore-from-here URL (carries
+  the tile's full qid incl. table calcs) is still the cleanest greenfield path — the
+  Explore-from-here menu item's href can be read from the DOM and navigated directly,
+  no menu click needed.
+
 ## Reference IDs (HSCG / Dashboard 28037 "Margin & Discount")
 
 Built 2026-08-21 (greenfield, fully scripted incl. dashboard creation); economics
