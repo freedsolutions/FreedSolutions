@@ -291,6 +291,15 @@ and No Sales % likewise (**`max()` column-aggregate works in merge calcs**, like
 The header text tile subtitle now reads "Sales Look Back = Sales Window Filter
 (default 28 days)" (updated 2026-08-22).
 
+**Complete-days windows (2026-08-22)**: the reporting DB updates INTRADAY (a Daily
+Sales today-column changed values between two same-morning reads — the old
+"nightly sync" note is stale), so "is in the last N days" includes a PARTIAL today
+that dilutes velocity and drifts all day. House standard: date-filter defaults use
+the expression **`N days ago for N days`** (via match-type "matches (advanced)";
+Looker renders the chip as "is in the last N complete days"). Applied to 26549
+Sales Window (28) and 28037 Transaction Date (90). Note "is previous" is unit-only
+(previous day/week/month — no count) — not usable for N-day windows.
+
 **Text/bumper tile mechanics (2026-08-22)**: the dashboard Add menu has TWO text
 options — **Add → Markdown** opens the classic Title / Subtitle / Body dialog (the
 R&V header style; body `---` renders a rule; native-setter friendly) — USE THIS for
