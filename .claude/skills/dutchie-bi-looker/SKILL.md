@@ -1011,6 +1011,31 @@ serves that purpose.
   Explore-from-here menu item's href can be read from the DOM and navigated directly,
   no menu click needed.
 
+### 28041 QC findings (2026-08-23, Adam's Wyld check)
+
+- **⚠⚠ `running_total`-based flags are SORT-FRAGILE for viewers.** Any header click on
+  a dashboard table re-sorts the query and table calcs recompute over the NEW row
+  order — a Sales/Day or Net DESC sort makes cumulative-% start at the biggest rows,
+  so a `cum <= 0.2` flag (BOTTOM20) stamps the TOP performers. Reproduced: Wyld Gummy,
+  the #1 PL storewide (cum 100% at the saved Net-ASC sort), showed cum 8.5% + BOTTOM20
+  after one velocity-sort click. There is no order-independent cumulative in merge
+  calcs (no conditional sums, no rank) — the mitigation is procedural: read
+  running_total flags only at the tile's saved sort; a reload discards viewer sorts.
+  Design rule going forward: name such flags/tiles so the sort dependency is visible,
+  or avoid cum-flags on tiles viewers will explore by sorting.
+- **Filter-bar chip edits do NOT fix the filter's configured DEFAULT.** Repairing a
+  malformed chip on the bar in edit mode (pre-Save) changes the current value only;
+  the default set in the Add/Edit Filter panel is what fresh loads re-apply. The
+  `AccessoryMerch` merged-chip defect survived in the DEFAULT and resurfaced next
+  session — fix defaults in the panel (Settings → Configure default value chips),
+  Update, Save. Post-save same-session verification can LIE for this class of bug:
+  verify defaults with a fresh reload.
+- Dashboard tables are ag-grid: rows via `.ag-row[row-index]` (both a dims row and a
+  measures row share each index), vertical scroll = `.ag-body-viewport`, horizontal =
+  `.ag-center-cols-viewport` (columns virtualize — scroll right or offscreen cells
+  are absent from innerText), headers = `.ag-header-cell`. Viewer sort = real click
+  on the header label.
+
 ## Reference IDs (HSCG / Dashboard 28037 "Margin & Discount")
 
 Built 2026-08-21 (greenfield, fully scripted incl. dashboard creation); economics
