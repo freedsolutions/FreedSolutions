@@ -1019,10 +1019,23 @@ serves that purpose.
   so a `cum <= 0.2` flag (BOTTOM20) stamps the TOP performers. Reproduced: Wyld Gummy,
   the #1 PL storewide (cum 100% at the saved Net-ASC sort), showed cum 8.5% + BOTTOM20
   after one velocity-sort click. There is no order-independent cumulative in merge
-  calcs (no conditional sums, no rank) — the mitigation is procedural: read
-  running_total flags only at the tile's saved sort; a reload discards viewer sorts.
-  Design rule going forward: name such flags/tiles so the sort dependency is visible,
-  or avoid cum-flags on tiles viewers will explore by sorting.
+  calcs (no conditional sums, no rank) — **the fix is a SORT GUARD (deployed to
+  193388/193389/193390 on 2026-08-23)**: hidden calc
+  `Sort Guard = if(coalesce(offset(${net_sales}, -1), -999999999) > coalesce(${net_sales}, 0), 1, 0)`
+  (per-row order-violation indicator; the first row's null offset coalesces to
+  -bignum; null NET values coalesce to 0 — safe because Looker's table-calc sort
+  places nulls FIRST ascending). Then every order-dependent calc self-disables:
+  `Cum = if(sum(${sort_guard}) = 0, running_total(${of_mc_net}), null)` and
+  `BOTTOM20 = if(sum(${sort_guard}) > 0, "RE-SORTED (reload)", if(${cum} <= 0.2, "BOTTOM20", ""))`
+  (Disposition on 193389 wrapped the same way; % of MC Net coalesced on 193388/193389
+  for null-row parity). `sum()` over an offset-dependent calc works. A re-sorted tile
+  now prints "RE-SORTED (reload)" on every row instead of lying; reload restores the
+  saved sort and normal flags. Verified both states in-editor (flip the draft's sort →
+  Run → check → navigate away WITHOUT saving to discard). Rebuild path: DELETE the
+  dependent calcs (deepest-dependent first: disposition → bottom20 → cum → %) and
+  re-ADD via __addCalc — far more reliable than in-place ace edits; slugs regenerate
+  identically when names are unchanged. Reusable pattern for ANY running_total-based
+  flag on a viewer-facing tile.
 - **Filter-bar chip edits do NOT fix the filter's configured DEFAULT.** Repairing a
   malformed chip on the bar in edit mode (pre-Save) changes the current value only;
   the default set in the Add/Edit Filter panel is what fresh loads re-apply. The
