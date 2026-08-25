@@ -1049,6 +1049,35 @@ serves that purpose.
   are absent from innerText), headers = `.ag-header-cell`. Viewer sort = real click
   on the header label.
 
+### Pool-only tiles via yesno row-hiding (2026-08-24)
+
+- **"Hide No's from visualization" WORKS on merge-level yesno table calcs** — the
+  clean way to make a ranking tile display only its flagged rows while the full
+  distribution keeps computing underneath (cum math unchanged; hidden rows still
+  feed running_total/sum). Pattern on 193388/193390: `In Pool` =
+  `${bottom20} = "BOTTOM20" OR sum(${sort_guard}) > 0` → column menu → Hide No's.
+  The guard clause makes a re-sorted tile show ALL rows (labeled RE-SORTED) instead
+  of a wrong subset. On 193393: `In Queue` = `${day_at_risk} > 0`. Note: while
+  Hide-No's is active, the calc's "Hide this field from visualization" item
+  disappears — the filtering column must stay visible (it reads "Yes" on every
+  shown row; acceptable). 
+- **Merge-editor synthetic `.click()` DEGRADED this session** — Add-calculation /
+  Run / Save buttons needed the full pointer-event sequence
+  (pointerover→…→click); bare `.click()` silently no-ops. Use the pointer sequence
+  for ALL merge-editor buttons now. Data-table reads RACE the render after Run:
+  tbody rows can appear in stale/mixed order (cum non-monotonic = your read is
+  stale, NOT a sort bug — the guard staying quiet confirms) — wait ~20s or re-read
+  until cum ascends before concluding anything.
+- **The Add/Edit-Filter panel's default-value CHIP INPUT resists every scripted
+  path** (native setter+input, +Enter, React onKeyDown with fake event,
+  comma-in-value, and real `computer` typing after a real click all failed to
+  commit chips on the doesn't-start-with control; the same control accepted real
+  typing on 2026-08-22 — flaky, possibly focus/portal-related). Budget for handing
+  chip edits to Adam when it resists; the panel is otherwise harmless to leave
+  open (Cancel discards). Also: `computer` coordinate scale is
+  screenshot_width / window.innerWidth and CHANGES when the pane is
+  resized/displayed — recompute per screenshot, never reuse a cached ratio.
+
 ## Reference IDs (HSCG / Dashboard 28037 "Margin & Discount")
 
 Built 2026-08-21 (greenfield, fully scripted incl. dashboard creation); economics
