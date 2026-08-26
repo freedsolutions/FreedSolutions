@@ -1295,6 +1295,97 @@ the same 12 values. **History**: 4 Promo prefixes (`(Promo)`, `(PROMO)`, `Promo`
 stay in the datasets; the Is Promo QC dim on Product QC is unaffected. Consequence to
 expect: promo-priced items re-enter Min Price / Price Range and mix counts.
 
+## Backoffice Internal REST API + Global Brand Catalog QC (2026-08-24/25)
+
+The Backoffice UI runs on an internal REST layer far richer than the documented POS API
+(spec at `api.pos.dutchie.com/swagger/v001/swagger.json` — 101 product fields vs 153
+internal, 65 undocumented). Read/QC surface only — writes stay on the proven UI runners.
+Full field diff + first QC run: `clients/primitiv/hscg-dutchie-internal-api-catalog-2026-08-24.md`
+(local-only).
+
+### Access pattern
+
+- Every product-master call POSTs a 5-field **session context** body:
+  `{SessionId, LspId, LocId, OrgId, UserId}`. Harvest it once by hooking
+  `XMLHttpRequest.prototype.send` (the app is axios/XHR — fetch-hooks see nothing) and
+  soft-navigating (anchor `.click()` = SPA route change; `history.pushState` does NOT
+  remount). **SessionId persists across pane close/reopen** — hardcoded-ctx `fetch()`
+  replays keep working all day.
+- Key endpoints: `POST /api/product-master/get-product-master-v2` (full active grid, body
+  = bare ctx) · `get-product-details-v2` (+`ProductId`) · `/api/v2/brands-catalog/
+  batch-catalog-products` (`{...ctx, BrandCatalogProductIds: [ids]}`, max 1000) ·
+  `get-catalog-product` (`BrandCatalogProductId`) · `search-catalog-products`
+  (`{...ctx, SearchTerm}` — returns ACTIVE records only, like the link-picker UI) ·
+  `/api/brand/get-brands` (`BrandCatalogBrandId` = the Brand→Global Brand link) ·
+  `/api/strain/get-strains`. Wrong body key → downstream validator sees nil (422
+  "type?(Array, nil)"); raw-array body → .NET proxy NPE.
+- Constraints (MDM Inventory-Attribute session, 2026-08-25): **~60 req/min rate limit**,
+  search-index lag after writes, session expiry mid-run. ⚠ **Mojibake**: the API
+  double-encodes accents (`Pink RosÃ©`) while CSV exports don't — name joins across
+  sources false-positive on every accented name; normalize before comparing.
+
+### The `library_products` (Global Brand Catalog) object
+
+Fully undocumented; the D6 "verify against the brand" rule as a queryable field:
+
+- **`name` = the brand's own canonical product naming** (pipe-delimited, per-unit dosed);
+  `suggestedWeightGrams/PackSize/DosageMg/CannabinoidRatio` = brand-authoritative config;
+  `status` (Active/**Archived**), `updatedByBrand`, `connectedCount` (how many retailers
+  link it), `stateLibrary`, effects/terpenes/cannabinoids, wholesale fields.
+- **Archived is INVISIBLE in the Backoffice UI** — linked items show no badge, the picker
+  search returns Active-only, and the link keeps serving frozen content. Dutchie's global
+  dedup (~2026-03) archived losers and stranded tenants on them (Hula Berry: archived
+  record conn=1 = the tenant itself; Active twin conn=17). **After unlink→relink,
+  `BrandCatalogProductId` updates but `LibraryProductId` keeps the OLD id** — and
+  `libraryProductId` is what the documented public API exposes (external consumers see
+  stale links). The Catalog CSV export's "Brand catalog product" column follows the NEW
+  link.
+- **Reference, not canon** (Adam ruling): dose/pack fields vary per record —
+  `suggestedWeightGrams` on Rove/Nimbus MULTIPACK records = per-unit ÷ pack count (a
+  record-creation formula bug: 5×0.6g → 0.12; singles are clean grams); sps sometimes
+  reflects other-state pack versions (DI "candy" records say 20 vs MA 10-piece product);
+  count attributes exist on only ~17% of records (0% of vaporizers). One swg=75 mg-in-g
+  typo observed.
+
+### The Brand-Catalog QC backbone (bc_qc pattern)
+
+Join local (grid + export) to global (batch fetch) on SKU and flag by class — the
+backbone for attribute + naming-convention QC:
+
+- `ARCHIVED_LINK` — actionable when an Active same-name record exists (search per item;
+  auto-match by format/flavor tokens: RTU↔"(Ready-To-Use)", Reload↔"(Reload)",
+  per-flavor Levia records). Saves-do-commit hazard below.
+- `BRAND_DIFF` / `BRAND_STYLE` — local Brand attr vs global brandName (styling class
+  drove the LEVIA / The TANK / THEORYb adoptions).
+- `TYPE_DIFF` / `TYPE_SOFT` — strain-type conflicts; SOFT = local SH/IH vs global's
+  coarser Hybrid. Global ratio TYPES ("2 to 1") never match by design — local avoids
+  ratio Types (effect buckets instead); permanent no-action class.
+- **Dose verification hierarchy (order matters)**: (1) parse the global record's NAME —
+  formats `Nx W.Wg` (Rove), `W.Wg … (N pack)` (Nimbus), bare `[.75g]` single incl.
+  per-unit × local-name-pack (Flight Pack) — the name is brand-printed truth and beats
+  the buggy weight fields; (2) weight/mg fields vs local grams incl. per-unit×sps
+  interpretations; (3) `NO_REF_COUNT` when the global weight ÷ local per-unit = clean
+  integer pack ≤24 (count merely absent); (4) `NO_REF_DOSE` info class. ⚠ A heredoc
+  `\\b` once embedded a literal backspace (\x08) in the regex — silently never matched;
+  `repr()` the line in-file when a working regex fails; prefer ASCII classes
+  (`[0-9]`, `(?![A-Za-z])`) over backslash escapes in generated code.
+- `PACK_DIFF` — reference-only (pieces ruling: pack = physical consumable pieces; a
+  score line does not split a piece; sub-packaging never counts).
+
+### Save-to-Dashboard duplicate hazard (standalone merge builder)
+
+The old Angular "Add to a Dashboard in this folder" dialog (gear / Shift+Ctrl+A):
+**saves COMMIT server-side even when the dialog stays open with console
+`Cannot read properties of null (reading 'model')`** — check the target dashboard for
+landed tiles BEFORE retrying (planted duplicates twice). The title input is
+ngModel-revert class; full-synthetic fix: `angular.reloadWithDebugInfo()` (the merge
+draft survives via the `?mid=` URL), reopen the dialog, then
+`ngModel.$setViewValue(...)` + `addToDashboardFormController.save()` inside `$apply`.
+Standalone-builder notes: "Add Query" = `span[ng-click="$ctrl.addQuery()"]` in
+`.merge-sidebar-footer` — its click opens the picker as IFRAME `editQueryDialogId1`
+(`/embed/explore/pick`); check iframe presence, not `[role=dialog]`. Looker auto-created
+the cross-named `strain.name = products.strain_name` merge rule.
+
 ## House Style Notes
 
 - Calc names use Title Case with spaces ("Daily Avg Sales", "Operating Days In Stock"), not snake_case. They display as-is in column headers.
