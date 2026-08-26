@@ -1160,6 +1160,107 @@ No `was_returned` filter (parity with R&V Q1; returns ≈ 0.2%).
 
 Built 2026-08-17/18; handoff detail in `clients/primitiv/hscg-catalog-qc-handoff.md`.
 
+**BREAKOUT 2026-08-25 (Adam)**: the Product Mix tiles were moved OFF 28006 into the
+new **`_Product Mix Sandbox`** dashboard (HSCG Shared folder; `_In-Progress` and
+`_BI Template` dashboards also new there). 28006 is now **QC-only, 4 tiles**:
+Product QC 193267 / Brand/Vendor QC 193272 / Strain QC - Orphan Entries 193835
+(duplicate 193836 deleted 2026-08-25; both inner Row Limits bumped 500→5000 —
+⚠⚠ **real typing into Row Limit is NOT enough: the Angular ngModel commits on
+BLUR.** Type, then Tab (or click elsewhere IN the iframe), then verify
+`angular.element(inp).controller('ngModel').$modelValue` === the new value before
+the inner Save — a save without the blur silently reverts to the old limit (Q2
+shipped at 500 this way; the truncated top-500-by-count Q2 made ~405 low-count
+strains FALSE orphans, queue read 465 instead of 58). Residual 58 queue = SOFT-
+DELETE GHOSTS (Backoffice-deleted strains persist in the Looker strain view — no
+deleted flag among its 6 fields; Zaza Grizz proven absent live, Hybrid Blend/GDP/
+G-13/Mellon Baller/Apocalypto. all Adam's own deletions) + the undeletable
+No Strain row; a queue row is actionable ONLY if the name still exists on the
+Backoffice strains screen. **v2 2026-08-25 (Adam's rulings)**: two-class queue —
+`Status` = ORPHAN (zero refs anywhere → kill) vs RETIRED-ONLY (refs only on
+retired items → strain-record delete candidate); Q2 gained custom measure
+`Active Refs` = Count-distinct Product ID w/ measure-filter Is Retired = No;
+`In Queue` w/ Hide-No's replaces the old Orphan calc — **display simplified same
+day (Adam: too many rows): `In Queue` = `${status} = "ORPHAN"` → tile shows the
+57 ORPHAN rows only; RETIRED-ONLY (~471, strain-record delete candidates per his
+ruling) still computes in Status but is hidden — re-widen by flipping In Queue
+back to `!= ""`**; **No Strain excluded via hardened Q1 filter `strain.name is
+not "No Strain"`** (undeletable system row; chips survive is→is-not operator
+swap). Backoffice-presence check applies before killing any queue row — ghosts
+dominate the ORPHAN set. Custom-measure dialog: field/type
+comboboxes need REAL clicks; input VALUES are invisible to dialog innerText —
+verify via input.value, not text matching) / **Infused Flower QC - FL EQ Composition 193866** (added 2026-08-25: plain
+reference_data query, MC = Infused Flower, custom dims `Implied Concentrate (g)` =
+`round((FE − grams)/4.6, 2)` and `Concentrate %` = `(FE − grams)/4.6/grams` with
+**native Percent(0) value format** — the custom-dim dialog HAS a format dropdown
+(Percent keeps the column numeric/sortable; no concat-string needed); sort =
+Concentrate % DESC; NOT mapped to the Product Name filter — **new tiles are not
+auto-mapped to dashboard filters**) / **PL QC - No Inventory (Archive Candidates)
+193869** (added 2026-08-25, the forgotten strain-orphan sibling: merge — Q1
+reference_data spine MC + Product Line custom dim + products.count, filters
+lsp/sandbox-No/retired-No; Q2 inventory explore Product Line + inventory.
+total_quantity, same 3 filters — Looker AUTO-paired the same-named custom-dim
+merge rule; calcs `On-Hand Qty` = coalesce(${inventory.total_quantity},0) +
+`No Inventory` = ${on_hand_qty}=0 with Hide-No's; raw qty column hidden; sort PL
+ASC — string sort ALSO defaults DESC on first click, click twice for ASC. The full
+PL chain (pack_count 2041 chars / dosage_label / per_unit_dosage / product_line)
+was fiber-harvested from 193267 Q1 and recreated verbatim in both queries — all
+products.* refs so it ports across explores. Baseline: 180 active PLs, 66 in the
+no-inventory queue). Product Mix rows below kept for the tile ids
+(they now live on _Product Mix Sandbox).
+
+**FL EQ interim rules (2026-08-25, removable if the business hardens)**: rule #18
+`FL_EQ_RANGE` in 193267 qc_fails/qc_flags — Infused Flower implied concentrate
+outside 10–50%, divisionless form `FE < g*1.46 OR FE > g*3.3` (pct bounds ×
+grams; catches 5: Khalifa ×2 at 0%, Nimbus bud ×2 at 6%, Rove Watermelon 148%);
++ tile **"Infused Flower QC - PL Consistency" 193876** (PL-grain plain query:
+Min/Max custom measures OVER the `FL EQ Ratio` custom dim, table calc
+`max - min > 0.005` w/ Hide-No's — ⚠ epsilon REQUIRED, plain `max > min`
+false-flags on float dust below display precision; catches 3 of 12 PLs: Rove 1g
+2.61→7.83, Jeeter 1g 1.93→1.96, U4ea 1g 1.92→1.93). Within-PL checks can NEVER
+live inside qc_fails/qc_flags — row-scoped SQL dims can't see PL siblings; a
+grain-level companion tile is the pattern. Strain QC tile 193835 was REMOVED
+from 28006 by Adam (one-time QC, revisit later — the mid still exists);
+193869 renamed "PL QC - No Inventory (Discontinue Candidates)".
+**+ tile "Strain QC - Mixed PLs (Generic vs Named)" 193882** (2026-08-25,
+consistency-not-hardened per Adam): flags PLs mixing generic strain entries
+(exact Hybrid/Indica/Sativa/CBD/THC or STARTS-with-ratio names — digit-prefix
+sentinels + colon; never contains-colon alone) with named entries; Strain Style
+dim 1/0/null + Min/Max/Sum measures + `min=0 AND max=1` Hide-No's; baseline
+140 cannabis PLs → 2 mixed (DI Rosin Gummy deliberate LE mix, LEVIA Seltzer).
+**Build shortcut: the tile-kebab "Explore from here" menu item's href is
+readable from the DOM in VIEWER mode** (…/embed/explore/...?qid=…) — navigate
+it directly to inherit an existing tile's full query (custom dims, filters,
+sorts) as the seed for a new tile; far cheaper than recreating the PL chain.
+**+ tile "Inventory QC - Attribute Drift (Pkg vs Catalog)" 193884** (2026-08-25):
+single-source INVENTORY explore (products+inventory views together → cross-view
+compares in filterable query-level custom dims); `Drift Fails`/`Drift Flags`
+dims flag STRAIN/GRAMS/FLEQ/PRICE_DRIFT, filter Fails > 0, Row Limit 5000.
+**Verified semantics**: inventory.strain_name = BATCH strain;
+inventory.product_grams & .flower_equivalent = PACKAGE TOTALS (qty × per-unit —
+resolves the old "different semantics 119/50/120" warning; compare via
+products.X × inventory.quantity, 1% relative + 0.001 absolute tolerance, no
+abs/division); inventory.unit_price = direct ±0.001. ⚠ Accessories carry
+literal "No Strain" batch placeholder vs NULL catalog strain — normalize
+"No Strain"→"" both sides or ~43 noise rows. Numeric custom-dim query filters
+work (operator dropdown has "is >"). Baseline 15 → 10 (CBD FLEQ rows = SYSTEM-DERIVED noise: inventory FE
+auto-populates as qty × grams when catalog FE null — FLEQ term gated on
+catalog FE > 0; Rove row direction: PACKAGE is right, CATALOG holds 7.83).
+Per-unit display dims `Pkg Unit Grams`/`Pkg Unit FL EQ` = pkg total ÷ qty.
+**Tile renamed by Adam "Inventory QC - Location & Package Level Drift" + 4
+LOCATION terms added (2026-08-25)**: Location_Price/Location_Cost are
+OVERRIDE-STYLE (null unless set → LOC_PRICE_SET/LOC_COST_SET = coalesce≠0,
+any value = mistake at a single-location op); Location_Rec_Price = resolved
+copy (LOC_REC_PRICE_DRIFT = set AND ≠ Rec_Unit_Price); ECOM_DRIFT = products
+vs inventory is_available_online bare `!=` (boolean-backed string — NEVER
+coalesce it). All four = standing tripwires (zero today). Edit-route gotcha:
+when the field-picker hover-kebab won't reveal, the **DATA-panel column-header
+toggle menu carries Edit/Duplicate/Delete for custom dims** (works
+pane-hidden); ace.focus() API + one CDP keystroke = parse nudge without
+coordinate clicks; ⚠ blindly clicking the row's LAST hover button can hit
+"Filter by field" (spawns a stray filter row). ⚠ CONCURRENT EDITS: Adam
+renames/restyles tiles live — if a dialog was opened before his save, discard
+it and reload before re-editing (a stale dialog Save clobbers his changes).
+
 | Tile | did | Spine (as of 2026-08-20) |
 |---|---|---|
 | Product QC (fails-only queue) | 193267 | reference_data primary (full catalog; samples IN scope by design) |
