@@ -24,6 +24,14 @@ Product Type is Product Line minus Brand. Spaces around every pipe.
 `PerUnit = Dosage / Count`, where `Count` is the numeric part of `Size` with "pk" stripped.
 A 10-pack of 5mg gummies totalling 50mg renders `Edibles | 50mg (5mg x 10pk) | Brand`.
 
+**2026-08-26 rulings (signed, see `clients/primitiv/bi-estate/DATA-DICTIONARY.md` §2b for
+the definitions of record):** the pack-annotated PL (`Category | total (per-unit x Npk) |
+Brand`) is THE canonical PL everywhere including merge-level tiles (deployed estate-wide; the
+inline merge-context expression is output-identical to the custom-dim chain). PT stays
+pack-free (`Category | total dosage`). The collapsed strain-lane dimension is renamed
+**`Sub Variety`** (+ `Sub Variety Sort`) — never "Strain Type", which collides with Dutchie's
+OOTB attribute; it pairs hierarchically under `Variety` (THC/Ratio).
+
 The **Category** component is `products.category` — the finer level — **not** Master Category.
 `Infused Pre-Rolls` and `Disposable Vaporizers` are Categories in their own right and must
 appear as such; rolling them up to `Pre-Rolls` / `Vaporizer` is wrong.
@@ -34,12 +42,25 @@ Tied to **Master Category**:
 
 | Master Category kind | UoM |
 |---|---|
-| smokable / vape-able (Flower, Pre-Rolls, Concentrate, Vaporizer) | `g` |
+| smokable / vape-able (Flower, **Pre-Roll**, **Infused Flower & Pre-Roll**, Concentrate, Vaporizer) | `g` |
 | everything else (drinkable, edible, topical, suppository, sprays, oral/nasal/inhalers) | `mg` |
 
 Define the `g` list **positively** and let everything else fall through to `mg`. Defining the
 mg list positively means a newly introduced category (Suppositories, Sprays) silently renders
 in grams.
+
+**Canonical g-list expression (2026-08-26, deployed estate-wide via the MC re-point):**
+`${products.master_category}="Flower" OR ${products.master_category}="Pre-Roll" OR
+${products.master_category}="Infused Flower & Pre-Roll" OR ${products.master_category}="Concentrate"
+OR ${products.master_category}="Vaporizer"`. Two historical defects this fixed: (a) `Pre-Roll`
+was missing after the Pre-Roll MC breakout from Flower (pre-rolls rendered in mg), and
+(b) the old `Infused Flower` / `Infused Pre-Roll` MC values died when Adam consolidated to the
+single free-text MC **`Infused Flower & Pre-Roll`** (2026-08-25; Gift Card also left Merch for
+its own MC the same day — both are label seams in transaction/snapshot history). ⚠ MC is free
+text: every MC rename silently kills string-matched expressions — this list broke twice in one
+week (plural→singular pass, then the infused consolidation). A LEGACY generation of these calcs
+keying on pre-granularization CATEGORY names (`category="Beverages"/"Edibles"/"Tinctures"`)
+survives ONLY on Inventory Health 26741 (tiles 187558/187559) — rebuild or retire, Adam's call.
 
 ### Rounding (REVISED 2026-08-19 — "logical rounding")
 
@@ -387,15 +408,26 @@ Unlike dosage, `Flower Equivalent` follows deterministic per-class math (verifie
 the full HSCG catalog 2026-08-18; constants confirmed by Adam — MA: 1 oz = 28 g ≡ 5 g
 concentrate ≡ 500 mg THC in edibles):
 
-Since the 2026-08-19 category granularization, the rule is keyed on **Master Category**
-(new categories inherit their class automatically):
+**RE-KEYED 2026-08-26 (Adam ruling): the FL EQ rule is GOVERNED by PLC × GC** — Purchase
+Limit Category crossed with Global Category, both hardened config attributes — because free-text
+MC just demonstrated (twice in one week) that renames silently kill string-matched rules. PLC is
+not exposed in the BI explores, so the BI implementation uses **category enumerations as
+documented SHIMS** for the PLC × GC rule (the infused gate below enumerates the four infused
+categories); swap for the real key if Dutchie ever exposes PLC. The MC names in this table are
+the current canonical singulars, kept for readability:
 
-| Class (by Master Category) | Expected FL EQ |
+**Multiplier ruling LOCKED 2026-08-25**: the estate constant is **×5.6 (28 g oz ÷ 5 g)** —
+never 5.67 (28.35/5), never a vendor's own multiplier. The multiplier is OUR standard; the
+**concentrate grams are a product FACT** (label/COA stated-actual when known, house 20% of
+product grams as fallback). Composite formula: `FL EQ = (grams − conc) + conc × 5.6`.
+Known-good tiers: house 20%, Rove 35%, InHouse ~42.6% stated, Nimbus 0.2 g kief on 3.5 g.
+
+| Class (current MC labels) | Expected FL EQ |
 |---|---|
-| Flower (incl. all non-infused pre-roll categories) | `product_grams × 1` |
-| Concentrate, Vaporizer, **Tinctures** | `product_grams × 5.6` |
-| Edibles, **Beverages** | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
-| Infused Flower (Infused Blunt/Bud/Pre-Roll/Pre-Roll Pack) | blended (flower + concentrate×5.6, per-product split) — **NO branch as of 2026-08-19** (Adam removed the bounds check; grams-vs-name inconsistencies are worked on the Dutchie side, not the QC queue) |
+| Flower **and Pre-Roll** (non-infused; PLC=Flower) | `product_grams × 1` |
+| Concentrate, Vaporizer, **Tincture** (PLC=Concentrates, GC≠Pre-Rolls/Flower) | `product_grams × 5.6` |
+| **Edible, Beverage** (PLC=Edibles) | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
+| **Infused Flower & Pre-Roll** (PLC=Concentrates, GC=Pre-Rolls/Flower; gate = the 4 infused categories) | composite `(g − conc) + conc×5.6`. **Three-tier QC (deployed 2026-08-26, replaces the old 10–50% FL_EQ_RANGE which false-flagged Nimbus)**: `FL_EQ_NO_INFUSION` = FE ≤ g (hard); `FL_EQ_IMPOSSIBLE` = FE ≥ g×5.6 (hard); `FL_EQ_TIER` = FE strictly between but outside 20%±2 (ratio 1.828–2.012) / 35%±2 (2.518–2.702) / brand whitelists InHouse 2.822–3.098, Nimbus 1.124–1.4. All three count in qc_fails and label qc_flags on Product QC 193267. |
 | **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). Convention CONFIRMED: FL EQ = **0.001g** on every topical item (never eats customer limits, and clears the NO_FLOWER_EQ null-or-zero rule). Any expected-value check would false-positive by design. |
 | **CBD** | **NO branch — FL EQ remains NULL** (considered Non-Cannabis; `is_cannabis = false`, so the cannabis-gated rules never fire). Dosage naming still applies — see the CBD dosage exception above. |
 | Non-cannabis (gate on `is_cannabis`) | n/a |
@@ -410,6 +442,13 @@ Implemented as the `BAD_FLOWER_EQ` rule on the Product QC tile (±5% two-sided c
 SQL context has no `abs()`; precompute 5.32/5.88/53.2/58.8). On first run it caught 17
 mis-multiplied beverages and 8 grams-vs-name mismatches. Categories with no branch pass
 silently — extend the chain when a new category appears.
+
+**2026-08-26 repairs to BAD_FLOWER_EQ**: the singular MC normalization had silently killed
+the `Tinctures`/`Edibles`/`Beverages` branches (dead string matches — the edible ×56 band
+checked NOTHING for a week), and the Pre-Roll MC breakout had dropped pre-rolls from the 1:1
+band. Both restored: bands now match `Tincture`/`Edible`/`Beverage` and the 1:1 gate is
+`(MC="Flower" OR MC="Pre-Roll")`. This failure class is the standing argument for the
+PLC × GC re-key above.
 
 ---
 
