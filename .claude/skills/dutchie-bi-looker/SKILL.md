@@ -1563,6 +1563,20 @@ BI rides PACKAGE tags (`inventorytags`), NOT `producttags` — the tag 13948 rul
 lives Backoffice-side (`/api/smart-tags/get-smart-tag-details`, static strain-id
 enumeration; see bi-estate/smart-tag-13948-roster-2026-08-26.md).
 
+**Conc Type QC BUILT 2026-08-27 late (R31 name-carried architecture; all API)**:
+**193944 "Conc Type QC - Untyped Queue (rename worklist)"** + **193945 "Conc Type
+QC - PL Consistency"**. The `conc_type` custom dim: Concentrate MC = category
+(texture-as-type ruling); Vaporizer = category-map + Liquid-Diamonds name override;
+infused categories + Rosin Gummy = name-token parse (composites first: Rosin+
+Diamond+Hash / Distillate+Kief; then long tokens before short); scope-gating makes
+it R11-safe (strain names like "Hash Burger" never parsed outside concentrate
+lanes). UNTYPED (36 at build) = the items whose names don't yet carry their
+concentrate token — drains as the P2 renames land, so the queue doubles as rename
+progress. 193945 uses a count_distinct custom measure over the custom dim WITH a
+**measure filter in the query POST (`conc_types: '>1'`) — ✅ VERIFIED, HAVING
+semantics work in the internal API**; no table-calc workaround needed for
+grain-level threshold tiles on plain queries.
+
 | Tile | did | Spine (as of 2026-08-20) |
 |---|---|---|
 | Product QC (fails-only queue) | 193267 | reference_data primary (full catalog; samples IN scope by design) |
