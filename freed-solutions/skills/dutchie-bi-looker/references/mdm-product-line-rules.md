@@ -244,7 +244,10 @@ Type:                 the effect bucket (rules below)
   (always `Name (payload)`, same slot as `Celebrate (H)` / `Bold (Higher THC)`) and
   keeps the type-disambiguation suffix slot free (no `1:1 (THC:CBD) (S)` double-parens).
   Minted only on Adam's approval; a line word over a composition WITHOUT a mint lives
-  name-side as a registry device only.
+  name-side as a registry device only. **Seasonal editions DO mint** (Adam refinement
+  2026-08-26 night): seasonal flavors/strains recur annually, so they get real entries
+  (`Bundle Up (6:1 CBD:THC)` — Betty's winter chew). Pride specifically remains
+  UNRESOLVED (merch/charity-side question; the last Pride-item QC is parked on it).
 - **Print rule (item names / titles)**: entries print **VERBATIM except bare-lean
   suffixes** — the `(Sativa)/(Hybrid)/(Indica)/(Higher THC)/(CBD)` lean-suffix class
   strips from prints; branded compositions print WITH their parens (Adam transparency
@@ -263,16 +266,33 @@ marketing-decides are DEAD for non-smokables):**
   (2:1 CBD:THC)`, and the `Light (CBD)` branded lean). A non-smokable item on a
   CBD-typed entry is a QC VIOLATION (baseline zero, verified 2026-08-26).
 - **Deterministic ladder for non-smokable composition entries (ORDER MATTERS —
-  first match wins on cannabinoid tokens in the entry NAME):**
+  first match wins on cannabinoid tokens in the entry NAME; AMENDED 2026-08-26 night
+  per Adam — CBC-swing + CBDV, source record bi-estate/qc-backlog-type-ladder.md
+  §AMENDMENTS):**
   1. contains **CBN** → **Indica**
-  2. contains **THCV and/or CBC** → **Sativa**
-  3. contains **CBD and/or CBG** → **Hybrid**
-  4. THC/THCA only → **Hybrid**
-  Verified conforming across all live branded compositions (Sunrise `5:4:1
-  THC:CBG:THCV` = Sativa via step 2 before step 3 — the order-matters proof;
-  Relief `20:1 CBD:THC` = Hybrid despite CBD dominance — single-lane proof).
-  `Focus (1:1:1 THC:CBD:CBG)` re-typed Sativa → Hybrid by Adam 2026-08-26 (post-
-  export) — **ladder conformance 100%, zero exemptions**.
+  2. contains **THCV** → **Sativa**
+  3. contains **CBC** → **Sativa**, UNLESS **CBD is the dominant cannabinoid** →
+     **Hybrid** (CBD-dominance mutes CBC's sativa pull; dominant = first-listed
+     per dominant-first naming, so the SQL-safe test is "name starts with a
+     CBD-led ratio")
+  4. contains **CBD / CBG / CBDV** → **Hybrid**
+  5. THC/THCA only → **Hybrid**
+  Worked examples: Sunrise `5:4:1 THC:CBG:THCV` = Sativa (step 2 before step 4 —
+  the order-matters proof); the CBC-swing pair: `Bliss (1:1 THC:CBC)` /
+  `Focus (1:1:1 THC:CBC:THCV)` / `Revive (1:1:1 THC:CBG:CBC)` = Sativa vs
+  `Ache Away (4:1:1 CBD:THC:CBC)` = Hybrid; Relief `20:1 CBD:THC` = Hybrid despite
+  CBD dominance — single-lane proof; `Take It Easy (2:2:1 THC:CBG:CBDV)` = Hybrid
+  (first live CBDV entry). `Focus (1:1:1 THC:CBD:CBG)` re-typed Sativa → Hybrid by
+  Adam 2026-08-26 — **ladder conformance 100%, zero exemptions** (verified vs the
+  final Strains (7)/Catalog (14) QC pass; QC-B enforces the amended ladder).
+- **Caffeine carve-out — enumerated whitelist OVER the ladder (Adam, 2026-08-26
+  night)**: caffeinated/guarana products marketed as energizing may carry
+  **Type=Sativa** over the ladder result, as an enumerated whitelist in QC-B (same
+  pattern as the FL_EQ_TIER brand whitelists). First entry: `Focus Energy (1:1
+  THC:CBD)` = Sativa (Vibations Half & Half — ladder says Hybrid; caffeine adjunct +
+  dispensary-standard Sativa placement). Branded-LEAN entries need no carve-out —
+  lean is merch-chosen by definition (`Focus Energy (Sativa)` caffeine trio,
+  `Achieve (Sativa)`).
 - **The generic `CBD` entry is Type=Hybrid** (re-typed under the doctrine; it still
   serves pure-CBD / THC-free non-smokables — the NAME says CBD, the Type rides the
   ecom-facet lane).
