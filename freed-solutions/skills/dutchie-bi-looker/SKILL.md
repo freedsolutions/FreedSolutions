@@ -1194,6 +1194,16 @@ All calls same-origin from a `leaflogix.looker.com` top-level tab; headers requi
   filters (193834, 193882). **LEGACY category-keyed calcs remain ONLY on Inventory
   Health 26741 (187558/187559)** — rebuild-or-retire pending Adam.
 
+**Render tasks (probed 2026-08-27):** `POST /api/internal/core/4.0/render_tasks/dashboards/<id>/png?width=&height=`
+is permitted to the embed user (task creates, `dashboard_filters` must be a
+%-encoded query string — literal `%` in filter values 422s otherwise) but **FAILS
+server-side on any dashboard with merge tiles**: `Making a merge result with filters
+requires the filters array to be the same length as the number of source queries`
+(renderer bug; likely trips on per-query listen configs / unmapped source queries).
+Consequence: no server-side PNG/PDF of the HSCG dashboards — Looker's scheduled
+delivery would hit the same wall. For guide/doc images use Playwright element
+screenshots of tile cards instead (harvest channel).
+
 **Editor learnings from the same session (when the UI is still needed):**
 - **Explore→merge conversion (gear → Merge results) carries the explore's table calcs
   INSIDE Q1**, not as merge-level calcs: they render as merged columns but their menus have
