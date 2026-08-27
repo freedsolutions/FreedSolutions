@@ -1315,6 +1315,9 @@ screenshots of tile cards instead (harvest channel).
   polluted this tenant (if they differ, STOP and surface: historical numbers were wrong).
 - **Plain-query sorts accept table-calc slugs** (`sorts: ['net_sales desc']` POSTs and
   persists like a field sort; verified on 28037's three $ tiles). No fallback needed.
+- **`PATCH /api/internal/core/4.0/dashboards/<id> {title}` ✅ RENAME a dashboard**
+  (28094's graduation) and **`DELETE /api/internal/core/4.0/looks/<id>` ✅ (204)**
+  delete a folder Look (32245 fold). Both embed-user-permitted.
 - **Concurrent-session rebase rule**: before ANY tile write, re-GET the element's
   CURRENT qid/mid from the live dashboard — never POST from a stale snapshot or an
   earlier recon. A parallel session's rebuild (28037's 193370 parent-brand grain landed
