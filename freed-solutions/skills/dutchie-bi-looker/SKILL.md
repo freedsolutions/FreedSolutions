@@ -1167,7 +1167,10 @@ All calls same-origin from a `leaflogix.looker.com` top-level tab; headers requi
   `vis_config` (e.g. `{type:'looker_grid', ...}`) in its POST body or the tile shows
   "Trouble loading data" despite run/json working; fix = re-POST query with
   vis_config + PATCH element `{query_id}`. New-tile creation no longer needs the
-  editor/Save-to-Dashboard flow at all.
+  editor/Save-to-Dashboard flow at all. **`{dashboard_id, merge_result_id, type:'vis',
+  title}` ALSO works (✅ 2026-08-27, tile 193940)** — MERGE tiles mint fully by API:
+  POST the source queries, POST the merge (vis_config incl. `hidden_points_if_no`
+  for Hide-No's rides the merge body), POST the element. Zero editor involvement.
 - **⚠ `browser_evaluate` `filename` saves wrap the result as a JSON string literal**
   (double-encoded). Unwrap with one `ConvertFrom-Json` pass before treating the file as
   the document. An object-walk on a wrapped file parses to a bare string and silently
@@ -1424,6 +1427,22 @@ coordinate clicks; ⚠ blindly clicking the row's LAST hover button can hit
 "Filter by field" (spawns a stray filter row). ⚠ CONCURRENT EDITS: Adam
 renames/restyles tiles live — if a dialog was opened before his save, discard
 it and reload before re-editing (a stale dialog Save clobbers his changes).
+
+**Type-ladder QC wave BUILT 2026-08-27 (all API, zero editor)** per
+`bi-estate/qc-backlog-type-ladder.md` (spec + as-builts) and Dictionary R26–R28:
+**QC-A** appended to Product QC 193267's qc_fails/qc_flags as rule #21
+(`CBD_TYPE_NONSMOKABLE` — Type=CBD on a non-smokable MC; baseline 0, queue
+unchanged); **193939 "Strain QC - Type Ladder Drift"** (plain reference_data query;
+`expected_type` custom dim = the AMENDED ladder incl. CBC-swing via the
+` CBD:`-prefix dominance sentinel + CBDV; `type_ladder_drift` filter dim with the
+caffeine whitelist exemption; baseline 0 of 41 compositions); **193940 "Strain QC -
+Minor Cannabinoids (Roster Gaps)"** (merge: reference_data minor-signal spine ×
+inventory `inventorytags.tag_name_list` Max-measure; `Roster Gap` =
+`coalesce(${max_tag},-1)=0` Hide-No's — the has-packages gate keeps no-stock roster
+strains quiet; baseline 0; sibling of roster tile 193938). ⚠ Smart-Tag membership in
+BI rides PACKAGE tags (`inventorytags`), NOT `producttags` — the tag 13948 rule
+lives Backoffice-side (`/api/smart-tags/get-smart-tag-details`, static strain-id
+enumeration; see bi-estate/smart-tag-13948-roster-2026-08-26.md).
 
 | Tile | did | Spine (as of 2026-08-20) |
 |---|---|---|
