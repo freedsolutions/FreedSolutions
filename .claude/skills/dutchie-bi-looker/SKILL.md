@@ -7,6 +7,8 @@ description: Edit Looker tiles and merge queries embedded in Dutchie Backoffice 
 
 <!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
+<!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+
 # Dutchie BI Looker
 
 Work on Looker dashboards embedded inside Dutchie Backoffice (`omega.backoffice.dutchie.com` → BI tools → iframe to `leaflogix.looker.com`). Cover the merge-query editor, table calculations, dashboard tile bindings, and the Playwright automation patterns that survive cross-origin iframes and Ace editor quirks. Source of truth for the procurement tiles (Buyers_2, Buyers_3) on dashboard 26549.
@@ -1151,8 +1153,15 @@ All calls same-origin from a `leaflogix.looker.com` top-level tab; headers requi
   pane's `javascript_tool`.** Under Auto mode the pane tool's state-changing fetches are
   hard-blocked by the permission classifier regardless of allowlist entries (reads pass);
   `mcp__playwright` is allowlisted in `.claude/settings.local.json` and sails. Every
-  successful write session (8/25, 8/26) ran through Playwright. The Playwright browser
-  profile does NOT persist Dutchie logins across MCP restarts — Adam logs in each session.
+  successful write session (8/25, 8/26) ran through Playwright. **Login persistence
+  (corrected 2026-08-27)**: the profile's cookie jar DOES survive process kills and
+  relaunches on disk (`mcp-chrome-62acc55`) — a verified post-kill relaunch replayed
+  the Backoffice ctx without re-login. When the profile shows the login page, that's
+  server-side SESSION EXPIRY (Dutchie's clock), not profile loss — Adam re-logs in
+  on expiry, not per MCP restart. Orphaned-profile-lock recovery: if MCP reconnects
+  and every browser_* call errors "Browser is already in use", the pre-reconnect
+  chrome processes hold the lock — kill chrome.exe scoped by the profile path in
+  the command line; state survives via cookies.
 - **`PATCH dashboard_elements/<id> {query_id}` ✅ VERIFIED for PLAIN tiles** — POST a
   patched query, PATCH the element, re-read to confirm. Both tile shapes are fully
   API-writable; no reason to convert plain tiles to single-source merges.
@@ -1252,6 +1261,13 @@ screenshots of tile cards instead (harvest channel).
   to `query.filters` → POST → repoint. VERIFY the no-op first: run old vs new qid via
   `run/json`, compare row count + a summed measure — identical means sandbox rows never
   polluted this tenant (if they differ, STOP and surface: historical numbers were wrong).
+- **Plain-query sorts accept table-calc slugs** (`sorts: ['net_sales desc']` POSTs and
+  persists like a field sort; verified on 28037's three $ tiles). No fallback needed.
+- **Concurrent-session rebase rule**: before ANY tile write, re-GET the element's
+  CURRENT qid/mid from the live dashboard — never POST from a stale snapshot or an
+  earlier recon. A parallel session's rebuild (28037's 193370 parent-brand grain landed
+  mid-review) would be silently reverted by a POST built from the old query body.
+  Estate snapshots date fast on active days; the API is the only current truth.
 
 **Editor learnings from the same session (when the UI is still needed):**
 - **Explore→merge conversion (gear → Merge results) carries the explore's table calcs
