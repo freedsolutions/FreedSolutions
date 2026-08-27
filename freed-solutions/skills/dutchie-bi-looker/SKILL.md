@@ -1573,7 +1573,10 @@ concentrate token — drains as the P2 renames land, so the queue doubles as ren
 progress. 193945 uses a count_distinct custom measure over the custom dim WITH a
 **measure filter in the query POST (`conc_types: '>1'`) — ✅ VERIFIED, HAVING
 semantics work in the internal API**; no table-calc workaround needed for
-grain-level threshold tiles on plain queries.
+grain-level threshold tiles on plain queries. **193945 is ADVISORY, not a defect
+queue (Adam ruled 2026-08-27: mixed-recipe PLs are acceptable policy)** — a flag
+means "new mix appeared, glance at it"; the HV 1.2g Infused Single PL
+(Cured Resin + Live Resin per-drop variance) is the accepted worked example.
 
 | Tile | did | Spine (as of 2026-08-20) |
 |---|---|---|
@@ -1608,6 +1611,27 @@ the same 12 values. **History**: 4 Promo prefixes (`(Promo)`, `(PROMO)`, `Promo`
 2026-08-21 on both 28006 and 26549** — Adam reversal: promo items are real sales and
 stay in the datasets; the Is Promo QC dim on Product QC is unaffected. Consequence to
 expect: promo-priced items re-enter Min Price / Price Range and mix counts.
+
+### Location-override records (2026-08-27 probe — the layer BI cannot see)
+
+- **Three data layers share confusable names**: catalog (item-level, `products.*`),
+  package attributes (receive-time snapshots, `inventory.*` — drift-QC-able), and the
+  **location-override record** (item page → Location details tab: Base/Med/Rec price,
+  Cost, Available online). The third layer is INVISIBLE to the reporting model:
+  `inventory.is_available_online` and `inventory_all.is_available_online` are copies of
+  the ITEM-level flag — verified with a live persisted override watched for 12+ min.
+  Never promise a Looker tile for loc overrides.
+- **Detection endpoint (verified)**: `POST /api/v2/inventory/get-product-loc-info`
+  with `{SessionId, LspId, LocId, OrgId, UserId, ProductId}` → `Data: null` = no
+  override; any record = override exists (clearing the UI fields DELETES the record —
+  record-existence is the QC predicate, covering UI fields + API-only ones:
+  PosAvailable, MaxPurchasable, LowInventoryThreshold, ExternalCategory, SalesAccount,
+  ExternalId, CustomMetadata). No bulk read exists (`get-product-master-v2` with this
+  payload returns lookup tables only) — sweep per-PID, concurrency ~8.
+- **Session-context capture**: wrap `window.fetch` BEFORE SPA navigation and lift
+  `{SessionId, LspId, LocId, OrgId, UserId}` from the first request body containing
+  `SessionId` — the app supplies it on any item-page load. (Client-instance sweep
+  runbook: the client's `bi-estate/loc-override-qc/README.md`.)
 
 ## Backoffice Internal REST API + Global Brand Catalog QC (2026-08-24/25)
 
