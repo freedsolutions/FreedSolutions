@@ -1754,6 +1754,13 @@ SKILL (mechanics) > memories (pointers).
   Size-for-multipacks, the many-to-one attribute relationships that are QC surfaces, Variety /
   CPG-vs-Herb, and the grain architecture. Supersedes the `dutchie-taxonomy` skill wherever
   they disagree.
+- `references/dutchie-platform-kb.md` — **Dutchie platform behavior KB** (started
+  2026-08-27): Catalog→inventory attribute inheritance classes (live-reference vs
+  receive-default vs catalog-only — the drift-QC and rename-propagation semantics),
+  the PLC-keyed automatic flower-equivalency system (+ the infused-composite hazard),
+  tenant lookup-list endpoints, virgin-field census, doc-ingestion queue, and the
+  repurposed-field watch-list. Sourced entries dated [DOC]/[PROBE]/[TENANT]; re-read
+  docs before destructive reliance.
 - `references/explore-field-catalog.md` — **read before writing any Looker query.** Opens
   with the mandatory filter set: the instance is **multi-tenant**, so every query needs
   `lsp_location.lsp_name` pinned to one tenant (omitting it blends clients and produces
