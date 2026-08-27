@@ -1572,6 +1572,15 @@ the cross-named `strain.name = products.strain_name` merge rule.
   Net` (Cum % suffices) and `Not Sold (%)` everywhere; hide `Open To Buy` on CUT-side
   tiles but KEEP it on buy-side tiles (Depth-Up); `Velocity Validity` only on buy-side
   tiles (duplicates LOW TRIAL on the rationalization tiles).
+- **Dashboard guides (one-pagers, process est. 2026-08-27)**: every dashboard gets a
+  `dashboard-<id>-<slug>.md` in the client's `bi-estate/` folder — per-tile "question it
+  answers" + visible columns in order + reading rules + Data Dictionary rule numbers
+  cited + a Maintenance block (element ids, merge structure, design quirks) + dated
+  change log + a **"Last synced" stamp**. The guide cites rules by number; the DD stays
+  the single source of rule truth. Update discipline lives in the DD change workflow
+  (step 3b): tiles/columns/filters/rules change → guide updates in the same pass →
+  stamp bumps; stamp older than the estate harvest = stale by definition. Template:
+  the 28041 guide.
 - **Label disambiguation pair**: `$/Day at Risk (At Zero)` (26549 A-Items) vs
   `$/Day at Risk (Thin/Out)` (28041 Depth-Up) — one label per rule, suffix names the gate.
 
