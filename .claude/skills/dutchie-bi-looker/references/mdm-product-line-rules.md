@@ -251,11 +251,11 @@ Type:                 the effect bucket (rules below)
   (`Bundle Up (6:1 CBD:THC)` — Betty's winter chew). Pride specifically remains
   UNRESOLVED (merch/charity-side question; the last Pride-item QC is parked on it).
 - **Print rule (item names / titles)**: entries print **VERBATIM except bare-lean
-  suffixes** — the `(Sativa)/(Hybrid)/(Indica)/(Higher THC)/(CBD)` lean-suffix class
-  strips from prints; branded compositions print WITH their parens (Adam transparency
-  ruling: staff + ecom must see cannabinoids; the Type facet stays an effect bucket by
-  design). Renames normalize marketing-simplified prints (HV "Calm 1:1" →
-  "Calm (2:2:1 THC:CBD:CBN)").
+  suffixes** — the `(Sativa)/(Hybrid)/(Indica)/(CBD)` lean-suffix class AND the
+  tier-payload class (below) strip from prints; branded compositions print WITH their
+  parens (Adam transparency ruling: staff + ecom must see cannabinoids; the Type facet
+  stays an effect bucket by design). Renames normalize marketing-simplified prints
+  (HV "Calm 1:1" → "Calm (2:2:1 THC:CBD:CBN)").
 
 **Type rules for ratio/composition entries — SINGLE-LANE DOCTRINE (Adam ruled +
 executed 2026-08-26 night; verified against the post-migration Strains export.
@@ -339,10 +339,27 @@ Two further naming conventions (Adam, 2026-08-20 late):
   `Platinum Candy Pineapple + Guava Now n Later`. Distinct from **" x " = a genetic
   cross** (one cultivar): `GSC x Thin Mint`. Known exception: `Mac + Cheese` is
   Bountiful's brand spelling of a cross — brand-faithful, kept.
-- **Brand tier/line names get NAMED entries with type suffixes**, not generics:
-  Farnsworth `Bold (I)` / `Classic (H)` / `Light (S)` — SUPERSEDES the earlier
-  "subbrand tiers ride generic Blend" ruling. With this, NO smokable item rides a
-  bare generic; generics serve only the non-smokable side (plus THC/CBD).
+- **Brand tier/line names get NAMED entries with type suffixes**, not generics —
+  SUPERSEDES the earlier "subbrand tiers ride generic Blend" ruling. With this, NO
+  smokable item rides a bare generic; generics serve only the non-smokable side
+  (plus THC/CBD). **TIER-PAYLOAD ERA (Adam ruled + executed 2026-08-27; Shaun review
+  of Light pending)**: potency-tier lines carry the compound payload
+  `<Tier> (<Low|Med|High> THC <Lean>)` — Farnsworth `Bold (High THC Indica)`/Indica ·
+  `Classic (Med THC Hybrid)`/Hybrid · `Light (Low THC Sativa)`/**CBD** (low-THC
+  smokable rides the CBD Type lane for menu placement — deliberate suffix-vs-Type
+  divergence, the payload itself explains it; QC-A-safe while the line stays
+  smokable). Payload is table-side only (strip class — packages print the bare tier
+  word). Potency vocabulary is exactly Low/Med/High THC; the old `(Higher THC)`
+  wording is RETIRED. NOTE: with the Low-THC re-brand, Light came OFF the Minor
+  Cannabinoids Smart Tag roster (Adam, same pass — membership and naming decided
+  together).
+- **Onset/device words mint ONLY as a step-8 upgrade** (Adam ruled + executed
+  2026-08-27): `Rapid Onset (Hybrid)` (HV fast-acting gummies, 5 items ex-`THC`) is
+  a minted line-word entry for an onset DEVICE — allowed because those items carry
+  no cultivar, no composition, and no printed lean (nothing better than generic THC
+  existed). A device word does NOT get a strain-slot mint when a real signal exists:
+  InHouse "Fast Acting" stays name-side because its items ride composition entries.
+  Do not generalize device mints beyond this no-better-signal case.
 
 ### Branding wins all (Adam ruling 2026-08-21 — SUPERSEDES abbreviation-collapse)
 
