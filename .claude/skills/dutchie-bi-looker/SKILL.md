@@ -1239,6 +1239,19 @@ screenshots of tile cards instead (harvest channel).
   into view). Tile must have rendered once (scroll the `DashboardMain` scroller through
   the page first; merge tiles need their 10–30s). Server-side render_tasks remain a
   dead end on merge dashboards.
+- **Harvest v2 shape (26549 review)**: text elements now capture
+  `title_text`/`subtitle_text`/`body_text` — the v1 harvester recorded text tiles as `{}`,
+  which made real headers/bumpers (26549's 8/22 set) indistinguishable from empty
+  spacers. Snapshots before 2026-08-27 have this blind spot alongside the `look_id` one.
+- **⚠ Content-addressed queries are SHARED across dashboards** — 26549's PL/Product
+  merge sources are the same qids as 26741's parity twins. A filter change minting new
+  qids on one dashboard silently leaves the twin on the old ones: mirror the rebuild to
+  every tile that shared the qid (the same POST body converges to the same new id, so
+  the mirror is idempotent). Find sharers by grepping the estate snapshots for the qid.
+- **Filtered-measure sandbox rollout recipe (R29)**: add `lsp_location.is_sandbox: 'No'`
+  to `query.filters` → POST → repoint. VERIFY the no-op first: run old vs new qid via
+  `run/json`, compare row count + a summed measure — identical means sandbox rows never
+  polluted this tenant (if they differ, STOP and surface: historical numbers were wrong).
 
 **Editor learnings from the same session (when the UI is still needed):**
 - **Explore→merge conversion (gear → Merge results) carries the explore's table calcs
