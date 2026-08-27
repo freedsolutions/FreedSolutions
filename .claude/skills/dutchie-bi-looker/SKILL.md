@@ -1132,6 +1132,18 @@ browser mid-write) motivated this protocol.
    anything. Ownership archaeology without the holder file cost three sessions their
    evening — write the file.
 
+**Pilot verification (freedsolutions-70, 2026-08-27, the 28006 review phase):**
+- Exercised end-to-end: step-5 diagnosis on acquire (found the profile actually free
+  despite a live-looking seed) → holder written with real purpose → phase → release.
+- ✅ `browser_close` on the last open page DOES terminate the chrome tree and free the
+  OS lock (verified 0 `mcp-chrome` processes post-close) — it is a sufficient release
+  primitive; still verify the count before clearing the holder.
+- ⚠ Seed HOLDER.json from OBSERVED ownership (chrome tree → owning claude.exe), never
+  from intent: the bootstrap seed named a session while ANOTHER session's browser held
+  the actual lock — exactly the registry-vs-reality divergence the file exists to kill.
+- Step 1's "first playwright call" reads in practice as **per browser PHASE**: MCP
+  handles outlive phases, and a session can hold, release, and re-acquire in one day.
+
 ## Internal API automation (2026-08-25) — the biggest unlock since the embed escape
 
 The embed session cookie grants the **Looker internal REST API** from in-page `fetch`. This
