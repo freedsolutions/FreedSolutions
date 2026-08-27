@@ -3,6 +3,8 @@ name: dutchie-bi-looker
 description: Edit Looker tiles and merge queries embedded in Dutchie Backoffice (leaflogix.looker.com) — table calc syntax, Ace editor automation via Playwright, signed embed token navigation, dashboard column/sort cleanup, save flow. Use when Adam needs to add or modify a metric, calc, or column on any dashboard tile in Dutchie Backoffice → BI tools.
 ---
 
+<!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
+
 # Dutchie BI Looker
 
 Work on Looker dashboards embedded inside Dutchie Backoffice (`omega.backoffice.dutchie.com` → BI tools → iframe to `leaflogix.looker.com`). Cover the merge-query editor, table calculations, dashboard tile bindings, and the Playwright automation patterns that survive cross-origin iframes and Ace editor quirks. Source of truth for the procurement tiles (Buyers_2, Buyers_3) on dashboard 26549.
@@ -1158,6 +1160,14 @@ All calls same-origin from a `leaflogix.looker.com` top-level tab; headers requi
 - **Queries and merges are content-addressed** — identical POST body returns the SAME
   id. Rebuilding a merge two tiles share converges both onto one new mid; accidental
   double-rebuilds are harmless no-ops.
+- **`POST /api/internal/core/4.0/dashboard_elements` ✅ VERIFIED (2026-08-26 night,
+  tile 193938)** — CREATE a new tile by API: `{dashboard_id, query_id, type:'vis',
+  title}`. Auto-appends to the layout (layout component exists with null
+  row/col/w/h; renders at dashboard bottom — drag later). ⚠ The query MUST carry a
+  `vis_config` (e.g. `{type:'looker_grid', ...}`) in its POST body or the tile shows
+  "Trouble loading data" despite run/json working; fix = re-POST query with
+  vis_config + PATCH element `{query_id}`. New-tile creation no longer needs the
+  editor/Save-to-Dashboard flow at all.
 - **⚠ `browser_evaluate` `filename` saves wrap the result as a JSON string literal**
   (double-encoded). Unwrap with one `ConvertFrom-Json` pass before treating the file as
   the document. An object-walk on a wrapped file parses to a bare string and silently
@@ -1531,6 +1541,40 @@ Standalone-builder notes: "Add Query" = `span[ng-click="$ctrl.addQuery()"]` in
 the cross-named `strain.name = products.strain_name` merge rule.
 
 ## House Style Notes
+
+### Dashboard composition house style (captured 2026-08-26, mimicking Adam's estate)
+
+- **Header + bumper text tiles** (Add → Markdown class, but fully API-writable on text
+  elements via `PATCH dashboard_elements {title_text, subtitle_text, body_text}`):
+  one HEADER per dashboard — `title_text` = "<Name> Dashboard", `subtitle_text` = the
+  semantics one-liner with " / " separators (e.g. "Net = Gross − Discounts / Margin =
+  Net − Cost / Window = Transaction Date Filter"), `body_text` = `---
+` (renders a rule).
+  SECTION BUMPERS = `title_text` only (short section name), empty subtitle/body. Bumpers
+  exist to create space between tiles (Adam's phrasing).
+- **Layout is fully API-writable**: `PATCH /api/internal/core/4.0/dashboard_layout_components/<cid>`
+  with `{row, column, width, height}` — cid↔element map from the dashboard GET's
+  `dashboard_layouts[].dashboard_layout_components`. Newspaper grid is 24 wide. House
+  geometry: header h2 at row 0, bumpers h1 full-width, MC-grain tables h6, item-grain
+  tables h11–12, everything w24 (no side-by-side halves — wide tables crush).
+  Pattern: header → [bumper → tile(s)] per section.
+- **Number formats live in `vis_config.series_value_format`** (rides the merge-clone POST;
+  per-calc `value_format` on dynamic_fields is usually null). House standards:
+  $ = `$#,##0`, percentages = `#,##0.0%` (one decimal), indices = `#,##0.00`,
+  $/day = `$#,##0.00`.
+- **Column colors are the TABLE THEME** (`table_theme: editable` colors dimension vs
+  measure columns automatically — the blue/tan/green headers). Do not hand-color columns;
+  the only per-column text format in use is `series_text_format: {<lead dim>: {bold: true}}`.
+- **Decision-surface column order** (ranking/queue tiles): identity dims → $ block
+  (Net Sales, Net $/Day, Margin %, Discount Rate) → velocity block (Sales/Day (ea),
+  Inventory (ea), Inventory (days), In-Stock %) → flags/decision columns rightmost
+  (LOW TRIAL, Cum %, BOTTOM20, Last PL in Category, Disposition, In Pool). Hide `% of MC
+  Net` (Cum % suffices) and `Not Sold (%)` everywhere; hide `Open To Buy` on CUT-side
+  tiles but KEEP it on buy-side tiles (Depth-Up); `Velocity Validity` only on buy-side
+  tiles (duplicates LOW TRIAL on the rationalization tiles).
+- **Label disambiguation pair**: `$/Day at Risk (At Zero)` (26549 A-Items) vs
+  `$/Day at Risk (Thin/Out)` (28041 Depth-Up) — one label per rule, suffix names the gate.
+
 
 - Calc names use Title Case with spaces ("Daily Avg Sales", "Operating Days In Stock"), not snake_case. They display as-is in column headers.
 - Hide internal helper calcs (denominators, intermediate sums) from the tile — surface only buyer-actionable columns.
