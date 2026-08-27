@@ -136,11 +136,36 @@ HOUSE ratio.
 
 ## Watch-list (repurposed-field / platform-evolution risks)
 
-- `Oil Volume` = concentrate grams (house convention; field name says volume).
-- `Serving Size` = per-PIECE mg; `Servings Per Unit` = physical pieces, blank = single
-  (pieces ruling; NOT regulatory 5mg servings — a scored bar is 1 piece). If Dutchie
-  ever renders these shopper-facing, recompute from the grams identity.
+**⚠ AMENDED same day — field-test failures [TENANT 2026-08-27]:** writes to the
+MO-Metrc Unit fields FAILED in this MA tenant (failure mode TBD — likely state-gated
+form rendering or rejected saves), and the Distillation list has no tenant seeding
+surface. Working architecture instead: Conc Wgt = permanent FE-back-derivation
+`(FE − g)/4.6`; Conc Type = NAME-CARRIED (vocab-governed token, BI/API-derived +
+consistency-QC'd); CBD dose = **`CBD Content`** (plain field, mg default — WORKS;
+scoped by QC to Category-CBD only). Vocab: never "Live"+Rosin; composites join with
+" + ". Lesson for the KB: **MO-only Metrc fields are not writable in MA tenants even
+though they appear in the API schema** — virgin-field census alone doesn't prove
+writability; field-test before architecting on a dead field.
+
+Original slate (superseded parts struck in Dictionary R31, kept for context):
+
 - `Distillation` = concentrate-type vocabulary (broader than distillation literally).
+- `Unit THC Content Dose` = **concentrate GRAMS** (infused/composite lane) — the big
+  repurpose: a mg-dose-named field holding gram mass. Spendable because the fields are
+  Missouri-Metrc-only and the non-unit siblings (`THC Content`/`CBD Content`) stay
+  Hidden as reserved backups if a literal per-piece-THC home is ever needed.
+  ⚠ Sibling asymmetry is deliberate: UnitTHC holds grams-mass while UnitCBD holds
+  mg-dose (Adam ruling with the backup-fields rationale).
+- `Unit CBD Content Dose` = per-piece CBD mg — native meaning, not a repurpose.
+- `Serving Size` = per-PIECE THC mg; `Servings Per Unit` = physical pieces with
+  EXPLICIT 1 (Unflavored doctrine — blank means not-yet-backfilled, never single; a
+  scored bar is 1 piece per the pieces ruling; regulatory 5mg servings stay
+  label-side). SPU goes Required (incl. non-cannabis counts) after backfill; the
+  other four stay Show (lane-specific — blank is lane-legitimate).
+- If Dutchie ever renders Serving-named fields shopper-facing, recompute semantics
+  from the grams identity (`grams = ServingSize × SPU`).
+- VERIFY (queued probe): MA's `/api/metrc/get-metrc-product-master-required-fields`
+  excludes UnitThc/UnitCbdContentDose (belt-and-suspenders on the MO-only claim).
 - `/api/flower-equivalencies/list` + the §2 feature = candidate platform home for R1
   flat-ratio classes; infused composites stay house-side (see hazard above).
 
