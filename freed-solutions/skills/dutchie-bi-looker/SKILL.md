@@ -1088,6 +1088,48 @@ serves that purpose.
   screenshot_width / window.innerWidth and CHANGES when the pane is
   resized/displayed — recompute per screenshot, never reuse a cached ratio.
 
+## Playwright browser coordination (multi-session) — protocol est. 2026-08-27
+
+One shared persistent profile (`%LOCALAPPDATA%\ms-playwright-mcp\mcp-chrome-<hash>`)
+carries the Dutchie/Looker logins; concurrent sessions contend for its lock, and MCP
+reconnects orphan browser handles. The 2026-08-27 standoff (who-holds-it took a
+four-session relay, including a stale release-broadcast that nearly closed a live
+browser mid-write) motivated this protocol.
+
+**Holder file** — `%LOCALAPPDATA%\ms-playwright-mcp\HOLDER.json`, beside the profiles
+(machine-scoped, not per-client):
+
+```json
+{"profile": "mcp-chrome-62acc55", "session": "<your name from ListAgents>",
+ "claude_pid": 12345, "purpose": "28037 Looker writes", "acquired_at": "<ISO>"}
+```
+
+**Protocol:**
+1. **Acquire** — before a session's FIRST playwright call, read HOLDER.json:
+   - Absent, or its `claude_pid` is dead (staleness test below) → take it: write your
+     entry. If a chrome tree still locks the profile under a dead pid, run the
+     orphaned-profile-lock recovery (scoped kill by profile path in the command line —
+     cookies survive on disk), then take.
+   - Held by a LIVE session → `SendMessage` that NAMED session asking for release, with
+     your purpose; proceed only on its confirmation. **Never broadcast release requests**
+     to candidate sessions — broadcasts age badly and a stale one can close the next
+     legitimate holder's live browser. If circumstances change after you ask, send an
+     explicit COUNTERMAND.
+2. **Release** — when your browser PHASE ends (not at session end): `browser_close`,
+   then clear HOLDER.json. **Declare handoffs only AFTER the close** — announcing
+   "browser is free" while chrome still runs was the standoff's root cause.
+3. **Staleness test** — `Get-CimInstance Win32_Process -Filter "ProcessId=<claude_pid>"`
+   returns nothing ⇒ holder is dead, entry is stale. Find your own claude_pid by walking
+   parents up from `$PID` until `Name -eq 'claude.exe'`.
+4. **Contention-free alternatives** — most reads/verification don't need the profile at
+   all: the Claude-Browser pane channel (own browser, own login) or pure internal-API
+   fetches. `--isolated` playwright is login-less — only for unauthenticated work.
+5. **Diagnosing "Browser is already in use"** — enumerate the chrome tree
+   (`CommandLine like '%mcp-chrome-<hash>%'`), walk the root's parents to the owning
+   `claude.exe` pid, and compare against HOLDER.json + your own pid before assuming
+   anything. Ownership archaeology without the holder file cost three sessions their
+   evening — write the file.
+
 ## Internal API automation (2026-08-25) — the biggest unlock since the embed escape
 
 The embed session cookie grants the **Looker internal REST API** from in-page `fetch`. This
