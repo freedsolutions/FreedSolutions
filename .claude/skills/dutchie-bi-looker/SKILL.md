@@ -1209,6 +1209,37 @@ Consequence: no server-side PNG/PDF of the HSCG dashboards — Looker's schedule
 delivery would hit the same wall. For guide/doc images use Playwright element
 screenshots of tile cards instead (harvest channel).
 
+### 2026-08-27 session — 26741 parity build (NEW verified surfaces)
+
+- **`POST /api/internal/core/4.0/dashboard_filters` ✅ CREATE a dashboard filter** — body:
+  `{dashboard_id, name, title, type:'field_filter', explore, dimension, row,
+  allow_multiple_values:true, required:false, ui_config:{type:'advanced',display:'popover'},
+  model:'sql_server', listens_to_filters:[], default_value}`. The fat `field` blob in GET
+  responses is server-derived — never send it. Advanced defaults (`-Merch,-Accessory,...`,
+  `28 days ago for 28 days`, `-Limited |%,...`) all commit verbatim. **`DELETE
+  /dashboard_filters/<id>` ✅ (204)** and **`PATCH {row}` ✅** (filter-bar ordering). Filter
+  creation no longer needs the UI Add-Filter flow at all — wire listens afterward via the
+  filterables PATCH (new filters are referenced by `dashboard_filter_name`).
+- **⚠ LOOK-LINKED TILES (element carries `look_id`)**: `PATCH dashboard_elements {query_id}`
+  → **422** "Query ID must not have a value if a Look ID is provided", and
+  `{result_maker: {query_id}}` → **200 but silently ignored**. The Look owns the query:
+  **`PATCH /api/internal/core/4.0/looks/<look_id> {query_id}` ✅** is the repoint (changes
+  the Look everywhere it renders). Always check `look_id` before treating a plain tile as
+  element-owned — harvests before 2026-08-27 do NOT record it (estate-26741 now carries
+  `look_id`/`look_query_id`; 26741's Replenish 186622 → Look 32241).
+- **Filtered measures' `type` field is INERT**: a custom measure with `based_on: <measure>`
+  + `filters` (e.g. Sellable Inv = total_quantity filtered to a room) may carry
+  `type: 'count_distinct'` in dynamic_fields yet compute the underlying measure's sum —
+  verified by minting a `type:'sum'` variant and comparing run/json row-for-row
+  (identical). Do not "fix" the type on such measures; it's a red herring.
+- **Guide-image pipeline (per-tile PNGs)**: in the Playwright tab, tag each tile card —
+  `document.querySelector('#element-title-<id>').closest('section').setAttribute('data-shot','shot-<id>')`
+  — then `browser_take_screenshot` with `target: '[data-shot="shot-<id>"]'` and a
+  repo-relative `filename` (resolves against the session cwd; auto-scrolls the element
+  into view). Tile must have rendered once (scroll the `DashboardMain` scroller through
+  the page first; merge tiles need their 10–30s). Server-side render_tasks remain a
+  dead end on merge dashboards.
+
 **Editor learnings from the same session (when the UI is still needed):**
 - **Explore→merge conversion (gear → Merge results) carries the explore's table calcs
   INSIDE Q1**, not as merge-level calcs: they render as merged columns but their menus have
