@@ -214,15 +214,20 @@ backfilled").
 **composition-named ratio entries** for stated ratio blends; generic entries otherwise.
 Generic entries: `Sativa` / `Hybrid` / `Indica` (brand-printed leans), `THC` (Type
 Hybrid — lean-less default; typed Hybrid as an Ecom-effects workaround, Description
-disclaims the lean), `CBD` (Type CBD — **pure-CBD / THC-free products only**).
+disclaims the lean), `CBD` (**pure-CBD / THC-free products only; Type=Hybrid** since
+the 2026-08-26 single-lane doctrine — see Type rules below).
 
 **Ratio entries are composition-named, NOT generic** (Adam correction 2026-08-20 —
-supersedes the brief generic-`1to1` convention):
+supersedes the brief generic-`1to1` convention). **NOTATION REVISED 2026-08-26: the
+legend parens are GONE** — `1:1 (THC:CBD)` → `1:1 THC:CBD` (23 in-use entries migrate;
+list: clients/primitiv/hscg-ratio-entry-migration-2026-08-26.csv; Adam executes on the
+strains screen, items follow automatically):
 
 ```
-StrainName:  <ratio> (<cannabinoid list>)     e.g.  1:1 (THC:CBD) · 2:1 (CBN:THC)
-                                                     2:1:1 (THC:CBD:CBN) · 20:1 (CBD:THC)
-Type:        the effect bucket (rules below)
+Bare composition:     <ratio> <cannabinoids>       e.g.  1:1 THC:CBD · 2:1 CBN:THC
+                                                          2:1:1 THC:CBD:CBN · 20:1 CBD:THC
+Branded composition:  <line word> (<composition>)  e.g.  Calm (2:2:1 THC:CBD:CBN)
+Type:                 the effect bucket (rules below)
 ```
 
 - **Order**: dominant cannabinoid first; THC first on ties; minors in fixed
@@ -230,48 +235,75 @@ Type:        the effect bucket (rules below)
   (100:100:50 → `2:2:1`). Normalized order, NOT brand-printed order (brands are
   inconsistent: Wyld "CBC:THC" vs InHouse "THC:CBC" — one entry per composition).
 - **Only STATED compositions get ratio names** — a ratio format in the name/desc, or
-  printed mg amounts (derive the ratio: 50mg THC/300mg CBD → `6:1 (CBD:THC)`).
+  printed mg amounts (derive the ratio: 50mg THC/300mg CBD → `6:1 CBD:THC`).
   Unstated cannabinoid blends ("infused with THC and CBN") ride the generic effect
   lean instead. Name composition-TRUE when the brand print is misleading
-  (Incredibles "5:1 CBN" is 5mg THC : 1mg CBN → `5:1 (THC:CBN)`).
+  (Incredibles "5:1 CBN" is 5mg THC : 1mg CBN → `5:1 THC:CBN`).
+- **Branded compositions** (NEW class 2026-08-26): brand effect-line word +
+  parenthesized composition — `Calm (2:2:1 THC:CBD:CBN)`. Unifies the suffix grammar
+  (always `Name (payload)`, same slot as `Celebrate (H)` / `Bold (Higher THC)`) and
+  keeps the type-disambiguation suffix slot free (no `1:1 (THC:CBD) (S)` double-parens).
+  Minted only on Adam's approval; a line word over a composition WITHOUT a mint lives
+  name-side as a registry device only.
+- **Print rule (item names / titles)**: entries print **VERBATIM except bare-lean
+  suffixes** — the `(Sativa)/(Hybrid)/(Indica)/(Higher THC)/(CBD)` lean-suffix class
+  strips from prints; branded compositions print WITH their parens (Adam transparency
+  ruling: staff + ecom must see cannabinoids; the Type facet stays an effect bucket by
+  design). Renames normalize marketing-simplified prints (HV "Calm 1:1" →
+  "Calm (2:2:1 THC:CBD:CBN)").
 
-**Type (effect bucket) rules for ratio entries**:
+**Type rules for ratio/composition entries — SINGLE-LANE DOCTRINE (Adam ruled +
+executed 2026-08-26 night; verified against the post-migration Strains export.
+SUPERSEDES the 8/20 effect-bucket rules — CBD-absorbs-ratio-bucket and
+marketing-decides are DEAD for non-smokables):**
 
-- CBD-dominant → **CBD**.
-- CBN present → **Indica** (sleep family; CBN-dominant or THC-dominant alike:
-  `2:1 (CBN:THC)`, `2:1:1 (THC:CBD:CBN)` all Indica).
-- CBG / THCV / CBC leaner **with sativa/energy marketing → Sativa** (marketing
-  decides, not mere presence).
-- Balanced without an effect signal → **CBD** (Adam ruling 2026-08-20: the "1 to 1"
-  Type is RETIRED — CBD absorbs the whole ratio bucket, no 1to1-specific rule; the
-  Dutchie dropdown value goes unused). When one composition serves items with
-  conflicting marketing (HV Focus vs Trifecta on `1:1:1 (THC:CBD:CBG)`), the shared
-  entry defaults to **CBD** — no suffix variants.
-- THC-dominant with no marketed lean (`2:1 (THC:CBG)`, `5:1 (THC:THCV)`) →
-  **Hybrid** (same workaround as the THC generic).
+- **Type=CBD is SMOKABLE-ONLY.** Dutchie Type is one lane; non-smokable items stay in
+  the S/H/I ecom-facet lane. Only rare CBD flower/vape/pre-roll entries carry Type=CBD
+  (incl. smokable ratio entries: `Strawnana (1:1 THC:CBD)`, `Mango Passionfruit
+  (2:1 CBD:THC)`, and the `Light (CBD)` branded lean). A non-smokable item on a
+  CBD-typed entry is a QC VIOLATION (baseline zero, verified 2026-08-26).
+- **Deterministic ladder for non-smokable composition entries (ORDER MATTERS —
+  first match wins on cannabinoid tokens in the entry NAME):**
+  1. contains **CBN** → **Indica**
+  2. contains **THCV and/or CBC** → **Sativa**
+  3. contains **CBD and/or CBG** → **Hybrid**
+  4. THC/THCA only → **Hybrid**
+  Verified conforming across all live branded compositions (Sunrise `5:4:1
+  THC:CBG:THCV` = Sativa via step 2 before step 3 — the order-matters proof;
+  Relief `20:1 CBD:THC` = Hybrid despite CBD dominance — single-lane proof).
+  `Focus (1:1:1 THC:CBD:CBG)` re-typed Sativa → Hybrid by Adam 2026-08-26 (post-
+  export) — **ladder conformance 100%, zero exemptions**.
+- **The generic `CBD` entry is Type=Hybrid** (re-typed under the doctrine; it still
+  serves pure-CBD / THC-free non-smokables — the NAME says CBD, the Type rides the
+  ecom-facet lane).
 
-**Item ladder** (decision order):
+**Item ladder** (decision order — strain-slot precedence FINAL 2026-08-26:
+cultivar > branded-composition > bare composition > branded-lean line > lean generic > THC):
 
 1. Brand names a cultivar (LE "Flavor x Cultivar" crosses, terpene-infused
    strain beverages, hash-rosin cultivar lines) → the **named strain**
    (brand-label-wins). Dialed In LE and Happy Valley Live Hash Rosin naming is
    **flavor x cultivar**, NOT a strain cross — the flavor half goes to Flavor.
-2. Stated ratio blend → the **composition-named ratio entry** (Type per the bucket
+2. Brand effect-line word over a stated composition, mint approved → the
+   **branded-composition entry** (`Calm (2:2:1 THC:CBD:CBN)`).
+3. Stated ratio blend → the **bare composition entry** (Type per the bucket
    rules above).
-3. Pure-CBD / THC-free → generic **CBD**.
-4. Unstated cannabinoid blend → the generic **effect lean** (CBN/sleep → Indica;
+4. Branded-lean line entry (`X (Sativa)/(Hybrid)/(Indica)/(CBD)` class) where minted.
+5. Pure-CBD / THC-free → generic **CBD**.
+6. Unstated cannabinoid blend → the generic **effect lean** (CBN/sleep → Indica;
    sativa-marketed → Sativa).
-5. Printed S/H/I lean, no ratio → the generic lean.
-6. No signal at all → **THC**.
+7. Printed S/H/I lean, no ratio → the generic lean.
+8. No signal at all → **THC**.
 
 Notes: names can lie about composition — verify stated mg before naming. Where a
 brand prints both a ratio and a lean (Wyld), the ratio entry wins and the lean
-informs only the Type. The ratio name-suffix pattern for smokable/vape lines is
-**colon format**: "Strawnana (1:1)", "Mango Passionfruit (2:1)" — Adam renamed the
-live entries from the older "(1to1)"/"(2to1)" style 2026-08-20, aligning with the
-edible-side colon notation. Type-disambiguation suffixes follow the same parens
-pattern ("Pina Colada (H)", "Honeydew (S)") — and **the suffix marks the VARIANT;
-the canonical entry keeps the bare name**. Canonical = typically first-created; but
+informs only the Type. **SUFFIX GRAMMAR FLUSHED TO FULL WORDS 2026-08-26** (zero
+short suffixes remain, verified): lean suffixes are `(Sativa)/(Hybrid)/(Indica)/
+(Higher THC)/(CBD)` — never `(S)/(H)/(I)`; smokable ratio suffixes carry the FULL
+composition — `Strawnana (1:1 THC:CBD)`, `Mango Passionfruit (2:1 CBD:THC)` — never
+the bare `(1:1)` form. Type-disambiguation suffixes follow the same full-word parens
+pattern ("Pina Colada (Hybrid)", "Honeydew (Sativa)") — and **the suffix marks the
+VARIANT; the canonical entry keeps the bare name**. Canonical = typically first-created; but
 when the bare-name holder is retired-only and an active different-leaner arrives,
 rewrite history: the old holder takes the suffix and the active variant becomes the
 canonical bare (Watermelon [Indica] + Watermelon (H) [Hybrid, retired refs] — Adam
