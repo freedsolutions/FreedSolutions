@@ -1625,11 +1625,14 @@ expect: promo-priced items re-enter Min Price / Price Range and mix counts.
   Never promise a Looker tile for loc overrides.
 - **Detection endpoint (verified)**: `POST /api/v2/inventory/get-product-loc-info`
   with `{SessionId, LspId, LocId, OrgId, UserId, ProductId}` → `Data: null` = no
-  override; any record = override exists (clearing the UI fields DELETES the record —
-  record-existence is the QC predicate, covering UI fields + API-only ones:
-  PosAvailable, MaxPurchasable, LowInventoryThreshold, ExternalCategory, SalesAccount,
-  ExternalId, CustomMetadata). No bulk read exists (`get-product-master-v2` with this
-  payload returns lookup tables only) — sweep per-PID, concurrency ~8.
+  record; record fields: Price/RecPrice/Cost + PosAvailable, MaxPurchasable,
+  LowInventoryThreshold, ExternalCategory, SalesAccount, ExternalId, CustomMetadata.
+  ⚠ **Record-existence is NOT the mistake predicate** — the first full census showed
+  loc records are the tenant's PRICING mechanism (hundreds of legit RecPrice-only
+  rows) + empty cruft; the QC catch = any NON-price field set. ⚠ **Rate limit:
+  60 req/min** (429 beyond) — paced sequential sweep only (~1.15s spacing), parked
+  as a background promise; ~19 min for ~900 PIDs. No bulk read exists
+  (`get-product-master-v2` with this payload returns lookup tables only).
 - **Session-context capture**: wrap `window.fetch` BEFORE SPA navigation and lift
   `{SessionId, LspId, LocId, OrgId, UserId}` from the first request body containing
   `SessionId` — the app supplies it on any item-page load. (Client-instance sweep
