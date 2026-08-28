@@ -1324,6 +1324,43 @@ screenshots of tile cards instead (harvest channel).
   mid-review) would be silently reverted by a POST built from the old query body.
   Estate snapshots date fast on active days; the API is the only current truth.
 
+### 2026-08-27→28 session — MC-rename sweep (binding traps + render diagnostics)
+
+- **⚠⚠ Reference new queries by `res.id`, NEVER `res.client_id`.** A query POST returns
+  two 32-char slugs; only `id` resolves in `PATCH dashboard_elements {query_id}` and in
+  merge `source_queries[].query_id` (client_id 422s "Query not found" / source "-1 not
+  found"). Content-addressing makes a re-POST to recover the right id a free no-op.
+- **⚠⚠ API-minted plain tiles (created via `POST dashboard_elements`) silently ignore
+  bare `{query_id}` PATCHes** — 200, but neither `element.query_id` nor
+  `result_maker.query_id` changes (28006's QC tiles; UI-created tiles like 26549's
+  Daily Sales accept the bare form fine). The working repoint is **v1-both**:
+  `{query_id: X, result_maker: {id: <result_maker.id>, query_id: X}}`. The same
+  silent-no-op class was observed once on a `{merge_result_id}` PATCH.
+- **⚠⚠ VERIFY CONTENT AFTER BIND, not the 200.** A silent no-op mid-chain poisons
+  every later rebuild built from "the current binding" — 193267's QC pair went through
+  two rebuild generations still carrying a pre-fix expression because one repoint had
+  no-op'd and the next edit re-GET'd the stale lineage. Discipline: after any bind,
+  re-GET element → container → query and assert the edited text is present; close the
+  session with an estate-wide residual grep (`dynamic_fields` + `filters` of every
+  BOUND query/merge per dashboard).
+- **Tile render errors diagnose via the querymanager batch**: dashboards run tiles
+  through `POST /api/internal/querymanager/queries` + a streaming GET; the failing
+  tile's task carries `"status":"error"` with the real server message. A `run/json`
+  probe is NOT equivalent — plain queries whose table calcs use `to_number` 400
+  chronically on run/json while their tiles render fine.
+- **Inline-form PL in a SQL-context custom DIMENSION breaks the TILE** ("Trouble
+  loading data"; querymanager error `Invalid function for sql context: "to_number"`) —
+  the DD §3 context-bound rule enforced at render. 28094's 193812 shipped this way
+  (vs its 193811 twin's chain-form dim); fix = swap in the chain form, whose g-list
+  lives in `${dosage_label}`. Normalized byte-diff (old vs new modulo intended
+  replaces) is the fast way to prove a rebuild didn't cause a tile break.
+- **Channel notes re-confirmed**: the Claude-Browser pane can hold a LIVE parallel
+  Looker session (own cookie jar; its Backoffice login re-signs nonces), reads/run/json
+  pass there, but state-changing fetches stay classifier-blocked — writes remain
+  Playwright-only. The Playwright profile's Looker embed session can 401 mid-run while
+  its Backoffice session is ALSO expired: recovery needs Adam's one login in the
+  Playwright window, then any BI-tools page re-signs.
+
 **Editor learnings from the same session (when the UI is still needed):**
 - **Explore→merge conversion (gear → Merge results) carries the explore's table calcs
   INSIDE Q1**, not as merge-level calcs: they render as merged columns but their menus have
