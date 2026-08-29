@@ -117,6 +117,61 @@ HOUSE ratio.
   flip to Show before expecting a field to be settable (fields-config lane:
   `clients/primitiv/bi-estate/fields-config/`).
 
+## 3b. Product retirement & duplicate combining [DOC 2026-08-28]
+
+Read by the prefix-cleanup assessment session (task_65a4aa88); facts relayed for the
+prefix-collapse program:
+
+- **Retire = hide, not delete.** Retiring a product hides it from active catalog/menu
+  surfaces; it is REVERSIBLE, has NO Metrc effect, and historic transactions stay on
+  the SKU. Safe default for prefixed-duplicate cleanup (never delete).
+- **"Combine duplicate products"** is a documented Change-product flow: packages move
+  from a duplicate product to its twin. Candidate mechanism for HOLD-INVENTORY
+  prefixed SKUs (move packages to the clean twin, then retire the husk).
+- **UNKNOWN (probe proposed, 1 package):** whether Change-product re-attributes a
+  package's PRIOR sales display to the new product, or history stays rendered under
+  the old SKU. Do NOT bulk-combine until probed.
+
+## 3c. Inventory tags in the reporting model [PROBE 2026-08-28]
+
+From the R14 tag-pivot build (5 dashboards moved to `inventorytags`-based filters):
+
+- The `inventorytags` join is **left-outer**, and negative filters on
+  `tag_name_list` are **null-safe** — untagged packages are NOT dropped by a
+  `-%Limited%`-style exclusion (they pass through). Safe to filter-negatively
+  without losing the untagged population.
+- `tag_name_list` is **comma-joined per package** (e.g. "Limited, Minor
+  Cannabinoids") — one row per package, **no fan-out** from multiple tags.
+  Contains-style matching is the right pattern; exact-equality is wrong.
+- Live tag names are **pipe-less** (`Limited`, `Display`, `Promo`) — the name-prefix
+  convention (`Limited |`) does NOT carry into tags.
+- **Reporting lag exists**: Backoffice tag edits take time to reach the Looker
+  reporting DB (Adam's same-day tag changes not yet visible at build time) — never
+  treat a fresh tag edit's absence in a tile as a failure; re-check later.
+
+## 3d. Tag-join matrix in the reporting model [PROBE 2026-08-28 ×2]
+
+Which tag views can safely filter which query contexts (probed after the R14 tag
+pivot; the broken cell caused live Snowflake 400s until unwired):
+
+| Tag view | Query context | Join behavior | Verdict |
+|---|---|---|---|
+| inventorytags | inventory explore | numeric join, left-outer, null-safe | ✅ SAFE (the R14 filters live here) |
+| inventorytags | inventory_snapshot | **BROKEN — numeric `packageid` cast against the STRING Metrc package id → Snowflake "Numeric value '1A40A…' is not recognized"** | ❌ NEVER filter snapshot queries on inventorytags |
+| producttags | inventory_snapshot | **INNER-join behavior — even a no-op filter drops all unmatched rows** | ❌ never |
+| producttags | transaction_items | left-outer + null-safe (exact value parity proven vs unfiltered) | ✅ SAFE (the designed Product Tag wave) |
+
+Also: the **inventory explore surfaces CURRENT packages only** (census invariant to
+`is_retired`) and **inventory_all has no tags view** — but ~~historic packages are
+BI-invisible for tags~~ **SUPERSEDED same day: the newly-discovered
+`inventory_historical` explore carries FULL package history (5,835 pkgs incl.
+qty-0 sold-out) WITH a working inventorytags join (numeric key)** — the historic tag
+lane exists; Adam's 59 historic Limited-tagged packages are queryable there.
+
+**Feature-request ledger (ask Dutchie):**
+- `inventorytags` join on `transaction_items` (currently rejected — 'Invalid filter').
+- Fix the snapshot↔inventorytags join key (numeric packageid cast vs string Metrc id).
+
 ## 4. Related internal-API knowledge (pointers)
 
 - Backoffice internal REST recipes + Global Brand Catalog: SKILL §"Backoffice Internal
@@ -175,3 +230,7 @@ Original slate (superseded parts struck in Dictionary R31, kept for context):
   https://support.dutchie.com/hc/en-us/articles/31454734671507 (read 2026-08-27)
 - Set up automatic flower equivalency calculations in Dutchie POS —
   https://support.dutchie.com/hc/en-us/articles/40478745844243 (read 2026-08-27)
+- Retire products (hide-not-delete semantics) —
+  https://support.dutchie.com/hc/en-us/articles/12882339814035 (read 2026-08-28 by task session)
+- Combine duplicate products (Change-product flow) —
+  https://support.dutchie.com/hc/en-us/articles/12882362921491 (read 2026-08-28 by task session)

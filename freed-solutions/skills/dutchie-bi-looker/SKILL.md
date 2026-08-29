@@ -1234,6 +1234,10 @@ All calls same-origin from a `leaflogix.looker.com` top-level tab; headers requi
   title}` ALSO works (✅ 2026-08-27, tile 193940)** — MERGE tiles mint fully by API:
   POST the source queries, POST the merge (vis_config incl. `hidden_points_if_no`
   for Hide-No's rides the merge body), POST the element. Zero editor involvement.
+  **⚠ `hidden_points_if_no` is an ARRAY on UI-configured merges** (2026-08-28, tag-flag
+  merge-in): the UI writes `["calc_name"]`, not a scalar — writing a bare string to a
+  merge the UI once touched silently breaks Hide-No's; always read the existing shape
+  and match it.
 - **⚠ `browser_evaluate` `filename` saves wrap the result as a JSON string literal**
   (double-encoded). Unwrap with one `ConvertFrom-Json` pass before treating the file as
   the document. An object-walk on a wrapped file parses to a bare string and silently
@@ -1398,6 +1402,41 @@ screenshots of tile cards instead (harvest channel).
   cells via `.ag-cell[col-id]` grouped by row-index. Below-fold tiles don't render until
   scrolled into view AND take ~10-30s for 4-query merges — a missing grid right after
   scroll is a race, not a failure.
+
+### 2026-08-29 session — tile-update batch (chain deps + fold recipe)
+
+- **⚠⚠ The chain-form PL custom dim is a FOUR-dim dependency chain** — copying
+  `product_line` into another query requires `pack_count` + `dosage_label` +
+  `per_unit_dosage` to ride along (PL references `${per_unit_dosage}`, which references
+  the other two). The trap: a query with a dangling `${per_unit_dosage}` ref can POST
+  fine AND run fine as dims-only — the 400 ("Referenced expression contains errors")
+  only detonates when a `based_on` measure forces the PL dim to compile. So a
+  three-dim copy passes every cheap check and breaks the TILE after bind. Discipline:
+  copy all four as a unit, and **run-before-patch** — verify `run/json` 200 on the
+  exact new qid (with the measure included) BEFORE repointing any element at it.
+- **count_distinct measure over a custom dim**: `{category:'measure',
+  based_on:'<dim name>', measure:'count_of_<dim>', type:'count_distinct'}` + add to
+  `fields` (+ optional `series_labels`). This is what forces custom-dim compilation
+  (see above).
+- **Tile-fold recipe (redundant tile → rules on a survivor)**: append the retiring
+  tile's gate as new legs in the survivor's `qc_fails` sum + matching `qc_flags`
+  concat tokens (each leg individually gated so non-applicable rows never flag) →
+  POST new Q1 → POST rebuilt merge (strip ids) → v1-both PATCH the element →
+  content-verify + live render → only THEN `DELETE dashboard_elements/{id}` on the
+  retiring tile + its bumper, and close the layout gap by PATCHing the rows of every
+  `dashboard_layout_components` below it (shift up by the deleted section's height).
+  Element DELETE returns 204; layout components of deleted elements vanish with them.
+- **Variety three-value ladder needs a HARDENED CBD leg** (deployed estate-wide): the
+  paper rule "Type=CBD → CBD" fails live two ways — the generic `CBD` strain entry is
+  typed Hybrid (correct per the R26 ladder), and Type=CBD smokables carry ratio-named
+  entries (Ratio would win without CBD-first precedence). Deployed form:
+  `Type="CBD" OR strain_name="CBD" OR master_category="CBD"` → CBD, else colon-detect
+  (`replace(name,":","")!=name`) → Ratio, else THC. When a rule "looks right on paper"
+  but prints wrong, diagnose against LIVE rows before touching the expression.
+- **Shared-qid convergence on rebuild**: rebuilding the same-content source query for
+  two boards' twin tiles (28041's 193392 / 28094's 193811) converges both onto ONE new
+  merge id (content-addressing) — after any twin rebuild, re-GET BOTH elements and
+  update both estates; a filter change on either twin must be mirrored.
 
 Built 2026-08-21 (greenfield, fully scripted incl. dashboard creation); economics
 layer over the same transaction_items explore. As-built detail + Phase 0
