@@ -1846,6 +1846,16 @@ the cross-named `strain.name = products.strain_name` merge rule.
   (step 3b): tiles/columns/filters/rules change → guide updates in the same pass →
   stamp bumps; stamp older than the estate harvest = stale by definition. Template:
   the 28041 guide.
+- **BI SOP (operator layer, est. 2026-08-29)**: the client's `bi-estate/BI-SOP.md` is
+  the single USER-facing operating document — per-board sections in a fixed template
+  (filters table / per-tile Answers-Healthy-Read-Flags-Fix / flag glossaries with a
+  Fires-when + Fix column per token). It is DD workflow step **3c**: any change touching
+  filters, tiles, or flag vocabulary updates its section + header stamp in the same
+  pass, then re-render DOCX/PDF (pandoc-deliverable). The change-ripple runbook (rule →
+  dictionary → impact scan → tiles → re-harvest → guides+SOP → live-catalog QC) lives in
+  its §2; the mechanized impact scan + doc-freshness check is
+  `clients/primitiv/scripts/bi_impact_scan.js "<needle>" | --stale` (attributes estate
+  hits to owning dashboard + tile ids, lists doc lines to sync).
 - **Label disambiguation pair**: `$/Day at Risk (At Zero)` (26549 A-Items) vs
   `$/Day at Risk (Thin/Out)` (28041 Depth-Up) — one label per rule, suffix names the gate.
 
