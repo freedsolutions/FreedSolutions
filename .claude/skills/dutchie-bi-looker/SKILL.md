@@ -1361,6 +1361,18 @@ screenshots of tile cards instead (harvest channel).
   (vs its 193811 twin's chain-form dim); fix = swap in the chain form, whose g-list
   lives in `${dosage_label}`. Normalized byte-diff (old vs new modulo intended
   replaces) is the fast way to prove a rebuild didn't cause a tile break.
+- **⚠ USE CLAUDE-IN-CHROME FOR READ-ONLY VERIFICATION WHEN THE PLAYWRIGHT SESSION IS DEAD**
+  (Adam 8/30: "You can log a session in chrome. My other sessions have been doing so.").
+  Adam keeps a live Backoffice login in his REAL Chrome, so `mcp__claude-in-chrome__*`
+  needs no login handoff: navigate the Backoffice BI-tools page (mounts + signs the embed
+  iframe), then navigate the SAME tab to `leaflogix.looker.com/embed/dashboards/<id>` and
+  run same-origin GETs via `javascript_tool`. Verified 8/30 by re-checking two swept
+  filters and then sweeping all six boards (76 queries) for a residual string — reads,
+  merge walks, and query-filter inspection all pass. **Writes stay Playwright-only**
+  (state-changing fetches are classifier-blocked there). This removes the "wait for Adam
+  to log in" block from every verification pass; do NOT return "could not verify" until
+  this channel has been tried. Also: never return `location.search`/cookies from that
+  channel (DLP redacts them).
 - **Channel notes re-confirmed**: the Claude-Browser pane can hold a LIVE parallel
   Looker session (own cookie jar; its Backoffice login re-signs nonces), reads/run/json
   pass there, but state-changing fetches stay classifier-blocked — writes remain
