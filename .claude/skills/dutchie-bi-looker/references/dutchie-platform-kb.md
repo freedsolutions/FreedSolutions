@@ -236,3 +236,32 @@ Original slate (superseded parts struck in Dictionary R31, kept for context):
   https://support.dutchie.com/hc/en-us/articles/12882339814035 (read 2026-08-28 by task session)
 - Combine duplicate products (Change-product flow) —
   https://support.dutchie.com/hc/en-us/articles/12882362921491 (read 2026-08-28 by task session)
+
+## Category exports: label vs slug, and the item-level GC/GSC surface (2026-08-30)
+
+Dutchie exposes Global Category / Global SubCategory in **two incompatible
+representations**, and mixing them silently manufactures phantom diffs:
+
+- **Categories UI export** → GSC as a **display label** (`Whole Flower`, `Pre-Roll Packs`,
+  `Flavored Tinctures`).
+- **`get-product-categories` config API** → GSC as a **slug** (`whole-flower`, `packs`,
+  `flavored`).
+
+⚠ **The label→slug mapping is NOT a slugify.** Slugs are GC-scoped short forms:
+`Pre-Roll Packs`→`packs`, `Flavored Tinctures`→`flavored`, `Unflavored Tinctures`→
+`unflavored`, `Single Infused Pre-Roll`→(was)`infused`. A naive slugify comparison
+produced 65 false diffs in one pass, and a second slugify-based reconciliation invented
+6 more false "drift" rows. **Never diff a UI export against an API snapshot at GSC
+grain.** A UI export is authoritative for Master Category / Tax / PLC / Global Category
+ONLY.
+
+**The arbiter (new surface, first seen 2026-08-30):** the **item Catalog export gained
+`Global Category` + `Global SubCategory` columns, in SLUG form** — the first time GC/GSC
+is readable at item grain. Use it to (a) settle any category-level GSC question where the
+category holds ≥1 item, and (b) detect **item-level GC/GSC overrides** by checking whether
+a category's items carry more than one distinct GSC value (first run: zero mixed-GSC
+categories, so no override drift existed). Empty categories remain unresolvable from item
+data — they need the API replay.
+
+**Practical consequence:** category-config QC needs BOTH pulls — the API snapshot for
+ids + slugs, the item export for item-grain verification. Neither alone is sufficient.

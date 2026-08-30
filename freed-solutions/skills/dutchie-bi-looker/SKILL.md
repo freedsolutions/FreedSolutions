@@ -23,6 +23,7 @@ Work on Looker dashboards embedded inside Dutchie Backoffice (`omega.backoffice.
 - Native Dutchie reports (Sales, Inventory, Closing — non-Looker tabs in Backoffice). Different system entirely.
 - Building new LookML at the Dutchie/Looker schema level — out of scope (model is read-only from Adam's seat).
 - Google Sheets formula work — see `google-sheets-patterns`.
+- A Dutchie **platform** defect or gap (not our tile content) — file it instead of working around it silently: see `dutchie-support-ticket`.
 
 ## Inputs
 
