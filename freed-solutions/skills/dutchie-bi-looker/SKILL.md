@@ -1416,6 +1416,42 @@ screenshots of tile cards instead (harvest channel).
   scrolled into view AND take ~10-30s for 4-query merges — a missing grid right after
   scroll is a race, not a failure.
 
+### 2026-08-31 session — room rename (API limit + reachability facts)
+
+- **⚠⚠⚠ THE `fields` GATE — a custom dimension whose slug is NOT in the query's `fields`
+  array CANNOT have its EXPRESSION changed via `POST /queries`.** Verified by elimination
+  during the room rename. The server returns **200**, persists slug / label / filter-key
+  renames, and **silently keeps the OLD expression** — even a one-character tweak will not
+  take. Controls in the same run that DID land were all present in `fields`
+  (`tag_room_fails`, `tag_room_flags`, `pos_only_room_products`); the blocked one
+  (`room_type`) was referenced only by a query filter and by a measure's `based_on`, never
+  selected. **This is very likely the root cause of the older "silent 200 no-op" folklore
+  in this skill** — before blaming the v1-both binding form, check the `fields` array.
+  ⚠ **Known blast radius: on 26741/193892 the whole four-dim PL chain (`pack_count`,
+  `dosage_label`, `per_unit_dosage`, `product_line`) is absent from `fields`** — API edits
+  to those expressions will silently no-op. **Discipline: assert the slug appears in
+  `fields` BEFORE editing an expression by API; if it is not, either add it to `fields`
+  for the write, or restructure (the room rename resolved it by deleting the dim and
+  expressing it as plain `inventory.room` filters). Content-verify regardless — never
+  trust the 200.**
+- **Explore reachability for inventory tags (listen audit, 5 boards):** `inventory`
+  25/29 queries listen to the `Inventory Tag` filter; **`inventory_snapshot` 0/16 — that
+  explore cannot join `inventorytags` at all.** Consequence: tag-based exclusion does NOT
+  protect snapshot-derived measures, so employee/display-tagged packages sit inside every
+  `days_in_stock` denominator. **The `-%sample%` name chip on snapshot queries is
+  therefore LOAD-BEARING (removing it re-admits 56 rows) — do not "clean it up" as
+  redundant the way you can on the `inventory` side.**
+- **`inventory_snapshot.room_name` is a LIVE JOIN, not a stored string** — renaming a room
+  rewrites all snapshot history retroactively. There is no dual-name transition window to
+  code around, and no historical seam to patch (contrast the MC-rename doctrine, where
+  historical values persist in transaction rows and trend lines break AT the seam).
+- **Impact-scan blind spot, FIXED same day:** `bi_impact_scan.js` did not walk
+  **filtered-measure `filters` / `filter_expression` blocks inside dynamic_fields**, so a
+  filtered measure carrying dead room needles returned 0 on 7 tiles unseen (the scan
+  reported ~19 queries where the live sweep found 30, and missed a whole board). Both the
+  query-level and merge-level loops now scan those blocks and report them as
+  `filtered-measure` hits. **A string-keyed ripple that predates this fix should be
+  re-scanned.**
 ### 2026-08-29 session — tile-update batch (chain deps + fold recipe)
 
 - **⚠⚠ The chain-form PL custom dim is a FOUR-dim dependency chain** — copying

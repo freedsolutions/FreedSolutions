@@ -263,3 +263,57 @@ data — they need the API replay.
 
 **Practical consequence:** category-config QC needs BOTH pulls — the API snapshot for
 ids + slugs, the item export for item-grain verification. Neither alone is sufficient.
+
+## [DOC] Catalog content auto-update after a match (2026-08-30)
+
+`support.dutchie.com` article **12883855947027** — *Utilizing the Dutchie Catalog | Adding Product
+Images and Descriptions to Your Menu from Dutchie Connect* — states verbatim:
+
+> "After a match is saved, your menu will automatically receive any catalog updates made for that
+> product. The ability to push product updates out in real time ensures that your menu stays up to
+> date on packaging or other marketing changes, with no manual effort on your part."
+
+Also documented there: matching never overrides an existing potency or Sativa/Hybrid/Indica/CBD
+type; it only fills empty type/potency fields. Wrong matches are corrected by selecting the right
+match and saving again; the library connection is removed by editing the Product Name away from
+the pre-populated catalog name.
+
+⚠️ **[PROBE] contradicts this on the Backoffice path (HSCG, 2026-08-30).** Auditing 337 Backoffice
+Global-Brand-Catalog links: **26 (~8%) still serve a copy of the catalog image as it existed when
+the link was made**, up to 17 months stale (e.g. Rove Skywalker OG local 2024-04-25 vs brand
+2025-10-30). Unlink+relink pulls the current image, so the asset is available — it simply does not
+propagate. Open question whether the documented auto-update covers only Connect matches made from
+the **E-Commerce admin**, not **Backoffice → Catalog → Global Brand Catalog** links. Ticket drafted
+at `clients/primitiv/tickets/2026-08-30-catalog-image-updates-not-propagating.md`.
+
+**[PROBE] Image linkage mechanics (2026-08-30):** the local image row's `CatalogImageId` points at a
+specific catalog image *version*; the file served is a local copy on `leaflogixmedia.blob…`, not a
+live reference to the brand's `dutchie-images.s3` asset. Detection of staleness = local
+`CatalogImageId` not present in the linked record's current `images[]._id`. A local id **newer**
+than anything on the brand record = orphaned reference; the UI re-sync will not stick (3 SKUs).
+
+**[DOC] No documented size limit for POS catalog images.** Article 12882291561491 gives upload steps
+only. Ecom dimensions (Product 1600x1600, Banner 3019x900) are documented separately and are Ecom-
+only. Six HSCG SKUs had brand catalog images rejected as too large against an undocumented limit.
+
+## [DOC-ADAM] Ecom Admin vs Backoffice Global Brand — the omega content pipeline (2026-08-31)
+
+Stated by Adam; supersedes any inference that the Backoffice item image/description is what the
+menu publishes.
+
+- **Pre-beta:** Ecom automapped its own canonical product; Backoffice content did not drive the menu.
+- **On omega TODAY:** **Ecom Admin is still the source of truth**, with **Global Brand able to
+  overwrite it**. A **separate toggle** governs whether Global Brands may overwrite
+  titles / descriptions / images.
+- **"Broken integration":** a user editing the menu page in **Ecom Admin** breaks the integration for
+  that item. This is *independent* of the Global-Brand overwrite path — i.e. a Global Brand can still
+  overwrite content you had already overwritten in Ecom Admin.
+- **Direction of travel:** Backoffice Global Brand linking/control is meant to replace all of this.
+  Adam's plan at the omega flip: **turn the Global-Brand overwrite toggle OFF** (so HSCG canonical
+  OT/description/image win, per R41), and **wipe the Ecom menu** to reset the broken-integration
+  items Shaun overwrote in Ecom Admin.
+
+⚠ **Consequence for QC:** menu impact of any Backoffice-side content defect is **conditional** — on
+the toggle and on whether that item was hand-edited in Ecom Admin. Never assert menu impact from
+Backoffice data alone. The "broken integration" population is a distinct, un-audited cleanup lane
+(relates to R16 Ecom-Admin override work).
