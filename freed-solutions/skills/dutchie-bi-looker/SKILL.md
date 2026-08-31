@@ -1416,6 +1416,29 @@ screenshots of tile cards instead (harvest channel).
   scrolled into view AND take ~10-30s for 4-query merges — a missing grid right after
   scroll is a race, not a failure.
 
+### 2026-08-31 ×2 — read-surface + join-shape notes (employee-exclusion lane)
+
+- **⚠ CSRF IS REQUIRED ON GETs, not just writes.** An internal-API GET without
+  `x-csrf-token` (from `meta[name="csrf-token"]`) returns a **bare 403 that reads exactly
+  like an auth failure** — you will waste time re-logging in. Send the header on every
+  call, read or write.
+- **⚠ USE `https://leaflogix.looker.com/embed/preload` AS THE READ SURFACE.** It exposes
+  the full internal API but renders no tiles, so it loads fast and cannot wedge. Loading a
+  real dashboard just to get an API origin is a trap: **28006 wedges the renderer past the
+  45s CDP budget** and the evaluate times out before you can call anything.
+- **A field's ROLE in a query changes the join's behavior.** Verified on the
+  transaction↔discounts join: using `transaction_item_discounts.name` as a **filter only**
+  is exact and NULL-safe (baseline ≡ no-op to the penny: 6,016 units / $154,007.70, and
+  the ~63% of lines with no discount are correctly retained), but **selecting the same
+  field as a dimension fans out +2.5% units / +2.9% dollars.** Rule: on one-to-many joins,
+  filter-only — never put the field in `fields`. Pairs with the `fields`-gate finding
+  above as the same lesson from two directions.
+- **Dutchie penny-giveaways may carry NO discount row at all.** Measured: 722 of 722 lines
+  at price ≤ $0.02 had `transaction_item_discounts.name = NULL` — the item is *priced* at
+  $0.01 rather than *discounted* to it. Any exclusion keyed on a discount program is
+  therefore INERT against a price-override giveaway. Check which mechanism a tenant
+  actually uses before designing a discount-based filter.
+
 ### 2026-08-31 session — room rename (API limit + reachability facts)
 
 - **⚠⚠⚠ THE `fields` GATE — a custom dimension whose slug is NOT in the query's `fields`
