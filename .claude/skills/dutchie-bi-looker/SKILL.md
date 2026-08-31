@@ -1418,6 +1418,17 @@ screenshots of tile cards instead (harvest channel).
   scrolled into view AND take ~10-30s for 4-query merges — a missing grid right after
   scroll is a race, not a failure.
 
+- **!! SCOPE THE RESIDUAL GREP TO `dynamic_fields` + query `filters` — NEVER the whole
+  snapshot.** `vis_config.query_fields[].lookml_expression` is Looker's **stale
+  server-side cache** of a field definition; it does NOT update when you change the
+  expression, so retired strings live in it permanently. Measured on 28006 after the room
+  rename: a whole-file grep finds `LIMITED_TAG_ROOM` x1 and `Display Flower` x2 (reads as
+  a FAILED ripple), while the same strings in `dynamic_fields` are **0** (the truth). The
+  closing residual grep in step 4 of the runbook must walk `queries[].dynamic_fields`,
+  `merges[].dynamic_fields` and `queries[].filters` only. (Retro-verified: the 8/30
+  MC-rename `-Merch` claim is 0 under the correct scope too, so that ripple's conclusion
+  stands — the whole-file grep just happened to agree that time.)
+
 ### 2026-08-31 ×2 — read-surface + join-shape notes (employee-exclusion lane)
 
 - **⚠ CSRF IS REQUIRED ON GETs, not just writes.** An internal-API GET without
