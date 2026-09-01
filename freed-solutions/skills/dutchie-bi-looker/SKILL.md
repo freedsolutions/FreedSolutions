@@ -1450,6 +1450,50 @@ screenshots of tile cards instead (harvest channel).
   therefore INERT against a price-override giveaway. Check which mechanism a tenant
   actually uses before designing a discount-based filter.
 
+### 2026-09-01 session — viz row-grouping + calc-sort limits (PL Attribute Consistency build)
+
+- **⚠⚠ `vis_config.row_groups` WORKS ON DIMENSIONS ONLY — a table calc is silently ignored.**
+  The grid group feature ("group the viz on the QC Flag") is configured as
+  `row_groups: {enabled:true, group_column_header, row_grouping_fields:[<slug>],
+  default_display_level:"top_expanded", show_group_counts:true, configurable_subtotals:false}`.
+  Pointed at a **custom dimension** it renders `ag-Grid-AutoColumn` group header rows
+  (28006/193267 groups on its `qc_flags` dimension — use it as the control). Pointed at a
+  **table calculation** the config **POSTs, persists in `vis_config`, and the grid then ignores
+  it** — no error, no group rows, and a later reader sees config that says grouping is on.
+  Detect by DOM, not by config: `sec.querySelector('.ag-row-group, .ag-group-row')` and a
+  first cell with `col-id="ag-Grid-AutoColumn"`. **Remove the dead config rather than leaving it.**
+  Consequence for grain-level QC tiles: a within-PL/within-group comparison **must** be a table
+  calc (a row-scoped SQL dimension cannot see its siblings), so those tiles can never be
+  row-grouped on their own flag column. Offer the viewer-side header click instead — safe on any
+  tile with no `running_total`/`offset` calcs.
+- **⚠ Calc sorts must come AFTER all dimension sorts.** `sorts: ["qc_flags","product_line"]` on a
+  plain query POSTs fine and then **400s at run time**: *"Calculated field 'qc_flags' appears in
+  the sort order before 'product_line'. Calculated field sorts must be after all database sorts."*
+  So a calc can only ever be a tie-breaker — you cannot cluster rows by a calc column server-side.
+  (This refines the older "plain-query sorts accept table-calc slugs" note: they do, but only in
+  trailing position.) ⚠ The bad sort had already been bound when the 400 surfaced — the element
+  sat on a broken query until reverted. **Run before you bind, even for a sort-only change.**
+- **⚠⚠ `run/json` SERVES CACHED RESULTS — a moved number may be stale, not drift.** A long-lived
+  qid returned 145 rows including a PL that no longer existed; a **structurally identical query
+  POSTed fresh** (content-addressing gives a new id if you change any byte — e.g. `limit` 500→501)
+  returned the correct 144. Before escalating a baseline change as regression, re-run through a
+  NEW qid. Content-addressing makes this probe free.
+- **Null-heavy columns need `coalesce` on BOTH sides of a band calc.** `coalesce(${max_x},0) -
+  coalesce(${min_x},0) >= eps`. A bare `${max_x} - ${min_x} >= eps` yields **NULL** (not false)
+  when every group member is null, which propagates into a `concat` flag string and into any
+  yesno driving `hidden_points_if_no`. SQL min/max ignore nulls, so a group mixing set and unset
+  values correctly does not fire — that is the desired semantics for a consistency test.
+- **Per-attribute epsilons, never one shared constant.** A penny (`>= 0.01`) is right for currency
+  and WRONG for `products.product_grams`, whose ladder starts `0.005, 0.01, 0.02, 0.025` (mg-dosed
+  items store mg as grams — a 5mg item is `0.005g`), so a penny test scores 0.005 and 0.01 as
+  equal. Derive each epsilon from the field's own live value ladder (smallest real gap), not from
+  the neighbouring rule.
+- **`count_distinct` over a custom dimension is the string-consistency primitive.** min/max only
+  works on numerics; for a string attribute use `{category:"measure", based_on:"<dim slug>",
+  type:"count_distinct"}` and flag `> 1`. The dim is referenced only via `based_on`, so it does
+  **not** go in `fields`. Normalize inside the dim before counting — comparing raw
+  `products.Vendor_Name` flagged 5 false rows that the R13 `(P)`/`(C)` strip takes to 0.
+
 ### 2026-08-31 session — room rename (API limit + reachability facts)
 
 - **⚠⚠⚠ THE `fields` GATE — a custom dimension whose slug is NOT in the query's `fields`
