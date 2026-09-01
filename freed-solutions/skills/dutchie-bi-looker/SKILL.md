@@ -1474,6 +1474,19 @@ screenshots of tile cards instead (harvest channel).
   on dimensions**. It is dimension-vs-calc, never merge-vs-plain — a merge tile that appears to
   group is grouping on a SOURCE-QUERY dimension (193267's `qc_flags` is `category: dimension` in
   Q1; its one merge-level calc is not grouped on).
+  ⚠ **CONFIRMED IN THE UI TOO (2026-09-01):** on a tile whose flag is a calc, **the field simply
+  does not appear in Edit → Grouping → Add Fields** — the picker lists dimensions only, so there
+  is no "it saved but did not render" ambiguity to chase. If a user reports a field missing from
+  that picker, the answer is almost always that it is a table calculation.
+  ⚠ **Root cause is GRAIN — name it explicitly when explaining this:** a flag asking "is THIS ROW
+  wrong?" is computable per row → SQL dimension → groupable (193267, ITEM grain). A flag asking
+  "do these rows AGREE?" needs min/max across siblings → post-aggregation → table calc → never
+  groupable (194975, PL grain). Two near-identical-looking QC tiles, opposite capabilities.
+  ⚠ **A concat "a│b" pair does NOT rescue this** (considered 2026-09-01): min/max over a concat is
+  LEXICOGRAPHIC, it destroys the min/max range that is the diagnostic payload, and it collapses the
+  per-attribute distinction that tells an operator which fix is safe. `count_distinct` over the
+  concat detects but cannot diagnose — though it IS filterable server-side (HAVING), which is a
+  real alternative to a Hide-No’s table calc if you only need a queue.
 - **⚠ Calc sorts must come AFTER all dimension sorts.** `sorts: ["qc_flags","product_line"]` on a
   plain query POSTs fine and then **400s at run time**: *"Calculated field 'qc_flags' appears in
   the sort order before 'product_line'. Calculated field sorts must be after all database sorts."*
