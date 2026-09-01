@@ -1530,6 +1530,20 @@ screenshots of tile cards instead (harvest channel).
   (`room_type`) was referenced only by a query filter and by a measure's `based_on`, never
   selected. **This is very likely the root cause of the older "silent 200 no-op" folklore
   in this skill** — before blaming the v1-both binding form, check the `fields` array.
+  ⚠⚠ **BUT THE GATE IS ABOUT CUSTOM DIMENSIONS AND MEASURES — NEVER PUT A TABLE CALCULATION IN
+  `fields` (learned the hard way 2026-09-01).** Table calcs live ONLY in `dynamic_fields`; Looker
+  renders them as extra columns automatically. List a calc slug in `fields` and the query still
+  runs and the tile still renders correctly — but every open of the Explore / "Edit Tile" editor
+  throws **`'<slug>' no longer exists on Reference Data, or you do not have access to it, and it
+  will be ignored`** for each one, because the editor tries to resolve them as EXPLORE fields.
+  Worse, **a UI save silently rewrites `fields` to drop them**, so an API build and a UI save
+  fight each other across sessions (observed: 21 fields → 13 after one user save, which also
+  reverted `sorts`). Estate check that settles it: on 28006 the UI-built calc tiles (193882,
+  194986) carry ZERO calc slugs in `fields`; the one API-built tile that did (194975) was the only
+  one warning. **Rule: `fields` = real explore fields + custom dimensions/measures. Table calcs,
+  never.** `hidden_fields`, `hidden_points_if_no` and calc sorts all work fine on a calc that is
+  absent from `fields` — 194986 proves it (its `fl_eq_inconsistent` drives Hide-No's from
+  `dynamic_fields` alone).
   ⚠ **Known blast radius: on 26741/193892 the whole four-dim PL chain (`pack_count`,
   `dosage_label`, `per_unit_dosage`, `product_line`) is absent from `fields`** — API edits
   to those expressions will silently no-op. **Discipline: assert the slug appears in
