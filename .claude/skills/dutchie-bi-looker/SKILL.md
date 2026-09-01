@@ -1466,12 +1466,24 @@ screenshots of tile cards instead (harvest channel).
   first cell with `col-id="ag-Grid-AutoColumn"`. **Remove the dead config rather than leaving it.**
   Consequence for grain-level QC tiles: a within-PL/within-group comparison **must** be a table
   calc (a row-scoped SQL dimension cannot see its siblings), so those tiles can never be
-  row-grouped on their own flag column. Offer the viewer-side header click instead — safe on any
-  tile with no `running_total`/`offset` calcs.
+  row-grouped on their own flag column. Use the calc-only sort below as the substitute.
+  ⚠ **Wrapping the query in a MERGE does NOT help — tested 2026-09-01, not assumed.** A
+  single-source merge over the same query, `row_groups` on the calc, bound to a scratch tile,
+  rendered flat (no `ag-Grid-AutoColumn`, no group rows) exactly like the plain query. Merge-level
+  fields are table calcs too; **you cannot declare a dimension at merge level**, so merging changes
+  nothing. Corroborating: 28006/193884 is a **PLAIN** query that row-groups fine (on `drift_flags`,
+  a dimension), and an estate-wide sweep of all six boards finds only 4 `row_groups` configs, **all
+  on dimensions**. It is dimension-vs-calc, never merge-vs-plain — a merge tile that appears to
+  group is grouping on a SOURCE-QUERY dimension (193267's `qc_flags` is `category: dimension` in
+  Q1; its one merge-level calc is not grouped on).
 - **⚠ Calc sorts must come AFTER all dimension sorts.** `sorts: ["qc_flags","product_line"]` on a
   plain query POSTs fine and then **400s at run time**: *"Calculated field 'qc_flags' appears in
   the sort order before 'product_line'. Calculated field sorts must be after all database sorts."*
-  So a calc can only ever be a tie-breaker — you cannot cluster rows by a calc column server-side.
+  ✅ **But a calc-ONLY sort IS legal** — `sorts: ["qc_flags"]` with no dimension sort present has
+  nothing to violate, runs 200, and DOES cluster rows by the calc value (verified: 67 rows into 3
+  contiguous runs). So the rule is "no dimension sort may follow a calc sort", not "calcs cannot
+  drive order". Cost: rows lose dimension ordering WITHIN each cluster (database order returns).
+  This is the practical substitute when row-grouping is unavailable because the field is a calc.
   (This refines the older "plain-query sorts accept table-calc slugs" note: they do, but only in
   trailing position.) ⚠ The bad sort had already been bound when the 400 surfaced — the element
   sat on a broken query until reverted. **Run before you bind, even for a sort-only change.**
