@@ -3,10 +3,6 @@ name: dutchie-bi-looker
 description: Edit Looker tiles and merge queries embedded in Dutchie Backoffice (leaflogix.looker.com) — table calc syntax, Ace editor automation via Playwright, signed embed token navigation, dashboard column/sort cleanup, save flow. Use when Adam needs to add or modify a metric, calc, or column on any dashboard tile in Dutchie Backoffice → BI tools.
 ---
 
-<!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
-<!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # Dutchie BI Looker
 
 Work on Looker dashboards embedded inside Dutchie Backoffice (`omega.backoffice.dutchie.com` → BI tools → iframe to `leaflogix.looker.com`). Cover the merge-query editor, table calculations, dashboard tile bindings, and the Playwright automation patterns that survive cross-origin iframes and Ace editor quirks. Source of truth for the procurement tiles (Buyers_2, Buyers_3) on dashboard 26549.
@@ -407,7 +403,27 @@ reverted on re-render — don't trust it.
   calcs: `to_number` fails ("Invalid function for sql context"), and implicit string→number
   coercion is rejected by the type checker ("first argument for `*` must be a Number").
   Available and verified: `if`, `coalesce`, `concat`, `round`, `replace`, `=`, `AND`/`OR`/`NOT`,
-  arithmetic, `null` literal, `diff_days(date, now())`.
+  arithmetic, `null` literal, `diff_days(date, now())`, and — **added 2026-09-02** —
+  **`position` and `substring`**, which the merge-table-calc note further down is no longer the
+  only home for. `position(haystack, needle)` is **1-based** and returns **0** on no-match (not
+  null); `substring(string, start, length)` is 1-based and tolerates a length past the end. So the
+  "text before the first delimiter" idiom works in a filterable, groupable custom DIMENSION:
+  `if(position(${x}," | ")>0, substring(${x},1,position(${x}," | ")-1), "")`.
+- **⚠⚠ `=` / `!=` BETWEEN TWO COLUMNS IS CASE-INSENSITIVE (2026-09-02, measured).** This is a
+  collation behavior and it is *not* visible from testing the operator against literals:
+  `if("ABC"="abc",1,0)` returns **0** and `replace("ABCdef","abc","")` returns `ABCdef` — both
+  case-SENSITIVE — yet `${brand_token} != ${products.brand_name}` did **not** flag a row whose name
+  token was `RAW` against a Brand of `Raw`. Any QC rule written as a bare column-to-column
+  comparison therefore has a **silent hole exactly the size of the case-only defects**, which are
+  the ones a human reviewer is least likely to spot.
+  **Case-sensitive prefix/equality test that does work**, using `replace` on a sentinel-prefixed
+  copy (the sentinel occurs once, so a *contains* test becomes a *starts-with* test):
+  ```
+  replace(concat("~|~", ${s}), concat("~|~", ${prefix}), "") = concat("~|~", ${s})
+  ```
+  True ⇒ `${s}` does NOT start with `${prefix}`. Verified over 861 catalog rows: identical to the
+  `!=` form on every row except the case-only one (78 vs 77). Pick a sentinel that cannot occur in
+  the data.
 - **`coalesce(${products.is_cannabis},"")` compiles in a table calc but errors on Snowflake**
   in a custom dimension: the LookML string field sits on a BOOLEAN column, and
   `COALESCE(boolean, varchar)` is a Snowflake compile error. Use comparison form instead:

@@ -5,10 +5,6 @@ description: Edit Looker tiles and merge queries embedded in Dutchie Backoffice 
 
 <!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
-<!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
-<!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # Dutchie BI Looker
 
 Work on Looker dashboards embedded inside Dutchie Backoffice (`omega.backoffice.dutchie.com` → BI tools → iframe to `leaflogix.looker.com`). Cover the merge-query editor, table calculations, dashboard tile bindings, and the Playwright automation patterns that survive cross-origin iframes and Ace editor quirks. Source of truth for the procurement tiles (Buyers_2, Buyers_3) on dashboard 26549.
@@ -409,7 +405,27 @@ reverted on re-render — don't trust it.
   calcs: `to_number` fails ("Invalid function for sql context"), and implicit string→number
   coercion is rejected by the type checker ("first argument for `*` must be a Number").
   Available and verified: `if`, `coalesce`, `concat`, `round`, `replace`, `=`, `AND`/`OR`/`NOT`,
-  arithmetic, `null` literal, `diff_days(date, now())`.
+  arithmetic, `null` literal, `diff_days(date, now())`, and — **added 2026-09-02** —
+  **`position` and `substring`**, which the merge-table-calc note further down is no longer the
+  only home for. `position(haystack, needle)` is **1-based** and returns **0** on no-match (not
+  null); `substring(string, start, length)` is 1-based and tolerates a length past the end. So the
+  "text before the first delimiter" idiom works in a filterable, groupable custom DIMENSION:
+  `if(position(${x}," | ")>0, substring(${x},1,position(${x}," | ")-1), "")`.
+- **⚠⚠ `=` / `!=` BETWEEN TWO COLUMNS IS CASE-INSENSITIVE (2026-09-02, measured).** This is a
+  collation behavior and it is *not* visible from testing the operator against literals:
+  `if("ABC"="abc",1,0)` returns **0** and `replace("ABCdef","abc","")` returns `ABCdef` — both
+  case-SENSITIVE — yet `${brand_token} != ${products.brand_name}` did **not** flag a row whose name
+  token was `RAW` against a Brand of `Raw`. Any QC rule written as a bare column-to-column
+  comparison therefore has a **silent hole exactly the size of the case-only defects**, which are
+  the ones a human reviewer is least likely to spot.
+  **Case-sensitive prefix/equality test that does work**, using `replace` on a sentinel-prefixed
+  copy (the sentinel occurs once, so a *contains* test becomes a *starts-with* test):
+  ```
+  replace(concat("~|~", ${s}), concat("~|~", ${prefix}), "") = concat("~|~", ${s})
+  ```
+  True ⇒ `${s}` does NOT start with `${prefix}`. Verified over 861 catalog rows: identical to the
+  `!=` form on every row except the case-only one (78 vs 77). Pick a sentinel that cannot occur in
+  the data.
 - **`coalesce(${products.is_cannabis},"")` compiles in a table calc but errors on Snowflake**
   in a custom dimension: the LookML string field sits on a BOOLEAN column, and
   `COALESCE(boolean, varchar)` is a Snowflake compile error. Use comparison form instead:
@@ -1532,6 +1548,20 @@ screenshots of tile cards instead (harvest channel).
   (`room_type`) was referenced only by a query filter and by a measure's `based_on`, never
   selected. **This is very likely the root cause of the older "silent 200 no-op" folklore
   in this skill** — before blaming the v1-both binding form, check the `fields` array.
+  ⚠⚠ **BUT THE GATE IS ABOUT CUSTOM DIMENSIONS AND MEASURES — NEVER PUT A TABLE CALCULATION IN
+  `fields` (learned the hard way 2026-09-01).** Table calcs live ONLY in `dynamic_fields`; Looker
+  renders them as extra columns automatically. List a calc slug in `fields` and the query still
+  runs and the tile still renders correctly — but every open of the Explore / "Edit Tile" editor
+  throws **`'<slug>' no longer exists on Reference Data, or you do not have access to it, and it
+  will be ignored`** for each one, because the editor tries to resolve them as EXPLORE fields.
+  Worse, **a UI save silently rewrites `fields` to drop them**, so an API build and a UI save
+  fight each other across sessions (observed: 21 fields → 13 after one user save, which also
+  reverted `sorts`). Estate check that settles it: on 28006 the UI-built calc tiles (193882,
+  194986) carry ZERO calc slugs in `fields`; the one API-built tile that did (194975) was the only
+  one warning. **Rule: `fields` = real explore fields + custom dimensions/measures. Table calcs,
+  never.** `hidden_fields`, `hidden_points_if_no` and calc sorts all work fine on a calc that is
+  absent from `fields` — 194986 proves it (its `fl_eq_inconsistent` drives Hide-No's from
+  `dynamic_fields` alone).
   ⚠ **Known blast radius: on 26741/193892 the whole four-dim PL chain (`pack_count`,
   `dosage_label`, `per_unit_dosage`, `product_line`) is absent from `fields`** — API edits
   to those expressions will silently no-op. **Discipline: assert the slug appears in
