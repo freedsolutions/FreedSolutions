@@ -25,8 +25,12 @@ name it: `<kickoff.md>` (give it absolutely — the build session starts in a di
 `<export.csv>`. When describing a run in prose, say *the path* only for the taxonomy value and *the
 kickoff* for the file, or the hand-off line reads as though `build` takes a path like `tile`.
 
-**`qc` — the manual-style QC, made repeatable.** Runs the client's export runner (the `Export QC:`
-line in the pointer block) against the freshest Catalog export in `~/Downloads` (or the file given):
+**`qc` — the manual-style QC, made repeatable.** Three runs, one command: the client's export runner (the
+`Export QC:` line in the pointer block) on the **Active set**, the same runner on the **retired+tagged set**
+(`--retired` — retired rows carrying a product tag are canonical, untagged retired rows are ignored), and the
+client's **inventory runner** (package grain: the Inventory export joined to the Catalog export on SKU, mirroring
+the package-grain tiles; Adam ruled 2026-09-04 that inventory QC is part of the standard flow). Each runner defaults
+to the freshest matching file in `~/Downloads` (or the file given):
 every rule in the Dictionary's export-only register plus export-side MIRRORS of the BI legs, a
 summary table (flag · rule · surface · class · scope · flagged), a NEW timestamped CSV under the
 client's `deliverables/`, exit 1 on any DEFECT-class hit (BACKLOG-class counts never fail). No
