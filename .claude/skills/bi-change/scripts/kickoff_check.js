@@ -68,14 +68,21 @@ if (!['plan', 'build'].includes(H.lane)) fail('lane is plan|build', String(H.lan
 H.rules = H.rules || []; H.dashboards = (H.dashboards || []).map(String); H.scope = H.scope || {};
 H.scope.elements = (H.scope.elements || []).map(String); H.scope.new_elements = H.scope.new_elements || [];
 H.scope.retired_elements = (H.scope.retired_elements || []).map(String); H.scope.retired_titles = H.scope.retired_titles || [];
-if (BI_PATHS.has(H.path) && !H.dashboards.length) fail('BI path names its dashboards', 'dashboards: []');
+H.artifacts = H.artifacts || [];
+if (BI_PATHS.has(H.path) && !H.dashboards.length && !(H.path === 'sync' && H.artifacts.length)) fail('BI path names its dashboards', 'dashboards: [] (a sync of a reference artifact lists it under artifacts instead)');
 if (H.path === 'rule' && !H.rules.length) fail('rule path names its R rows', 'rules: []');
+// artifacts: reference files the change produces or refreshes (a sync of the explore catalog, a baseline
+// census) — each must exist in the estate dir at build phase
+if (phase !== 'plan') for (const a of H.artifacts) { if (fs.existsSync(path.join(EST_DIR, a))) ok('artifact ' + a, 'present'); else fail('artifact ' + a, 'not in the estate dir'); }
 
 // ---------- Dictionary: rows present, rule text sealed / unchanged ----------
 const dd = fs.existsSync(DD) ? read(DD) : '';
 if (!dd) fail('Dictionary found', DD);
+// The register is the FIRST contiguous run of `| Rnn |` rows; later tables that cite rule ids in their
+// first cell (the export-only register, appendices) are not register rows. First occurrence wins.
 const rows = {};
 for (const m of dd.matchAll(/^\| (R\d+) \|([^\r\n]*)$/gm)) {
+  if (rows[m[1]]) continue;
   const cells = m[2].split(' | ').map(c => c.trim());
   rows[m[1]] = { rule: cells[0] || '', impl: cells[2] || '', line: m[0] };
 }
@@ -128,6 +135,12 @@ for (const id of H.dashboards) {
   else if (!base || !fs.existsSync(path.join(EST_DIR, base))) { fail('baseline ' + id, 'header.baseline missing or not on disk: ' + base); continue; }
   else {
     const a = loadEstate(base), b = loadEstate(cur);
+    const doneBlk = block('done');
+    if (doneBlk && doneBlk.obj.built_at && b.harvested_at > doneBlk.obj.built_at) {
+      // closed kickoff: later builds have moved the live snapshot on; its own verification happened at built_at
+      info('scope ' + id, 'closed ' + doneBlk.obj.built_at + '; live snapshot ' + b.harvested_at + ' is newer, so the scope diff no longer applies');
+      continue;
+    }
     if (b.harvested_at <= a.harvested_at) fail('re-harvest ' + id, cur + ' (' + b.harvested_at + ') is not newer than the baseline (' + a.harvested_at + ')');
     else ok('re-harvest ' + id, b.harvested_at);
     const A = Object.fromEntries(a.elements.map(e => [String(e.id), e])), B = Object.fromEntries(b.elements.map(e => [String(e.id), e]));

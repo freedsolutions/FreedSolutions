@@ -40,11 +40,20 @@ function restampDictionary(s, today, text) {
   const m = onceRe(s, /^Last updated: \*\*([^*]+)\*\* \(/m, "DD header"); const stamp = nextStamp(m[1], today);
   return { s: s.replace(m[0], "Last updated: **" + stamp + "** (" + text + " Prior: **" + m[1] + "** ("), stamp };
 }
-// Append a register row after the last "| Rnn |" row. Throws when the id already exists.
+// Append a register row after the last row of the register TABLE — the first contiguous run of
+// "| Rnn |" rows; later tables that cite rule ids (the export-only register) are not the register.
+// Throws when the id already exists in that table.
 function appendRegisterRow(s, nl, row) {
   const id = row.match(/^\| (R\d+) \|/); if (!id) throw new Error("row must start with | Rnn |");
-  if (new RegExp("^\\| " + id[1] + " \\|", "m").test(s)) throw new Error(id[1] + " already present");
-  const rows = [...s.matchAll(/^\| R\d+ \|[^\r\n]*$/gm)]; const last = rows[rows.length - 1];
+  const rows = [...s.matchAll(/^\| R\d+ \|[^\r\n]*$/gm)]; if (!rows.length) throw new Error("no register rows");
+  let last = rows[0];
+  for (let i = 1; i < rows.length; i++) {
+    const between = s.slice(last.index + last[0].length, rows[i].index);
+    if (/[^\s]/.test(between.replace(/\r?\n/g, ""))) break; // a non-row line ends the table
+    last = rows[i];
+  }
+  const table = s.slice(rows[0].index, last.index + last[0].length);
+  if (new RegExp("^\\| " + id[1] + " \\|", "m").test(table)) throw new Error(id[1] + " already present");
   return s.slice(0, last.index + last[0].length) + nl + row + s.slice(last.index + last[0].length);
 }
 module.exports = { fs, load, once, onceRe, swap, nextStamp, restamp, restampDictionary, appendRegisterRow };

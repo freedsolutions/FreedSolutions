@@ -17,7 +17,18 @@ block in the gitignored client `CLAUDE.md`; nothing in this file names a client.
 /bi-change build <kickoff.md>       build lane   — executes the kickoff and closes it
 /bi-change check <kickoff.md>       any session  — the gate; reads only, needs no login
 /bi-change run <path> "<ask>"       plan + build in ONE session, ONE stop — one change at a time
+/bi-change qc [export.csv]          run every export-side rule against the freshest Catalog export
 ```
+
+**`qc` — the manual-style QC, made repeatable.** Runs the client's export runner (the `Export QC:`
+line in the pointer block) against the freshest Catalog export in `~/Downloads` (or the file given):
+every rule in the Dictionary's export-only register plus export-side MIRRORS of the BI legs, a
+summary table (flag · rule · surface · class · scope · flagged), a NEW timestamped CSV under the
+client's `deliverables/`, exit 1 on any DEFECT-class hit (BACKLOG-class counts never fail). No
+login, no BI. Adding an export-side rule = the register row first (canon), then one entry in the
+runner's rule table citing the R number, then `--selftest` (every flag must fire on a synthetic row
+and stay quiet on its control). The runner aborts on a missing or misspelt column instead of reading
+it as blank — a case slip manufactures false positives, not a silent zero.
 
 `plan` runs on the strongest model available (the session Adam is in). `build` runs in a NEW
 session on the model Adam routes task work to (the kickoff header says which). `check` runs
@@ -45,7 +56,7 @@ after the seal without a re-seal that quotes his words. Two changes in flight = 
 | `dashboard` | New board | rows as needed | new `estate-<id>.json` | new guide file, SOP section (Appendix A), WI page (A2), README roster | guide + SOP section + README present |
 | `retire` | Remove a tile, board or rule | strike-through + supersede, never delete | `scope.retired_elements` | entries removed | retired titles absent from every doc |
 | `config` | Backoffice category or field config | R row + drift log | only where a QC flag enforces it | ITEM-CREATION SOP/WI | R rows present; `--stale` |
-| `sync` | Someone changed a tile by hand, or docs drifted | none | re-harvest, diff | stamps + rows | scope diff (declared), `--stale` |
+| `sync` | Someone changed a tile by hand, docs drifted, or a reference artifact needs refreshing (the explore catalog dump) | none | re-harvest, diff | stamps + rows | scope diff (declared), `--stale`; header `artifacts` must exist |
 
 Every path ends with `check` green, a Status section with a done block, and the close-out below.
 
