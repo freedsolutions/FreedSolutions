@@ -49,7 +49,8 @@ function appendRegisterRow(s, nl, row) {
   let last = rows[0];
   for (let i = 1; i < rows.length; i++) {
     const between = s.slice(last.index + last[0].length, rows[i].index);
-    if (/[^\s]/.test(between.replace(/\r?\n/g, ""))) break; // a non-row line ends the table
+    // a non-table line ends the table; a table row that is not an R row (e.g. `| — | NEW SURFACE …`) does not
+    if (between.split(/\r?\n/).some(l => l.trim() && !l.trim().startsWith("|"))) break;
     last = rows[i];
   }
   const table = s.slice(rows[0].index, last.index + last[0].length);
