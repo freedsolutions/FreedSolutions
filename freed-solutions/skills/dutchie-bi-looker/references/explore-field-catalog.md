@@ -1,17 +1,13 @@
 # Dutchie / leaflogix Looker — Explore & Field Catalog
 
-> **⚠ STALE — model evolved past this catalog (proven by live re-enumeration
-> 2026-08-28, Adam's sales-tag pushback was the tell). FULL RE-HARVEST QUEUED** via
-> `/api/internal/core/4.0/lookml_models/sql_server/explores/<name>` (the probing
-> session's enumeration died with its browser). Known deltas until then:
-> - **NEW explores**: `inventory_historical` (FULL package history, 5,835 pkgs incl.
->   qty-0 sold-out, **working inventorytags join on the numeric key** — the historic
->   tag lane), `weekly_transactions` (single-view), `products` (product spine +
->   transactions/producttags).
-> - `transaction_items` now joins the full `inventory` view (package_id/room/status/
->   cost per transaction row) — the views-per-explore table below is stale on this row.
-> - Re-verified boundaries: transaction_items REJECTS inventorytags filters;
->   snapshot↔inventorytags cast-break stands; inventory_all still tagless.
+> **Curated subset — the COMPLETE list is `explore-field-index.md` beside this file** (generated
+> 2026-09-04 from a full internal-API harvest: 19 explores, 3,469 fields, 37 views; refreshed under
+> the `bi-change` `sync` path, never hand-edited). This file keeps the mandatory filters, the
+> recipes and the semantics; the index answers "does the field exist, on which explore, from
+> which view, what type". Before proposing a leg on an attribute no live tile reads, grep the
+> index — three sessions built on fields that did not exist (Servings 9/1, Flavor 9/3). The
+> 8/28 deltas that used to sit here (`inventory_historical`, `weekly_transactions`, `products`,
+> the `transaction_items` ↔ `inventory` join) are all in the index.
 
 Model: `sql_server`. Captured by enumerating each explore's field picker via React props
 (see "Harvesting the catalog" below). Field names are **LookML names**, which frequently

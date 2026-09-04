@@ -1482,6 +1482,11 @@ screenshots of tile cards instead (harvest channel).
 Both were hit while verifying a build BEFORE binding, which is exactly where they do the most
 damage: each one makes a *correct* query look broken (or a broken one look fine) with no error.
 
+- **Merge queries have NO `run/json` endpoint (404 — attribute-presence build, 2026-09-04).** Count
+  invariance on a merge tile is measured on the SPINE source query's own row count (run it before and
+  after the bind: 111 → 111 on 193267), never on the merge id. An export-side mirror of a leg
+  reading zero corroborates the tile; it is not the count gate.
+
 - **⚠⚠ `run/json` returns yesno table calcs as the STRINGS `"Yes"` / `"No"`, never booleans.**
   A verification written as `rows.filter(r => r.price_band === true)` counts **zero** on a tile
   whose flags are firing perfectly — which reads as "the change broke the calcs". String calcs come

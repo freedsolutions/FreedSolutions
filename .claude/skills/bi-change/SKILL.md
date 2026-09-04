@@ -129,11 +129,15 @@ Set in the pointer block, not here. Reads and verification may use any channel.
 Runbook Step 3 and the `dutchie-bi-looker` traps apply in full; the ones the gate cannot see are:
 **first act after login: re-harvest the board and diff it against the baseline BEFORE the first
 write** — any undeclared difference means someone changed the board by hand since the plan; stop,
-report it to the plan lane as a `sync`, and never overwrite the baseline; live re-GET before every write; `run/json`
+report it to the plan lane as a `sync`, and never overwrite the baseline; **re-read the Dictionary
+immediately before the write and build from IT, never from a peer message that may have aged** (a
+token name reversed in canon after the message that carried it cost a rebind on 9/4 — the same
+rebase discipline as element ids, extended to rule text); live re-GET before every write; `run/json`
 200 before any bind, even sort-only; content-verify after every bind (a 200 is not proof);
 PATCH v1-both, never recreate; a custom dim's slug must be in `fields` and a table-calc slug
-must not; mirror twins; count invariance on every touched query; falsify every zero on a known
-positive. Docs are anchored edits through `scripts/stamp_helpers.js` (`load`, `once`, `onceRe`,
+must not; mirror twins; count invariance on every touched query — measured on the SPINE query's own
+row count, because merge queries have no `run/json` endpoint (404); falsify every zero on a known
+positive. An export-side mirror reading zero corroborates a tile, it never replaces the count gate. Docs are anchored edits through `scripts/stamp_helpers.js` (`load`, `once`, `onceRe`,
 `swap`, `restamp` for SOP/guide/WI stamps, `restampDictionary`, `appendRegisterRow`) — it throws
 before writing when an anchor is missing or repeated, which is what keeps parallel sessions from
 clobbering each other.
