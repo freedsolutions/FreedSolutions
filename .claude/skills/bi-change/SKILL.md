@@ -42,10 +42,11 @@ Every path ends with `check` green, a Status section with a done block, and the 
 ## Lanes and what each may touch
 
 - **plan** may: read everything, run the impact scan on the old and every new literal (runbook
-  Step 2), write Dictionary register rows and §2b entries, capture the baseline snapshot
-  (`estate-<id>.pre-<slug>.json`), write the kickoff from `templates/kickoff.md`, seal it
-  (`check --seal`), put the open questions to Adam in ONE message, set `ratified: true` when every
-  row has a ruling. **May not** write to BI.
+  Step 2), write Dictionary register rows and §2b entries, seed the baseline snapshot (copy the
+  latest harvest `estate-<id>.json` → `estate-<id>.pre-<slug>.json`; no login needed), write the
+  kickoff from `templates/kickoff.md`, seal it (`check --seal`) once the rule text is final and
+  again after ratification if a rule cell changed, put the open questions to Adam in ONE message,
+  set `ratified: true` when every row has a ruling. **May not** write to BI.
 - **build** may: write to BI inside `scope`, edit Dictionary **impl cells and the header stamp**,
   edit guide / SOP / WI / README, render, append Status. **May not**: edit rule text (the gate
   hashes every rule cell at seal time and fails on any change), touch elements outside `scope`,
@@ -103,7 +104,9 @@ Set in the pointer block, not here. Reads and verification may use any channel.
 ## Build discipline
 
 Runbook Step 3 and the `dutchie-bi-looker` traps apply in full; the ones the gate cannot see are:
-capture the baseline snapshot BEFORE the first write; live re-GET before every write; `run/json`
+**first act after login: re-harvest the board and diff it against the baseline BEFORE the first
+write** — any undeclared difference means someone changed the board by hand since the plan; stop,
+report it to the plan lane as a `sync`, and never overwrite the baseline; live re-GET before every write; `run/json`
 200 before any bind, even sort-only; content-verify after every bind (a 200 is not proof);
 PATCH v1-both, never recreate; a custom dim's slug must be in `fields` and a table-calc slug
 must not; mirror twins; count invariance on every touched query; falsify every zero on a known
