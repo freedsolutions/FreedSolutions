@@ -4,6 +4,9 @@ clients/
 # Personal application artifacts - local only (resumes, cover letters, answers)
 freed-solutions/applications/
 
+# Dutchie ticket records - local only (product-feedback tickets cite client evidence)
+freed-solutions/dutchie-tickets/
+
 # Rolling session state for Notion workspace automation - local only
 ops/notion-workspace/session-active.md
 
