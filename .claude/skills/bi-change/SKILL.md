@@ -22,6 +22,11 @@ block in the gitignored client `CLAUDE.md`; nothing in this file names a client.
 /bi-change qc [export.csv]          run every export-side rule against the freshest Catalog export
 ```
 
+`<path>` is one of the seven taxonomy values below and is never a file. The modes that take a file
+name it: `<kickoff.md>` (give it absolutely — the build session starts in a different cwd) and
+`<export.csv>`. When describing a run in prose, say *the path* only for the taxonomy value and *the
+kickoff* for the file, or the hand-off line reads as though `build` takes a path like `tile`.
+
 **`qc` — the manual-style QC, made repeatable.** Runs the client's export runner (the `Export QC:`
 line in the pointer block) against the freshest Catalog export in `~/Downloads` (or the file given):
 every rule in the Dictionary's export-only register plus export-side MIRRORS of the BI legs, a
@@ -149,8 +154,17 @@ rules, dashboards, scope, baseline, retire_needles, ratified, rule_text_sha1), n
 (rulings verbatim · work items with expected render and count · order of work · traps · Open for
 Adam with a Ruling column · Status · paste-ready prompt), and a done block after
 `<!-- bi-change:done -->` inside Status (built_at, harvest, elements_touched, counts, open_items).
-The paste-ready prompt is one line: `/bi-change build <absolute path>`. Ground rules are a pointer
-to this skill, not a copy.
+The paste-ready prompt is one line: `/bi-change build <absolute path to this kickoff .md>`. Ground
+rules are a pointer to this skill, not a copy.
+
+**A standing kickoff re-runs in place.** A kickoff that closes and then runs again on a cadence —
+the explore-catalog `sync` is the standing case — gets a NEW Status line every run and its done
+block **rewritten in place**, never a second done block appended. `block()` in the gate matches the
+FIRST `<!-- bi-change:done -->` fence, so a second one leaves `check` reading a stale `built_at`,
+which silently mis-decides the closed-kickoff scope rule (a stale `built_at` is always older than
+the live harvest, so the diff is waved through as not applicable when it should have been
+measured). One kickoff, one done block, always describing the latest run; the Status list is the
+run history. Re-seal is not needed — a cadence run rules nothing new.
 
 ## Close-out (build lane)
 

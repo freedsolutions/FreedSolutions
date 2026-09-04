@@ -53,7 +53,7 @@ This file is the brief; it does not restate either.
 
 - <date> — written; nothing built.
 
-<!-- appended by the build lane, verbatim shape:
+<!-- appended by the build lane — on a re-run REWRITE this block in place, never append a second one — verbatim shape:
 <!-- bi-change:done -->
 ```json
 { "built_at": "<ISO>", "harvest": { "00000": "estate-00000.json" }, "elements_touched": [], "counts": { "before": {}, "after": {} }, "open_items": [] }
