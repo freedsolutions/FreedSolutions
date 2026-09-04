@@ -18,12 +18,24 @@ block in the gitignored client `CLAUDE.md`; nothing in this file names a client.
 /bi-change plan <path> "<ask>"      minting lane — writes the R row(s) and the kickoff, asks Adam once
 /bi-change build <kickoff.md>       build lane   — executes the kickoff and closes it
 /bi-change check <kickoff.md>       any session  — the gate; reads only, needs no login
+/bi-change run <path> "<ask>"       plan + build in ONE session, ONE stop — one change at a time
 ```
 
 `plan` runs on the strongest model available (the session Adam is in). `build` runs in a NEW
 session on the model Adam routes task work to (the kickoff header says which). `check` runs
 anywhere, including as a scheduled task. Path omitted → `plan` infers it from the ask and states
 it back inside the ratification message.
+
+**`run` — single-session mode (Adam's question, 2026-09-04).** One change per session, any model.
+The session does everything that needs no ruling and no login first (measure, simulate on the
+freshest export, draft the R row text, draft the doc deltas, capture the baseline), then sends
+Adam ONE consolidated message: the exact rule text that will be sealed, the findings, every open
+question with a recommendation, and the login request. His single reply ratifies and logs him in.
+The session then seals (re-seals if his reply changed any rule text), builds, harvests, syncs the
+docs, runs `check`, and closes — with no further questions unless the pre-write harvest diff is
+not clean or a live probe contradicts the sealed text. The lane rules still apply inside the one
+session: nothing is written to BI before the seal and the reply, and rule text never changes
+after the seal without a re-seal that quotes his words. Two changes in flight = two sessions.
 
 ## Paths × surfaces
 
@@ -135,6 +147,32 @@ to this skill, not a copy.
 5. Browser phase ends: close the browser, then release HOLDER (playwright) — in that order.
    Delete `.playwright-mcp/` files.
 6. Commit skill-side changes only; `clients/` is never committed and never named in a tracked file.
+
+## Where the data lives (pointers, not copies)
+
+Three surface classes, decided per rule before any leg is specified: **BI tile** (the Looker
+model's explores), **Catalog export** (every column Dutchie writes to the CSV), **internal API**
+(record-level fields in neither). The client Dictionary's export-only register lists the
+non-BI rules; the client's surface register routes every rule.
+
+- **Explores, views and fields.** Curated catalog: `dutchie-bi-looker/references/explore-field-catalog.md`
+  (mandatory filters, explores, views per explore, the field dictionary — a working subset, not a
+  full dump). The COMPLETE list is read live from the embed session, no login beyond Adam's:
+  `/api/internal/core/4.0/lookml_models/sql_server` lists the explores and
+  `/lookml_models/sql_server/explores/<name>` returns `fields.dimensions` / `fields.measures`
+  (name, label, view, type); both need `X-CSRF-Token` (from `meta[name="csrf-token"]`) and
+  `X-Requested-With: XMLHttpRequest`, or the answer is a silent 403. Before proposing a leg on an
+  attribute no live tile uses, run that read — three sessions have assumed a field existed when
+  it did not (Servings, Flavor). A dated full dump (`explore-catalog-<date>.json`) is the right
+  standing artifact and is refreshed under the `sync` path.
+- **Global Product / Brand catalog** (the library the Catalog CSV and BI cannot see): the
+  `dutchie-bi-looker` skill's *Backoffice Internal REST API + Global Brand Catalog QC* section —
+  the `library_products` object, the network-capture read pattern (a `{}` replay fails), the
+  `bc_qc` backbone — and the client scripts `gbc_scan.py` + `gbc_scan.harvest.js`, `gbc_qc.py`.
+  Platform behaviour (inheritance, auto-FL-EQ, tag joins, category label vs slug):
+  `dutchie-bi-looker/references/dutchie-platform-kb.md`.
+- **Location overrides, global record status, PLC, the hidden attribute set:** API-only; the
+  client's `loc-override-qc/`, `category-qc/`, and the surface register say which script.
 
 ## Peer coordination
 
