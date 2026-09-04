@@ -3,7 +3,7 @@
 # Dutchie / leaflogix Looker — Explore & Field Catalog
 
 > **Curated subset — the COMPLETE list is `explore-field-index.md` beside this file** (generated
-> 2026-09-04 from a full internal-API harvest: 19 explores, 3,469 fields, 37 views; refreshed under
+> 2026-09-04 from a full internal-API harvest: 19 explores, 37 views, 3,469 field entries = 1,291 distinct names; refreshed under
 > the `bi-change` `sync` path, never hand-edited). This file keeps the mandatory filters, the
 > recipes and the semantics; the index answers "does the field exist, on which explore, from
 > which view, what type". Before proposing a leg on an attribute no live tile reads, grep the
