@@ -1298,7 +1298,9 @@ screenshots of tile cards instead (harvest channel).
   allow_multiple_values:true, required:false, ui_config:{type:'advanced',display:'popover'},
   model:'sql_server', listens_to_filters:[], default_value}`. The fat `field` blob in GET
   responses is server-derived — never send it. Advanced defaults (`-Merch,-Accessory,...`,
-  `28 days ago for 28 days`, `-Limited |%,...`) all commit verbatim. **`DELETE
+  `28 days ago for 28 days`, `-Limited |%,...`) all commit verbatim. (That last example is a
+RETIRED literal — name-prefix filters were backed out estate-wide 2026-09-04, DD R69; it stands
+here only as advanced-default *syntax*, never as a filter to reintroduce.) **`DELETE
   /dashboard_filters/<id>` ✅ (204)** and **`PATCH {row}` ✅** (filter-bar ordering). Filter
   creation no longer needs the UI Add-Filter flow at all — wire listens afterward via the
   filterables PATCH (new filters are referenced by `dashboard_filter_name`).
@@ -1895,6 +1897,12 @@ strain-view field on a tile that must keep its non-cannabis rows — use
 `products.strain_name` / `products.Strain_Type` there instead.
 
 Editor URL pattern is the same: `https://leaflogix.looker.com/embed/merge/edit?did=<n>&dbnx=1`.
+
+⚠ **RETIRED 2026-09-04 (DD R69) — history only.** The prefix collapse completed, every prefixed
+item is archived, and the last name-prefix construct was removed from the estate that night: no
+dashboard filter, baked chip, filtered measure or custom dim reads a name prefix any more, and
+none should be reintroduced (the class lives on the `PKG - ` package TAG). The paragraph below
+describes the 26549 filter as it stood on 2026-08-21.
 
 Dashboard filter (as of 2026-08-21): **Product Name doesn't-start-with** the **12**
 sample exclusion values (raw expression

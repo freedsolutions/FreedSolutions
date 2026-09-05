@@ -144,7 +144,16 @@ for (const id of H.dashboards) {
     if (b.harvested_at <= a.harvested_at) fail('re-harvest ' + id, cur + ' (' + b.harvested_at + ') is not newer than the baseline (' + a.harvested_at + ')');
     else ok('re-harvest ' + id, b.harvested_at);
     const A = Object.fromEntries(a.elements.map(e => [String(e.id), e])), B = Object.fromEntries(b.elements.map(e => [String(e.id), e]));
-    const changed = Object.keys(B).filter(k => A[k] && JSON.stringify(A[k]) !== JSON.stringify(B[k]));
+    // Compare on a shape-normalised copy: `null`, `undefined` and `""` are the same ABSENCE, and an
+    // absent key is the same as an empty one. Harvester versions disagree on which they write (the
+    // pre-2026-09 harvester emitted `null` for title / query_id / merge_result_id / look_id and
+    // always carried the look keys; the current one writes `""` and omits them), so a raw
+    // JSON.stringify compare reports EVERY element of an older baseline as changed and buries a real
+    // hand-drift in the noise. Proven on 26741 2026-09-04: 10 "changed" elements, 0 real differences.
+    const elSig = (e) => JSON.stringify(Object.fromEntries(Object.keys(e).sort()
+      .map(k => [k, e[k] === null || e[k] === undefined ? '' : e[k]])
+      .filter(([, v]) => v !== '')));
+    const changed = Object.keys(B).filter(k => A[k] && elSig(A[k]) !== elSig(B[k]));
     const added = Object.keys(B).filter(k => !A[k]);
     const removed = Object.keys(A).filter(k => !B[k]);
     // A blank text tile is a LAYOUT SPACER, not content (Adam's convention, confirmed 2026-09-04):
