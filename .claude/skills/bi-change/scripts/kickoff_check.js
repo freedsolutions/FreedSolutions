@@ -147,14 +147,29 @@ for (const id of H.dashboards) {
     const changed = Object.keys(B).filter(k => A[k] && JSON.stringify(A[k]) !== JSON.stringify(B[k]));
     const added = Object.keys(B).filter(k => !A[k]);
     const removed = Object.keys(A).filter(k => !B[k]);
+    // A blank text tile is a LAYOUT SPACER, not content (Adam's convention, confirmed 2026-09-04):
+    // type `text` with no title, title_text, subtitle_text or body_text. It carries no query and no
+    // merge, so it cannot move any count or any tile's result — adding or removing one is never a
+    // scope violation. Reported below so it stays visible, never failed on.
+    const isSpacer = e => e && e.type === 'text' &&
+      !(e.title || '').trim() && !(e.title_text || '').trim() &&
+      !(e.subtitle_text || '').trim() && !(e.body_text || '').trim();
+    const addedSpacers = added.filter(k => isSpacer(B[k]));
+    const removedSpacers = removed.filter(k => isSpacer(A[k]));
     const offScope = changed.filter(k => !H.scope.elements.includes(k));
-    const offAdded = added.filter(k => !H.scope.new_elements.some(t => norm(t) === norm(B[k].title || '')));
-    const offRemoved = removed.filter(k => !H.scope.retired_elements.includes(k));
+    const offAdded = added.filter(k => !addedSpacers.includes(k) && !H.scope.new_elements.some(t => norm(t) === norm(B[k].title || '')));
+    const offRemoved = removed.filter(k => !removedSpacers.includes(k) && !H.scope.retired_elements.includes(k));
+    if (addedSpacers.length || removedSpacers.length) ok('spacer tiles ' + id,
+      [addedSpacers.length ? '+' + addedSpacers.join(', +') : '', removedSpacers.length ? '-' + removedSpacers.join(', -') : '']
+        .filter(Boolean).join(' ') + ' — blank text tile(s), layout spacers, not scope');
     if (offScope.length) fail('scope ' + id + ' changed elements', offScope.map(k => k + ' "' + (B[k].title || '').slice(0, 40) + '"').join('; ') + ' — not in scope.elements');
     if (offAdded.length) fail('scope ' + id + ' added elements', offAdded.map(k => k + ' "' + (B[k].title || '').slice(0, 40) + '"').join('; ') + ' — not in scope.new_elements');
     if (offRemoved.length) fail('scope ' + id + ' removed elements', offRemoved.map(k => k + ' "' + (A[k].title || '').slice(0, 40) + '"').join('; ') + ' — not in scope.retired_elements');
     if (!offScope.length && !offAdded.length && !offRemoved.length) ok('scope ' + id, changed.length + ' changed, ' + added.length + ' added, ' + removed.length + ' removed — all in scope');
-    if (H.path !== 'sync' && !changed.length && !added.length && !removed.length && H.path !== 'rule') fail('estate ' + id + ' moved', 'no element differs from the baseline — was the build applied and re-harvested?');
+    // Spacers do not count as evidence the build landed — a blank tile someone else added must not
+    // satisfy this check on behalf of a build that never wrote anything.
+    const realAdded = added.length - addedSpacers.length, realRemoved = removed.length - removedSpacers.length;
+    if (H.path !== 'sync' && !changed.length && !realAdded && !realRemoved && H.path !== 'rule') fail('estate ' + id + ' moved', 'no element differs from the baseline — was the build applied and re-harvested?');
     const fa = JSON.stringify(a.filters || []), fb = JSON.stringify(b.filters || []);
     if (fa !== fb && !H.scope.filters) fail('scope ' + id + ' dashboard filters', 'filters changed but scope.filters is not true');
     else if (fa !== fb) ok('scope ' + id + ' dashboard filters', 'changed, in scope');
