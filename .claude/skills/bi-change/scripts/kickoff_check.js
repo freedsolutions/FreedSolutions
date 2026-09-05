@@ -108,10 +108,16 @@ if (phase === 'plan') report();
 // ---------- ratification ----------
 if (H.ratified !== true) fail('ratified', 'header.ratified must be true before any build step');
 else ok('ratified', 'header says Adam ruled');
-const openSec = text.match(/^## [^\r\n]*Open for Adam[^\r\n]*\r?\n([\s\S]*?)(?=^## |\s*$)/m);
+// ⚠ The section terminator must be "the next `## ` heading, or the true end of the string". Written as
+// `\s*$` under /m it matched at the FIRST line end, capturing zero characters — so this check parsed no
+// rows and passed vacuously on every kickoff, leaving `ratified` as the only ratification guard
+// (found 2026-09-05, conc-tile-retire run). `$(?![\s\S])` is end-of-input even under /m.
+const openSec = text.match(/^## [^\r\n]*Open for Adam[^\r\n]*\r?\n([\s\S]*?)(?=^## |$(?![\s\S]))/m);
 if (openSec) {
   const trs = [...openSec[1].matchAll(/^\|([^\r\n]+)\|\s*$/gm)].map(m => m[1].split('|').map(c => c.trim())).filter(c => c.length > 1 && !/^-+$/.test(c[0]) && !/^#?\s*$/.test(c[0]));
-  const body = trs.slice(1);
+  // The filter above already drops a `| # |`-style header, so an unconditional slice(1) ate the FIRST
+  // REAL row (its Ruling was never checked). Drop a leading row only when it IS the header.
+  const body = trs.length && /^ruling$/i.test(trs[0][trs[0].length - 1] || '') ? trs.slice(1) : trs;
   const unruled = body.filter(c => { const last = c[c.length - 1]; return !last || /^(—|-|open|tbd|\?)$/i.test(last); });
   if (unruled.length) fail('every Open-for-Adam row ruled', unruled.length + ' row(s) with an empty Ruling cell: ' + unruled.map(c => c[0]).join('; '));
   else ok('every Open-for-Adam row ruled', body.length + ' row(s)');
