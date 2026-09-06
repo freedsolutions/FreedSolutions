@@ -1278,7 +1278,8 @@ All calls same-origin from a `leaflogix.looker.com` top-level tab; headers requi
   includes Pre-Roll + the new infused MC; BAD_FLOWER_EQ plural branches (`Tinctures/
   Edibles/Beverages` — dead since the singular pass) restored; rule 18 replaced by the
   three-tier FL EQ flags (`FL_EQ_NO_INFUSION`/`FL_EQ_IMPOSSIBLE`/`FL_EQ_TIER`, gate =
-  the 4 infused CATEGORIES per the PLC×GC ruling — see mdm-product-line-rules.md);
+  the 4 infused CATEGORIES per the PLC×GC ruling — see mdm-product-line-rules.md)
+  **[⚠ AS-BUILT 8/26; `FL_EQ_TIER` was RETIRED 2026-09-05 — the set is TWO-tier now. Dictionary R4.]**;
   `-Gift Card` added to MC is-not filter defaults on 28041/26549/28037 and baked Q1
   filters (193834, 193882). **LEGACY category-keyed calcs remain ONLY on Inventory
   Health 26741 (187558/187559)** — rebuild-or-retire pending Adam.
@@ -1791,7 +1792,11 @@ products.* refs so it ports across explores. Baseline: 180 active PLs, 66 in the
 no-inventory queue). Product Mix rows below kept for the tile ids
 (they now live on _Product Mix Sandbox).
 
-**FL EQ interim rules (2026-08-25, removable if the business hardens)**: rule #18
+**FL EQ interim rules (2026-08-25, removable if the business hardens)** — ⚠ **REMOVED 2026-09-05:**
+the business did harden. `FL_EQ_RANGE` was replaced by `FL_EQ_TIER` on 8/26 and **that was retired in
+turn on 9/5** (Adam: *"Remove it entirely… I do not want special carve outs"*), brand whitelists and all.
+What survives: the two structural legs + R63 `FL_EQ_INCONSISTENT` (194986). Dictionary R4 is canon; the
+block below is the 8/25 record, kept for the tile ids and the reasoning, **not a live rule**: rule #18
 `FL_EQ_RANGE` in 193267 qc_fails/qc_flags — Infused Flower implied concentrate
 outside 10–50%, divisionless form `FE < g*1.46 OR FE > g*3.3` (pct bounds ×
 grams; catches 5: Khalifa ×2 at 0%, Nimbus bud ×2 at 6%, Rove Watermelon 148%);

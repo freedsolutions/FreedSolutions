@@ -3,7 +3,11 @@
 Canonical naming and attribute rules for Dutchie catalog master data. Developed within the
 bounds of Dutchie's Catalog, with Connect and Global PIM considerations.
 
-**These rules are canon and supersede conflicting guidance elsewhere** — including the
+**PRECEDENCE (read this first): the client `DATA-DICTIONARY.md` register outranks this file.**
+A rule changes THERE first; this reference is second in the chain (Dictionary > this file > the
+`dutchie-bi-looker` SKILL > memories). Where the two disagree, the Dictionary wins and this file is
+stale — say so rather than following it. **Within that bound these rules are canon and supersede
+conflicting guidance elsewhere** — including the
 `dutchie-taxonomy` skill, which states that mg-dosed categories take their dosage from
 `THCCONTENT`. That is wrong for this setup: see "Dosage" below.
 
@@ -288,7 +292,7 @@ marketing-decides are DEAD for non-smokables):**
 - **Caffeine carve-out — enumerated whitelist OVER the ladder (Adam, 2026-08-26
   night)**: caffeinated/guarana products marketed as energizing may carry
   **Type=Sativa** over the ladder result, as an enumerated whitelist in QC-B (same
-  pattern as the FL_EQ_TIER brand whitelists). First entry: `Focus Energy (1:1
+  pattern as the ~~FL_EQ_TIER brand whitelists~~ — ⚠ **that precedent was WITHDRAWN 2026-09-05** under Adam's *"I do not want special carve outs (not sure if there are other instances of this)"*; **this caffeine whitelist is one of those other instances and is UNRULED — it stands until Adam rules on it, and must not be cited as an established pattern in the meantime**). First entry: `Focus Energy (1:1
   THC:CBD)` = Sativa (Vibations Half & Half — ladder says Hybrid; caffeine adjunct +
   dispensary-standard Sativa placement). Branded-LEAN entries need no carve-out —
   lean is merch-chosen by definition (`Focus Energy (Sativa)` caffeine trio,
@@ -487,16 +491,19 @@ the current canonical singulars, kept for readability:
 
 **Multiplier ruling LOCKED 2026-08-25**: the estate constant is **×5.6 (28 g oz ÷ 5 g)** —
 never 5.67 (28.35/5), never a vendor's own multiplier. The multiplier is OUR standard; the
-**concentrate grams are a product FACT** (label/COA stated-actual when known, house 20% of
-product grams as fallback). Composite formula: `FL EQ = (grams − conc) + conc × 5.6`.
-Known-good tiers: house 20%, Rove 35%, InHouse ~42.6% stated, Nimbus 0.2 g kief on 3.5 g.
+**concentrate grams are a product FACT** (label/COA stated-actual when known, else the house
+**30 % concentrate : 70 % flower** default — ~~20 %~~ **RETIRED 2026-08-27 ×2, Dictionary R2**).
+Composite formula: `FL EQ = (grams − conc) + conc × 5.6`.
+Observed shares across the live infused set (2026-09-05: 81 rows, 13 PLs) take exactly five values —
+**5.71 / 20 / 30 / 35 / 42.61 %** — each constant within its PL. ⚠ These are FACTS, not accept-bands:
+they describe what vendors ship, and **no QC rule may test against them** (R4).
 
 | Class (current MC labels) | Expected FL EQ |
 |---|---|
 | Flower **and Pre-Roll** (non-infused; PLC=Flower) | `product_grams × 1` |
 | Concentrate, Vaporizer, **Tincture** (PLC=Concentrates, GC≠Pre-Rolls/Flower) | `product_grams × 5.6` |
 | **Edible, Beverage** (PLC=Edibles) | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
-| **Infused Flower & Pre-Roll** (PLC=Concentrates, GC=Pre-Rolls/Flower; gate = the 4 infused categories) | composite `(g − conc) + conc×5.6`. **Three-tier QC (deployed 2026-08-26, replaces the old 10–50% FL_EQ_RANGE which false-flagged Nimbus)**: `FL_EQ_NO_INFUSION` = FE ≤ g (hard); `FL_EQ_IMPOSSIBLE` = FE ≥ g×5.6 (hard); `FL_EQ_TIER` = FE strictly between but outside 20%±2 (ratio 1.828–2.012) / 35%±2 (2.518–2.702) / brand whitelists InHouse 2.822–3.098, Nimbus 1.124–1.4. All three count in qc_fails and label qc_flags on Product QC 193267. |
+| **Infused Flower & Pre-Roll** (PLC=Concentrates, GC=Pre-Rolls/Flower; gate = the 4 infused categories) | composite `(g − conc) + conc×5.6`. **TWO-tier QC** (Dictionary R4): `FL_EQ_NO_INFUSION` = FE ≤ g (hard); `FL_EQ_IMPOSSIBLE` = FE ≥ g×5.6 (hard). Both count in qc_fails and label qc_flags on Product QC 193267. **~~`FL_EQ_TIER`~~ RETIRED 2026-09-05** (Adam, verbatim: *"Remove it entirely. In general, I do not want special carve outs"*) — the band (~~20%±2 / 35%±2~~) **and BOTH brand whitelists** (~~InHouse 2.822–3.098, Nimbus 1.124–1.4~~) are withdrawn, and **no carve-out may be re-introduced on this rule.** *Why:* every observed share is a product FACT under R2, so the band tested a fact rather than a defect — detection power measured at **0 of 70**, lifetime yield false positives only. The Nimbus whitelist was an exact-match brand literal and the 9/4 mint of subbrand `Nimbus Infused Flowah` (101539) silently un-keyed it, turning two conformant rows into DEFECTs — **a brand literal is not a durable key while R30 keeps minting subbrands.** **What still watches FE:** the two structural legs above (arithmetic that cannot be right under any share) plus **R63 `FL_EQ_INCONSISTENT` (tile 194986)** — absolute FE within the PL — which catches the wrong-share error the band could not. `export_qc.py` emits no `FL_EQ_TIER`. |
 | **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). Convention CONFIRMED: FL EQ = **0.001g** on every topical item (never eats customer limits, and clears the NO_FLOWER_EQ null-or-zero rule). Any expected-value check would false-positive by design. |
 | **CBD** | **NO branch — FL EQ remains NULL** (considered Non-Cannabis; `is_cannabis = false`, so the cannabis-gated rules never fire). Dosage naming still applies — see the CBD dosage exception above. |
 | Non-cannabis (gate on `is_cannabis`) | n/a |
