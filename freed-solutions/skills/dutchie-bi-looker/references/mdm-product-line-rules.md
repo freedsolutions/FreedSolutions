@@ -289,10 +289,16 @@ marketing-decides are DEAD for non-smokables):**
   (first live CBDV entry). `Focus (1:1:1 THC:CBD:CBG)` re-typed Sativa → Hybrid by
   Adam 2026-08-26 — **ladder conformance 100%, zero exemptions** (verified vs the
   final Strains (7)/Catalog (14) QC pass; QC-B enforces the amended ladder).
-- **Caffeine carve-out — enumerated whitelist OVER the ladder (Adam, 2026-08-26
-  night)**: caffeinated/guarana products marketed as energizing may carry
-  **Type=Sativa** over the ladder result, as an enumerated whitelist in QC-B (same
-  pattern as the ~~FL_EQ_TIER brand whitelists~~ — ⚠ **that precedent was WITHDRAWN 2026-09-05** under Adam's *"I do not want special carve outs (not sure if there are other instances of this)"*; **this caffeine whitelist is one of those other instances and is UNRULED — it stands until Adam rules on it, and must not be cited as an established pattern in the meantime**). First entry: `Focus Energy (1:1
+- **Caffeine typing — STANDS (Adam, 2026-09-05: *"Caffeine type-ladder is fine to stay as is"*).**
+  Caffeinated/guarana products marketed as energizing carry **Type=Sativa** over the ladder result.
+  ⚠ **THE MECHANISM IS NAME-CARRIED, NOT AN ENUMERATED WHITELIST** — Dictionary **R37** (8/27 ×2)
+  replaced the list with a contains-match on the R37 additive marker: a name containing `+ Caffeine)`
+  types Sativa, and **R26 records the enumerated whitelist as RETIRED**. So this is *not* a carve-out
+  in the banned sense (R4, Adam 9/5) — it groups BY an attribute the name carries rather than testing
+  an enumerated literal, which is the doctrine, not an exception to it. Standing control:
+  `scripts/caffeine_scan.py`. ~~Formerly: an enumerated Sativa whitelist in QC-B, same pattern as the
+  FL_EQ_TIER brand whitelists~~ — both that whitelist and that precedent are gone. First entry (now a
+  historical example, re-minted `(1:1 THC:CBD + Caffeine)` 8/27 ×2): `Focus Energy (1:1
   THC:CBD)` = Sativa (Vibations Half & Half — ladder says Hybrid; caffeine adjunct +
   dispensary-standard Sativa placement). Branded-LEAN entries need no carve-out —
   lean is merch-chosen by definition (`Focus Energy (Sativa)` caffeine trio,
