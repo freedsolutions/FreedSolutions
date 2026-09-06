@@ -168,9 +168,13 @@ if (openSec) {
 // ---------- impl cells no longer say NOT BUILT (BI paths) ----------
 if (BI_PATHS.has(H.path) || H.path === 'config') {
   for (const r of H.rules) if (rows[r]) {
-    if (rows[r].impl === null) info('impl cell ' + r, 'not checked — the row carries an unescaped `|` so its cell boundaries are ambiguous (see `register row shape`)');
-    else if (/NOT BUILT/i.test(rows[r].impl)) fail('impl cell ' + r, 'still says NOT BUILT');
-    else ok('impl cell ' + r, 'no NOT BUILT marker');
+    // On a row whose cell boundaries are ambiguous, test the WHOLE row rather than skipping: the
+    // marker is caught wherever it sits, which is strictly more conservative than reading one
+    // segment. Never leave the check unrun — an unchecked row is how a NOT BUILT ships.
+    const hay = rows[r].impl === null ? rows[r].line : rows[r].impl;
+    const where = rows[r].impl === null ? ' (whole row — ambiguous cells, see `register row shape`)' : '';
+    if (/NOT BUILT/i.test(hay)) fail('impl cell ' + r, 'still says NOT BUILT' + where);
+    else ok('impl cell ' + r, 'no NOT BUILT marker' + where);
   }
 }
 
