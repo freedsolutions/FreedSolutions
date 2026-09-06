@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>designed-pdf example</title>
+<!-- This fixture links the base sheet so there is one CSS source. A real generator INLINES
+     print-base.css into <style> so the delivered HTML is self-contained (components.md, section 0). -->
+<link rel="stylesheet" href="print-base.css">
+<style>
+/* document-specific overrides go after the base */
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1>Product Names: One Decision</h1>
+  <div class="accent"></div>
+  <p class="sub">Example catalog, September 2026. Every item takes the same five-part name; the short form is that name without the maker.</p>
+
+  <div class="strip">
+    <div class="seg"><div class="k">Maker</div><div class="v">Acme</div><div class="r">The line as the maker writes it.</div></div>
+    <div class="seg focus"><div class="k">Kind</div><div class="v">Widget</div><div class="r">The one open question, below.</div></div>
+    <div class="seg"><div class="k">Variant</div><div class="v">Blue (2:1)</div><div class="r">Colour or pattern; a ratio rides in parentheses.</div></div>
+    <div class="seg"><div class="k">Size</div><div class="v">12-pack</div><div class="r">Per unit x pack. A single is its total.</div></div>
+    <div class="seg opt"><div class="k">Edition, optional</div><div class="v">Holiday</div><div class="r">A seasonal drop or a collab.</div></div>
+  </div>
+  <div class="tagline"><span class="k">Short form</span> the same name with the Maker chip removed: <span class="ex">Widget | Blue (2:1) | 12-pack</span>. The maker has its own field online.</div>
+  <p class="note"><b>Bundles never name their contents.</b> The detail lives in the online description.</p>
+
+  <h2>Whose word is the Kind?</h2>
+  <div class="grid">
+    <div class="hd x"></div>
+    <div class="hd a">A &nbsp;One vocabulary<span class="badge">Recommended</span></div>
+    <div class="hd b">B &nbsp;Two vocabularies</div>
+
+    <div class="lab">The rule</div>
+    <div class="a">The word we sell by: <b>Widget</b>, <b>Gadget</b>, <b>Bar</b>. One name, in the store and online.</div>
+    <div>The system category word in the store: <b>Widget Single</b>, <b>Gadget Pack</b>. Our word appears online only.</div>
+
+    <div class="lab">Words the category does not say<br><span class="m">68 of 128 lines</span></div>
+    <div class="a">In the name.</div>
+    <div>Online only. The store reads the category word.</div>
+
+    <div class="lab">Regulation-forced swaps<br><span class="m">two lines</span></div>
+    <div class="a">The true product word.</div>
+    <div>The regulatory word in the store; the true word online.</div>
+
+    <div class="lab">Vendor process words<br><span class="m">four words</span></div>
+    <div class="a">Keep or drop, decided once per word.</div>
+    <div>Online only.</div>
+
+    <div class="lab">Work per new item</div>
+    <div class="a">One name. The short form is a copy, and the system checks it.</div>
+    <div>Two names and a lookup per line. Nothing checks the online word.</div>
+
+    <div class="lab">Changing a rule later</div>
+    <div class="a">One edit, one upload.</div>
+    <div>Two edits, two uploads.</div>
+
+    <div class="lab">Search<br><span class="m">reads titles, never descriptions</span></div>
+    <div class="a">What is in the name is searchable. A dropped word is not.</div>
+    <div>Our word stays searchable even when the store name omits it. The one thing B buys.</div>
+  </div>
+
+  <div class="stats">
+    <div><span class="n">128</span>product lines</div>
+    <div><span class="n">68</span>use a Kind word the category does not</div>
+    <div><span class="n">763 of 871</span>short forms already match the name minus maker</div>
+  </div>
+
+  <h2>Two calls</h2>
+  <div class="call">
+    <div class="num">1</div>
+    <div class="t"><b class="h">A or B.</b> &nbsp;<span class="pick"><span class="box rec"></span>A</span><span class="pick"><span class="box"></span>B</span><br>
+      <span class="rec-line"><b>We recommend A.</b> B keeps all 68 exceptions; it just moves them where nothing checks them, and doubles the typing.</span></div>
+  </div>
+  <div class="call">
+    <div class="num">2</div>
+    <div class="t"><b class="h">Four vendor words: keep or drop.</b>
+      <div class="words">
+        <div><b>Word one</b><span class="m">Maker A, 26 items</span><span class="chk"><span class="pick"><span class="box"></span>keep</span><span class="pick"><span class="box rec"></span>drop</span></span></div>
+        <div><b>Word two</b><span class="m">Maker B, 3 items</span><span class="chk"><span class="pick"><span class="box"></span>keep</span><span class="pick"><span class="box rec"></span>drop</span></span></div>
+        <div><b>Word three</b><span class="m">Maker A, 3 items</span><span class="chk"><span class="pick"><span class="box"></span>keep</span><span class="pick"><span class="box rec"></span>drop</span></span></div>
+        <div><b>Word four</b><span class="m">Maker C, 3 items</span><span class="chk"><span class="pick"><span class="box"></span>keep</span><span class="pick"><span class="box rec"></span>drop</span></span></div>
+      </div>
+      <p class="rec-line"><b>We recommend drop.</b> The category word already says what it is; the detail goes in the online description. The trade: those four words leave search.</p></div>
+  </div>
+
+  <p class="decided"><b>Already decided:</b> the maker's own words stay. Regulation words stay where regulation sets the category. Marketing suffixes go: every item in those lines has them.</p>
+  <p class="foot">Per-line detail for all 128 product lines: example-review-workbook.xlsx</p>
+</div>
+
+<div class="page">
+  <h1 class="small">Examples by category</h1>
+  <div class="accent"></div>
+  <p class="sub">All names are Option A. Where B changes the Kind word, it is shown at right. The short form is the name without the maker.</p>
+  <div class="legend">
+    <span><span class="name"><span class="s lead">Maker</span><span class="bar">|</span><span class="s focus">Kind</span><span class="bar">|</span><span class="s t1">Variant</span><span class="bar">|</span><span class="s t2">Size</span><span class="bar">|</span><span class="s opt">Edition</span></span></span>
+    <span>Kind is the open question; dashed = the optional Edition. Short form = the row without its Maker chip.</span>
+  </div>
+
+  <div class="group">
+    <h3>Category one</h3>
+    <div class="row"><div class="case">typical</div><div><span class="name"><span class="s lead">Acme</span><span class="bar">|</span><span class="s focus">Widget</span><span class="bar">|</span><span class="s t1">Blue</span><span class="bar">|</span><span class="s t2">12-pack</span></span></div><div class="b"><span class="same">same</span></div></div>
+    <div class="row"><div class="case">two variants, one box</div><div><span class="name"><span class="s lead">Acme Duo</span><span class="bar">|</span><span class="s focus">Widget</span><span class="bar">|</span><span class="s t1">Blue + Green</span><span class="bar">|</span><span class="s t2">24-pack</span></span></div><div class="b"><span class="same">same</span></div></div>
+    <div class="row"><div class="case">small format</div><div><span class="name"><span class="s lead">Bolt Co</span><span class="bar">|</span><span class="s focus">Mini Widget</span><span class="bar">|</span><span class="s t1">Red #9</span><span class="bar">|</span><span class="s t2">6-pack</span></span></div><div class="b"><span class="same">same</span></div></div>
+  </div>
+
+  <div class="group">
+    <h3>Category two</h3>
+    <div class="row"><div class="case">single</div><div><span class="name"><span class="s lead">Acme</span><span class="bar">|</span><span class="s focus">Gadget</span><span class="bar">|</span><span class="s t1">Silver</span><span class="bar">|</span><span class="s t2">1 unit</span></span></div><div class="b">B: <span class="pill">Gadget Single</span></div></div>
+    <div class="row"><div class="case">pack</div><div><span class="name"><span class="s lead">Bolt Co</span><span class="bar">|</span><span class="s focus">Gadget</span><span class="bar">|</span><span class="s t1">Silver</span><span class="bar">|</span><span class="s t2">0.5 x 7-pack</span></span></div><div class="b">B: <span class="pill">Gadget Pack</span></div></div>
+    <div class="row"><div class="case">seasonal edition</div><div><span class="name"><span class="s lead">Bolt Co</span><span class="bar">|</span><span class="s focus">Gadget</span><span class="bar">|</span><span class="s t1">White</span><span class="bar">|</span><span class="s t2">1 unit</span><span class="bar">|</span><span class="s opt">Holiday</span></span></div><div class="b">B: <span class="pill">Gadget Single</span></div></div>
+  </div>
+
+  <div class="group">
+    <h3>Category three</h3>
+    <div class="row"><div class="case">ratio</div><div><span class="name"><span class="s lead">Wren</span><span class="bar">|</span><span class="s focus">Bar</span><span class="bar">|</span><span class="s t1">Peach (2:1)</span><span class="bar">|</span><span class="s t2">10 x 10-pack</span></span></div><div class="b">B: <span class="pill">Snack Bar</span></div></div>
+    <div class="row"><div class="case">maker&#39;s own word</div><div><span class="name"><span class="s lead">Betty&#39;s</span><span class="bar">|</span><span class="s focus">Chews</span><span class="bar">|</span><span class="s t1">Apple Pie</span><span class="bar">|</span><span class="s t2">5 x 10-pack</span></span></div><div class="b">B: <span class="pill">Snack Bar</span></div></div>
+    <div class="row"><div class="case">limited drop</div><div><span class="name"><span class="s lead">Wren Limited</span><span class="bar">|</span><span class="s focus">Bar</span><span class="bar">|</span><span class="s t1">Papaya</span><span class="bar">|</span><span class="s t2">10 x 10-pack</span><span class="bar">|</span><span class="s opt">Papaya Cake</span></span></div><div class="b">B: <span class="pill">Snack Bar</span></div></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,113 @@
+/* designed-pdf / print-base.css
+   Base print stylesheet for business-facing PDFs (Letter, headless Edge).
+   Inline this file into the document's <style> and append document-specific rules after it.
+   Colour carries meaning: ONE accent (indigo) for the thing being decided and the recommended
+   option, ONE warm tone (amber) for open calls, soft tints with dark text for data chips.
+   Never a solid black or grey block for data. */
+
+:root {
+  --ink:#1f2937; --mute:#6b7280; --line:#e5e7eb; --soft:#f3f4f6;
+  /* accent: the decision + the recommended option */
+  --ind:#4338ca; --ind-soft:#eef2ff; --ind-chip:#e0e7ff; --ind-text:#3730a3;
+  /* open calls */
+  --amb:#d97706; --amb-soft:#fffbeb;
+  /* chip tints: soft background + dark text of the same hue */
+  --teal-bg:#ccfbf1; --teal-tx:#115e59;
+  --green-bg:#dcfce7; --green-tx:#166534;
+  --sky-bg:#e0f2fe;   --sky-tx:#075985;
+  --lav-bg:#f5f3ff;   --lav-tx:#6d28d9; --lav-bd:#a78bfa;
+}
+
+@page { size: Letter; margin: 0.55in 0.65in 0.55in 0.65in; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Segoe UI", "Segoe UI Variable Text", Calibri, Arial, sans-serif;
+  color: var(--ink); font-size: 10pt; line-height: 1.4;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;   /* tints vanish without this */
+}
+
+/* ---------- page frame ---------- */
+.page { page-break-after: always; }
+.page:last-child { page-break-after: auto; }
+h1 { font-size: 22pt; font-weight: 700; letter-spacing: -0.015em; margin: 0; line-height: 1.1; }
+h1.small { font-size: 16pt; }
+.accent { width: 44px; height: 4px; background: var(--ind); border-radius: 2px; margin: 8px 0 6px 0; }
+.sub { color: var(--mute); font-size: 9.2pt; margin: 0 0 12px 0; }
+h2 { font-size: 13pt; font-weight: 700; margin: 16px 0 8px 0; }
+.note { font-size: 9pt; color: #4b5563; margin: 0; }
+.note b { color: var(--ink); }
+.foot { font-size: 8pt; color: #9ca3af; margin-top: 10px; }
+
+/* ---------- segment chips: a structured value drawn as labelled parts ---------- */
+.name { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 1px; font-size: 9.2pt; }
+.name .s { border-radius: 4px; padding: 0.5px 6px; white-space: nowrap; }
+.name .s.lead  { background: var(--teal-bg);  color: var(--teal-tx); font-weight: 600; } /* identifying part */
+.name .s.focus { background: var(--ind-chip); color: var(--ind-text); font-weight: 600; } /* the part under decision */
+.name .s.t1    { background: var(--green-bg); color: var(--green-tx); }
+.name .s.t2    { background: var(--sky-bg);   color: var(--sky-tx); }
+.name .s.opt   { background: var(--lav-bg);   color: var(--lav-tx); border: 1px dashed var(--lav-bd); } /* optional part */
+.name .bar { color: #c4c8cf; padding: 0 2px; font-weight: 300; }
+/* neutral pill for a secondary or alternative value ("B: other word") */
+.pill { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; border-radius: 4px; padding: 0.5px 6px; white-space: nowrap; font-size: 8.8pt; }
+
+/* ---------- segment strip: one labelled box per part of the shape ---------- */
+.strip { display: grid; grid-template-columns: 1fr 1fr 1.45fr 1fr 1.1fr; gap: 8px; margin: 0 0 8px 0; }
+.seg { border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
+.seg.focus { border-color: var(--ind); background: var(--ind-soft); }
+.seg.opt { border-style: dashed; }
+.seg .k { font-size: 7.6pt; text-transform: uppercase; letter-spacing: 0.12em; color: var(--mute); font-weight: 600; }
+.seg.focus .k { color: var(--ind); }
+.seg .v { font-weight: 600; font-size: 11pt; margin: 1px 0 2px 0; }
+.seg .r { font-size: 8.6pt; color: #4b5563; line-height: 1.3; }
+/* one-line labelled example under the strip */
+.tagline { font-size: 9.2pt; color: #4b5563; margin: 0 0 6px 0; }
+.tagline .k { font-size: 7.6pt; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ind); font-weight: 600; margin-right: 6px; }
+.tagline .ex { font-weight: 600; color: var(--ink); }
+
+/* ---------- decision grid: label column + option columns, recommended column tinted ---------- */
+.grid { display: grid; grid-template-columns: 1.05fr 1.45fr 1.45fr; margin-top: 2px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.grid > div { padding: 7.5px 12px; border-bottom: 1px solid var(--line); font-size: 9.5pt; line-height: 1.38; }
+.grid > div:nth-last-child(-n+3) { border-bottom: 0; }
+.grid.c4 { grid-template-columns: 1fr 1.3fr 1.3fr 1.3fr; }
+.grid.c4 > div:nth-last-child(-n+4) { border-bottom: 0; }
+.grid .hd { font-weight: 700; font-size: 11pt; padding-top: 8px; padding-bottom: 8px; }
+.grid .hd.a { background: var(--ind); color: #fff; }   /* recommended option */
+.grid .hd.b { background: var(--soft); }               /* other option */
+.grid .hd.x { background: #fff; }                      /* blank corner over the label column */
+.grid .lab { font-weight: 600; color: #374151; font-size: 9.2pt; }
+.grid .lab .m { font-weight: 400; color: var(--mute); }
+.grid .a { background: var(--ind-soft); }              /* recommended column cells */
+.badge { display: inline-block; font-size: 7.4pt; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(255,255,255,.7); color: #fff; border-radius: 3px; padding: 1px 6px; margin-left: 8px; vertical-align: 2px; font-weight: 600; }
+
+/* ---------- stat strip ---------- */
+.stats { display: flex; gap: 36px; margin: 12px 0 2px 0; align-items: baseline; }
+.stats > div { white-space: nowrap; font-size: 9pt; color: var(--mute); }
+.stats .n { font-size: 19pt; font-weight: 700; color: var(--ind); margin-right: 6px; letter-spacing: -0.01em; }
+
+/* ---------- calls: numbered open decisions with checkboxes ---------- */
+.call { display: grid; grid-template-columns: 24px 1fr; gap: 10px; margin: 0 0 10px 0; align-items: start; }
+.call .num { width: 22px; height: 22px; border-radius: 11px; background: var(--amb); color: #fff; font-weight: 700; font-size: 10pt; text-align: center; line-height: 22px; }
+.call .t { font-size: 10pt; line-height: 1.45; }
+.call .t b.h { font-size: 10.2pt; }
+.pick { display: inline-block; margin: 0 10px 0 0; white-space: nowrap; }
+.box { display: inline-block; width: 11px; height: 11px; border: 1.5px solid #374151; border-radius: 2px; vertical-align: -1px; margin-right: 4px; background: #fff; }
+.box.rec { background: var(--ind); border-color: var(--ind); box-shadow: inset 0 0 0 2px #fff; }  /* pre-marked recommendation */
+.words { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px 12px; margin: 8px 0 8px 0; }
+.words > div { border-left: 3px solid var(--amb); background: var(--amb-soft); border-radius: 0 6px 6px 0; padding: 6px 11px; font-size: 9.4pt; white-space: nowrap; }
+.words b { margin-right: 6px; }
+.words .m { color: var(--mute); font-size: 8.4pt; }
+.words .chk { float: right; }
+.rec-line { font-size: 9.4pt; color: #4b5563; margin: 0; }
+.rec-line b { color: var(--ink); }
+.decided { font-size: 9.2pt; color: var(--mute); margin: 10px 0 0 0; padding-top: 8px; border-top: 1px solid var(--line); }
+.decided b { color: #374151; }
+
+/* ---------- grouped example rows (typically page 2) ---------- */
+.legend { display: flex; gap: 16px; font-size: 8.8pt; color: var(--mute); margin: 0 0 10px 0; align-items: baseline; flex-wrap: wrap; }
+.group { margin: 0 0 10px 0; page-break-inside: avoid; }
+.group h3 { font-size: 8.4pt; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ind); margin: 0 0 3px 0; padding-bottom: 3px; border-bottom: 1.5px solid var(--ind-chip); }
+.row { display: grid; grid-template-columns: 1.65in 1fr 1.5in; gap: 10px; align-items: baseline; padding: 2.5px 0; }
+.row .case { color: #4b5563; font-size: 9pt; }          /* left label: wide enough that it never wraps */
+.row .b { font-size: 8.8pt; color: var(--mute); white-space: nowrap; }
+.row .b .same { color: #9ca3af; }
