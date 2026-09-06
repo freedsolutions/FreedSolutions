@@ -61,6 +61,22 @@ $env:PYTHONPATH = if ($originalPythonPath) {
     $shimRoot
 }
 
+# The Codex-owned validator calls Path.read_text() with no encoding argument, so
+# Python falls back to the locale encoding - cp1252 on this workstation. SKILL.md
+# files are UTF-8, so any byte that cp1252 leaves undefined (0x81, 0x8D, 0x8F,
+# 0x90, 0x9D) aborts validation with UnicodeDecodeError, and the bytes cp1252 does
+# map decode to mojibake (an em-dash arrives as "a EUR ..."). PYTHONUTF8=1 puts the
+# interpreter in UTF-8 mode so the default encoding is UTF-8 and the file is read
+# as written. We cannot fix this in the validator: it lives under ~/.codex and
+# Codex may overwrite it.
+$originalPythonUtf8 = $env:PYTHONUTF8
+$env:PYTHONUTF8 = "1"
+
+function Restore-PythonEnv {
+    $env:PYTHONPATH = $script:originalPythonPath
+    $env:PYTHONUTF8 = $script:originalPythonUtf8
+}
+
 $skills = if ($SkillName -and $SkillName.Count -gt 0) {
     $SkillName
 } else {
@@ -80,7 +96,7 @@ $skills = if ($SkillName -and $SkillName.Count -gt 0) {
     }
     if ($collisions.Count -gt 0) {
         $collided = ($collisions.Keys | Sort-Object) -join ", "
-        $env:PYTHONPATH = $originalPythonPath
+        Restore-PythonEnv
         throw "Skill name collision across source roots: $collided. Rename or consolidate."
     }
     $discovered
@@ -93,20 +109,20 @@ if (-not $skills) {
 foreach ($name in $skills) {
     $skillPath = Get-SkillSourcePath -Name $name -Roots $sourceRoots
     if (-not $skillPath) {
-        $env:PYTHONPATH = $originalPythonPath
+        Restore-PythonEnv
         throw "Skill source not found: $name"
     }
 
     Write-Host "Validating $name ..."
     python $validator $skillPath
     if ($LASTEXITCODE -ne 0) {
-        $env:PYTHONPATH = $originalPythonPath
+        Restore-PythonEnv
         throw "Validation failed for $skillPath"
     }
 }
 
 if ($ValidateOnly) {
-    $env:PYTHONPATH = $originalPythonPath
+    Restore-PythonEnv
     Write-Host "Validation complete. No install requested."
     exit 0
 }
@@ -118,7 +134,7 @@ if (-not (Test-Path $resolvedInstallRoot)) {
 foreach ($name in $skills) {
     $skillPath = Get-SkillSourcePath -Name $name -Roots $sourceRoots
     if (-not $skillPath) {
-        $env:PYTHONPATH = $originalPythonPath
+        Restore-PythonEnv
         throw "Skill source not found during publish: $name"
     }
     $targetPath = Join-Path $resolvedInstallRoot $name
@@ -131,6 +147,6 @@ foreach ($name in $skills) {
     Write-Host "Published $name -> $targetPath"
 }
 
-$env:PYTHONPATH = $originalPythonPath
+Restore-PythonEnv
 
 Write-Host "Publish complete."
