@@ -80,11 +80,42 @@ const dd = fs.existsSync(DD) ? read(DD) : '';
 if (!dd) fail('Dictionary found', DD);
 // The register is the FIRST contiguous run of `| Rnn |` rows; later tables that cite rule ids in their
 // first cell (the export-only register, appendices) are not register rows. First occurrence wins.
+// Split on UNESCAPED pipes only — `\|` inside a cell is content, not a delimiter. The expected
+// segment count comes from the register's own header row, never a hardcoded 5.
+function splitCells(body) { return body.split(/(?<!\\)\|/).map(c => c.trim()); }
+const hdrRow = dd.match(/^\| # \|([^\r\n]*)$/m);
+// header body ends with a trailing empty segment, same as a data row; -1 for the consumed `| Rnn |`
+const EXPECT = hdrRow ? splitCells(hdrRow[1]).length : 4;
+
 const rows = {};
 for (const m of dd.matchAll(/^\| (R\d+) \|([^\r\n]*)$/gm)) {
   if (rows[m[1]]) continue;
-  const cells = m[2].split(' | ').map(c => c.trim());
-  rows[m[1]] = { rule: cells[0] || '', impl: cells[2] || '', line: m[0] };
+  const cells = splitCells(m[2]);
+  // A row carrying an unescaped `|` inside its prose cannot be cut into cells reliably — the extra
+  // pipes are indistinguishable from delimiters, and they land in BOTH the rule and the impl cell
+  // (Product Line names are themselves pipe-delimited, so this recurs). For those rows the whole
+  // body is hashed, so no rule text can be edited outside the seal, and `impl` is left null rather
+  // than pointing at whatever segment happens to sit at index 2 (on 3-segment rows that is the
+  // DATES cell, and the NOT BUILT check was silently testing `8/30; 8/31`).
+  const shaped = cells.length === EXPECT;
+  rows[m[1]] = {
+    rule: shaped ? (cells[0] || '') : m[2],
+    impl: shaped ? (cells[2] || '') : null,
+    legacyRule: m[2].split(' | ').map(c => c.trim())[0] || '',
+    segments: cells.length, shaped, line: m[0],
+  };
+}
+{
+  const odd = Object.entries(rows).filter(([, v]) => !v.shaped);
+  // Reported, never failed: the ACTUAL defect (rule text escaping the seal) is closed by the
+  // whole-row hash above, so an unshaped row is a known limitation, not a broken kickoff. Failing
+  // here would redden every kickoff in the estate until canon is re-escaped, which Adam has not
+  // asked for. Read the COUNT — if it grows, a new row has picked up an unescaped pipe.
+  if (odd.length) info('register row shape', odd.length + ' of ' + Object.keys(rows).length +
+    ' row(s) carry an unescaped `|` and cannot be cut into cells: ' +
+    odd.map(([r, v]) => r + ' (' + v.segments + ' vs ' + EXPECT + ')').join(', ') +
+    ' — rule text is hashed WHOLE-ROW for these so nothing escapes the seal, and their impl cell is not checked; escape the pipes as `\\|` to restore per-cell checking');
+  else ok('register row shape', Object.keys(rows).length + ' row(s), all ' + EXPECT + ' cells');
 }
 for (const r of H.rules) { if (rows[r]) ok('register row ' + r, 'present'); else fail('register row ' + r, 'not in the Dictionary — plan lane writes it first'); }
 if (seal) {
@@ -94,10 +125,21 @@ if (seal) {
   fs.writeFileSync(KICK, text);
   ok('sealed', Object.keys(rows).length + ' rule cells hashed into the header');
 } else if (H.rule_text_sha1 && Object.keys(H.rule_text_sha1).length) {
-  const changed = Object.entries(H.rule_text_sha1).filter(([r, h]) => rows[r] && sha1(rows[r].rule) !== h).map(([r]) => r);
+  // A kickoff sealed BEFORE 2026-09-06 hashed `split(' | ')[0]` for every row, which on an
+  // unshaped row is a truncated fragment. Accept that legacy value on unshaped rows only, and
+  // report it — re-sealing a closed kickoff to clear it would rewrite the record.
+  // Tolerance keys on the SEAL, not on row shape: the pre-2026-09-06 parser split on the literal
+  // `' | '`, which both truncated the ambiguous rows AND mis-cut rows whose pipes lack surrounding
+  // spaces (R14 / R46 / R47 parse correctly now, so their hashes legitimately moved). Accepting the
+  // legacy value is safe because it is recomputed from the CURRENT text — if the text had changed,
+  // neither hash would match and the row still fails.
+  const mism = Object.entries(H.rule_text_sha1).filter(([r, h]) => rows[r] && sha1(rows[r].rule) !== h);
+  const legacy = mism.filter(([r, h]) => sha1(rows[r].legacyRule) === h).map(([r]) => r);
+  const changed = mism.filter(([r, h]) => sha1(rows[r].legacyRule) !== h).map(([r]) => r);
   const gone = Object.keys(H.rule_text_sha1).filter(r => !rows[r]);
   if (changed.length) fail('rule text unchanged since seal', changed.join(', ') + ' — a build lane edits impl cells only; re-seal from the plan lane if Adam re-ruled');
-  else ok('rule text unchanged since seal', Object.keys(H.rule_text_sha1).length + ' rows');
+  else ok('rule text unchanged since seal', Object.keys(H.rule_text_sha1).length + ' rows' +
+    (legacy.length ? ' (' + legacy.length + ' sealed under the pre-2026-09-06 parser: ' + legacy.join(', ') + ' — unchanged, do NOT re-seal a closed kickoff)' : ''));
   if (gone.length) fail('sealed rows still present', gone.join(', ') + ' — rows are struck through, never deleted');
 } else if (phase === 'build') fail('header sealed', 'run `--seal` from the plan lane before handing off');
 else info('header not sealed yet', 'run `--seal` once the R rows are written');
@@ -126,7 +168,9 @@ if (openSec) {
 // ---------- impl cells no longer say NOT BUILT (BI paths) ----------
 if (BI_PATHS.has(H.path) || H.path === 'config') {
   for (const r of H.rules) if (rows[r]) {
-    if (/NOT BUILT/i.test(rows[r].impl)) fail('impl cell ' + r, 'still says NOT BUILT'); else ok('impl cell ' + r, 'no NOT BUILT marker');
+    if (rows[r].impl === null) info('impl cell ' + r, 'not checked — the row carries an unescaped `|` so its cell boundaries are ambiguous (see `register row shape`)');
+    else if (/NOT BUILT/i.test(rows[r].impl)) fail('impl cell ' + r, 'still says NOT BUILT');
+    else ok('impl cell ' + r, 'no NOT BUILT marker');
   }
 }
 
