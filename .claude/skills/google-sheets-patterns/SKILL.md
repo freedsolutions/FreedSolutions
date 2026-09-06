@@ -121,6 +121,7 @@ Deploy functions in this project follow a common shape:
 - **Targeted writes only**: no `clearContents()` on ranges you don't own. No mass overwrites.
 - **SpreadsheetApp.flush()** at the end to force materialization.
 - **Logger.log** each step: "Step 1: ...", "Step 2: ..." — visible in Apps Script execution log.
+- **No `SpreadsheetApp.getUi()` in deploy or test-run code.** It throws `Exception: Cannot call SpreadsheetApp.getUi() from this context.` whenever no sheet UI is open: test deployments, triggers, API / `clasp run`. Keep alerts, prompts and menus inside `onOpen` and menu handlers; deploy functions report through `Logger.log`.
 - **Run via function picker** — picker at the top of the editor can be finicky; fall back to injecting a one-line call inside `fixFormulas_v2` (or similar default function), save, click Run, then revert. Pattern:
   ```
   function fixFormulas_v2() {
