@@ -66,31 +66,39 @@ week (plural→singular pass, then the infused consolidation). A LEGACY generati
 keying on pre-granularization CATEGORY names (`category="Beverages"/"Edibles"/"Tinctures"`)
 survives ONLY on Inventory Health 26741 (tiles 187558/187559) — rebuild or retire, Adam's call.
 
-### Rounding (REVISED 2026-08-19 — "logical rounding")
+### Rounding (REVISED 2026-09-08 — "logical rounding" at 0.01)
 
-Both UoM classes round to **0.1** and render decimals **only when they exist** (Adam's
-ruling after sorting moved to the numeric Product Grams field, making a fixed-width
-"1.0g" unnecessary, and a 0.5mg-per-unit Wyld 20pk exposed the old whole-mg floor):
+Both UoM classes round to **0.01** and render decimals **only when they exist** — the label
+prints the REAL value. Adam, 2026-09-08, on finding 0.75g singles sitting in an `0.8g` product
+line: *"Can we fix the PL rounding?"* … *"fix this to be logical rounding"*.
 
-- smokable / vape-able → `1g`, `3.5g`, `0.5g` (no forced trailing `.0`)
-- everything else → `50mg`, `0.5mg` (no forced whole-number rounding)
+- smokable / vape-able → `1g`, `3.5g`, `0.75g`, `0.35g` (no forced trailing `.0`)
+- everything else → `50mg`, `5mg`, `2.5mg` (no forced whole-number rounding)
 
-Conditional concat (no `format()` in Looker):
+Conditional concat (no `format()` in Looker) — **three steps**, whole → one decimal → two:
 
 ```
-if(round(x,1)=round(x,0), concat(round(x,0),"g"), concat(round(x,1),"g"))
+if(round(x,2)=round(x,0), concat(round(x,0),"g"),
+   if(round(x,2)=round(x,1), concat(round(x,1),"g"), concat(round(x,2),"g")))
 ```
 
-(mg branch identical over `x*1000`.) SUPERSEDES the original "always one decimal for g /
-nearest whole mg" rule. Sort on `products.product_grams`, never on the label.
+(mg branch identical over `x*1000`.) SUPERSEDES the 2026-08-19 two-step form at 0.1, which
+*silently mislabelled* rather than failing: a 0.75g item read `0.8g`, so its Product Line key
+was a dose the item does not have. Two decimals cover every dosage in the catalog today; a
+finer value prints at 0.01. Sort on `products.product_grams`, never on the label.
+
+⚠ **Looker `round` is SQL half-up; Python's `round` is banker's.** Any export-side mirror of
+this renderer must round half-away-from-zero (`decimal.ROUND_HALF_UP`) or it will print `0.3`
+where the tile prints `0.35`, and the mirror will disagree with the tile it is meant to check.
 
 ### Dosage
 
 Dosage represents **THC content, taken from the `Grams / Concentration` field**
 (`products.product_grams`), expressed in `g`. **Multiply by 1000 to convert to mg.**
 
-- `0.005g` → `5mg` · `0.05g` → `50mg` · `0.1g` → `100mg`
-- `1g` → `1.0g` · `3.5g` → `3.5g`
+- `0.005g` → `5mg` · `0.05g` → `50mg` · `0.1g` → `100mg` · `0.0025g` → `2.5mg`
+- `1g` → `1g` · `3.5g` → `3.5g` · `0.75g` → `0.75g` (the `1.0g` form here was left over from the
+  pre-2026-08-19 fixed-width rule; the Rounding section above governs)
 
 Two traps:
 
