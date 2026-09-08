@@ -166,6 +166,23 @@ that manufactures and typically delivers the product. Third-party distribution p
 different vendors at the *package* level, but the item level keeps the house of brands. This
 matters most for Accessories, which should carry the MFG/CPG brand, not the distributor.
 
+**A local Brand record IS the Dutchie Global Brand (Adam, 2026-09-07/08 — supersedes the owned
+subbrand rollup).** A vendor's named LINE — `Reload`, `Premier`, `Signature`, `Infuzed`,
+`Traveler Pro` — is **not** a Brand. Lines live in the item NAME (the Form/Body segments, or the
+terminal Edition suffix); the Brand attribute carries only the brand the Global Catalog knows.
+The one many-to-one the rule allows is a line that must be separated for **PL and price** reasons
+inside a Global Brand, and even that is preferred as a name suffix.
+
+⚠ **There is no owned subbrand→parent rollup map any more.** The earlier pattern — an enumerated
+CSV of `local_brand → parent_brand` feeding a generated `parent_brand` custom dimension on a
+Looker tile — was **RETIRED 2026-09-08** once the line records were collapsed into their brands
+(Adam: *"Parent-brand rollup is no longer needed."*). Brand-grain economics now read
+`products.brand_name` directly, because after the collapse that column already IS the family.
+**House-of-Brands relationships are DERIVED, never owned:** the export's `Vendor` column plus the
+Global Brand catalog's own parent brand. Do not re-introduce a hand-maintained rollup — the drift
+it caused was silent, because the generated chain ended in `coalesce(...)` and an unmapped brand
+fell through *as itself*: a plausible row, never an error.
+
 **Global hierarchy mappings live in `admin.dutchie.com`**, not the reporting database.
 `products.external_category` / `products.external_sub_category` are **Metrc Catalog** fields
 (required for manufacturers, not retailers) and are *not* the Global hierarchy — do not QC
@@ -511,7 +528,7 @@ they describe what vendors ship, and **no QC rule may test against them** (R4).
 | Flower **and Pre-Roll** (non-infused; PLC=Flower) | `product_grams × 1` |
 | Concentrate, Vaporizer, **Tincture** (PLC=Concentrates, GC≠Pre-Rolls/Flower) | `product_grams × 5.6` |
 | **Edible, Beverage** (PLC=Edibles) | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
-| **Infused Flower & Pre-Roll** (PLC=Concentrates, GC=Pre-Rolls/Flower; gate = the 4 infused categories) | composite `(g − conc) + conc×5.6`. **TWO-tier QC** (Dictionary R4): `FL_EQ_NO_INFUSION` = FE ≤ g (hard); `FL_EQ_IMPOSSIBLE` = FE ≥ g×5.6 (hard). Both count in qc_fails and label qc_flags on Product QC 193267. **~~`FL_EQ_TIER`~~ RETIRED 2026-09-05** (Adam, verbatim: *"Remove it entirely. In general, I do not want special carve outs"*) — the band (~~20%±2 / 35%±2~~) **and BOTH brand whitelists** (~~InHouse 2.822–3.098, Nimbus 1.124–1.4~~) are withdrawn, and **no carve-out may be re-introduced on this rule.** *Why:* every observed share is a product FACT under R2, so the band tested a fact rather than a defect — detection power measured at **0 of 70**, lifetime yield false positives only. The Nimbus whitelist was an exact-match brand literal and the 9/4 mint of subbrand `Nimbus Infused Flowah` (101539) silently un-keyed it, turning two conformant rows into DEFECTs — **a brand literal is not a durable key while R30 keeps minting subbrands.** **What still watches FE:** the two structural legs above (arithmetic that cannot be right under any share) plus **R63 `FL_EQ_INCONSISTENT` (tile 194986)** — absolute FE within the PL — which catches the wrong-share error the band could not. `export_qc.py` emits no `FL_EQ_TIER`. |
+| **Infused Flower & Pre-Roll** (PLC=Concentrates, GC=Pre-Rolls/Flower; gate = the 4 infused categories) | composite `(g − conc) + conc×5.6`. **TWO-tier QC** (Dictionary R4): `FL_EQ_NO_INFUSION` = FE ≤ g (hard); `FL_EQ_IMPOSSIBLE` = FE ≥ g×5.6 (hard). Both count in qc_fails and label qc_flags on Product QC 193267. **~~`FL_EQ_TIER`~~ RETIRED 2026-09-05** (Adam, verbatim: *"Remove it entirely. In general, I do not want special carve outs"*) — the band (~~20%±2 / 35%±2~~) **and BOTH brand whitelists** (~~InHouse 2.822–3.098, Nimbus 1.124–1.4~~) are withdrawn, and **no carve-out may be re-introduced on this rule.** *Why:* every observed share is a product FACT under R2, so the band tested a fact rather than a defect — detection power measured at **0 of 70**, lifetime yield false positives only. The Nimbus whitelist was an exact-match brand literal and the 9/4 mint of subbrand `Nimbus Infused Flowah` (101539) silently un-keyed it, turning two conformant rows into DEFECTs — **a brand literal is not a durable key.** (That was written while R30 was still minting subbrands; R30 was RETIRED 2026-09-08 and the subbrand records were collapsed, so the *example* is history — but the lesson is not, and it is now the stronger one: a brand literal is not durable against mints, renames OR collapses.) **What still watches FE:** the two structural legs above (arithmetic that cannot be right under any share) plus **R63 `FL_EQ_INCONSISTENT` (tile 194986)** — absolute FE within the PL — which catches the wrong-share error the band could not. `export_qc.py` emits no `FL_EQ_TIER`. |
 | **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). Convention CONFIRMED: FL EQ = **0.001g** on every topical item (never eats customer limits, and clears the NO_FLOWER_EQ null-or-zero rule). Any expected-value check would false-positive by design. |
 | **CBD** | **NO branch — FL EQ remains NULL** (considered Non-Cannabis; `is_cannabis = false`, so the cannabis-gated rules never fire). Dosage naming still applies — see the CBD dosage exception above. |
 | Non-cannabis (gate on `is_cannabis`) | n/a |
