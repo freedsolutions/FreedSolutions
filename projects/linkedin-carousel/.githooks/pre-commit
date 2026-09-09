@@ -7,6 +7,30 @@ if [ $status -ne 0 ]; then
   exit $status
 fi
 
+# Skill proofs — only when this commit touches a skill file, so a carousel or ops commit
+# pays nothing. Both proofs are the reason a change to the skills can be trusted, and both
+# are proven to fail rather than merely to pass; this repo has shipped an inert check
+# before, so they run here rather than resting on a line in SKILL.md.
+#
+# They measure the WORKING TREE, not the staged blobs: a partially staged skill file can
+# therefore pass here and land dirty. Committing whole files keeps the two identical, and a
+# staged-blob check would need a temp checkout for a gate that already reads a whole tree.
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(freed-solutions|\.claude)/skills/'; then
+  node freed-solutions/skills/bi-change/scripts/gate_selftest.js
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo "pre-commit: bi-change gate self-test FAILED — the failing assertion is named above"
+    exit $status
+  fi
+
+  node freed-solutions/skills/bi-change/scripts/skill_leak_proof.js
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo "pre-commit: a tracked skill file names a client — see the hits above"
+    exit $status
+  fi
+fi
+
 node projects/linkedin-carousel/scripts/archive-smoke-artifacts.js
 status=$?
 if [ $status -ne 0 ]; then
