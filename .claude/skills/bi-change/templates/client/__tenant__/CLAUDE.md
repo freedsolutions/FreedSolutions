@@ -1,5 +1,3 @@
-<!-- Generated from "freed-solutions/skills/bi-change/templates/client/__tenant__/CLAUDE.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # <TENANT> — <lsp_name> (tenant of <client>)
 
 Client roster and engagement folders: `clients/<client>/CLAUDE.md`. <locations, one clause>.

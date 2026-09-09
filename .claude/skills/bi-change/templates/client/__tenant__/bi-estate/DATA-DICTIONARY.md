@@ -1,5 +1,3 @@
-<!-- Generated from "freed-solutions/skills/bi-change/templates/client/__tenant__/bi-estate/DATA-DICTIONARY.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # <TENANT> BI Data Dictionary & Business Rules Register
 
 The standing business rules for the <TENANT> Dutchie/Looker estate. This file is CANON:

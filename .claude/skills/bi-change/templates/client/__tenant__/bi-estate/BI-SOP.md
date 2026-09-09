@@ -1,5 +1,3 @@
-<!-- Generated from "freed-solutions/skills/bi-change/templates/client/__tenant__/bi-estate/BI-SOP.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # <TENANT> BI — Standard Operating Procedures
 
 **The single operating document for the <TENANT> BI estate** (Dutchie Backoffice → BI tools,

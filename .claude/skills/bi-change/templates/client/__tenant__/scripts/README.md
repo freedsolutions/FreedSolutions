@@ -1,5 +1,3 @@
-<!-- Generated from "freed-solutions/skills/bi-change/templates/client/__tenant__/scripts/README.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # <TENANT> — client scripts
 
 Scripts for this tenant only. The SHARED tools (`bi_impact_scan.js`, `render_docs.sh`,

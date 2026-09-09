@@ -1,5 +1,3 @@
-<!-- Generated from "freed-solutions/skills/bi-change/templates/kickoff.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # Kickoff — <one-line title: what changes, on which board(s), under which R rows>
 
 <!-- bi-change:header -->

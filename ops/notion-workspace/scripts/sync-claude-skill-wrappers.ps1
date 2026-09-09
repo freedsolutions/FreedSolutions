@@ -84,7 +84,12 @@ function Get-ClaudeSkillCopyContent {
         default { $null }
     }
 
-    if (-not $banner) {
+    # Files under templates/ are copied verbatim. They are scaffolded into client trees and
+    # hand-copied into kickoffs, where a provenance banner is false: on 2026-09-09 a freshly
+    # scaffolded tenant carried "do not edit this Claude copy" on all ten of its documents, and one
+    # estate kickoff already carried it through templates/kickoff.md.
+    $isTemplate = ($RelativePath -replace '\\', '/') -like 'templates/*'
+    if (-not $banner -or $isTemplate) {
         return $raw
     }
 

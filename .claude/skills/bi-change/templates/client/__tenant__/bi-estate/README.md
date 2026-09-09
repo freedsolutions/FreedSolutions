@@ -1,5 +1,3 @@
-<!-- Generated from "freed-solutions/skills/bi-change/templates/client/__tenant__/bi-estate/README.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
-
 # <TENANT> BI Estate — Structure Snapshots
 
 **Last synced: <date>** — scaffolded from the `bi-change` client template.
