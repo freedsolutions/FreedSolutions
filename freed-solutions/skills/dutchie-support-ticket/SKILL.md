@@ -102,21 +102,19 @@ A receipt, not a case file:
 
 ```
 # <lane> — <shorthand>
-Lane / queue / date / Gmail draft id / Status: DRAFT — not sent
+Lane: <bug | product feedback> · queue · date · Gmail draft id · Status: DRAFT — not sent
 KB: <entry, or "none">
 
 <the email, verbatim>
 ```
 
-Bugs go in the `tickets/` folder of the tenant folder named in the client pointer block. Product
-feedback goes in the shared Dutchie tickets folder, which sits outside every client tree. **Both are
-gitignored and must stay that way** — feedback is client-agnostic in its framing but routinely cites
-client evidence (SKU counts, brand coverage, sales figures).
+Every record, both lanes, goes in the `tickets/` folder of the tenant folder named in the client
+pointer block — the lane is a field in the record, not a directory. **That folder is gitignored and
+must stay that way**: product feedback is client-agnostic in its framing but routinely cites client
+evidence (SKU counts, brand coverage, sales figures).
 
 Analysis that will not fit belongs in the client estate, not here. When Dutchie replies, append
 `Dutchie ref: <id>` — one line. The directory listing is the ledger; Gmail labels carry status.
-
-> Pending a Phase B pass: the two record locations collapse into one, with lane as a field.
 
 ## Parking mid-session
 
@@ -127,8 +125,9 @@ Bugs surface during other work and chasing them derails the session. Don't. Appe
 - [ ] YYYY-MM-DD | Backoffice | <observation> | ids: <SKU/PID/tile> | evidence: <path or none>
 ```
 
-Enough to reconstruct the observation; full detail is gathered at draft time. Existing entries in
-that file run longer than this — leave them alone until the Phase B pass.
+Enough to reconstruct the observation; full detail is gathered at draft time. **Supersede a line by
+rewriting it, never by appending underneath** — a queue that accepts appends becomes a log, and the
+detail belongs in the record anyway.
 
 ## Spawning a drafting session
 
