@@ -51,7 +51,24 @@ const sha1 = s => crypto.createHash('sha1').update(s.replace(/\s+/g, ' ').trim()
 const RULE1 = 'Fixture rule one, short and well under the cap.';
 const RULE2 = 'Fixture rule two, also short.';
 
-function dd(rules) {
+// Register header shapes. The gate takes its expected segment count from the register's OWN header
+// row, never a constant — so BOTH shapes this estate has carried must parse, and on both, SEGMENT 2
+// is the impl cell the NOT BUILT check reads (`Implementation` before Phase B, `Surface` after).
+// `v1` is the pre-compaction 5-column register; `v2` is the 8-column contract Phase B left behind.
+// Group E proves both, in both directions: parse to the right segment count, and read NOT BUILT out
+// of segment 2 rather than out of whatever column happens to sit there.
+const HEADERS = {
+  v1: {
+    cols: ['Rule', 'Key', 'Implementation', 'Ruled'],
+    cells: (txt, impl) => [txt, 'per product', impl, '2026-09-08'],
+  },
+  v2: {
+    cols: ['Rule', 'Grain', 'Surface', 'Status', 'Since', 'Links', 'Record'],
+    cells: (txt, impl) => [txt, 'per product', impl, 'ACTIVE', '2026-09-09', '—', 'fx-kickoff-2026-09-08.md'],
+  },
+};
+function dd(rules, shape = 'v1') {
+  const h = HEADERS[shape];
   return [
     '# Fixture Data Dictionary',
     '',
@@ -59,16 +76,23 @@ function dd(rules) {
     '',
     '## Register',
     '',
-    '| # | Rule | Key | Implementation | Ruled |',
-    '|---|---|---|---|---|',
-    ...rules.map(([id, txt]) => '| ' + id + ' | ' + txt + ' | per product | tile 1 | 2026-09-08 |'),
+    '| # | ' + h.cols.join(' | ') + ' |',
+    '|---'.repeat(h.cols.length + 1) + '|',
+    ...rules.map(([id, txt, impl]) => '| ' + id + ' | ' + h.cells(txt, impl || 'tile 1').join(' | ') + ' |'),
     '',
   ].join('\n');
 }
+// A Dictionary whose PREAMBLE — the lines before the first `## ` heading — is exactly `n` lines.
+// dd() opens with 4 such lines, so the rest is filler that must not itself start a section.
+function ddPreamble(n, shape = 'v1') {
+  const body = dd([['R1', RULE1], ['R2', RULE2]], shape);
+  const fill = Array.from({ length: Math.max(0, n - 4) }, (_, i) => 'preamble line ' + i);
+  return fill.length ? fill.join('\n') + '\n' + body : body;
+}
 
-function kickoff({ rules = ['R1'], seals = null, done = false }) {
+function kickoff({ rules = ['R1'], seals = null, done = false, kpath = 'rule' }) {
   const hdr = {
-    path: 'rule', lane: 'build', model: 'opus', rules, dashboards: [], scope: {},
+    path: kpath, lane: 'build', model: 'opus', rules, dashboards: [], scope: {},
     baseline: null, ratified: true,
   };
   if (seals) hdr.rule_text_sha1 = seals;
@@ -165,12 +189,10 @@ const CAPS = [
   {
     id: 'C2 Dictionary preamble ≤ 40 lines',
     label: 'cap: Dictionary preamble',
-    break: () => {
-      const body = dd([['R1', RULE1], ['R2', RULE2]]);
-      fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'),
-        Array.from({ length: 45 }, (_, i) => 'preamble ' + i).join('\n') + '\n' + body);
-    },
-    expect: /\b51 lines\b/,
+    // Broken at the BOUNDARY, one line over the cap — a fixture 11 lines over would pass equally
+    // well against a check that measured the wrong span, which is exactly the defect C2 had.
+    break: () => fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), ddPreamble(41)),
+    expect: /\b41 lines\b/,
   },
   {
     id: 'C3a CLAUDE.md ≤ 120 lines',
@@ -325,6 +347,13 @@ const ENFORCED = [
     () => { for (let i = 0; i < 10; i++) fs.writeFileSync(path.join(CLIENT, 'loose-' + i + '.csv'), 'x\n'); }],
   ['C7 Current-state bullet shape', 'cap: Current-state bullet ≤ 2 lines',
     () => fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd([...CLEAN_BULLETS, '  A third line appended.']))],
+  // C1 and C2 made the same trip on 2026-09-09, when Phase B's compaction brought the register
+  // (71 rows, max rule cell 400 chars) and the preamble (27 lines) under their caps. C2's
+  // MEASUREMENT changed in the same change as its enforcement — see the boundary rows below.
+  ['C1 rule cell', 'cap: rule cell',
+    () => fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), dd([['R1', 'x'.repeat(601)], ['R2', RULE2]]))],
+  ['C2 Dictionary preamble', 'cap: Dictionary preamble',
+    () => fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), ddPreamble(41))],
 ];
 for (const [name, label, brk] of ENFORCED) {
   buildClean(); brk();
@@ -332,22 +361,45 @@ for (const [name, label, brk] of ENFORCED) {
   check('DEFAULT (no --caps): ' + name + ' REDDENS', mark(r.out, label) === '✘' && r.status === 1,
     line(r.out, label).trim() + ' | exit ' + r.status);
 }
-const REPORTED = [
-  ['C1 rule cell', 'cap: rule cell',
-    () => fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), dd([['R1', 'x'.repeat(601)], ['R2', RULE2]]))],
-  ['C2 Dictionary preamble', 'cap: Dictionary preamble',
-    () => fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'),
-      Array.from({ length: 45 }, (_, i) => 'preamble ' + i).join('\n') + '\n' + dd([['R1', RULE1], ['R2', RULE2]]))],
-  // C1 and C2 stay report-only until Phase B, which is the phase allowed to rewrite the register and
-  // the preamble they measure. These rows are the record of that SETTING — move a row into ENFORCED
-  // above when its phase lands, in the same change that flips the gate. C6 and C7 both made exactly
-  // that trip on 2026-09-08, each failing here first.
-];
+// Every cap is now ENFORCED, so this list is empty — and it stays here rather than being deleted,
+// because it is the shape a future cap arrives in: land it report-only, then move it up in the same
+// change that brings its surface under the cap. The loop below runs zero times, which is honest;
+// the ENFORCED loop is what carries the setting today.
+const REPORTED = [];
 for (const [name, label, brk] of REPORTED) {
   buildClean(); brk();
   const r = runDefault('fx-kickoff-2026-09-08.md');
   check('DEFAULT (no --caps): ' + name + ' REPORTS, does not redden',
     mark(r.out, label) === '·' && r.status === 0, line(r.out, label).trim() + ' | exit ' + r.status);
+}
+
+// C2's boundary, at the DEFAULT enforcement — the pair that makes the re-spec provable. 40 lines of
+// preamble is legal and must stay green; 41 must redden. Both fixtures carry a `## Register`
+// heading with §-style content BELOW it, so a check that reverted to "everything before the
+// register header row" would read far more than the preamble and fail the 40-line case.
+for (const [n, wantMark, wantExit] of [[40, '✔', 0], [41, '✘', 1]]) {
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), ddPreamble(n));
+  const r = runDefault('fx-kickoff-2026-09-08.md');
+  check('DEFAULT: C2 preamble of ' + n + ' lines is ' + wantMark + ' (cap 40)',
+    mark(r.out, 'cap: Dictionary preamble') === wantMark && r.status === wantExit,
+    line(r.out, 'cap: Dictionary preamble').trim() + ' | exit ' + r.status);
+}
+
+// C2 measures the PREAMBLE, not the run-up to the register. A Dictionary with a 4-line preamble and
+// a 60-line section sitting between the first heading and the register header row must stay green:
+// this is the exact file shape (§1 Taxonomy layers above the register) that made the old reading
+// report 174 lines on a 27-line preamble.
+{
+  buildClean();
+  const body = dd([['R1', RULE1], ['R2', RULE2]]);
+  const [head, tail] = [body.slice(0, body.indexOf('## Register')), body.slice(body.indexOf('## Register'))];
+  fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'),
+    head + '## Taxonomy layers\n\n' + Array.from({ length: 60 }, (_, i) => '- layer ' + i).join('\n') + '\n\n' + tail);
+  const r = runDefault('fx-kickoff-2026-09-08.md');
+  check('DEFAULT: C2 ignores a section between the first heading and the register',
+    mark(r.out, 'cap: Dictionary preamble') === '✔' && /\b4 lines\b/.test(line(r.out, 'cap: Dictionary preamble')),
+    line(r.out, 'cap: Dictionary preamble').trim() + ' | exit ' + r.status);
 }
 
 // =============================================================================================
@@ -446,6 +498,59 @@ buildClean();
   check('--pointer: --caps info cannot green a non-tenant dir', q.status === 1, 'exit ' + q.status);
   // C4 printed NOTHING when there was no estate; every branch must report.
   check('--pointer: C4 reports even with no README', line(r.out, 'cap: README stamp') !== '', line(r.out, 'cap: README stamp').trim() || '(absent)');
+}
+
+// =============================================================================================
+// E. REGISTER HEADER SHAPE. The expected segment count comes from the register's own header row,
+// so the gate must parse the 5-column register this estate carried before Phase B AND the
+// 8-column one it carries after, with no edit between them. Two things are proven per shape:
+// the row parses to the right segment count (an unshaped row loses per-cell checking and its
+// impl cell goes unchecked), and the NOT BUILT marker is read out of SEGMENT 2 — `Implementation`
+// in the old shape, `Surface` in the new one. E3 is the guard that matters: a check reading a
+// hardcoded index, or the whole row, would fire on NOT BUILT sitting in any column.
+// =============================================================================================
+function runBuild(file) {
+  const r = spawnSync(process.execPath, [GATE, path.join(EST, file)], { encoding: 'utf8' });
+  return { status: r.status, out: ((r.stdout || '') + (r.stderr || '')).replace(/\r\n/g, '\n') };
+}
+for (const [shape, segs] of [['v1', 5], ['v2', 8]]) {
+  // E1/E2 — both shapes parse, to the segment count their own header declares.
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), dd([['R1', RULE1], ['R2', RULE2]], shape));
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('HEADER ' + shape + ': ' + segs + '-column register parses, all rows shaped',
+      mark(r.out, 'register row shape') === '✔' && new RegExp('2 row\\(s\\), all ' + segs + ' cells').test(line(r.out, 'register row shape')),
+      line(r.out, 'register row shape').trim());
+    check('HEADER ' + shape + ': C1 still measures the rule cell', mark(r.out, 'cap: rule cell') === '✔' && /0 of 2 row\(s\) over/.test(line(r.out, 'cap: rule cell')),
+      line(r.out, 'cap: rule cell').trim());
+  }
+  // NOT BUILT in SEGMENT 2 must fail.
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), dd([['R1', RULE1, 'NOT BUILT'], ['R2', RULE2]], shape));
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1'], kpath: 'config', seals: { R1: sha1(RULE1) }, done: true }));
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('HEADER ' + shape + ': NOT BUILT in segment 2 FAILS the impl cell',
+      mark(r.out, 'impl cell R1') === '✘', line(r.out, 'impl cell R1').trim());
+  }
+  // E3 — the same marker in a cell that is NOT segment 2 must NOT fire. Segment 2 is the last cell
+  // in the 5-column shape's `Ruled` column and the `Record` column in the 8-column one; either way
+  // it is a column the check has no business reading.
+  buildClean();
+  const h = HEADERS[shape];
+  const cells = h.cells(RULE1, 'tile 1'); cells[cells.length - 1] = 'NOT BUILT';
+  const reg = dd([['R1', RULE1], ['R2', RULE2]], shape)
+    .replace(new RegExp('^\\| R1 \\|.*$', 'm'), '| R1 | ' + cells.join(' | ') + ' |');
+  fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), reg);
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1'], kpath: 'config', seals: { R1: sha1(RULE1) }, done: true }));
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('HEADER ' + shape + ': NOT BUILT outside segment 2 does NOT fire',
+      mark(r.out, 'impl cell R1') === '✔', line(r.out, 'impl cell R1').trim());
+  }
 }
 
 // ---- report ---------------------------------------------------------------------------------

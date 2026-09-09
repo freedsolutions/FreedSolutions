@@ -127,7 +127,8 @@ if(coalesce(${products.Product_Size}, "") != ""
 
 **The store reopened Sundays. SUPERSEDED SAME DAY by the ADAPTIVE formula (Adam's
 insight: "if there are no retail sales on a day, it can be safely factored out") —
-live on all 10 merges** (26549's 9 incl. A-Items + PL Economics 193371 on 28037):
+live on all 10 merges** (the reorder & velocity board's nine, A-Items included, plus
+the PL Economics merge on the margin board):
 
 ```
 Operating Days In Stock =
@@ -141,8 +142,8 @@ days_in_stock), ≈6/7 automatically on windows spanning the closed-Sundays era,
 any ad-hoc closure (holiday, snow day) is excluded with zero maintenance. Works at
 any Sales Window setting. The proportional 6/7 formula below is retired — kept only
 for reference on tenants without this pattern.
-Same day, the 28-day window became adjustable: **"Sales Window" dashboard filter on
-26549** (Advanced date control, default "is in the last 28 days") mapped to every
+Same day, the 28-day window became adjustable: **a "Sales Window" dashboard filter on
+the reorder & velocity board** (Advanced date control, default "is in the last 28 days") mapped to every
 tile's `transactions.transaction_date` AND to `inventory_snapshot.snapshot_date` on
 all 9 merges — map BOTH or velocity math goes window-inconsistent. The /28 literals
 were replaced window-aware: `In Stock % = ${days_in_stock} / max(${days_in_stock})`
@@ -156,8 +157,8 @@ Sales today-column changed values between two same-morning reads — the old
 "nightly sync" note is stale), so "is in the last N days" includes a PARTIAL today
 that dilutes velocity and drifts all day. House standard: date-filter defaults use
 the expression **`N days ago for N days`** (via match-type "matches (advanced)";
-Looker renders the chip as "is in the last N complete days"). Applied to 26549
-Sales Window (28) and 28037 Transaction Date (90). Note "is previous" is unit-only
+Looker renders the chip as "is in the last N complete days"). Applied to the reorder
+board's Sales Window (28) and the margin board's Transaction Date (90). Note "is previous" is unit-only
 (previous day/week/month — no count) — not usable for N-day windows.
 
 **Text/bumper tile mechanics (2026-08-22)**: the dashboard Add menu has TWO text
@@ -166,8 +167,9 @@ R&V header style; body `---` renders a rule; native-setter friendly) — USE THI
 headers/bumpers. **Add → Text** creates the newer inline RICH-TEXT tile that does
 NOT parse markdown (`##` renders literally) — avoid. New tiles land at the BOTTOM of
 the grid; repositioning is drag-only (left to Adam). Header+bumper sets added to
-28006 (header + "QC Queues" + "Product Mix") and 28037 (header + "Category & Product
-Economics" + "Discounts, Brands & Vendors") for consistency with 26549.
+the catalog-QC board (header + "QC Queues" + "Product Mix") and the margin board (header
++ "Category & Product Economics" + "Discounts, Brands & Vendors") for consistency with
+the reorder board.
 
 ### Sunday-exclusion methodology (historical)
 
@@ -384,7 +386,7 @@ Verified end-to-end while building the PT/PL Product Mix tiles:
 
 ### Custom-field automation, corrected (2026-08-20)
 
-Verified during the CBD-rule rollout across 28006 + 26549:
+Verified during the CBD-rule rollout across two boards:
 
 - **READ custom-field expressions & filters via React fiber — no dialog needed.** The
   field-picker treeitem's props expose the full field object: walk
@@ -412,7 +414,7 @@ Verified during the CBD-rule rollout across 28006 + 26549:
   polluted buffer). After setValue: real-click into the ace area, `navigateFileEnd()` via
   JS, then real-type one space — the keystroke makes Looker re-parse; a trailing space is
   accepted. Verify `getValue() === expected` before saving.
-- **Plain query tiles** (non-merge, e.g. the Daily Sales tiles on 26549): `merge/edit?
+- **Plain query tiles** (non-merge, e.g. a daily-sales tile): `merge/edit?
   did=` renders an EMPTY builder — never save there. Edit path: dashboard edit mode →
   Tile actions → Edit → "Edit Tile" explore dialog (TOP document, no iframe); custom-dim
   kebab flow as above; dialog header Save commits to the dashboard DRAFT — the dashboard
@@ -423,7 +425,8 @@ Verified during the CBD-rule rollout across 28006 + 26549:
   config panel (match-type combobox has native "doesn't start with"; typing
   comma-separated values commits chips exactly, whitespace preserved). Per-tile mapping
   lives in "Tiles to update"; a merge tile's mode dropdown offers **"Do not filter"** to
-  unmap it (used to keep Product QC 193267 sample-inclusive).
+  unmap it (used to keep a QC tile sample-inclusive where a board filter would have cut
+  its rows).
 
 ### Pane-hidden dashboard automation (2026-08-21)
 
@@ -442,8 +445,8 @@ real CDP clicks"):
   needed. Rename BEFORE dashboard Save; the did mints on Save
   (`element-title-NNNNNN`).
 - **Duplicated tiles inherit the dashboard-filter "Tiles to update" mapping** from
-  the source tile — no re-mapping needed (verified: 193356 carried the 16-value
-  Product Name exclusion; Product QC stayed unmapped).
+  the source tile — no re-mapping needed (verified: the source tile carried a
+  16-value Product Name exclusion; the deliberately unmapped QC tile stayed unmapped).
 - **⚠ Dashboard tiles do NOT render viz bodies while the pane is hidden** — every
   tile card shows only its title (no table, no spinner, no error). Not a save
   failure. The merge editor's Data table DOES render headless, so do data
@@ -735,7 +738,7 @@ When merge Save commits but the dashboard tile is still in edit mode, navigating
 - **⚠⚠ The mapping "Update" button MUST be panel-scoped.** A global
   `find(text==='Update')` matches the dashboard HEADER's Update button first (it
   precedes the filter panel in DOM order) — the click is a silent no-op and the
-  mapping draft is discarded when the next panel opens. This shipped 28037 with
+  mapping draft is discarded when the next panel opens. This shipped a board with
   filters that only tile 1 listened to (caught by Adam's v1.5 margin review: "90d by
   design but only MC tile listens"). Correct finder: the Update whose parent also
   contains a Cancel button. **Commit signature: the filter panel CLOSES on a real
@@ -757,7 +760,7 @@ When merge Save commits but the dashboard tile is still in edit mode, navigating
   type → Advanced → token `[is ▾]` dropdown → real-type value → click the suggestion
   checkbox → Done. Leftover typeahead text in the box is harmless (chips commit alone).
 - Legacy dashboards "Discount Board Prep" / "Discounts Performance" exist in the tenant's
-  shared folder — pre-date 28037.
+  shared folder — they pre-date the current margin board.
 
 ## Backoffice Internal REST API + Global Brand Catalog QC (2026-08-24/25)
 
@@ -799,14 +802,15 @@ Full field diff + first QC run: the client's dutchie-internal-api-catalog note (
 
 ### 2026-09-03 session — R62/R63 build: inventory-cost semantics + channel corrections
 
-Built the R62 package-cost tile (28006/195254) and re-pointed the FL EQ tile (194986). Three
+Built the R62 package-cost tile and re-pointed the R63 FL EQ tile (both ids live in the
+Dictionary's Surface column). Three
 field-level facts, each of which would have shipped a wrong or empty tile if assumed:
 
 - **⚠⚠ `inventory.cost` is the PACKAGE TOTAL; `inventory.unit_cost` is the PER-UNIT cost.**
   Verified on three packages against the Inventory export's `Cost` column: 944 = 236 x 4,
   422.50 = 325 x 1.30, 382 = 191 x 2. Only `unit_cost` is comparable to `products.cost`, and it is
   the field the export's `Cost` column matches. The same pairing holds for `price`/`unit_price`
-  (which is why 193884 compares `inventory.unit_price`). Picking `cost` for a per-unit comparison
+  (which is why the package price-drift tile compares `inventory.unit_price`). Picking `cost` for a per-unit comparison
   produces a tile that flags nearly everything, with no error to tell you why.
 - **✅ The `inventorytags` join is LEFT, not inner.** Measured: 485 rows with
   `inventorytags.tag_name_list` in `fields` and 485 without it; untagged packages come back with
@@ -963,7 +967,7 @@ the cross-named `strain.name = products.strain_name` merge rule.
   the single source of rule truth. Update discipline lives in the DD change workflow
   (step 3b): tiles/columns/filters/rules change → guide updates in the same pass →
   stamp bumps; stamp older than the estate harvest = stale by definition. Template:
-  the 28041 guide.
+  any current board guide.
 - **BI SOP (operator layer, est. 2026-08-29)**: the client's `bi-estate/BI-SOP.md` is
   the single USER-facing operating document — per-board sections in a fixed template
   (filters table / per-tile Answers-Healthy-Read-Flags-Fix / flag glossaries with a
@@ -974,8 +978,8 @@ the cross-named `strain.name = products.strain_name` merge rule.
   its §2; the mechanized impact scan + doc-freshness check is
   `<skill>/scripts/bi_impact_scan.js --estate <estate dir> "<needle>" | --stale` (attributes estate
   hits to owning dashboard + tile ids, lists doc lines to sync).
-- **Label disambiguation pair**: `$/Day at Risk (At Zero)` (26549 A-Items) vs
-  `$/Day at Risk (Thin/Out)` (28041 Depth-Up) — one label per rule, suffix names the gate.
+- **Label disambiguation pair**: `$/Day at Risk (At Zero)` (the A-Items tile) vs
+  `$/Day at Risk (Thin/Out)` (the Depth-Up tile) — one label per rule, suffix names the gate.
 
 
 - Calc names use Title Case with spaces ("Daily Avg Sales", "Operating Days In Stock"), not snake_case. They display as-is in column headers.

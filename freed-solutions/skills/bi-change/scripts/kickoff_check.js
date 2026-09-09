@@ -60,10 +60,15 @@ const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readm
 // ENFORCEMENT IS PER CAP, not global (scaffold-cleanup §6 step 5).
 //   C3 CLAUDE.md · C4 README stamp · C5 guide change logs -> 'fail'. P4 brought them under the
 //     caps in Phase A, so a breach from here is new drift and should redden.
-//   C1 rule cell · C2 Dictionary preamble -> 'info' until Phase B. They measure the register and
-//     the preamble, which P1 rewrites and which Phase A is explicitly forbidden to touch; failing
-//     them now would redden every kickoff for a breach nothing is allowed to fix. Phase B flips
-//     them as its last step.
+//   C1 rule cell · C2 Dictionary preamble -> 'fail' since Phase B step 2 (2026-09-09). They measure
+//     the register and the preamble, which Phase A was forbidden to touch; Phase B's compaction
+//     brought both under the cap (register 71 rows, max rule cell 400 chars; preamble 27 lines), so
+//     a breach from here is new drift, exactly as for C3-C7.
+//     C2 was RE-SPECIFIED in the same change that flipped it: it measures the lines before the FIRST
+//     `## ` heading — the preamble proper — not everything before the register header row. The old
+//     reading swept §1 Taxonomy layers into the "preamble" and read 174 lines on a file whose
+//     preamble is 27, so flipping it unchanged would have failed on content that is not preamble.
+//     A measurement is never changed without its fixture: see gate_selftest.js group A / C.
 //   C6 loose files -> 'fail' since A2 step 3. The tenant-root move took it from 235 loose files to
 //     1, so a breach from here is new drift, exactly as for C3-C5.
 //   C7 Current-state bullet shape -> 'fail' since A2 step 5, which reshaped the one over-cap bullet
@@ -72,7 +77,7 @@ const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readm
 // every kickoff for a breach the running step may not fix teaches the reader to ignore the gate.
 // And its self-test row moves from REPORTED to ENFORCED in the SAME change: flipping the gate alone
 // fails group C, which is the tripwire doing its job, not a broken test.
-const CAP_ENFORCE = { rule: 'info', preamble: 'info', claude: 'fail', readme: 'fail', guides: 'fail', loose: 'fail', bullet: 'fail' };
+const CAP_ENFORCE = { rule: 'fail', preamble: 'fail', claude: 'fail', readme: 'fail', guides: 'fail', loose: 'fail', bullet: 'fail' };
 
 const KICK = kickoff ? path.resolve(kickoff) : null;
 // In pointer mode there is no kickoff to fix the estate dir, so it is found by CONTENT, not by a
@@ -404,12 +409,17 @@ function scaffoldCaps() {
   else ok('cap: rule cell ≤ ' + CAPS.rule, '0 of ' + measured.length + ' row(s) over (max ' + worst.n + ' chars, ' + worst.r + ')');
   if (unmeasured.length) info('cap: rule cell — unmeasured', unmeasured.length + ' unshaped row(s) measured to the first unescaped `|` only, so their length is a lower bound: ' + unmeasured.map(m => m.r).join(', '));
 
-  // C2 — Dictionary preamble ≤ CAPS.preamble lines. Everything before the register header row.
+  // C2 — Dictionary preamble ≤ CAPS.preamble lines. The preamble is everything before the FIRST
+  // `## ` heading, and nothing else. It used to be "everything before the register header row",
+  // which is the same span only while no section sits between the two — on the compacted Dictionary
+  // §1 Taxonomy layers does, so the old reading measured 174 lines against a 27-line preamble. That
+  // is a cap failing on content it was never written to bound; re-specified 2026-09-09 in the same
+  // change that flipped it to 'fail' (scaffold-cleanup §13 B-build step 2).
   if (dd) {
-    const hdrIdx = dd.split(/\r?\n/).findIndex(l => /^\| # \|/.test(l));
-    if (hdrIdx < 0) info('cap: Dictionary preamble', 'no `| # |` register header row found — cannot measure');
+    const preIdx = dd.split(/\r?\n/).findIndex(l => /^## /.test(l));
+    if (preIdx < 0) info('cap: Dictionary preamble', 'no `## ` section heading found — cannot measure');
     else {
-      const pre = dd.split(/\r?\n/).slice(0, hdrIdx);
+      const pre = dd.split(/\r?\n/).slice(0, preIdx);
       const longest = pre.reduce((a, l, i) => (l.length > a.n ? { n: l.length, i: i + 1 } : a), { n: 0, i: 0 });
       if (pre.length > CAPS.preamble) cap('preamble', 'cap: Dictionary preamble ≤ ' + CAPS.preamble + ' lines',
         pre.length + ' lines (longest ' + longest.n + ' chars at line ' + longest.i + ')');

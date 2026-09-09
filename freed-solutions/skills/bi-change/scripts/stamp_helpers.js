@@ -35,10 +35,15 @@ function restamp(s, form, today, text) {
   const m = onceRe(s, /^\*\*Last synced: ([^*]+)\*\* \(/m, "stamp"); const stamp = nextStamp(m[1], today);
   return { s: s.replace(m[0], "**Last synced: " + stamp + "** (" + text + " Prior: **" + m[1] + "** ("), stamp };
 }
-// The Dictionary header: "Last updated: **X** (text … Prior: **Y** (…". Returns { s, stamp }.
+// The Dictionary header: "Last updated: **X** (text … Prior: **Y** (…", or the same line with an
+// em-dash separator instead of the parenthesis. BOTH are in use — the compacted preamble (2026-09-09)
+// writes "**X** — text", and this helper's paren-only anchor threw on it, which is the anchor guard
+// doing its job rather than a file defect. The separator FOUND is the separator written back, so a
+// restamp never silently changes the header's form. Returns { s, stamp }.
 function restampDictionary(s, today, text) {
-  const m = onceRe(s, /^Last updated: \*\*([^*]+)\*\* \(/m, "DD header"); const stamp = nextStamp(m[1], today);
-  return { s: s.replace(m[0], "Last updated: **" + stamp + "** (" + text + " Prior: **" + m[1] + "** ("), stamp };
+  const m = onceRe(s, /^Last updated: \*\*([^*]+)\*\* (\(|— )/m, "DD header"); const stamp = nextStamp(m[1], today);
+  const sep = m[2];
+  return { s: s.replace(m[0], "Last updated: **" + stamp + "** " + sep + text + " Prior: **" + m[1] + "** " + sep), stamp };
 }
 // Append a register row after the last row of the register TABLE — the first contiguous run of
 // "| Rnn |" rows; later tables that cite rule ids (the export-only register) are not the register.

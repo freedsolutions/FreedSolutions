@@ -64,7 +64,8 @@ its own MC the same day — both are label seams in transaction/snapshot history
 text: every MC rename silently kills string-matched expressions — this list broke twice in one
 week (plural→singular pass, then the infused consolidation). A LEGACY generation of these calcs
 keying on pre-granularization CATEGORY names (`category="Beverages"/"Edibles"/"Tinctures"`)
-survives ONLY on Inventory Health 26741 (tiles 187558/187559) — rebuild or retire, Adam's call.
+survives ONLY on two Inventory Health renderer tiles (ids in the Dictionary's Surface
+column under R7) — rebuild or retire, the tenant's call.
 
 ### Rounding (REVISED 2026-09-08 — "logical rounding" at 0.01)
 
@@ -142,8 +143,9 @@ if(coalesce(${products.product_grams},0)>0, <g/mg logic>, <no-dosage form>)
 ```
 
 Implementations: **the entire estate is on the grams-driven gate as of 2026-08-20** —
-Buyers 26549 PT/PL (all four tiles) and all 13 naming dims on 28006
-(193267 ×4, 193297 ×2, 193298 ×3, 193334 ×4). QC rules keep the bare `is_cannabis` gate.
+the reorder board's PT/PL tiles (all four) and every naming dimension
+on the catalog-QC board — ids and per-tile counts in the Dictionary's Surface column under
+R7. QC rules keep the bare `is_cannabis` gate.
 
 ### Size
 
@@ -534,7 +536,7 @@ they describe what vendors ship, and **no QC rule may test against them** (R4).
 | Flower **and Pre-Roll** (non-infused; PLC=Flower) | `product_grams × 1` |
 | Concentrate, Vaporizer, **Tincture** (PLC=Concentrates, GC≠Pre-Rolls/Flower) | `product_grams × 5.6` |
 | **Edible, Beverage** (PLC=Edibles) | `product_grams × 56` (THC grams; beverages are edible-treated — Adam ruling) |
-| **Infused Flower & Pre-Roll** (PLC=Concentrates, GC=Pre-Rolls/Flower; gate = the 4 infused categories) | composite `(g − conc) + conc×5.6`. **TWO-tier QC** (Dictionary R4): `FL_EQ_NO_INFUSION` = FE ≤ g (hard); `FL_EQ_IMPOSSIBLE` = FE ≥ g×5.6 (hard). Both count in qc_fails and label qc_flags on Product QC 193267. **~~`FL_EQ_TIER`~~ RETIRED 2026-09-05** (Adam, verbatim: *"Remove it entirely. In general, I do not want special carve outs"*) — the band (~~20%±2 / 35%±2~~) **and BOTH brand whitelists** (~~InHouse 2.822–3.098, Nimbus 1.124–1.4~~) are withdrawn, and **no carve-out may be re-introduced on this rule.** *Why:* every observed share is a product FACT under R2, so the band tested a fact rather than a defect — detection power measured at **0 of 70**, lifetime yield false positives only. The Nimbus whitelist was an exact-match brand literal and the 9/4 mint of subbrand `Nimbus Infused Flowah` (101539) silently un-keyed it, turning two conformant rows into DEFECTs — **a brand literal is not a durable key.** (That was written while R30 was still minting subbrands; R30 was RETIRED 2026-09-08 and the subbrand records were collapsed, so the *example* is history — but the lesson is not, and it is now the stronger one: a brand literal is not durable against mints, renames OR collapses.) **What still watches FE:** the two structural legs above (arithmetic that cannot be right under any share) plus **R63 `FL_EQ_INCONSISTENT` (tile 194986)** — absolute FE within the PL — which catches the wrong-share error the band could not. `export_qc.py` emits no `FL_EQ_TIER`. |
+| **Infused Flower & Pre-Roll** (PLC=Concentrates, GC=Pre-Rolls/Flower; gate = the 4 infused categories) | composite `(g − conc) + conc×5.6`. **TWO-tier QC** (Dictionary R4): `FL_EQ_NO_INFUSION` = FE ≤ g (hard); `FL_EQ_IMPOSSIBLE` = FE ≥ g×5.6 (hard). Both count in qc_fails and label qc_flags on the Product QC tile (id in the Dictionary's Surface column under R4). **~~`FL_EQ_TIER`~~ RETIRED 2026-09-05** (Adam, verbatim: *"Remove it entirely. In general, I do not want special carve outs"*) — the band (~~20%±2 / 35%±2~~) **and BOTH brand whitelists** (~~InHouse 2.822–3.098, Nimbus 1.124–1.4~~) are withdrawn, and **no carve-out may be re-introduced on this rule.** *Why:* every observed share is a product FACT under R2, so the band tested a fact rather than a defect — detection power measured at **0 of 70**, lifetime yield false positives only. The Nimbus whitelist was an exact-match brand literal and the 9/4 mint of subbrand `Nimbus Infused Flowah` (101539) silently un-keyed it, turning two conformant rows into DEFECTs — **a brand literal is not a durable key.** (That was written while R30 was still minting subbrands; R30 was RETIRED 2026-09-08 and the subbrand records were collapsed, so the *example* is history — but the lesson is not, and it is now the stronger one: a brand literal is not durable against mints, renames OR collapses.) **What still watches FE:** the two structural legs above (arithmetic that cannot be right under any share) plus **R63 `FL_EQ_INCONSISTENT`** — absolute FE within the PL — which catches the wrong-share error the band could not. `export_qc.py` emits no `FL_EQ_TIER`. |
 | **Topical** | **NO branch — MA Adult Use has NO purchase limit on topicals** (Adam ruling 2026-08-19). Convention CONFIRMED: FL EQ = **0.001g** on every topical item (never eats customer limits, and clears the NO_FLOWER_EQ null-or-zero rule). Any expected-value check would false-positive by design. |
 | **CBD** | **NO branch — FL EQ remains NULL** (considered Non-Cannabis; `is_cannabis = false`, so the cannabis-gated rules never fire). Dosage naming still applies — see the CBD dosage exception above. |
 | Non-cannabis (gate on `is_cannabis`) | n/a |
