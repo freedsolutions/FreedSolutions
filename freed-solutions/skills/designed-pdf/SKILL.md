@@ -1,6 +1,6 @@
 ---
 name: designed-pdf
-description: Render a business-facing one-pager, decision brief, example sheet, or anything a stakeholder signs off on as a designed PDF - HTML plus print CSS printed by headless Edge to a declared page budget, then checked by looking at the pages. Use for business or external audiences. NOT for technical docs (SOPs, dictionaries, guides, QC reads), which go to pandoc-deliverable.
+description: Render a business-facing one-pager, decision brief, example sheet, or anything a stakeholder signs off on as a designed PDF - HTML plus print CSS printed by headless Edge to a declared page budget, then checked by looking at the pages. Use for business or external audiences, including operator guides, quick cards and references that client staff read from (a "guide" defaults here even when Adam calls it a WI; ruled 2026-09-08). NOT for the technical tier (SOPs, data dictionaries, work instructions, QC reads), which goes to pandoc-deliverable.
 ---
 
 # Designed PDF
@@ -17,8 +17,11 @@ before delivery. The HTML generator is the single source; the PDF is an output.
 - "External" means anyone outside this working session, including a client's own internal
   stakeholders. A client-internal one-pager is external.
 - A `pandoc-deliverable` render came back "hard to read" or "looks like a technical document".
-- Skip for technical deliverables (SOPs, data dictionaries, guides, QC reads, work instructions):
-  those use `pandoc-deliverable` (Markdown to DOCX + PDF). If the audience is unclear, ask once.
+- An operator guide, quick card or reference that client staff will read from — even when the ask
+  says "WI" (Adam, 2026-09-08: the item-naming "WI" was a guide; it shipped as *How to Name an Item*
+  through this skill and the pandoc files were retired). State the assumption in one line.
+- Skip for the technical tier (SOPs, data dictionaries, work instructions, QC reads): those use
+  `pandoc-deliverable` (Markdown to DOCX + PDF). If the audience is unclear, ask once.
 
 ## Inputs
 
