@@ -19,7 +19,7 @@
 //   C. the per-cap DEFAULT enforcement, run with no flag at all. Group A passes an explicit
 //      `--caps`, which overrides the defaults, so it proves the mechanism but not the setting.
 //   D. `--pointer <tenant dir>` — the kickoff-free scaffold check: it runs with no kickoff, scores
-//      C3–C7 and nothing that needs a register or a header, still reddens on an enforced breach,
+//      C3–C8 and nothing that needs a register or a header, still reddens on an enforced breach,
 //      and finds the estate by the Dictionary rather than by the folder's name.
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
@@ -403,7 +403,7 @@ for (const [n, wantMark, wantExit] of [[40, '✔', 0], [41, '✘', 1]]) {
 }
 
 // =============================================================================================
-// D. --pointer mode. It scores C3–C7 with NO kickoff, so it must (a) run at all with no kickoff
+// D. --pointer mode. It scores C3–C8 with NO kickoff, so it must (a) run at all with no kickoff
 // argument, (b) score exactly that set and nothing that needs a register or a header, (c) still
 // redden on an enforced breach, and (d) find the estate by CONTENT — the Dictionary — rather than
 // by a folder name, or the mode silently stops measuring C4/C5 on the next tenant that names its
@@ -420,7 +420,7 @@ const POINTER_LABELS = [
   'cap: guide change log', 'cap: tenant root ≤ 10 loose files', 'cap: Current-state bullet ≤ 2 lines',
 ];
 
-// D1 — clean tenant: runs with no kickoff, exits 0, and every C3–C7 line is present and green.
+// D1 — clean tenant: runs with no kickoff, exits 0, and every C3–C8 line is present and green.
 buildClean();
 {
   const r = runPointer(CLIENT);
@@ -431,7 +431,7 @@ buildClean();
   // Nothing that needs a header or a register may appear: those are the checks the mode drops.
   const leaked = ['cap: rule cell', 'cap: Dictionary preamble', 'ratified', 'done block', '--stale']
     .filter(l => line(r.out, l));
-  check('--pointer: scores C3–C7 ONLY (no register / header / scan checks)', leaked.length === 0, 'leaked: ' + (leaked.join(', ') || 'none'));
+  check('--pointer: scores C3–C8 ONLY (no register / header / scan checks)', leaked.length === 0, 'leaked: ' + (leaked.join(', ') || 'none'));
 }
 
 // D2 — an ENFORCED breach (C3, 'fail' by default) must redden pointer mode, or the standing check
@@ -553,6 +553,188 @@ for (const [shape, segs] of [['v1', 5], ['v2', 8]]) {
   }
 }
 
+// =============================================================================================
+// G. C8 TEMPLATE CONFORMANCE. It measures a tenant against the shape the client template declares,
+// which is the only cap whose reference is another file rather than a number — so it is proven the
+// same way as the rest: green on a tenant that carries everything, red with the right COUNT on one
+// missing exactly one file, one pointer key, or a matching register header. The scaffolded tenant
+// IS the clean fixture: nothing else is guaranteed to conform to the template by construction.
+// =============================================================================================
+{
+  const c8 = (out) => line(out, 'C8: template conformance').trim();
+  const dest = path.join(ROOT, 'c8');
+  const r0 = spawnSync(process.execPath, [path.join(path.dirname(GATE), 'new_client.js'),
+    '--client', 'fixture', '--tenant', 'c8tenant', '--lsp', 'C8 Fixture Co', '--dest', dest,
+    '--no-verify'], { encoding: 'utf8' });
+  const TEN = path.join(dest, 'fixture', 'c8tenant');
+  if (r0.status !== 0 || !fs.existsSync(TEN)) {
+    check('C8: a scaffolded tenant is available as the clean fixture', false, 'scaffold exit ' + r0.status);
+  } else {
+    // G1 — a freshly scaffolded tenant conforms by construction, on all three counts.
+    let r = runPointer(TEN, null);
+    check('C8: a freshly scaffolded tenant reads 0 missing on all three counts',
+      mark(r.out, 'C8: template conformance') === '✔' && /0 of \d+ template path\(s\) missing/.test(c8(r.out)) &&
+      /0 of \d+ pointer key\(s\) missing/.test(c8(r.out)) && /register header matches/.test(c8(r.out)), c8(r.out));
+
+    // G2 — remove ONE file the template names. The count must move to exactly 1 and name it.
+    const victim = path.join(TEN, 'scripts', 'README.md');
+    fs.rmSync(victim);
+    r = runPointer(TEN, 'fail');
+    check('C8: one missing template path reddens with a count of 1, naming the path',
+      mark(r.out, 'C8: template conformance') === '✘' && /1 of \d+ template path\(s\) missing: scripts\/README\.md/.test(c8(r.out)),
+      c8(r.out));
+    // …and stays quiet under `--caps info`, which is what report-only-for-one-phase rests on.
+    r = runPointer(TEN, 'info');
+    check('C8: the same breach is `·` under --caps info', mark(r.out, 'C8: template conformance') === '·', c8(r.out));
+    // …and is `·` by its shipped default this phase, which is what makes Phase C non-blocking.
+    r = runPointer(TEN, null);
+    check('C8: `info` is its shipped default for now', mark(r.out, 'C8: template conformance') === '·', c8(r.out));
+    fs.writeFileSync(victim, '# fixture\n');
+
+    // G3 — a DATED sibling satisfies the template's undated name, because an estate dates some
+    // standing artifacts and renaming one would dangle every citation of it.
+    const reg = path.join(TEN, 'bi-estate', 'qc-surface-register.md');
+    fs.renameSync(reg, path.join(TEN, 'bi-estate', 'qc-surface-register-2026-09-04.md'));
+    r = runPointer(TEN, 'fail');
+    check('C8: a dated sibling satisfies the template name', mark(r.out, 'C8: template conformance') === '✔', c8(r.out));
+    // …but a MISSING document is still missing, dated convention or not.
+    fs.rmSync(path.join(TEN, 'bi-estate', 'qc-surface-register-2026-09-04.md'));
+    r = runPointer(TEN, 'fail');
+    check('C8: the dated-sibling rule does not excuse an absent document',
+      mark(r.out, 'C8: template conformance') === '✘' && /qc-surface-register\.md/.test(c8(r.out)), c8(r.out));
+    fs.writeFileSync(reg, '# fixture\n');
+
+    // G4 — drop one pointer-block key from the tenant CLAUDE.md.
+    const cmd = path.join(TEN, 'CLAUDE.md');
+    const kept = fs.readFileSync(cmd, 'utf8').split('\n').filter(l => !/^- \*\*Write channel:/.test(l)).join('\n');
+    fs.writeFileSync(cmd, kept);
+    r = runPointer(TEN, 'fail');
+    check('C8: one missing pointer key reddens with a count of 1, naming the key',
+      mark(r.out, 'C8: template conformance') === '✘' && /1 of \d+ pointer key\(s\) missing: write channel/.test(c8(r.out)),
+      c8(r.out));
+  }
+}
+
+// =============================================================================================
+// F. THE SCAFFOLD. `new_client.js` is the one command that stands a tenant up, so it is proven in
+// all three directions, not just the happy one: a clean scaffold verifies itself against the gate
+// it ships with; a template carrying a placeholder the scaffold does not fill is REFUSED and the
+// placeholder is named; and a scaffold aimed at an existing tenant is REFUSED rather than merged.
+// The second case is the one that matters — a mis-cased `<Tenant>` in the template would otherwise
+// ship silently into a live tenant's pointer file and read as prose.
+// =============================================================================================
+const NEW_CLIENT = path.join(path.dirname(GATE), 'new_client.js');
+const TEMPLATE_DIR = path.join(path.dirname(GATE), '..', 'templates', 'client');
+
+function scaffold(dest, extra = []) {
+  const r = spawnSync(process.execPath, [NEW_CLIENT,
+    '--client', 'fixture', '--tenant', 'fxtenant', '--lsp', 'Fixture Cannabis Co',
+    '--dest', dest, ...extra], { encoding: 'utf8' });
+  return { status: r.status, out: ((r.stdout || '') + (r.stderr || '')).replace(/\r\n/g, '\n') };
+}
+// Copy the template so a fixture can be broken without touching the shipped one.
+function copyDir(src, dst) {
+  fs.mkdirSync(dst, { recursive: true });
+  for (const e of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, e.name); const d = path.join(dst, e.name);
+    if (e.isDirectory()) copyDir(s, d); else fs.copyFileSync(s, d);
+  }
+}
+
+if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
+  check('SCAFFOLD: new_client.js and templates/client/ ship with the skill', false,
+    'missing ' + (fs.existsSync(NEW_CLIENT) ? TEMPLATE_DIR : NEW_CLIENT));
+} else {
+  // F1 — a clean scaffold stands up and passes BOTH of its own gate runs.
+  const dest1 = path.join(ROOT, 'scaffold-clean');
+  const r1 = scaffold(dest1);
+  check('SCAFFOLD: one command scaffolds a tenant that verifies (exit 0)',
+    r1.status === 0, (r1.status === 0 ? 'exit 0' : 'exit ' + r1.status + '\n          ' + r1.out.trim().split('\n').slice(-6).join('\n          ')));
+  check('SCAFFOLD: --pointer PASSES on the new tenant',
+    /✔ --pointer on the new tenant \(must PASS\) — exit 0/.test(r1.out),
+    (r1.out.split('\n').find(l => l.includes('--pointer on the new tenant')) || '(absent)').trim());
+  check('SCAFFOLD: the plan gate PASSES on the fixture kickoff over an EMPTY register',
+    /✔ --phase plan on the fixture kickoff .* — exit 0/.test(r1.out),
+    (r1.out.split('\n').find(l => l.includes('--phase plan on the fixture')) || '(absent)').trim());
+  // Every path the template names is on disk under the new tenant — the same set C8 scores.
+  {
+    const missing = [];
+    (function walk(rel) {
+      const src = path.join(TEMPLATE_DIR, '__tenant__', rel);
+      for (const e of fs.readdirSync(src, { withFileTypes: true })) {
+        const r = rel ? rel + '/' + e.name : e.name;
+        if (e.isDirectory()) { walk(r); continue; }
+        if (!fs.existsSync(path.join(dest1, 'fixture', 'fxtenant', r))) missing.push(r);
+      }
+    })('');
+    check('SCAFFOLD: every template path lands in the tenant', missing.length === 0,
+      missing.length ? 'missing ' + missing.join(', ') : 'all template paths present');
+  }
+
+  // F1b — the wrapper sync stamps a provenance banner on every `.md` it copies. Scaffolding FROM a
+  // synced wrapper must not carry that banner into a client's documents: it is true of the skill
+  // copy and false of the tenant. The fixture reproduces the sync's own banner exactly.
+  {
+    const banneredTpl = path.join(ROOT, 'bannered-template');
+    copyDir(TEMPLATE_DIR, banneredTpl);
+    const BAN = '<!-- Generated from "freed-solutions/skills/bi-change/templates/client/x.md". ' +
+      'Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; ' +
+      'do not edit this Claude copy directly. -->\n\n';
+    (function banner(dir) {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) { banner(p); continue; }
+        if (e.name.endsWith('.md')) fs.writeFileSync(p, BAN + fs.readFileSync(p, 'utf8'), 'utf8');
+      }
+    })(banneredTpl);
+    const destB = path.join(ROOT, 'scaffold-bannered');
+    const rB = scaffold(destB, ['--template', banneredTpl, '--no-verify']);
+    const leaked = [];
+    if (rB.status === 0) {
+      (function walk(rel) {
+        const d = path.join(destB, 'fixture', 'fxtenant', rel);
+        for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+          const r = rel ? rel + '/' + e.name : e.name;
+          if (e.isDirectory()) { walk(r); continue; }
+          if (e.name.endsWith('.md') && /^<!--\s*Generated from/.test(fs.readFileSync(path.join(d, e.name), 'utf8'))) {
+            leaked.push(r);
+          }
+        }
+      })('');
+    }
+    check('SCAFFOLD: the wrapper provenance banner never reaches a scaffolded tenant',
+      rB.status === 0 && leaked.length === 0,
+      rB.status !== 0 ? 'scaffold exit ' + rB.status : (leaked.length ? 'banner in ' + leaked.join(', ') : 'no banner in any tenant .md'));
+  }
+
+  // F2 — a template carrying an UNFILLABLE placeholder is refused, and the placeholder is named.
+  // `<Tenant>` is the realistic defect: a human editing the template mis-cases one token.
+  const brokenTpl = path.join(ROOT, 'broken-template');
+  copyDir(TEMPLATE_DIR, brokenTpl);
+  {
+    const f = path.join(brokenTpl, '__tenant__', 'CLAUDE.md');
+    fs.writeFileSync(f, fs.readFileSync(f, 'utf8') + '\n- Tenant: <Tenant>\n', 'utf8');
+  }
+  const r2 = scaffold(path.join(ROOT, 'scaffold-broken'), ['--template', brokenTpl]);
+  check('SCAFFOLD: an unfilled placeholder REFUSES the scaffold (exit 1)', r2.status === 1,
+    'exit ' + r2.status);
+  check('SCAFFOLD: the refusal NAMES the placeholder and its file',
+    /unfilled placeholder <Tenant>/.test(r2.out) && /CLAUDE\.md:\d+/.test(r2.out),
+    (r2.out.split('\n').find(l => l.includes('unfilled placeholder')) || '(absent)').trim());
+
+  // F3 — scaffolding onto an existing tenant is refused. A merge over a live tenant is
+  // unrecoverable, so this must fail before it writes anything.
+  const r3 = scaffold(dest1);
+  check('SCAFFOLD: an existing tenant is REFUSED, never overwritten', r3.status === 1 && /REFUSED/.test(r3.out),
+    (r3.out.split('\n').find(l => l.includes('REFUSED')) || '(absent)').trim());
+  {
+    // …and the refusal left the existing tenant untouched: its pointer file still verifies.
+    const p = runPointer(path.join(dest1, 'fixture', 'fxtenant'), null);
+    check('SCAFFOLD: the refused target is unharmed (--pointer still exit 0)', p.status === 0,
+      'exit ' + p.status);
+  }
+}
+
 // ---- report ---------------------------------------------------------------------------------
 let bad = 0;
 console.log('gate self-test — ' + GATE);
@@ -569,6 +751,8 @@ if (bad) {
 } else {
   console.log('PASS — every cap fires and reddens on a broken fixture, stays quiet on a clean one,');
   console.log('       the seal grain still FAILS an open kickoff whose in-grain rule text moved, and');
-  console.log('       --pointer scores C3–C7 with no kickoff and reddens on an enforced breach.');
+  console.log('       --pointer scores C3–C8 with no kickoff and reddens on an enforced breach;');
+  console.log('       and the scaffold stands a tenant up that passes its own gate runs, while');
+  console.log('       refusing an unfilled placeholder and refusing to overwrite a live tenant.');
 }
 process.exit(bad ? 1 : 0);

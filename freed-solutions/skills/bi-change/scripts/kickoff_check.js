@@ -4,7 +4,7 @@
 //   node kickoff_check.js <kickoff.md>                 build-phase gate (default): the change is complete
 //   node kickoff_check.js <kickoff.md> --phase plan    plan-phase gate: header sane, rules registered
 //   node kickoff_check.js <kickoff.md> --seal          plan lane only: write rule-text hashes into the header
-//   node kickoff_check.js --pointer <tenant dir>       scaffold caps only (C3–C7), no kickoff needed
+//   node kickoff_check.js --pointer <tenant dir>       scaffold caps only (C3–C8), no kickoff needed
 //                                                      fails outright if the dir is not a tenant
 //
 // The kickoff's location fixes every path: the estate dir is its folder, the scripts dir is
@@ -40,7 +40,7 @@ const VALUED = new Set(['--phase', '--caps', '--pointer']);
 const consumedArg = new Set();
 args.forEach((a, i) => { if (VALUED.has(a)) consumedArg.add(i + 1); });
 const kickoff = args.find((a, i) => !a.startsWith('--') && !consumedArg.has(i));
-// `--pointer <tenant dir>` scores the SCAFFOLD caps (C3–C7) with no kickoff at all. Every other
+// `--pointer <tenant dir>` scores the SCAFFOLD caps (C3–C8) with no kickoff at all. Every other
 // mode reaches the caps only through a change; a tenant whose pointer file or root has drifted
 // while no change is in flight was therefore unmeasurable between kickoffs, which is exactly when
 // drift accumulates. Exit 1 on any fail, so it is usable as a standing check.
@@ -63,7 +63,7 @@ const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readm
 //   C1 rule cell · C2 Dictionary preamble -> 'fail' since Phase B step 2 (2026-09-09). They measure
 //     the register and the preamble, which Phase A was forbidden to touch; Phase B's compaction
 //     brought both under the cap (register 71 rows, max rule cell 400 chars; preamble 27 lines), so
-//     a breach from here is new drift, exactly as for C3-C7.
+//     a breach from here is new drift, exactly as for C3-C8.
 //     C2 was RE-SPECIFIED in the same change that flipped it: it measures the lines before the FIRST
 //     `## ` heading — the preamble proper — not everything before the register header row. The old
 //     reading swept §1 Taxonomy layers into the "preamble" and read 174 lines on a file whose
@@ -77,7 +77,10 @@ const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readm
 // every kickoff for a breach the running step may not fix teaches the reader to ignore the gate.
 // And its self-test row moves from REPORTED to ENFORCED in the SAME change: flipping the gate alone
 // fails group C, which is the tripwire doing its job, not a broken test.
-const CAP_ENFORCE = { rule: 'fail', preamble: 'fail', claude: 'fail', readme: 'fail', guides: 'fail', loose: 'fail', bullet: 'fail' };
+//   C8 template conformance -> 'info' for Phase C, the step that introduces both the template and
+//     the check. It is flipped in the step that brings a reference tenant to zero missing, exactly
+//     as C1-C7 were; until then a red C8 would be reporting work the running step is doing.
+const CAP_ENFORCE = { rule: 'fail', preamble: 'fail', claude: 'fail', readme: 'fail', guides: 'fail', loose: 'fail', bullet: 'fail', template: 'info' };
 
 const KICK = kickoff ? path.resolve(kickoff) : null;
 // In pointer mode there is no kickoff to fix the estate dir, so it is found by CONTENT, not by a
@@ -123,7 +126,7 @@ function sha1(s) { return crypto.createHash('sha1').update(s.replace(/\s+/g, ' '
 function norm(s) { return s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' '); }
 
 // ---------- pointer mode ----------
-// C3–C7 only: no kickoff, no header, no register, no estate scan — so a tenant can be scored at any
+// C3–C8 only: no kickoff, no header, no register, no estate scan — so a tenant can be scored at any
 // time, not only when a change happens to be in flight. Exit 1 on any fail, per its enforcement.
 if (POINTER) {
   if (!fs.existsSync(TENANT)) { console.log('--pointer: no such directory: ' + TENANT); process.exit(1); }
@@ -273,7 +276,7 @@ if (seal) {
 } else if (phase === 'build') fail('header sealed', 'run `--seal` from the plan lane before handing off');
 else info('header not sealed yet', 'run `--seal` once the R rows are written');
 
-// ---------- C3–C7: the SCAFFOLD caps ----------
+// ---------- C3–C8: the SCAFFOLD caps ----------
 // These measure the tenant pointer file, the estate README, the guides, the tenant root and the
 // Current-state bullets — surfaces that drift BETWEEN changes rather than because of one. They are
 // factored out of the caps block so `--pointer` can score exactly this set with no kickoff in hand;
@@ -390,6 +393,92 @@ function scaffoldCaps() {
     }
   } else info('cap: Current-state bullet ≤ ' + CAPS.stateBullet + ' lines', 'no pointer file at ' + CLAUDE_MD);
 
+  // C8 runs in POINTER mode only. It measures the tenant's SHAPE against the client template, which
+  // is a scaffold question, not a change question: a kickoff is about one change and has no business
+  // reddening because a folder the change never touched is absent. Keeping it here would also put a
+  // new line on all 45 kickoffs in the estate sweep for a condition none of them can fix.
+  if (POINTER) templateConformance();
+}
+
+// C8 — TEMPLATE CONFORMANCE. Every other cap measures a surface against a number; this one measures
+// a tenant against the shape the skill's own client template says a tenant has. Without it the
+// template is a thing you copy once and the two drift apart silently, which is precisely the failure
+// the template was built to end. Three parts, one COUNT each:
+//   paths        every file the template names exists at the same relative path
+//   pointer keys every `- **Key:**` in the template's `## BI Change Pointers` block is present
+//   register     the Dictionary's register header row matches the template's
+// Reported as `info` for now (Phase C) and flipped to `fail` once a reference tenant reads clean —
+// a cap is flipped in the step that brings its surface under it, never before.
+function templateConformance() {
+  const TPL = path.join(__dirname, '..', 'templates', 'client', '__tenant__');
+  if (!fs.existsSync(TPL)) { info('C8: template conformance', 'no client template at ' + TPL); return; }
+
+  // --- paths ---
+  const want = [];
+  (function walk(rel) {
+    for (const e of fs.readdirSync(path.join(TPL, rel), { withFileTypes: true })) {
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.isDirectory()) { walk(r); continue; }
+      if (e.name === '.gitkeep') continue;   // a kept-empty dir, not a document the tenant must carry
+      want.push(r);
+    }
+  })('');
+  // An estate DATES some standing artifacts, and the date is part of the record — renaming one
+  // would dangle every citation of it. So `x.md` is satisfied by `x.md` OR by a dated sibling
+  // `x-YYYY-MM-DD.md` in the same directory. That is the estate's own convention, not a loosening
+  // for one file: a tenant that simply LACKS the document still counts as missing.
+  const missingPaths = want.filter((r) => {
+    if (fs.existsSync(path.join(TENANT, r))) return false;
+    const dir = path.join(TENANT, path.dirname(r));
+    if (!fs.existsSync(dir)) return true;
+    const base = path.basename(r), ext = path.extname(base), stem = base.slice(0, base.length - ext.length);
+    const dated = new RegExp('^' + stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-\\d{4}-\\d{2}-\\d{2}' +
+      ext.replace(/\./g, '\\.') + '$');
+    return !fs.readdirSync(dir).some((f) => dated.test(f));
+  });
+
+  // --- pointer-block keys ---
+  const keysOf = (file) => {
+    if (!fs.existsSync(file)) return null;
+    const lines = read(file).split(/\r?\n/);
+    const start = lines.findIndex(l => /^##\s+BI Change Pointers\s*$/i.test(l));
+    if (start < 0) return null;
+    let end = lines.slice(start + 1).findIndex(l => /^## /.test(l));
+    end = end < 0 ? lines.length : start + 1 + end;
+    const out = [];
+    for (const l of lines.slice(start + 1, end)) {
+      const m = l.match(/^\s*[-*]\s+\*\*([^*:]+):?\*\*/);
+      if (m) out.push(m[1].trim().toLowerCase());
+    }
+    return out;
+  };
+  const tplKeys = keysOf(path.join(TPL, 'CLAUDE.md'));
+  const insKeys = keysOf(CLAUDE_MD);
+  const missingKeys = (tplKeys && insKeys) ? tplKeys.filter(k => !insKeys.includes(k)) : null;
+
+  // --- register header ---
+  const headerOf = (file) => {
+    if (!fs.existsSync(file)) return null;
+    const lines = read(file).split(/\r?\n/);
+    const i = lines.findIndex(l => /^##\s+2\.\s+Business rules register/i.test(l));
+    if (i < 0) return null;
+    return (lines.slice(i + 1, i + 6).find(l => /^\|\s*#\s*\|/.test(l)) || '').trim();
+  };
+  const tplHead = headerOf(path.join(TPL, 'bi-estate', 'DATA-DICTIONARY.md'));
+  const insHead = headerOf(DD);
+  const headOK = tplHead && insHead ? tplHead === insHead : null;
+
+  const bits = [
+    missingPaths.length + ' of ' + want.length + ' template path(s) missing' +
+      (missingPaths.length ? ': ' + missingPaths.slice(0, 6).join(', ') + (missingPaths.length > 6 ? ', …' : '') : ''),
+    missingKeys === null ? 'pointer keys unreadable' :
+      missingKeys.length + ' of ' + tplKeys.length + ' pointer key(s) missing' +
+      (missingKeys.length ? ': ' + missingKeys.join(', ') : ''),
+    headOK === null ? 'register header unreadable' : (headOK ? 'register header matches' : 'register header DIFFERS'),
+  ];
+  const clean = missingPaths.length === 0 && missingKeys !== null && missingKeys.length === 0 && headOK === true;
+  if (clean) ok('C8: template conformance', bits.join(' · '));
+  else cap('template', 'C8: template conformance', bits.join(' · '));
 }
 
 // ---------- P2 size caps ----------
@@ -576,7 +665,7 @@ report();
 function report() {
   const fails = results.filter(r => r[0] === '✘').length;
   console.log(POINTER
-    ? 'bi-change check — --pointer ' + path.basename(TENANT) + ' — scaffold caps C3–C7'
+    ? 'bi-change check — --pointer ' + path.basename(TENANT) + ' — scaffold caps C3–C8'
     : 'bi-change check — ' + path.basename(KICK) + ' — phase ' + phase + (seal ? ' (seal)' : ''));
   for (const [m, l, d] of results) console.log('  ' + m + ' ' + l + (d ? ' — ' + d : ''));
   console.log(fails ? '\n' + fails + ' check(s) failed.' : '\nAll checks passed.');

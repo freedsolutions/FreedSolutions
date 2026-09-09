@@ -40,6 +40,13 @@ const RULES = [
   // the traps file. `\b` still catches the `hscg-` filename token, since `-` is a non-word char.
   { name: 'tenant name', re: /\bHSCG\b|\bHigh Street\b|\bPrimitiv\b/gi },
   { name: 'concrete client path', re: /clients[\/\\][A-Za-z0-9_-]+[\/\\]/gi },
+  // A RULE ID inside the client template is client residue (Adam, 2026-09-09). The template's
+  // process sections are lifted verbatim from a reference tenant, so any `Rnn` that survives the
+  // lift is that tenant's register label — a number the scaffolded tenant will never own, pointing
+  // at a rule it does not have. SCOPED to templates/client/: rule ids are legitimate everywhere
+  // else in this skill (the kickoff template's `R00`, the gate's header contract, SKILL.md's
+  // worked example), so a repo-wide version of this rule would be noise and get switched off.
+  { name: 'rule id in the client template', re: /\bR\d+\b/g, only: /templates[\/\\]client[\/\\]/ },
 ];
 
 // THIS DETECTOR EXCLUDES ITSELF, and says so in the report. A detector that names the strings it
@@ -64,9 +71,13 @@ const files = [];
 
 const hits = [];
 for (const f of files) {
+  const rel = path.relative(ROOT, f).replace(/\\/g, '/');
   const lines = fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n').split('\n');
   lines.forEach((l, i) => {
     for (const r of RULES) {
+      // A scoped rule runs only on the paths it names. The scope is on the RULE, not on the file
+      // walk, so a scoped rule can never quietly narrow what the unscoped rules see.
+      if (r.only && !r.only.test(rel)) continue;
       r.re.lastIndex = 0;
       let m;
       while ((m = r.re.exec(l))) {
@@ -87,10 +98,11 @@ console.log('client-leakage proof — ' + ROOT);
 console.log('  ' + files.length + ' tracked skill file(s) scanned');
 console.log('  rules: tenant name (case-insensitive, so a lowercase filename token counts)');
 console.log('         concrete client path (a `clients/<slug>/` placeholder is allowed)');
+console.log('         rule id `Rnn` — SCOPED to templates/client/, where a register label is residue');
 console.log('  EXCLUDED: any file named ' + SELF_NAME + ' — the detector names the strings it hunts for\n');
 
 if (!hits.length) {
-  console.log('PASS — 0 hits across both classes.');
+  console.log('PASS — 0 hits across all ' + RULES.length + ' classes.');
   process.exit(0);
 }
 for (const h of hits) console.log('  ' + h.file + ':' + h.line + '  [' + h.rule + ' "' + h.text + '"]\n      ' + h.ctx);

@@ -88,6 +88,29 @@ Every path ends with `check` green, a Status section with a done block, and the 
 
 ## The client pointer block
 
+**A new tenant is scaffolded, not hand-built.** `templates/client/` holds the whole shape — the
+client roster, the tenant pointer, the estate (Dictionary, DECISIONS, BI-SOP, BI-WI, the intake
+pair, the README, the QC surface register), `scripts/README.md` and the kept-empty folders — and
+`scripts/new_client.js` stands it up in one command:
+
+```
+node .claude/skills/bi-change/scripts/new_client.js \
+  --client <slug> --tenant <slug> --lsp "<LSP name>" --dest <clients dir>
+```
+
+It fills the placeholders, refuses to overwrite an existing tenant, refuses to ship a placeholder
+it cannot fill, and then verifies itself: `--pointer` must pass on the new tenant and `--phase plan`
+must pass on a fixture kickoff over an empty register. Anything still written `<like this>` after a
+scaffold is a PROMPT for the human filling the tenant in, not a defect.
+
+The template's process sections are **lifted from a reference tenant, never re-typed**, and
+`scripts/template_diff.js --instance <tenant dir> --map <map.json>` proves it: reverse-substitute
+the template and every lifted section must be byte-identical to that tenant's own copy. Run it
+after editing either side. The map is a `{"<placeholder>": "value"}` file and lives client-side,
+because it is the one file in the chain that knows a tenant's real values. **A rule id in the
+template is client residue** — the leak proof fails on `Rnn` anywhere under `templates/client/`,
+and only there.
+
 The gitignored client `CLAUDE.md` carries `## BI Change Pointers` with absolute paths (task
 worktrees do not contain `clients/`):
 
@@ -193,6 +216,13 @@ model's explores), **Catalog export** (every column Dutchie writes to the CSV), 
 (record-level fields in neither). The client Dictionary's export-only register lists the
 non-BI rules; the client's surface register routes every rule.
 
+**What runs when, and what a runner owes you, are one section of that register**, not something
+this skill or a pointer file restates: its **cadence table** (`| lane | runner | cadence | trigger
+| record |`) is the single roster of standing runs, and its **lane contract** is what every
+non-BI runner must do — cite its rules, default to the freshest input under a row-count guard,
+carry `--selftest`, write a new timestamped output, exit 1 only on DEFECT, and abort on a missing
+column. Read the cadence before scheduling anything; the tenant `CLAUDE.md` only points at it.
+
 - **Explores, views and fields.** Curated catalog: `dutchie-bi-looker/references/explore-field-catalog.md`
   (mandatory filters, explores, views per explore, the field dictionary — a working subset, not a
   full dump). The COMPLETE list is read live from the embed session, no login beyond Adam's:
@@ -221,7 +251,11 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 
 - `scripts/kickoff_check.js <kickoff> [--phase plan|build] [--seal] [--caps info|fail]` — the gate;
   exit 0 pass, 1 fail.
-- `scripts/kickoff_check.js --pointer <tenant dir>` — the SCAFFOLD caps alone (C3-C7), no kickoff.
+- `scripts/new_client.js --client <slug> --tenant <slug> --lsp "<name>" --dest <dir>` — scaffold a
+  tenant from `templates/client/` and verify it. See "The client pointer block" above.
+- `scripts/template_diff.js --instance <tenant dir> --map <map.json>` — prove the template's lifted
+  process sections still round-trip byte-identical to that tenant's copies.
+- `scripts/kickoff_check.js --pointer <tenant dir>` — the SCAFFOLD caps alone (C3-C8), no kickoff.
   Every other mode reaches the caps only through a change, so a tenant was unmeasurable between
   kickoffs, which is exactly when scaffold drift accumulates. Run it after any move, and any time
   you touch the tenant `CLAUDE.md`. It finds the estate by the Dictionary, not by a folder name.
@@ -232,16 +266,21 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 84 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 110 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
   an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score
-  C3-C7 and nothing needing a register or header, redden on an enforced breach, and still find the
+  C3-C8 and nothing needing a register or header, redden on an enforced breach, and still find the
   estate when its folder is renamed, and must FAIL an existing directory that is not a tenant at all
   (no pointer file, no Dictionary below it) — absence of a surface is a failure of identity, not a
-  cap breach, so `--caps info` cannot silence it. Exit 1 on any failed assertion. A check that cannot be made to
+  cap breach, so `--caps info` cannot silence it. **C8 template conformance** must read zero on a
+  freshly scaffolded tenant and move to exactly one, naming it, when one template path or one
+  pointer key is removed. **The scaffold** must stand a tenant up that passes both of its own gate
+  runs, refuse a placeholder it cannot fill (naming it), and refuse to overwrite an existing tenant.
+  Exit 1 on any failed assertion. A check that cannot be made to
   fail has not been tested — this skill has shipped an inert check before.
 - `node scripts/skill_leak_proof.js` — no tracked skill file may name a client: tenant names
   (case-insensitively, which is what catches a lowercase filename token) or a concrete
-  `clients/<real slug>/` path. A generic `clients/<slug>/` placeholder is the portable mechanism
-  and is allowed. Exit 1 on any hit. It excludes only itself, and prints that exclusion every run.
+  `clients/<real slug>/` path — and, SCOPED to `templates/client/`, no rule id `Rnn`, because a
+  register label that survived the lift points at a rule the scaffolded tenant will never own. A
+  generic `clients/<slug>/` placeholder is the portable mechanism and is allowed. Exit 1 on any hit. It excludes only itself, and prints that exclusion every run.
