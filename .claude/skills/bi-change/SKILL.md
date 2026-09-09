@@ -219,7 +219,21 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 
 ## Scripts
 
-- `scripts/kickoff_check.js <kickoff> [--phase plan|build] [--seal]` — the gate; exit 0 pass, 1 fail.
+- `scripts/kickoff_check.js <kickoff> [--phase plan|build] [--seal] [--caps info|fail]` — the gate;
+  exit 0 pass, 1 fail.
 - `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   and the render script.
+
+**Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
+this skill can be trusted, and each is proven to fail, not merely to pass:**
+
+- `node scripts/gate_selftest.js` — 50 assertions over temp-dir fixtures. Every size cap must go
+  green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
+  `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
+  an OPEN kickoff whose in-grain rule text moved. Exit 1 on any failed assertion. A check that
+  cannot be made to fail has not been tested — this skill has shipped an inert check before.
+- `node scripts/skill_leak_proof.js` — no tracked skill file may name a client: tenant names
+  (case-insensitively, which is what catches a lowercase filename token) or a concrete
+  `clients/<real slug>/` path. A generic `clients/<slug>/` placeholder is the portable mechanism
+  and is allowed. Exit 1 on any hit. It excludes only itself, and prints that exclusion every run.
