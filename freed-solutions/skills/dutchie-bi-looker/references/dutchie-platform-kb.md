@@ -5,8 +5,8 @@ docs and from live probes. **Portable layer** — sits with mdm-product-line-rul
 precedence chain (Dictionary > mdm rules > this KB + SKILL mechanics > memories).
 Every entry carries its source class and date:
 - `[DOC yyyy-mm-dd]` — official support.dutchie.com article (URL in §Sources), as read that day.
-- `[PROBE yyyy-mm-dd]` — verified live against the HSCG tenant (API/UI capture).
-- `[TENANT]` — HSCG-specific observation; may differ elsewhere.
+- `[PROBE yyyy-mm-dd]` — verified live against the pilot tenant (API/UI capture).
+- `[TENANT]` — pilot-tenant-specific observation; may differ elsewhere.
 
 Support articles are living documents — re-read before relying on a `[DOC]` fact for a
 destructive change. support.dutchie.com blocks plain fetchers (403); read via browser.
@@ -48,7 +48,7 @@ snapshots, no backfill-vs-new-inventory divergence possible.
 **Unique behaviors:**
 - **Price**: product-level vs inventory-level pricing is an LSP-wide config ONLY
   Dutchie Support can change. Product-level = price catalog-controlled (class A, with
-  optional location-specific catalog prices); inventory-level = class B. [TENANT: HSCG
+  optional location-specific catalog prices); inventory-level = class B. [TENANT: the pilot tenant
   mode unconfirmed; 193884 unit-price drift QC exists either way.]
 - **Cost**: receive pre-populates from catalog, per-package override allowed;
   convert/create/recipe offers Catalog / Calculated (from inputs) / Other, default per
@@ -86,11 +86,11 @@ the platform-native home for PLC-keyed EQ standards.
   rule, the calc auto-fills only items whose EQ is BLANK. Editing a rule later does not
   touch existing values.
 - Only INVENTORY-level EQ enforces limits; catalog EQ is the default feed.
-- Requires every product category to be associated to a PLC (HSCG: verified complete,
+- Requires every product category to be associated to a PLC (pilot tenant: verified complete,
   category-qc).
 
-**⚠ HSCG hazard — infused composites [TENANT 2026-08-27]:** definitions are per-PLC and
-cannot exclude categories. HSCG's four infused categories share the **Concentrates PLC**
+**⚠ Pilot-tenant hazard — infused composites [TENANT 2026-08-27]:** definitions are per-PLC and
+cannot exclude categories. The pilot tenant's four infused categories share the **Concentrates PLC**
 with vapes/dabs. A Concentrates ×5.6 rule fits vapes (grams = concentrate grams) but
 would recalc infused items as total_grams × 5.6 — the FL_EQ_IMPOSSIBLE bound — whenever
 grams is edited. The R2 composite formula `EQ = (g − conc) + conc×5.6` is NOT
@@ -105,7 +105,7 @@ HOUSE ratio.
 - Item-form lookup endpoints live in per-entity namespaces (guessed paths 404):
   `POST /api/distillation/get-distillations` · `POST /api/lineage/get-lineages` ·
   `POST /api/flower-equivalencies/list` (all bare-ctx envelope). All three return EMPTY
-  lists for HSCG = tenant-configurable, unseeded.
+  lists for the pilot tenant = tenant-configurable, unseeded.
 - Full candidate-field census (934 items × 153 fields): DistillationId+Name, OilVolume,
   NonCannabisWeight+Unit, ServingSize, ServingSizePerUnit, LineageId+Name, THCContent,
   UnitThc/CbdContentDose — ALL 0-populated (THCContentUnitId=1 default only).
@@ -115,7 +115,7 @@ HOUSE ratio.
   get-product-loc-info, metrc required-fields, mmur/get-devices.
 - Fields hidden in Products > Configure > Fields do not render on the item form —
   flip to Show before expecting a field to be settable (fields-config lane:
-  `clients/primitiv/bi-estate/fields-config/`).
+  the estate's `fields-config/`).
 
 ## 3b. Product retirement & duplicate combining [DOC 2026-08-28]
 
@@ -176,9 +176,9 @@ lane exists; Adam's 59 historic Limited-tagged packages are queryable there.
 
 - Backoffice internal REST recipes + Global Brand Catalog: SKILL §"Backoffice Internal
   REST API" + memory `reference_dutchie_internal_api.md`.
-- Category/Tax/PLC config endpoints: `clients/primitiv/bi-estate/category-qc/extract.md`.
-- Fields-config (get_validated_forms): `clients/primitiv/bi-estate/fields-config/README.md`.
-- Smart-tag rule surface: `clients/primitiv/bi-estate/smart-tag-13948-roster-2026-08-26.md`.
+- Category/Tax/PLC config endpoints: the estate's `category-qc/extract.md`.
+- Fields-config (get_validated_forms): the estate's `fields-config/README.md`.
+- Smart-tag rule surface: the estate's `smart-tag-13948-roster-2026-08-26.md`.
 
 ## 5. Ingestion queue (articles spotted, not yet read)
 
@@ -278,13 +278,13 @@ type; it only fills empty type/potency fields. Wrong matches are corrected by se
 match and saving again; the library connection is removed by editing the Product Name away from
 the pre-populated catalog name.
 
-⚠️ **[PROBE] contradicts this on the Backoffice path (HSCG, 2026-08-30).** Auditing 337 Backoffice
+⚠️ **[PROBE] contradicts this on the Backoffice path (pilot tenant, 2026-08-30).** Auditing 337 Backoffice
 Global-Brand-Catalog links: **26 (~8%) still serve a copy of the catalog image as it existed when
 the link was made**, up to 17 months stale (e.g. Rove Skywalker OG local 2024-04-25 vs brand
 2025-10-30). Unlink+relink pulls the current image, so the asset is available — it simply does not
 propagate. Open question whether the documented auto-update covers only Connect matches made from
 the **E-Commerce admin**, not **Backoffice → Catalog → Global Brand Catalog** links. Ticket drafted
-at `clients/primitiv/tickets/2026-08-30-catalog-image-updates-not-propagating.md`.
+in the client's `tickets/2026-08-30-catalog-image-updates-not-propagating.md`.
 
 **[PROBE] Image linkage mechanics (2026-08-30):** the local image row's `CatalogImageId` points at a
 specific catalog image *version*; the file served is a local copy on `leaflogixmedia.blob…`, not a
@@ -294,7 +294,7 @@ than anything on the brand record = orphaned reference; the UI re-sync will not 
 
 **[DOC] No documented size limit for POS catalog images.** Article 12882291561491 gives upload steps
 only. Ecom dimensions (Product 1600x1600, Banner 3019x900) are documented separately and are Ecom-
-only. Six HSCG SKUs had brand catalog images rejected as too large against an undocumented limit.
+only. Six pilot-tenant SKUs had brand catalog images rejected as too large against an undocumented limit.
 
 ## [DOC-ADAM] Ecom Admin vs Backoffice Global Brand — the omega content pipeline (2026-08-31)
 
@@ -309,7 +309,7 @@ menu publishes.
   that item. This is *independent* of the Global-Brand overwrite path — i.e. a Global Brand can still
   overwrite content you had already overwritten in Ecom Admin.
 - **Direction of travel:** Backoffice Global Brand linking/control is meant to replace all of this.
-  Adam's plan at the omega flip: **turn the Global-Brand overwrite toggle OFF** (so HSCG canonical
+  Adam's plan at the omega flip: **turn the Global-Brand overwrite toggle OFF** (so the tenant's canonical
   OT/description/image win, per R41), and **wipe the Ecom menu** to reset the broken-integration
   items Shaun overwrote in Ecom Admin.
 

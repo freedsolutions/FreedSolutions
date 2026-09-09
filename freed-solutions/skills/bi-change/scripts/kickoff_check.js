@@ -31,16 +31,46 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 const args = process.argv.slice(2);
-const kickoff = args.find(a => !a.startsWith('--'));
-if (!kickoff) { console.log('usage: node kickoff_check.js <kickoff.md> [--phase plan|build] [--seal]'); process.exit(1); }
+// Flags that consume the NEXT argument, which therefore is not a candidate kickoff path. Without
+// this, `--phase build` left "build" eligible as the kickoff — harmless only by the convention that
+// the kickoff comes first — and `--caps fail` would have made "fail" eligible too.
+const VALUED = new Set(['--phase', '--caps']);
+const consumedArg = new Set();
+args.forEach((a, i) => { if (VALUED.has(a)) consumedArg.add(i + 1); });
+const kickoff = args.find((a, i) => !a.startsWith('--') && !consumedArg.has(i));
+if (!kickoff) { console.log('usage: node kickoff_check.js <kickoff.md> [--phase plan|build] [--seal] [--caps info|fail]'); process.exit(1); }
 const phase = args.includes('--phase') ? args[args.indexOf('--phase') + 1] : 'build';
 const seal = args.includes('--seal');
+// P2 size caps. Every surface here accepts appends, so every surface became a log; the gate checked
+// presence and never size, and what the gate does not measure drifts. Each cap reports a COUNT so a
+// silently-inert check is visible as a zero that never moves.
+// `--caps info|fail` overrides the per-cap default below: that is how a deliberately-broken
+// fixture proves each check both FIRES and REDDENS, rather than passing vacuously.
+const CAP_MODE = args.includes('--caps') ? args[args.indexOf('--caps') + 1] : null;
+if (CAP_MODE && !['info', 'fail'].includes(CAP_MODE)) { console.log('--caps must be info|fail, got: ' + CAP_MODE); process.exit(1); }
+// Caps in chars / lines, ruled 2026-09-08.
+const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readmeStamp: 200 };
+// ENFORCEMENT IS PER CAP, not global (scaffold-cleanup §6 step 5).
+//   C3 CLAUDE.md · C4 README stamp · C5 guide change logs -> 'fail'. P4 brought them under the
+//     caps in Phase A, so a breach from here is new drift and should redden.
+//   C1 rule cell · C2 Dictionary preamble -> 'info' until Phase B. They measure the register and
+//     the preamble, which P1 rewrites and which Phase A is explicitly forbidden to touch; failing
+//     them now would redden every kickoff for a breach nothing is allowed to fix. Phase B flips
+//     them as its last step.
+const CAP_ENFORCE = { rule: 'info', preamble: 'info', claude: 'fail', readme: 'fail', guides: 'fail' };
 
 const KICK = path.resolve(kickoff);
 const EST_DIR = path.dirname(KICK);
 const SCRIPTS = path.join(EST_DIR, '..', 'scripts');
-const SCAN = path.join(SCRIPTS, 'bi_impact_scan.js');
+// The scanner ships WITH the skill now (P6, 2026-09-08) — it is client-agnostic by content and was
+// only ever tied to one client by sitting beside it. The old client-side copy is still honoured so
+// an estate that has not migrated keeps working; the skill copy wins when both exist.
+const SCAN = [
+  path.join(__dirname, 'bi_impact_scan.js'),
+  path.join(SCRIPTS, 'bi_impact_scan.js'),
+].find(p => fs.existsSync(p)) || path.join(__dirname, 'bi_impact_scan.js');
 const DD = path.join(EST_DIR, 'DATA-DICTIONARY.md');
+const CLAUDE_MD = path.join(EST_DIR, '..', 'CLAUDE.md');
 const BI_PATHS = new Set(['tile', 'new-tile', 'dashboard', 'retire', 'sync']);
 const PATHS = new Set(['rule', 'tile', 'new-tile', 'dashboard', 'retire', 'config', 'sync']);
 
@@ -48,6 +78,12 @@ const results = [];
 function ok(label, detail) { results.push(['✔', label, detail]); }
 function fail(label, detail) { results.push(['✘', label, detail]); }
 function info(label, detail) { results.push(['·', label, detail]); }
+// A cap breach. `which` names the cap so enforcement can differ per cap (see CAP_ENFORCE);
+// an explicit `--caps` on the command line overrides every one of them, for fixtures.
+function cap(which, label, detail) {
+  const mode = CAP_MODE || CAP_ENFORCE[which] || 'info';
+  (mode === 'fail' ? fail : info)(label, detail);
+}
 function read(p) { return fs.readFileSync(p, 'utf8'); }
 function sha1(s) { return crypto.createHash('sha1').update(s.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 12); }
 function norm(s) { return s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' '); }
@@ -101,6 +137,11 @@ for (const m of dd.matchAll(/^\| (R\d+) \|([^\r\n]*)$/gm)) {
   rows[m[1]] = {
     rule: shaped ? (cells[0] || '') : m[2],
     impl: shaped ? (cells[2] || '') : null,
+    // The rule CELL as best it can be cut, for the size cap only — never for the seal. On an
+    // unshaped row this is the text up to the first unescaped pipe, so it is a LOWER BOUND on the
+    // real cell; a lower bound over the cap still proves the breach, and one under it is reported
+    // as unmeasured rather than counted as passing.
+    ruleCell: cells[0] || '',
     legacyRule: m[2].split(' | ').map(c => c.trim())[0] || '',
     segments: cells.length, shaped, line: m[0],
   };
@@ -119,11 +160,17 @@ for (const m of dd.matchAll(/^\| (R\d+) \|([^\r\n]*)$/gm)) {
 }
 for (const r of H.rules) { if (rows[r]) ok('register row ' + r, 'present'); else fail('register row ' + r, 'not in the Dictionary — plan lane writes it first'); }
 if (seal) {
-  H.rule_text_sha1 = Object.fromEntries(Object.entries(rows).map(([r, v]) => [r, sha1(v.rule)]));
+  // P3 — SEAL GRAIN. A seal exists to prove the rules THIS change rests on did not move under it.
+  // Hashing all 76 register rows made every kickoff hostage to every peer: one rule cell edited
+  // anywhere reddened every closed record in the estate, forever, and the only way to clear it was
+  // to re-seal — which rewrites the record. The grain is header.rules.
+  const grain = H.rules.filter(r => rows[r]);
+  H.rule_text_sha1 = Object.fromEntries(grain.map(r => [r, sha1(rows[r].rule)]));
   const json = JSON.stringify(H, null, 2);
   text = text.replace(hdr.raw, hdr.raw.replace(hdr.json, json + nl));
   fs.writeFileSync(KICK, text);
-  ok('sealed', Object.keys(rows).length + ' rule cells hashed into the header');
+  ok('sealed', grain.length + ' rule cell(s) hashed into the header' +
+    (grain.length ? ': ' + grain.join(', ') : ' (header.rules is empty — this change rests on no rule)'));
 } else if (H.rule_text_sha1 && Object.keys(H.rule_text_sha1).length) {
   // A kickoff sealed BEFORE 2026-09-06 hashed `split(' | ')[0]` for every row, which on an
   // unshaped row is a truncated fragment. Accept that legacy value on unshaped rows only, and
@@ -137,12 +184,133 @@ if (seal) {
   const legacy = mism.filter(([r, h]) => sha1(rows[r].legacyRule) === h).map(([r]) => r);
   const changed = mism.filter(([r, h]) => sha1(rows[r].legacyRule) !== h).map(([r]) => r);
   const gone = Object.keys(H.rule_text_sha1).filter(r => !rows[r]);
-  if (changed.length) fail('rule text unchanged since seal', changed.join(', ') + ' — a build lane edits impl cells only; re-seal from the plan lane if Adam re-ruled');
-  else ok('rule text unchanged since seal', Object.keys(H.rule_text_sha1).length + ' rows' +
-    (legacy.length ? ' (' + legacy.length + ' sealed under the pre-2026-09-06 parser: ' + legacy.join(', ') + ' — unchanged, do NOT re-seal a closed kickoff)' : ''));
-  if (gone.length) fail('sealed rows still present', gone.join(', ') + ' — rows are struck through, never deleted');
+  // P3 — the two axes that decide whether drift is a DEFECT or just history moving on.
+  //
+  // GRAIN: kickoffs sealed before 2026-09-08 hashed all 76 rows, not just header.rules. Those extra
+  // hashes are not this change's business, so drift on them is reported, never failed. Scoping at
+  // CHECK time (rather than re-sealing) is deliberate: re-sealing a closed kickoff rewrites the
+  // record, and the record is the thing being protected.
+  //
+  // CLOSED: a done block means the change shipped and was verified at built_at. Canon moving after
+  // that is expected, not a regression in this record — the same reasoning the scope diff already
+  // applies to a newer live snapshot. Closed kickoffs report drift; open ones still fail on it.
+  const closed = !!block('done');
+  const inGrain = r => H.rules.includes(r);
+  const hard = closed ? [] : changed.filter(inGrain);
+  const soft = changed.filter(r => !hard.includes(r));
+  const goneHard = closed ? [] : gone.filter(inGrain);
+  const goneSoft = gone.filter(r => !goneHard.includes(r));
+  const why = closed ? 'closed kickoff — canon moved after this record closed' : 'outside header.rules — not this change’s grain';
+  const sealedNote = Object.keys(H.rule_text_sha1).length + ' sealed row(s), grain = ' +
+    (H.rules.length ? H.rules.join(', ') : '(none — this change rests on no rule)') +
+    (closed ? '; CLOSED' : '; OPEN');
+
+  if (hard.length) fail('rule text unchanged since seal', hard.join(', ') + ' — a build lane edits impl cells only; re-seal from the plan lane if Adam re-ruled');
+  else ok('rule text unchanged since seal', sealedNote +
+    (legacy.length ? '; ' + legacy.length + ' sealed under the pre-2026-09-06 parser: ' + legacy.join(', ') + ' — unchanged, do NOT re-seal a closed kickoff' : ''));
+  if (soft.length) info('rule text drift (not failed)', soft.length + ' row(s) moved since the seal — ' + why + ': ' + soft.join(', '));
+  if (goneHard.length) fail('sealed rows still present', goneHard.join(', ') + ' — rows are struck through, never deleted');
+  if (goneSoft.length) info('sealed rows gone (not failed)', goneSoft.length + ' row(s) no longer in the register — ' + why + ': ' + goneSoft.join(', '));
+} else if (H.rule_text_sha1) {
+  // An EMPTY seal is a real seal under P3: a sync / config change that rests on no rule has nothing
+  // to hash. Without this branch it fell through to "header sealed ✘" and could never go green.
+  ok('rule text unchanged since seal', 'sealed with an empty grain — header.rules is [], so this change rests on no rule text');
 } else if (phase === 'build') fail('header sealed', 'run `--seal` from the plan lane before handing off');
 else info('header not sealed yet', 'run `--seal` once the R rows are written');
+
+// ---------- P2 size caps ----------
+// Estate-wide, not per-kickoff: every run of the gate re-measures them, so bloat cannot creep back
+// in behind a change that happens not to touch the bloated surface. Every check prints a COUNT even
+// when clean — a check that reports nothing is indistinguishable from a check that never ran.
+{
+  // C1 — rule cell ≤ CAPS.rule chars. The register is the surface that turned into a log.
+  const measured = Object.entries(rows).map(([r, v]) => ({ r, n: v.ruleCell.length, shaped: v.shaped }));
+  const over = measured.filter(m => m.n > CAPS.rule).sort((a, b) => b.n - a.n);
+  // An unshaped row's cell is a lower bound (see rows[].ruleCell): under the cap it proves nothing.
+  const unmeasured = measured.filter(m => !m.shaped && m.n <= CAPS.rule);
+  const worst = measured.reduce((a, b) => (b.n > a.n ? b : a), { r: '-', n: 0 });
+  if (over.length) cap('rule', 'cap: rule cell ≤ ' + CAPS.rule,
+    over.length + ' of ' + measured.length + ' row(s) over (max ' + worst.n + ' chars, ' + worst.r + '): ' +
+    over.slice(0, 8).map(m => m.r + ' ' + m.n).join(', ') + (over.length > 8 ? ', …' : ''));
+  else ok('cap: rule cell ≤ ' + CAPS.rule, '0 of ' + measured.length + ' row(s) over (max ' + worst.n + ' chars, ' + worst.r + ')');
+  if (unmeasured.length) info('cap: rule cell — unmeasured', unmeasured.length + ' unshaped row(s) measured to the first unescaped `|` only, so their length is a lower bound: ' + unmeasured.map(m => m.r).join(', '));
+
+  // C2 — Dictionary preamble ≤ CAPS.preamble lines. Everything before the register header row.
+  if (dd) {
+    const hdrIdx = dd.split(/\r?\n/).findIndex(l => /^\| # \|/.test(l));
+    if (hdrIdx < 0) info('cap: Dictionary preamble', 'no `| # |` register header row found — cannot measure');
+    else {
+      const pre = dd.split(/\r?\n/).slice(0, hdrIdx);
+      const longest = pre.reduce((a, l, i) => (l.length > a.n ? { n: l.length, i: i + 1 } : a), { n: 0, i: 0 });
+      if (pre.length > CAPS.preamble) cap('preamble', 'cap: Dictionary preamble ≤ ' + CAPS.preamble + ' lines',
+        pre.length + ' lines (longest ' + longest.n + ' chars at line ' + longest.i + ')');
+      else ok('cap: Dictionary preamble ≤ ' + CAPS.preamble + ' lines', pre.length + ' lines (longest ' + longest.n + ' chars)');
+    }
+  }
+
+  // C3 — client CLAUDE.md ≤ CAPS.claudeLines lines, no line > CAPS.claudeLine chars. It loads into
+  // EVERY session, so its size is a tax on all of them. Two separate counts: a file can sit inside
+  // the line budget purely because its log was appended onto one enormous line.
+  if (fs.existsSync(CLAUDE_MD)) {
+    const cl = read(CLAUDE_MD).split(/\r?\n/);
+    const longLines = cl.map((l, i) => ({ i: i + 1, n: l.length })).filter(x => x.n > CAPS.claudeLine).sort((a, b) => b.n - a.n);
+    const maxLen = cl.reduce((a, l) => Math.max(a, l.length), 0);
+    if (cl.length > CAPS.claudeLines) cap('claude', 'cap: CLAUDE.md ≤ ' + CAPS.claudeLines + ' lines', cl.length + ' lines');
+    else ok('cap: CLAUDE.md ≤ ' + CAPS.claudeLines + ' lines', cl.length + ' lines');
+    if (longLines.length) cap('claude', 'cap: CLAUDE.md line ≤ ' + CAPS.claudeLine + ' chars',
+      longLines.length + ' line(s) over (max ' + maxLen + ' chars at line ' + longLines[0].i + '): ' +
+      longLines.slice(0, 8).map(x => 'L' + x.i + ' ' + x.n).join(', ') + (longLines.length > 8 ? ', …' : ''));
+    else ok('cap: CLAUDE.md line ≤ ' + CAPS.claudeLine + ' chars', '0 of ' + cl.length + ' line(s) over (max ' + maxLen + ')');
+  } else info('cap: CLAUDE.md', 'not found at ' + CLAUDE_MD);
+
+  // C4 — README "Last synced" stamp ≤ CAPS.readmeStamp chars. A one-line latest-state field that
+  // was appended to instead of replaced; the narrative belongs to the owning kickoff.
+  const readmePath = path.join(EST_DIR, 'README.md');
+  if (fs.existsSync(readmePath)) {
+    const stamp = read(readmePath).split(/\r?\n/).find(l => /^\*\*Last synced/.test(l));
+    if (stamp === undefined) info('cap: README stamp', 'no `**Last synced` line found — cannot measure');
+    else if (stamp.length > CAPS.readmeStamp) cap('readme', 'cap: README stamp ≤ ' + CAPS.readmeStamp, stamp.length + ' chars (1 stamp line)');
+    else ok('cap: README stamp ≤ ' + CAPS.readmeStamp, stamp.length + ' chars');
+  }
+
+  // C5 — guide "## Change log" entries are POINTER lines: one line, a date, and the kickoff that
+  // holds the narrative. Counted per guide across the estate, not just the board in scope.
+  const guides = fs.readdirSync(EST_DIR).filter(f => /^dashboard-\d+.*\.md$/.test(f)).sort();
+  const bad = [];
+  let entries = 0, sectionLines = 0;
+  for (const g of guides) {
+    const lines = read(path.join(EST_DIR, g)).split(/\r?\n/);
+    const start = lines.findIndex(l => /^##\s+Change log\s*$/i.test(l));
+    if (start < 0) continue;
+    let end = lines.slice(start + 1).findIndex(l => /^## /.test(l));
+    end = end < 0 ? lines.length : start + 1 + end;
+    const sec = lines.slice(start + 1, end).filter(l => l.trim());
+    sectionLines += sec.length;
+    const isEntry = l => /^\s*[-*] /.test(l);
+    // A short prose block BEFORE the first entry is section framing — it states the convention and
+    // names the archive. That is not the per-entry narrative this cap exists to move out, so it is
+    // allowed, but bounded: past FRAME_MAX lines it is a log growing back and counts as narrative.
+    const FRAME_MAX = 4;
+    const first = sec.findIndex(isEntry);
+    const frame = first < 0 ? sec.length : first;
+    const body = first < 0 ? [] : sec.slice(first);
+    const opens = body.filter(isEntry);
+    entries += opens.length;
+    // Continuation lines are counted only AFTER the first entry — those are wrapped narrative.
+    const cont = body.length - opens.length + Math.max(0, frame - FRAME_MAX);
+    // An entry must be ONE line that names its record. Deliberately NOT anchored on an ISO date:
+    // two guides open with a legitimately undated origin entry ("Earlier —", "2026-05 (approx) —").
+    // And no `[^|]*` guard — an entry may legitimately quote a filter literal containing `|`
+    // (`-Promo |%`), which the old guard rejected as if it were a table pipe.
+    const notPointer = opens.filter(l => !/\.md`?\s*$/.test(l) && !/\.(?:xlsx|pdf|csv|docx|json)`?\s*$/.test(l));
+    if (cont || notPointer.length) bad.push(g.replace(/^dashboard-/, '').replace(/\.md$/, '') +
+      ' (' + opens.length + ' entries, ' + notPointer.length + ' not pointing at a record, ' + cont + ' narrative lines)');
+  }
+  if (!guides.length) info('cap: guide change logs', 'no dashboard-*.md guides in the estate dir');
+  else if (bad.length) cap('guides', 'cap: guide change log = pointer lines',
+    bad.length + ' of ' + guides.length + ' guide(s) carry narrative (' + entries + ' entries over ' + sectionLines + ' lines): ' + bad.join('; '));
+  else ok('cap: guide change log = pointer lines', guides.length + ' guide(s), ' + entries + ' entries, all pointer-shaped');
+}
 
 // ---------- plan phase stops here ----------
 if (phase === 'plan') report();
@@ -261,7 +429,8 @@ for (const id of H.dashboards) {
 // ---------- mechanized scans ----------
 function scan(argv) {
   if (!fs.existsSync(SCAN)) return { status: -1, out: 'scan not found: ' + SCAN };
-  const r = spawnSync(process.execPath, [SCAN, ...argv], { encoding: 'utf8' });
+  // The estate dir is passed explicitly: the scanner no longer infers it from its own location.
+  const r = spawnSync(process.execPath, [SCAN, '--estate', EST_DIR, ...argv], { encoding: 'utf8' });
   return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };
 }
 {

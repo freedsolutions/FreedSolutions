@@ -31,7 +31,7 @@ kickoff* for the file, or the hand-off line reads as though `build` takes a path
 `Export QC:` line in the pointer block) on the **Active set**, the same runner on the **retired+tagged set**
 (`--retired` — retired rows carrying a product tag are canonical, untagged retired rows are ignored), and the
 client's **inventory runner** (package grain: the Inventory export joined to the Catalog export on SKU, mirroring
-the package-grain tiles; Adam ruled 2026-09-04 that inventory QC is part of the standard flow). Each runner defaults
+the package-grain tiles; inventory QC is part of the standard flow). Each runner defaults
 to the freshest matching file in `~/Downloads` (or the file given):
 every rule in the Dictionary's export-only register plus export-side MIRRORS of the BI legs, a
 summary table (flag · rule · surface · class · scope · flagged), a NEW timestamped CSV under the
@@ -46,7 +46,7 @@ session on the model Adam routes task work to (the kickoff header says which). `
 anywhere, including as a scheduled task. Path omitted → `plan` infers it from the ask and states
 it back inside the ratification message.
 
-**`run` — single-session mode (Adam's question, 2026-09-04).** One change per session, any model.
+**`run` — single-session mode.** One change per session, any model.
 The session does everything that needs no ruling and no login first (measure, simulate on the
 freshest export, draft the R row text, draft the doc deltas, capture the baseline), then sends
 Adam ONE consolidated message: the exact rule text that will be sealed, the findings, every open
@@ -94,15 +94,20 @@ worktrees do not contain `clients/`):
 ```
 ## BI Change Pointers
 - Estate dir: <abs path>            # DATA-DICTIONARY.md, BI-SOP.md, BI-WI.md, guides, estate-*.json
-- Scripts dir: <abs path>           # bi_impact_scan.js, render script, measurement scripts
+- Scripts dir: <abs path>           # CLIENT measurement scripts only; the shared tools
+#                                    (bi_impact_scan.js, render_docs.sh, explore_catalog_*.js)
+#                                    ship in this skill under scripts/ and take --estate <dir>
 - Render: <command>                 # DOCX + PDF beside a source .md
 - Backoffice login: <url>           # where the login stop opens
 - Write channel: playwright | pane  # see below; reads may use any channel
 - Canon: Dictionary > rule patterns reference > skill > memory; runbook = BI-SOP.md §2
 ```
 
-`kickoff_check.js` needs none of this: the kickoff's own folder is the estate dir and
-`../scripts` beside it is the scripts dir.
+`kickoff_check.js` needs none of this: the kickoff's own folder is the estate dir, and the
+shared tools (`bi_impact_scan.js`, `render_docs.sh`, `explore_catalog_*.js`) ship in this
+skill's own `scripts/` and are handed `--estate <that dir>`. `../scripts` beside the estate
+is the CLIENT measurement-script dir, still read for a client-side `bi_impact_scan.js` when
+an estate has not migrated.
 
 ## The three stops that need Adam
 
@@ -127,8 +132,8 @@ Set in the pointer block, not here. Reads and verification may use any channel.
 - **`pane`** — the Claude Code Browser pane (`mcp__Claude_Browser__*`): one pane per session, so
   no lock protocol and no orphaned browser trees; Adam types the login in-app; opens at the login
   wall in a fresh session (profile persistence across sessions unverified). Large
-  `javascript_tool` results spill to a `tool-results/*.txt` file on disk intact (verified 320 KB,
-  2026-09-04): parse the JSON array, take `[0].text`, strip the trailing
+  `javascript_tool` results spill to a `tool-results/*.txt` file on disk intact (verified at
+  320 KB): parse the JSON array, take `[0].text`, strip the trailing
   `(captured at origin …)` line, write `estate-<id>.json`.
 - **Never** the user's real browser (`claude-in-chrome`) for writes: ~1 KB output cap, redaction of
   32-character ids, and it is Adam's daily session.
@@ -140,7 +145,7 @@ Runbook Step 3 and the `dutchie-bi-looker` traps apply in full; the ones the gat
 write** — any undeclared difference means someone changed the board by hand since the plan; stop,
 report it to the plan lane as a `sync`, and never overwrite the baseline; **re-read the Dictionary
 immediately before the write and build from IT, never from a peer message that may have aged** (a
-token name reversed in canon after the message that carried it cost a rebind on 9/4 — the same
+token name reversed in canon after the message that carried it has cost a rebind — the same
 rebase discipline as element ids, extended to rule text); live re-GET before every write; `run/json`
 200 before any bind, even sort-only; content-verify after every bind (a 200 is not proof);
 PATCH v1-both, never recreate; a custom dim's slug must be in `fields` and a table-calc slug
@@ -216,5 +221,5 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 
 - `scripts/kickoff_check.js <kickoff> [--phase plan|build] [--seal]` — the gate; exit 0 pass, 1 fail.
 - `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
-- Client-side, from the pointer block: `bi_impact_scan.js` (`"<needle>"`, `--verify`, `--stale`)
+- Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   and the render script.

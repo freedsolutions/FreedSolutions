@@ -30,7 +30,7 @@ Product Type is Product Line minus Brand. Spaces around every pipe.
 `PerUnit = Dosage / Count`, where `Count` is the numeric part of `Size` with "pk" stripped.
 A 10-pack of 5mg gummies totalling 50mg renders `Edibles | 50mg (5mg x 10pk) | Brand`.
 
-**2026-08-26 rulings (signed, see `clients/primitiv/bi-estate/DATA-DICTIONARY.md` §2b for
+**2026-08-26 rulings (signed, see the estate's `DATA-DICTIONARY.md` §2b for
 the definitions of record):** the pack-annotated PL (`Category | total (per-unit x Npk) |
 Brand`) is THE canonical PL everywhere including merge-level tiles (deployed estate-wide; the
 inline merge-context expression is output-identical to the custom-dim chain). PT stays
@@ -251,7 +251,7 @@ the 2026-08-26 single-lane doctrine — see Type rules below).
 **Ratio entries are composition-named, NOT generic** (Adam correction 2026-08-20 —
 supersedes the brief generic-`1to1` convention). **NOTATION REVISED 2026-08-26: the
 legend parens are GONE** — `1:1 (THC:CBD)` → `1:1 THC:CBD` (23 in-use entries migrate;
-list: clients/primitiv/hscg-ratio-entry-migration-2026-08-26.csv; Adam executes on the
+list: the client's ratio-entry-migration worklist CSV (2026-08-26); Adam executes on the
 strains screen, items follow automatically):
 
 ```
@@ -511,7 +511,7 @@ naive grid rejects.
 ### Flower Equivalent IS a QC rule (MA class constants)
 
 Unlike dosage, `Flower Equivalent` follows deterministic per-class math (verified against
-the full HSCG catalog 2026-08-18; constants confirmed by Adam — MA: 1 oz = 28 g ≡ 5 g
+a full tenant catalog 2026-08-18; constants confirmed by Adam — MA: 1 oz = 28 g ≡ 5 g
 concentrate ≡ 500 mg THC in edibles):
 
 **RE-KEYED 2026-08-26 (Adam ruling): the FL EQ rule is GOVERNED by PLC × GC** — Purchase
@@ -544,7 +544,7 @@ they describe what vendors ship, and **no QC rule may test against them** (R4).
 **Tinctures deliberately take the concentrate constant (×5.6), not the edible one** — a
 100 mg shot carries 0.56 g FL EQ as a Tincture vs 5.6 g as an Edible, a 10× difference
 against customer purchase limits. This is why concentrated liquids (THC shots, syrups,
-beverage enhancers, drink drops) are POS-classified as Tinctures at HSCG; reclassifying
+beverage enhancers, drink drops) may be POS-classified as Tinctures; reclassifying
 them to Beverages/Edibles is a compliance change, not a merchandising one.
 
 Implemented as the `BAD_FLOWER_EQ` rule on the Product QC tile (±5% two-sided compare —
