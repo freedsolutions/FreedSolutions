@@ -11,13 +11,16 @@
 // fixture broken in exactly one place must report ✘ with the count we expect. A check that cannot
 // be made to fail has not been tested.
 //
-// Three groups:
+// Four groups:
 //   A. each size cap — green when clean, red when broken (under `--caps fail`), and never red
 //      under `--caps info`, which is what "report-only for one run, then enforce" rests on.
 //   B. the seal grain — an OPEN kickoff with in-grain drift must STILL FAIL (the regression guard),
 //      while a closed kickoff, or drift outside header.rules, is reported and not failed.
 //   C. the per-cap DEFAULT enforcement, run with no flag at all. Group A passes an explicit
 //      `--caps`, which overrides the defaults, so it proves the mechanism but not the setting.
+//   D. `--pointer <tenant dir>` — the kickoff-free scaffold check: it runs with no kickoff, scores
+//      C3–C7 and nothing that needs a register or a header, still reddens on an enforced breach,
+//      and finds the estate by the Dictionary rather than by the folder's name.
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -99,12 +102,33 @@ function guide(entries) {
   return ['# Fixture guide 99999', '', '## Change log', '', ...entries, '', '## Other', '', 'x', ''].join('\n');
 }
 
+// The tenant pointer file. C7 measures the Current-state bullets, so the clean fixture must carry a
+// real section: a heading, framing prose that is NOT a bullet, and bullets at or under the cap. One
+// bullet sits at exactly 2 lines on purpose — a cap that rejected its own boundary would be wrong,
+// and only a fixture written at the boundary can catch that.
+const CLEAN_BULLETS = [
+  '- **Estate:** one fixture board — `bi-estate/dashboard-99999-fixture.md`',
+  '- **Dictionary:** R1–R2, stamped 2026-09-08.',
+  '- **In flight:** two lines is legal, being exactly the cap.',
+  '  Second line, still inside the cap — `bi-estate/fx-kickoff-2026-09-08.md`',
+];
+function claudeMd(bullets) {
+  return [
+    '# Fixture tenant', '',
+    '## Current state (2026-09-08) — replace at close-out, never append', '',
+    'Framing prose ahead of the first bullet is section framing, not a bullet, and is not measured.', '',
+    ...bullets, '',
+    '## Change log', '',
+    '- 2026-09-08 — fx-kickoff-2026-09-08.md', '',
+  ].join('\n');
+}
+
 // ---- the clean baseline fixture -------------------------------------------------------------
 function buildClean() {
   fs.rmSync(ROOT, { recursive: true, force: true });
   fs.mkdirSync(EST, { recursive: true });
   fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), dd([['R1', RULE1], ['R2', RULE2]]));
-  fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), Array.from({ length: 40 }, (_, i) => '- line ' + i).join('\n') + '\n');
+  fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd(CLEAN_BULLETS));
   fs.writeFileSync(path.join(EST, 'README.md'), '# Fixture\n\n**Last synced: 2026-09-08** (one board re-harvested).\n');
   fs.writeFileSync(path.join(EST, 'dashboard-99999-fixture.md'),
     guide(['- 2026-09-08 — fx-kickoff-2026-09-08.md', '- 2026-09-07 — other-kickoff-2026-09-07.md']));
@@ -175,6 +199,25 @@ const CAPS = [
     // stop rejecting entries that quote a `|` literal. The SUBSTANCE asserted is unchanged: one
     // entry not pointing at a record, one line of narrative after an entry.
     expect: /1 of 1 guide\(s\) carry narrative .*1 not pointing at a record, 1 narrative lines/,
+  },
+  {
+    id: 'C6 tenant root ≤ 10 loose files',
+    label: 'cap: tenant root ≤ 10 loose files',
+    // eleven loose files at the tenant root; the estate SUBDIR must not be counted, which is why
+    // the clean fixture (1 file, 1 subdir) and this one differ only in files.
+    break: () => { for (let i = 0; i < 10; i++) fs.writeFileSync(path.join(CLIENT, 'loose-' + i + '.csv'), 'x\n'); },
+    expect: /11 loose file\(s\), 1 subdir\(s\) excluded/,
+  },
+  {
+    id: 'C7 Current-state bullet ≤ 2 lines',
+    label: 'cap: Current-state bullet ≤ 2 lines',
+    // one bullet pushed to three lines; the two-line bullet beside it must stay legal, so the
+    // expected COUNT is 1 of 3 and not 2 of 3.
+    break: () => fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd([
+      ...CLEAN_BULLETS,
+      '  A third line appended to the bullet above — this is the append-log shape.',
+    ])),
+    expect: /1 of 3 bullet\(s\) over \(max 3 lines, "In flight: two lines is lega"\)/,
   },
 ];
 
@@ -275,6 +318,13 @@ const ENFORCED = [
   ['C5 guide change log', 'cap: guide change log',
     () => fs.writeFileSync(path.join(EST, 'dashboard-99999-fixture.md'),
       guide(['- 2026-09-08 — **Narrative entry** that runs on', '  and onto a continuation line.']))],
+  // Both moved here from REPORTED as their A2 step landed: C6 when the tenant-root move took the
+  // root from 235 loose files to 1, C7 when the one three-line bullet was reshaped to two. Flipping
+  // the gate without moving the row fails the run — which is what the row is for.
+  ['C6 tenant root loose files', 'cap: tenant root ≤ 10 loose files',
+    () => { for (let i = 0; i < 10; i++) fs.writeFileSync(path.join(CLIENT, 'loose-' + i + '.csv'), 'x\n'); }],
+  ['C7 Current-state bullet shape', 'cap: Current-state bullet ≤ 2 lines',
+    () => fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd([...CLEAN_BULLETS, '  A third line appended.']))],
 ];
 for (const [name, label, brk] of ENFORCED) {
   buildClean(); brk();
@@ -288,12 +338,114 @@ const REPORTED = [
   ['C2 Dictionary preamble', 'cap: Dictionary preamble',
     () => fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'),
       Array.from({ length: 45 }, (_, i) => 'preamble ' + i).join('\n') + '\n' + dd([['R1', RULE1], ['R2', RULE2]]))],
+  // C1 and C2 stay report-only until Phase B, which is the phase allowed to rewrite the register and
+  // the preamble they measure. These rows are the record of that SETTING — move a row into ENFORCED
+  // above when its phase lands, in the same change that flips the gate. C6 and C7 both made exactly
+  // that trip on 2026-09-08, each failing here first.
 ];
 for (const [name, label, brk] of REPORTED) {
   buildClean(); brk();
   const r = runDefault('fx-kickoff-2026-09-08.md');
   check('DEFAULT (no --caps): ' + name + ' REPORTS, does not redden',
     mark(r.out, label) === '·' && r.status === 0, line(r.out, label).trim() + ' | exit ' + r.status);
+}
+
+// =============================================================================================
+// D. --pointer mode. It scores C3–C7 with NO kickoff, so it must (a) run at all with no kickoff
+// argument, (b) score exactly that set and nothing that needs a register or a header, (c) still
+// redden on an enforced breach, and (d) find the estate by CONTENT — the Dictionary — rather than
+// by a folder name, or the mode silently stops measuring C4/C5 on the next tenant that names its
+// estate folder differently.
+// =============================================================================================
+function runPointer(dir, capsMode) {
+  const a = [GATE, '--pointer', dir];
+  if (capsMode) a.push('--caps', capsMode);
+  const r = spawnSync(process.execPath, a, { encoding: 'utf8' });
+  return { status: r.status, out: ((r.stdout || '') + (r.stderr || '')).replace(/\r\n/g, '\n') };
+}
+const POINTER_LABELS = [
+  'cap: CLAUDE.md ≤ 120 lines', 'cap: CLAUDE.md line ≤ 300 chars', 'cap: README stamp',
+  'cap: guide change log', 'cap: tenant root ≤ 10 loose files', 'cap: Current-state bullet ≤ 2 lines',
+];
+
+// D1 — clean tenant: runs with no kickoff, exits 0, and every C3–C7 line is present and green.
+buildClean();
+{
+  const r = runPointer(CLIENT);
+  check('--pointer: clean tenant exits 0', r.status === 0, 'exit ' + r.status);
+  check('--pointer: clean tenant is identified as one', mark(r.out, 'pointer file present') === '✔' && mark(r.out, 'estate found below the tenant') === '✔',
+    line(r.out, 'pointer file present').trim() + ' | ' + line(r.out, 'estate found below the tenant').trim());
+  for (const l of POINTER_LABELS) check('--pointer: reports ' + l, mark(r.out, l) === '✔', line(r.out, l).trim());
+  // Nothing that needs a header or a register may appear: those are the checks the mode drops.
+  const leaked = ['cap: rule cell', 'cap: Dictionary preamble', 'ratified', 'done block', '--stale']
+    .filter(l => line(r.out, l));
+  check('--pointer: scores C3–C7 ONLY (no register / header / scan checks)', leaked.length === 0, 'leaked: ' + (leaked.join(', ') || 'none'));
+}
+
+// D2 — an ENFORCED breach (C3, 'fail' by default) must redden pointer mode, or the standing check
+// is decorative.
+buildClean();
+fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), Array.from({ length: 121 }, (_, i) => '- line ' + i).join('\n') + '\n');
+{
+  const r = runPointer(CLIENT);
+  check('--pointer: an enforced breach exits 1', mark(r.out, 'cap: CLAUDE.md ≤ 120 lines') === '✘' && r.status === 1,
+    line(r.out, 'cap: CLAUDE.md ≤ 120 lines').trim() + ' | exit ' + r.status);
+}
+
+// D3 — a report-only breach (C6) reddens pointer mode under --caps fail and not otherwise. This is
+// the switch that will be thrown when the tenant-root move lands.
+buildClean();
+for (let i = 0; i < 10; i++) fs.writeFileSync(path.join(CLIENT, 'loose-' + i + '.csv'), 'x\n');
+{
+  const r = runPointer(CLIENT, 'fail');
+  check('--pointer: C6 reddens under --caps fail', mark(r.out, 'cap: tenant root ≤ 10 loose files') === '✘' && r.status === 1,
+    line(r.out, 'cap: tenant root ≤ 10 loose files').trim() + ' | exit ' + r.status);
+  const q = runPointer(CLIENT);
+  check('--pointer: C6 reddens on its shipped default too', mark(q.out, 'cap: tenant root ≤ 10 loose files') === '✘' && q.status === 1,
+    line(q.out, 'cap: tenant root ≤ 10 loose files').trim() + ' | exit ' + q.status);
+}
+
+// D4 — the estate is found by the Dictionary, not by the folder being called `bi-estate`. Rename it
+// and C4/C5 must still measure; if discovery were name-based they would silently go quiet.
+buildClean();
+fs.renameSync(EST, path.join(CLIENT, 'estate-under-another-name'));
+{
+  const r = runPointer(CLIENT);
+  check('--pointer: finds the estate by the Dictionary, not the folder name',
+    mark(r.out, 'cap: README stamp') === '✔' && mark(r.out, 'cap: guide change log') === '✔',
+    line(r.out, 'cap: README stamp').trim() + ' | ' + line(r.out, 'cap: guide change log').trim());
+}
+
+// D5 — a path that does not exist fails loudly rather than reporting a green nothing.
+{
+  const r = runPointer(path.join(ROOT, 'no-such-tenant'));
+  check('--pointer: a missing tenant dir exits 1', r.status === 1, 'exit ' + r.status + ' — ' + r.out.trim().split('\n')[0]);
+}
+
+// D6 — an EXISTING directory that is not a tenant. This is the harder case and the one the mode
+// shipped broken: a nonexistent path was the only thing that failed. With no pointer file every
+// CLAUDE.md check degrades to `info`, C4 printed nothing at all, and C6 passes on any directory
+// holding ten files or fewer — so a plain asset folder scored "All checks passed" at exit 0.
+// EXACTLY ten files here, because ten is the vacuous pass; eleven would have reddened C6 by luck
+// and the fixture would prove the wrong thing.
+buildClean();
+{
+  const NOT_TENANT = path.join(ROOT, 'not-a-tenant');
+  fs.mkdirSync(NOT_TENANT, { recursive: true });
+  for (let i = 0; i < 10; i++) fs.writeFileSync(path.join(NOT_TENANT, 'asset-' + i + '.png'), 'x');
+  const r = runPointer(NOT_TENANT);
+  check('--pointer: an EXISTING non-tenant dir exits 1', r.status === 1, 'exit ' + r.status);
+  check('--pointer: names the missing pointer file', mark(r.out, 'pointer file present') === '✘', line(r.out, 'pointer file present').trim());
+  check('--pointer: names the missing estate', mark(r.out, 'estate found below the tenant') === '✘', line(r.out, 'estate found below the tenant').trim());
+  // C6 must still be the vacuous pass it always was — the fixture is only honest if the identity
+  // check, not a lucky file count, is what reddens the run.
+  check('--pointer: C6 alone would still have passed it', mark(r.out, 'cap: tenant root ≤ 10 loose files') === '✔',
+    line(r.out, 'cap: tenant root ≤ 10 loose files').trim());
+  // Identity is not a cap, so --caps info must not be able to green it.
+  const q = runPointer(NOT_TENANT, 'info');
+  check('--pointer: --caps info cannot green a non-tenant dir', q.status === 1, 'exit ' + q.status);
+  // C4 printed NOTHING when there was no estate; every branch must report.
+  check('--pointer: C4 reports even with no README', line(r.out, 'cap: README stamp') !== '', line(r.out, 'cap: README stamp').trim() || '(absent)');
 }
 
 // ---- report ---------------------------------------------------------------------------------
@@ -311,6 +463,7 @@ if (bad) {
   console.log('FAIL — a gate check is not behaving as specified. Do not ship the gate.');
 } else {
   console.log('PASS — every cap fires and reddens on a broken fixture, stays quiet on a clean one,');
-  console.log('       and the seal grain still FAILS an open kickoff whose in-grain rule text moved.');
+  console.log('       the seal grain still FAILS an open kickoff whose in-grain rule text moved, and');
+  console.log('       --pointer scores C3–C7 with no kickoff and reddens on an enforced breach.');
 }
 process.exit(bad ? 1 : 0);

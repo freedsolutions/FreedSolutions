@@ -219,6 +219,10 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 
 - `scripts/kickoff_check.js <kickoff> [--phase plan|build] [--seal] [--caps info|fail]` — the gate;
   exit 0 pass, 1 fail.
+- `scripts/kickoff_check.js --pointer <tenant dir>` — the SCAFFOLD caps alone (C3-C7), no kickoff.
+  Every other mode reaches the caps only through a change, so a tenant was unmeasurable between
+  kickoffs, which is exactly when scaffold drift accumulates. Run it after any move, and any time
+  you touch the tenant `CLAUDE.md`. It finds the estate by the Dictionary, not by a folder name.
 - `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   and the render script.
@@ -226,11 +230,15 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 50 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 84 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
-  an OPEN kickoff whose in-grain rule text moved. Exit 1 on any failed assertion. A check that
-  cannot be made to fail has not been tested — this skill has shipped an inert check before.
+  an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score
+  C3-C7 and nothing needing a register or header, redden on an enforced breach, and still find the
+  estate when its folder is renamed, and must FAIL an existing directory that is not a tenant at all
+  (no pointer file, no Dictionary below it) — absence of a surface is a failure of identity, not a
+  cap breach, so `--caps info` cannot silence it. Exit 1 on any failed assertion. A check that cannot be made to
+  fail has not been tested — this skill has shipped an inert check before.
 - `node scripts/skill_leak_proof.js` — no tracked skill file may name a client: tenant names
   (case-insensitively, which is what catches a lowercase filename token) or a concrete
   `clients/<real slug>/` path. A generic `clients/<slug>/` placeholder is the portable mechanism

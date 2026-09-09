@@ -4,6 +4,8 @@
 //   node kickoff_check.js <kickoff.md>                 build-phase gate (default): the change is complete
 //   node kickoff_check.js <kickoff.md> --phase plan    plan-phase gate: header sane, rules registered
 //   node kickoff_check.js <kickoff.md> --seal          plan lane only: write rule-text hashes into the header
+//   node kickoff_check.js --pointer <tenant dir>       scaffold caps only (C3–C7), no kickoff needed
+//                                                      fails outright if the dir is not a tenant
 //
 // The kickoff's location fixes every path: the estate dir is its folder, the scripts dir is
 // ../scripts beside it, the Dictionary is DATA-DICTIONARY.md in the estate dir. Nothing here
@@ -34,11 +36,16 @@ const args = process.argv.slice(2);
 // Flags that consume the NEXT argument, which therefore is not a candidate kickoff path. Without
 // this, `--phase build` left "build" eligible as the kickoff — harmless only by the convention that
 // the kickoff comes first — and `--caps fail` would have made "fail" eligible too.
-const VALUED = new Set(['--phase', '--caps']);
+const VALUED = new Set(['--phase', '--caps', '--pointer']);
 const consumedArg = new Set();
 args.forEach((a, i) => { if (VALUED.has(a)) consumedArg.add(i + 1); });
 const kickoff = args.find((a, i) => !a.startsWith('--') && !consumedArg.has(i));
-if (!kickoff) { console.log('usage: node kickoff_check.js <kickoff.md> [--phase plan|build] [--seal] [--caps info|fail]'); process.exit(1); }
+// `--pointer <tenant dir>` scores the SCAFFOLD caps (C3–C7) with no kickoff at all. Every other
+// mode reaches the caps only through a change; a tenant whose pointer file or root has drifted
+// while no change is in flight was therefore unmeasurable between kickoffs, which is exactly when
+// drift accumulates. Exit 1 on any fail, so it is usable as a standing check.
+const POINTER = args.includes('--pointer') ? args[args.indexOf('--pointer') + 1] : null;
+if (!kickoff && !POINTER) { console.log('usage: node kickoff_check.js <kickoff.md> [--phase plan|build] [--seal] [--caps info|fail]\n       node kickoff_check.js --pointer <tenant dir> [--caps info|fail]'); process.exit(1); }
 const phase = args.includes('--phase') ? args[args.indexOf('--phase') + 1] : 'build';
 const seal = args.includes('--seal');
 // P2 size caps. Every surface here accepts appends, so every surface became a log; the gate checked
@@ -49,7 +56,7 @@ const seal = args.includes('--seal');
 const CAP_MODE = args.includes('--caps') ? args[args.indexOf('--caps') + 1] : null;
 if (CAP_MODE && !['info', 'fail'].includes(CAP_MODE)) { console.log('--caps must be info|fail, got: ' + CAP_MODE); process.exit(1); }
 // Caps in chars / lines, ruled 2026-09-08.
-const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readmeStamp: 200 };
+const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readmeStamp: 200, looseFiles: 10, stateBullet: 2 };
 // ENFORCEMENT IS PER CAP, not global (scaffold-cleanup §6 step 5).
 //   C3 CLAUDE.md · C4 README stamp · C5 guide change logs -> 'fail'. P4 brought them under the
 //     caps in Phase A, so a breach from here is new drift and should redden.
@@ -57,10 +64,29 @@ const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readm
 //     the preamble, which P1 rewrites and which Phase A is explicitly forbidden to touch; failing
 //     them now would redden every kickoff for a breach nothing is allowed to fix. Phase B flips
 //     them as its last step.
-const CAP_ENFORCE = { rule: 'info', preamble: 'info', claude: 'fail', readme: 'fail', guides: 'fail' };
+//   C6 loose files -> 'fail' since A2 step 3. The tenant-root move took it from 235 loose files to
+//     1, so a breach from here is new drift, exactly as for C3-C5.
+//   C7 Current-state bullet shape -> 'fail' since A2 step 5, which reshaped the one over-cap bullet
+//     (3 lines, two threads in one bullet) into two lines that point at their records.
+// A cap is flipped in the step that brings its surface under it, never before — a cap that reddens
+// every kickoff for a breach the running step may not fix teaches the reader to ignore the gate.
+// And its self-test row moves from REPORTED to ENFORCED in the SAME change: flipping the gate alone
+// fails group C, which is the tripwire doing its job, not a broken test.
+const CAP_ENFORCE = { rule: 'info', preamble: 'info', claude: 'fail', readme: 'fail', guides: 'fail', loose: 'fail', bullet: 'fail' };
 
-const KICK = path.resolve(kickoff);
-const EST_DIR = path.dirname(KICK);
+const KICK = kickoff ? path.resolve(kickoff) : null;
+// In pointer mode there is no kickoff to fix the estate dir, so it is found by CONTENT, not by a
+// folder name: the estate is the tenant subdir that holds the Dictionary. Naming a folder here
+// would bake one client's layout into the skill and break silently on the next tenant.
+const TENANT_DIR = POINTER ? path.resolve(POINTER) : null;
+function findEstate(dir) {
+  if (!fs.existsSync(dir)) return null;
+  if (fs.existsSync(path.join(dir, 'DATA-DICTIONARY.md'))) return dir;
+  const sub = fs.readdirSync(dir, { withFileTypes: true }).filter(d => d.isDirectory())
+    .map(d => path.join(dir, d.name)).filter(p => fs.existsSync(path.join(p, 'DATA-DICTIONARY.md')));
+  return sub.length === 1 ? sub[0] : null;
+}
+const EST_DIR = KICK ? path.dirname(KICK) : (findEstate(TENANT_DIR) || TENANT_DIR);
 const SCRIPTS = path.join(EST_DIR, '..', 'scripts');
 // The scanner ships WITH the skill now (P6, 2026-09-08) — it is client-agnostic by content and was
 // only ever tied to one client by sitting beside it. The old client-side copy is still honoured so
@@ -70,7 +96,10 @@ const SCAN = [
   path.join(SCRIPTS, 'bi_impact_scan.js'),
 ].find(p => fs.existsSync(p)) || path.join(__dirname, 'bi_impact_scan.js');
 const DD = path.join(EST_DIR, 'DATA-DICTIONARY.md');
-const CLAUDE_MD = path.join(EST_DIR, '..', 'CLAUDE.md');
+// The pointer file sits one level above the estate — in pointer mode that level was given directly,
+// so it is used as-is rather than walked back down from an estate dir that may not exist yet.
+const TENANT = TENANT_DIR || path.join(EST_DIR, '..');
+const CLAUDE_MD = path.join(TENANT, 'CLAUDE.md');
 const BI_PATHS = new Set(['tile', 'new-tile', 'dashboard', 'retire', 'sync']);
 const PATHS = new Set(['rule', 'tile', 'new-tile', 'dashboard', 'retire', 'config', 'sync']);
 
@@ -87,6 +116,27 @@ function cap(which, label, detail) {
 function read(p) { return fs.readFileSync(p, 'utf8'); }
 function sha1(s) { return crypto.createHash('sha1').update(s.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 12); }
 function norm(s) { return s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' '); }
+
+// ---------- pointer mode ----------
+// C3–C7 only: no kickoff, no header, no register, no estate scan — so a tenant can be scored at any
+// time, not only when a change happens to be in flight. Exit 1 on any fail, per its enforcement.
+if (POINTER) {
+  if (!fs.existsSync(TENANT)) { console.log('--pointer: no such directory: ' + TENANT); process.exit(1); }
+  // IDENTITY, checked BEFORE the caps and deliberately NOT routed through cap(). Every cap below
+  // degrades to `info` when its surface is absent, so a directory that is not a tenant scored all
+  // `info` plus one C6 that passed on holding ten files or fewer, and printed "All checks passed"
+  // (found 2026-09-08 on an asset folder holding exactly ten). Absence of the surface is the
+  // failure here, not a breach of its size — and `--caps info` must not be able to silence it,
+  // which routing through cap() would have allowed.
+  if (!fs.existsSync(CLAUDE_MD)) fail('pointer file present',
+    'no CLAUDE.md at ' + TENANT + ' — not a tenant dir, so every check below measures nothing');
+  else ok('pointer file present', CLAUDE_MD);
+  if (!findEstate(TENANT)) fail('estate found below the tenant',
+    'no DATA-DICTIONARY.md in ' + TENANT + ' or in exactly one immediate subdir — C4 and C5 would measure nothing');
+  else ok('estate found below the tenant', EST_DIR);
+  scaffoldCaps();
+  report();
+}
 
 // ---------- header ----------
 let text = read(KICK);
@@ -218,36 +268,12 @@ if (seal) {
 } else if (phase === 'build') fail('header sealed', 'run `--seal` from the plan lane before handing off');
 else info('header not sealed yet', 'run `--seal` once the R rows are written');
 
-// ---------- P2 size caps ----------
-// Estate-wide, not per-kickoff: every run of the gate re-measures them, so bloat cannot creep back
-// in behind a change that happens not to touch the bloated surface. Every check prints a COUNT even
-// when clean — a check that reports nothing is indistinguishable from a check that never ran.
-{
-  // C1 — rule cell ≤ CAPS.rule chars. The register is the surface that turned into a log.
-  const measured = Object.entries(rows).map(([r, v]) => ({ r, n: v.ruleCell.length, shaped: v.shaped }));
-  const over = measured.filter(m => m.n > CAPS.rule).sort((a, b) => b.n - a.n);
-  // An unshaped row's cell is a lower bound (see rows[].ruleCell): under the cap it proves nothing.
-  const unmeasured = measured.filter(m => !m.shaped && m.n <= CAPS.rule);
-  const worst = measured.reduce((a, b) => (b.n > a.n ? b : a), { r: '-', n: 0 });
-  if (over.length) cap('rule', 'cap: rule cell ≤ ' + CAPS.rule,
-    over.length + ' of ' + measured.length + ' row(s) over (max ' + worst.n + ' chars, ' + worst.r + '): ' +
-    over.slice(0, 8).map(m => m.r + ' ' + m.n).join(', ') + (over.length > 8 ? ', …' : ''));
-  else ok('cap: rule cell ≤ ' + CAPS.rule, '0 of ' + measured.length + ' row(s) over (max ' + worst.n + ' chars, ' + worst.r + ')');
-  if (unmeasured.length) info('cap: rule cell — unmeasured', unmeasured.length + ' unshaped row(s) measured to the first unescaped `|` only, so their length is a lower bound: ' + unmeasured.map(m => m.r).join(', '));
-
-  // C2 — Dictionary preamble ≤ CAPS.preamble lines. Everything before the register header row.
-  if (dd) {
-    const hdrIdx = dd.split(/\r?\n/).findIndex(l => /^\| # \|/.test(l));
-    if (hdrIdx < 0) info('cap: Dictionary preamble', 'no `| # |` register header row found — cannot measure');
-    else {
-      const pre = dd.split(/\r?\n/).slice(0, hdrIdx);
-      const longest = pre.reduce((a, l, i) => (l.length > a.n ? { n: l.length, i: i + 1 } : a), { n: 0, i: 0 });
-      if (pre.length > CAPS.preamble) cap('preamble', 'cap: Dictionary preamble ≤ ' + CAPS.preamble + ' lines',
-        pre.length + ' lines (longest ' + longest.n + ' chars at line ' + longest.i + ')');
-      else ok('cap: Dictionary preamble ≤ ' + CAPS.preamble + ' lines', pre.length + ' lines (longest ' + longest.n + ' chars)');
-    }
-  }
-
+// ---------- C3–C7: the SCAFFOLD caps ----------
+// These measure the tenant pointer file, the estate README, the guides, the tenant root and the
+// Current-state bullets — surfaces that drift BETWEEN changes rather than because of one. They are
+// factored out of the caps block so `--pointer` can score exactly this set with no kickoff in hand;
+// C1 and C2 stay behind, because both need a parsed register the pointer mode never reads.
+function scaffoldCaps() {
   // C3 — client CLAUDE.md ≤ CAPS.claudeLines lines, no line > CAPS.claudeLine chars. It loads into
   // EVERY session, so its size is a tax on all of them. Two separate counts: a file can sit inside
   // the line budget purely because its log was appended onto one enormous line.
@@ -271,7 +297,10 @@ else info('header not sealed yet', 'run `--seal` once the R rows are written');
     if (stamp === undefined) info('cap: README stamp', 'no `**Last synced` line found — cannot measure');
     else if (stamp.length > CAPS.readmeStamp) cap('readme', 'cap: README stamp ≤ ' + CAPS.readmeStamp, stamp.length + ' chars (1 stamp line)');
     else ok('cap: README stamp ≤ ' + CAPS.readmeStamp, stamp.length + ' chars');
-  }
+  // No README meant this check printed NOTHING — the one outcome indistinguishable from a check
+  // that never ran, which is how the pointer mode came to greet a non-tenant directory with four
+  // lines and a pass. Every branch reports something now.
+  } else info('cap: README stamp', 'no README.md in ' + EST_DIR + ' — cannot measure');
 
   // C5 — guide "## Change log" entries are POINTER lines: one line, a date, and the kickoff that
   // holds the narrative. Counted per guide across the estate, not just the board in scope.
@@ -310,6 +339,85 @@ else info('header not sealed yet', 'run `--seal` once the R rows are written');
   else if (bad.length) cap('guides', 'cap: guide change log = pointer lines',
     bad.length + ' of ' + guides.length + ' guide(s) carry narrative (' + entries + ' entries over ' + sectionLines + ' lines): ' + bad.join('; '));
   else ok('cap: guide change log = pointer lines', guides.length + ' guide(s), ' + entries + ' entries, all pointer-shaped');
+
+  // C6 — loose files at the tenant root ≤ CAPS.looseFiles. Subdirectories are excluded on purpose: the
+  // measure is not how much a tenant holds, it is how much sits in the one place that has no owning
+  // folder. A root that is a dumping ground turns every "where does this go?" into a judgement call,
+  // and that judgement drifts per session.
+  if (fs.existsSync(TENANT)) {
+    const ents = fs.readdirSync(TENANT, { withFileTypes: true });
+    const files = ents.filter(d => d.isFile());
+    const dirs = ents.filter(d => d.isDirectory()).length;
+    const byExt = {};
+    for (const f of files) { const e = (path.extname(f.name) || '(none)').toLowerCase(); byExt[e] = (byExt[e] || 0) + 1; }
+    const hist = Object.entries(byExt).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([e, n]) => e + ' ' + n).join(', ');
+    const detail = files.length + ' loose file(s), ' + dirs + ' subdir(s) excluded' + (hist ? ' — ' + hist : '');
+    if (files.length > CAPS.looseFiles) cap('loose', 'cap: tenant root ≤ ' + CAPS.looseFiles + ' loose files', detail);
+    else ok('cap: tenant root ≤ ' + CAPS.looseFiles + ' loose files', detail);
+  } else info('cap: tenant root loose files', 'tenant dir not found at ' + TENANT);
+
+  // C7 — every Current-state bullet ≤ CAPS.stateBullet lines. This is the surface that becomes a
+  // log one continuation line at a time: each amendment is individually legal and the bullet grows
+  // anyway. A bullet POINTS at its record and lets the detail live there. Prose BEFORE the first
+  // bullet is section framing (the caps, the conventions) and is deliberately not measured — only
+  // bullet spans are, so the standing instruction block cannot redden its own file.
+  if (fs.existsSync(CLAUDE_MD)) {
+    const cl = read(CLAUDE_MD).split(/\r?\n/);
+    const start = cl.findIndex(l => /^##\s+Current state\b/i.test(l));
+    if (start < 0) info('cap: Current-state bullet ≤ ' + CAPS.stateBullet + ' lines',
+      'no `## Current state` heading in ' + path.basename(CLAUDE_MD) + ' — cannot measure');
+    else {
+      let end = cl.slice(start + 1).findIndex(l => /^## /.test(l));
+      end = end < 0 ? cl.length : start + 1 + end;
+      const isOpen = l => /^\s*[-*] /.test(l);
+      const bullets = [];
+      for (const l of cl.slice(start + 1, end)) {
+        if (isOpen(l)) bullets.push({ label: l.trim().replace(/^[-*]\s+/, '').replace(/\*\*/g, '').slice(0, 28), n: 1 });
+        else if (bullets.length && l.trim()) bullets[bullets.length - 1].n++;
+      }
+      const over = bullets.filter(b => b.n > CAPS.stateBullet).sort((a, b) => b.n - a.n);
+      const worst = bullets.reduce((a, b) => (b.n > a.n ? b : a), { label: '-', n: 0 });
+      if (over.length) cap('bullet', 'cap: Current-state bullet ≤ ' + CAPS.stateBullet + ' lines',
+        over.length + ' of ' + bullets.length + ' bullet(s) over (max ' + worst.n + ' lines, "' + worst.label + '"): ' +
+        over.slice(0, 8).map(b => '"' + b.label + '" ' + b.n).join(', ') + (over.length > 8 ? ', …' : ''));
+      else ok('cap: Current-state bullet ≤ ' + CAPS.stateBullet + ' lines',
+        '0 of ' + bullets.length + ' bullet(s) over (max ' + worst.n + ' lines)');
+    }
+  } else info('cap: Current-state bullet ≤ ' + CAPS.stateBullet + ' lines', 'no pointer file at ' + CLAUDE_MD);
+
+}
+
+// ---------- P2 size caps ----------
+// Estate-wide, not per-kickoff: every run of the gate re-measures them, so bloat cannot creep back
+// in behind a change that happens not to touch the bloated surface. Every check prints a COUNT even
+// when clean — a check that reports nothing is indistinguishable from a check that never ran.
+{
+  // C1 — rule cell ≤ CAPS.rule chars. The register is the surface that turned into a log.
+  const measured = Object.entries(rows).map(([r, v]) => ({ r, n: v.ruleCell.length, shaped: v.shaped }));
+  const over = measured.filter(m => m.n > CAPS.rule).sort((a, b) => b.n - a.n);
+  // An unshaped row's cell is a lower bound (see rows[].ruleCell): under the cap it proves nothing.
+  const unmeasured = measured.filter(m => !m.shaped && m.n <= CAPS.rule);
+  const worst = measured.reduce((a, b) => (b.n > a.n ? b : a), { r: '-', n: 0 });
+  if (over.length) cap('rule', 'cap: rule cell ≤ ' + CAPS.rule,
+    over.length + ' of ' + measured.length + ' row(s) over (max ' + worst.n + ' chars, ' + worst.r + '): ' +
+    over.slice(0, 8).map(m => m.r + ' ' + m.n).join(', ') + (over.length > 8 ? ', …' : ''));
+  else ok('cap: rule cell ≤ ' + CAPS.rule, '0 of ' + measured.length + ' row(s) over (max ' + worst.n + ' chars, ' + worst.r + ')');
+  if (unmeasured.length) info('cap: rule cell — unmeasured', unmeasured.length + ' unshaped row(s) measured to the first unescaped `|` only, so their length is a lower bound: ' + unmeasured.map(m => m.r).join(', '));
+
+  // C2 — Dictionary preamble ≤ CAPS.preamble lines. Everything before the register header row.
+  if (dd) {
+    const hdrIdx = dd.split(/\r?\n/).findIndex(l => /^\| # \|/.test(l));
+    if (hdrIdx < 0) info('cap: Dictionary preamble', 'no `| # |` register header row found — cannot measure');
+    else {
+      const pre = dd.split(/\r?\n/).slice(0, hdrIdx);
+      const longest = pre.reduce((a, l, i) => (l.length > a.n ? { n: l.length, i: i + 1 } : a), { n: 0, i: 0 });
+      if (pre.length > CAPS.preamble) cap('preamble', 'cap: Dictionary preamble ≤ ' + CAPS.preamble + ' lines',
+        pre.length + ' lines (longest ' + longest.n + ' chars at line ' + longest.i + ')');
+      else ok('cap: Dictionary preamble ≤ ' + CAPS.preamble + ' lines', pre.length + ' lines (longest ' + longest.n + ' chars)');
+    }
+  }
+
+  scaffoldCaps();
 }
 
 // ---------- plan phase stops here ----------
@@ -457,7 +565,9 @@ report();
 
 function report() {
   const fails = results.filter(r => r[0] === '✘').length;
-  console.log('bi-change check — ' + path.basename(KICK) + ' — phase ' + phase + (seal ? ' (seal)' : ''));
+  console.log(POINTER
+    ? 'bi-change check — --pointer ' + path.basename(TENANT) + ' — scaffold caps C3–C7'
+    : 'bi-change check — ' + path.basename(KICK) + ' — phase ' + phase + (seal ? ' (seal)' : ''));
   for (const [m, l, d] of results) console.log('  ' + m + ' ' + l + (d ? ' — ' + d : ''));
   console.log(fails ? '\n' + fails + ' check(s) failed.' : '\nAll checks passed.');
   process.exit(fails ? 1 : 0);
