@@ -6,6 +6,8 @@
 //   node kickoff_check.js <kickoff.md> --seal          plan lane only: write rule-text hashes into the header
 //   node kickoff_check.js --pointer <tenant dir>       scaffold caps only (C3–C8), no kickoff needed
 //                                                      fails outright if the dir is not a tenant
+//   ... --caps info|fail                               override every per-cap default at once,
+//                                                      for fixtures; some caps refuse to be silenced
 //
 // The kickoff's location fixes every path: the estate dir is its folder, the scripts dir is
 // ../scripts beside it, the Dictionary is DATA-DICTIONARY.md in the estate dir. Nothing here
@@ -16,12 +18,19 @@
 //   lane, model     who executes next (plan | build) and the model Adam routes it to
 //   rules           ["R62", ...]  R rows this change touches (may be [] for sync)
 //   dashboards      ["28006", ...]  boards touched (may be [] for rule / config)
+//   artifacts       ["explore-catalog-<date>.json", ...] reference files this change produces
+//                   or refreshes; each must exist in the estate dir at build phase. A `sync` of
+//                   a reference artifact names it HERE instead of naming a dashboard.
 //   scope           { elements: [ids the build may change], new_elements: [titles], retired_elements: [ids],
 //                     retired_titles: [titles that must vanish from the docs], filters: true|false }
 //   baseline        estate-<id>.pre-<slug>.json captured before the build (one board) or {id: file}
 //   retire_needles  strings that must be gone from every executable surface after the build (--verify)
 //   ratified        true once Adam has ruled on every "Open for Adam" row
-//   rule_text_sha1  written by --seal: {R62: "<sha1 of the rule cell>", ...} for EVERY register row
+//   rule_text_sha1  written by --seal: {R62: "<sha1 of the rule cell>", ...} for the rows named
+//                   in `rules` and ONLY those. The grain is header.rules, never the whole
+//                   register (narrowed 2026-09-08, P3; the why is beside the seal code below).
+//                   So appending an unrelated register row cannot redden a closed kickoff, and
+//                   clearing a seal never requires re-sealing over somebody else’s record.
 //
 // Done block contract (a fenced ```json block after the marker `<!-- bi-change:done -->`, inside the
 // Status section): built_at, harvest (snapshot file name per board), elements_touched, counts
