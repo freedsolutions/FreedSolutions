@@ -53,7 +53,11 @@ This file is the brief; it does not restate either.
 
 - <date> — written; nothing built.
 
-<!-- appended by the build lane — on a re-run REWRITE this block in place, never append a second one — verbatim shape:
+<!-- appended by the build lane — on a re-run REWRITE this block in place, never append a second one.
+     Leaving this wrapper comment around the filled-in block is FINE and is the convention; what is
+     NOT fine is shipping the `<ISO>` placeholder, which the gate rejects (`done block built_at`) and
+     which leaves the kickoff OPEN. A plan lane deletes this whole comment; only a build lane fills it.
+     Verbatim shape:
 <!-- bi-change:done -->
 ```json
 { "built_at": "<ISO>", "harvest": { "00000": "estate-00000.json" }, "elements_touched": [], "counts": { "before": {}, "after": {} }, "open_items": [] }

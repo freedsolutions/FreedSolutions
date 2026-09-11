@@ -187,6 +187,17 @@ Adam with a Ruling column · Status · paste-ready prompt), and a done block aft
 The paste-ready prompt is one line: `/bi-change build <absolute path to this kickoff .md>`. Ground
 rules are a pointer to this skill, not a copy.
 
+**The done block is what makes a kickoff CLOSED, and `built_at` is what makes the done block real.**
+Closedness is not cosmetic: it decides whether the seal check FAILS on in-grain rule drift or merely
+reports it, and whether the scope diff is waived. So `built_at` must parse as a real ISO timestamp —
+the template's `"<ISO>"`, or any other placeholder, is rejected and the kickoff stays OPEN (gate line
+`done block built_at`). A plan lane writes **no done block at all**; only the build lane writes one.
+Two things that are deliberately NOT tests: the block may sit inside the template's
+`<!-- appended by the build lane … -->` comment — the build lane fills that JSON in place and the
+wrapper stays, which is the convention, not drift — and `rule_text_sha1` must name every row in
+`header.rules` (an empty seal is valid only when `header.rules` is itself empty). Both placeholders
+the template ships once passed as the real thing; see `gate_selftest.js` group H.
+
 **A standing kickoff re-runs in place.** A kickoff that closes and then runs again on a cadence —
 the explore-catalog `sync` is the standing case — gets a NEW Status line every run and its done
 block **rewritten in place**, never a second done block appended. `block()` in the gate matches the
@@ -264,7 +275,7 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 110 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 121 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
   an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score
@@ -275,8 +286,20 @@ this skill can be trusted, and each is proven to fail, not merely to pass:**
   freshly scaffolded tenant and move to exactly one, naming it, when one template path or one
   pointer key is removed. **The scaffold** must stand a tenant up that passes both of its own gate
   runs, refuse a placeholder it cannot fill (naming it), and refuse to overwrite an existing tenant.
+  **Group H — the template's own placeholders:** a `built_at` of `"<ISO>"` must FAIL and leave the
+  kickoff OPEN (so it cannot waive its own seal), an empty `rule_text_sha1` against a non-empty
+  `header.rules` must FAIL at build phase and name those rules, and — the guard that encodes a
+  diagnosis that was wrong the first time — a REAL `built_at` nested inside the build-lane comment
+  must still count as a close, because three closed estate records are written that way.
   Exit 1 on any failed assertion. A check that cannot be made to
   fail has not been tested — this skill has shipped an inert check before.
+
+**And before fixing a gate, baseline it.** Run the CURRENT gate over every kickoff in a real estate,
+keep the per-check verdicts, then diff after the change and read WHICH records flip. Identical
+exit-code totals hide offsetting flips, so diff per check label, not per exit code. A fix that turns
+somebody's green red is either a true positive you must report, or — more often — the diagnosis is
+wrong: group H exists because three legitimately closed records were about to be reddened by a fix
+aimed at one unbuilt one.
 - `node scripts/skill_leak_proof.js` — no tracked skill file may name a client: tenant names
   (case-insensitively, which is what catches a lowercase filename token) or a concrete
   `clients/<real slug>/` path — and, SCOPED to `templates/client/`, no rule id `Rnn`, because a

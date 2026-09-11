@@ -163,6 +163,29 @@ function block(marker) {
   const m = text.match(re); if (!m) return null;
   try { return { obj: JSON.parse(m[1]), raw: m[0], json: m[1] }; } catch (e) { fail('header ' + marker + ' parses', e.message); return null; }
 }
+// A done block is only a CLOSE if its `built_at` is a real timestamp. `templates/kickoff.md` ships the
+// block with `"built_at": "<ISO>"` as a shape example, and the build lane fills that JSON IN PLACE — the
+// enclosing `<!-- appended by the build lane … -->` comment stays, which is the convention, not a defect
+// (measured 2026-09-10: of 4 estate kickoffs whose only marker is nested in that comment, 3 carry a real
+// built_at and are legitimately closed). So the discriminator CANNOT be the comment — rejecting nested
+// markers would have reddened three closed records. It is the VALUE: until 2026-09-10 nothing validated
+// `built_at`, so the literal `<ISO>` passed as a timestamp and an unbuilt kickoff read CLOSED, which
+// silently downgraded its own seal check from fail to report and let the done-block key check pass.
+// Closedness decides the seal grain and the scope-diff waiver, so a placeholder must never decide it.
+function builtAtIsReal(v) {
+  if (typeof v !== 'string' || !v.trim()) return false;
+  // must start with a 4-digit year and parse as a date; `<ISO>`, `TBD`, `-` and friends do not
+  if (!/^\d{4}-\d{2}-\d{2}/.test(v.trim())) return false;
+  return !Number.isNaN(Date.parse(v.trim()));
+}
+// The done block AS A CLOSE: null when absent, or present-but-not-a-real-close. `doneRaw` keeps the
+// block itself so the key check can still report what is wrong with it.
+function doneBlock() {
+  const b = block('done');
+  if (!b) return { raw: null, close: null };
+  return { raw: b, close: builtAtIsReal(b.obj.built_at) ? b : null };
+}
+
 const hdr = block('header');
 if (!hdr) { fail('header block present', 'expected `<!-- bi-change:header -->` followed by a ```json fence'); report(); }
 const H = hdr.obj;
@@ -261,7 +284,9 @@ if (seal) {
   // CLOSED: a done block means the change shipped and was verified at built_at. Canon moving after
   // that is expected, not a regression in this record — the same reasoning the scope diff already
   // applies to a newer live snapshot. Closed kickoffs report drift; open ones still fail on it.
-  const closed = !!block('done');
+  // A placeholder `built_at` is not a close (see builtAtIsReal): an unbuilt kickoff carrying the
+  // template's block must stay OPEN here, or it waives its own seal protection before it is built.
+  const closed = !!doneBlock().close;
   const inGrain = r => H.rules.includes(r);
   const hard = closed ? [] : changed.filter(inGrain);
   const soft = changed.filter(r => !hard.includes(r));
@@ -279,9 +304,26 @@ if (seal) {
   if (goneHard.length) fail('sealed rows still present', goneHard.join(', ') + ' — rows are struck through, never deleted');
   if (goneSoft.length) info('sealed rows gone (not failed)', goneSoft.length + ' row(s) no longer in the register — ' + why + ': ' + goneSoft.join(', '));
 } else if (H.rule_text_sha1) {
-  // An EMPTY seal is a real seal under P3: a sync / config change that rests on no rule has nothing
-  // to hash. Without this branch it fell through to "header sealed ✘" and could never go green.
-  ok('rule text unchanged since seal', 'sealed with an empty grain — header.rules is [], so this change rests on no rule text');
+  // An EMPTY seal is a real seal under P3 — but ONLY when header.rules is itself empty: a sync / config
+  // change that rests on no rule has nothing to hash. Without a branch here it fell through to
+  // "header sealed ✘" and could never go green.
+  //
+  // ⚠ Until 2026-09-10 this branch did not read H.rules at all. `templates/kickoff.md` ships
+  // `"rule_text_sha1": {}`, and an empty object is truthy, so an UNSEALED kickoff landed here, PASSED at
+  // --phase build, and printed "header.rules is []" while header.rules held the rows the check two lines
+  // above had just confirmed present. A change resting on two rules could reach the build lane with no
+  // seal at all and the gate would call it sealed. The message now states what header.rules actually
+  // holds, and a non-empty grain with an empty seal is a FAIL at build phase — which is exactly the
+  // `header sealed` failure the next branch already exists to raise.
+  const grain = (H.rules || []).filter(r => rows[r]);
+  if (!grain.length) ok('rule text unchanged since seal',
+    'sealed with an empty grain — header.rules is ' +
+    ((H.rules || []).length ? '[' + H.rules.join(', ') + '], none of which is in the register' : '[]') +
+    ', so this change rests on no rule text');
+  else if (phase === 'build') fail('header sealed',
+    'header.rules names ' + grain.join(', ') + ' but rule_text_sha1 is empty — run `--seal` from the plan lane before handing off');
+  else info('header not sealed yet',
+    'header.rules names ' + grain.join(', ') + ' and rule_text_sha1 is empty — run `--seal` once the rule text is final');
 } else if (phase === 'build') fail('header sealed', 'run `--seal` from the plan lane before handing off');
 else info('header not sealed yet', 'run `--seal` once the R rows are written');
 
@@ -573,8 +615,12 @@ for (const id of H.dashboards) {
   else if (!base || !fs.existsSync(path.join(EST_DIR, base))) { fail('baseline ' + id, 'header.baseline missing or not on disk: ' + base); continue; }
   else {
     const a = loadEstate(base), b = loadEstate(cur);
-    const doneBlk = block('done');
-    if (doneBlk && doneBlk.obj.built_at && b.harvested_at > doneBlk.obj.built_at) {
+    // Only a REAL close waives the scope diff. The old test was `doneBlk.obj.built_at` truthy plus a
+    // STRING comparison against it, so the placeholder `<ISO>` was truthy and compared as text: '2' sorts
+    // below '<', so it happened not to waive — by accident, not by design. One placeholder spelt `0000-…`
+    // would have waived every board silently.
+    const doneBlk = doneBlock().close;
+    if (doneBlk && b.harvested_at > doneBlk.obj.built_at) {
       // closed kickoff: later builds have moved the live snapshot on; its own verification happened at built_at
       info('scope ' + id, 'closed ' + doneBlk.obj.built_at + '; live snapshot ' + b.harvested_at + ' is newer, so the scope diff no longer applies');
       continue;
@@ -662,11 +708,18 @@ for (const n of H.retire_needles || []) {
 
 // ---------- Status + done block ----------
 if (!/^## [^\r\n]*Status/m.test(text)) fail('Status section', 'none — append it (as-built, dated)'); else ok('Status section', 'present');
-const done = block('done');
+const done = doneBlock().raw;
 if (!done) fail('done block', 'expected `<!-- bi-change:done -->` + ```json inside Status');
 else {
   const need = ['built_at', 'harvest', 'elements_touched', 'counts', 'open_items'].filter(k => !(k in done.obj));
-  if (need.length) fail('done block keys', 'missing ' + need.join(', ')); else ok('done block', 'built_at ' + done.obj.built_at + ', open items ' + (done.obj.open_items || []).length);
+  // The KEY being present was the whole test until 2026-09-10, so the template's `"built_at": "<ISO>"`
+  // satisfied it and an unbuilt kickoff closed green. A placeholder is named here rather than reported as
+  // a missing key, because the key is not missing — its value is not a timestamp.
+  if (need.length) fail('done block keys', 'missing ' + need.join(', '));
+  else if (!builtAtIsReal(done.obj.built_at)) fail('done block built_at',
+    JSON.stringify(done.obj.built_at) + ' is not a timestamp — the build lane writes a real ISO built_at; ' +
+    'until it does this kickoff is OPEN, not closed');
+  else ok('done block', 'built_at ' + done.obj.built_at + ', open items ' + (done.obj.open_items || []).length);
 }
 
 report();

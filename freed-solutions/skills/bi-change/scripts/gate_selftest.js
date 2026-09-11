@@ -90,12 +90,28 @@ function ddPreamble(n, shape = 'v1') {
   return fill.length ? fill.join('\n') + '\n' + body : body;
 }
 
+// `done`:  false          no done block at all (an open kickoff)
+//          true           a real close — an ISO built_at
+//          'placeholder'  the TEMPLATE's shape example, built_at `<ISO>` — not a close
+//          'nested'       a real close still wrapped in the template's `<!-- appended by … -->`
+//                         comment, which is how the build lane has written it since 2026-09-05 and
+//                         therefore MUST keep counting as a close (group H7)
+// `seals`: null = key absent · {} = the template's empty placeholder · {Rn: hash} = a real seal.
+//          An empty object is truthy, which is the whole reason H4/H5 exist.
 function kickoff({ rules = ['R1'], seals = null, done = false, kpath = 'rule' }) {
   const hdr = {
     path: kpath, lane: 'build', model: 'opus', rules, dashboards: [], scope: {},
     baseline: null, ratified: true,
   };
   if (seals) hdr.rule_text_sha1 = seals;
+  const doneJson = built => JSON.stringify(
+    { built_at: built, harvest: {}, elements_touched: [], counts: {}, open_items: [] }, null, 2);
+  const doneLines = {
+    true: ['<!-- bi-change:done -->', '```json', doneJson('2026-09-08T00:00:00Z'), '```'],
+    placeholder: ['<!-- bi-change:done -->', '```json', doneJson('<ISO>'), '```'],
+    nested: ['<!-- appended by the build lane — verbatim shape:',
+      '<!-- bi-change:done -->', '```json', doneJson('2026-09-08T00:00:00Z'), '```', '-->'],
+  }[String(done)] || ['- open, not built'];
   return [
     '# Fixture kickoff',
     '',
@@ -112,12 +128,7 @@ function kickoff({ rules = ['R1'], seals = null, done = false, kpath = 'rule' })
     '',
     '## Status',
     '',
-    ...(done ? [
-      '<!-- bi-change:done -->',
-      '```json',
-      JSON.stringify({ built_at: '2026-09-08T00:00:00Z', harvest: {}, elements_touched: [], counts: {}, open_items: [] }, null, 2),
-      '```',
-    ] : ['- open, not built']),
+    ...doneLines,
     '',
   ].join('\n');
 }
@@ -732,6 +743,101 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
     const p = runPointer(path.join(dest1, 'fixture', 'fxtenant'), null);
     check('SCAFFOLD: the refused target is unharmed (--pointer still exit 0)', p.status === 0,
       'exit ' + p.status);
+  }
+}
+
+// =============================================================================================
+// H. THE TWO TEMPLATE PLACEHOLDERS (2026-09-10). `templates/kickoff.md` ships `"built_at": "<ISO>"`
+// and `"rule_text_sha1": {}`, and until this change the gate could not tell either from the real
+// thing — so a kickoff that had built nothing read CLOSED (which downgrades its own seal check from
+// fail to report) and a kickoff resting on two rules could reach the build lane unsealed and be
+// called sealed.
+//
+// ⚠ H7 IS THE GUARD THAT MATTERS MOST, and it encodes a diagnosis that was wrong the first time.
+// The obvious reading was "the done marker is nested inside an HTML comment, so reject nested
+// markers". Measuring first: of the 4 estate kickoffs whose only marker is nested, THREE carry a
+// real built_at and are legitimately closed built records — the build lane fills that JSON in place
+// and leaves the wrapper, and has since 2026-09-05. Rejecting the nesting would have reddened three
+// closed records to catch one unbuilt one. The discriminator is the VALUE, never the placement, and
+// H7 fails loudly if anyone re-introduces the placement test.
+// =============================================================================================
+{
+  // H1 — the clean close still reads closed. The regression floor for everything below.
+  buildClean();
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('H1: a real ISO built_at is a CLOSE', mark(r.out, 'done block') === '✔' && /CLOSED/.test(line(r.out, 'rule text unchanged since seal')),
+      line(r.out, 'done block').trim());
+  }
+
+  // H2 — the template placeholder is NOT a close, and says why.
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1'], seals: { R1: sha1(RULE1) }, done: 'placeholder' }));
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('H2: built_at "<ISO>" FAILS the done block', mark(r.out, 'done block built_at') === '✘',
+      line(r.out, 'done block built_at').trim());
+    check('H2: …and the kickoff reads OPEN, not CLOSED', /OPEN/.test(line(r.out, 'rule text unchanged since seal')),
+      line(r.out, 'rule text unchanged since seal').trim());
+  }
+
+  // H3 — the consequence that made it worth fixing: a placeholder must not waive the seal. With
+  // in-grain rule text moved, a CLOSED kickoff reports and an OPEN one fails. Before this change the
+  // placeholder bought the report.
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), dd([['R1', RULE1 + ' MOVED.'], ['R2', RULE2]]));
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1'], seals: { R1: sha1(RULE1) }, done: 'placeholder' }));
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('H3: a placeholder built_at does NOT waive the seal on in-grain drift',
+      mark(r.out, 'rule text unchanged since seal') === '✘',
+      line(r.out, 'rule text unchanged since seal').trim());
+  }
+
+  // H4 — an empty seal with a non-empty grain FAILS at build phase.
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1', 'R2'], seals: {}, done: true }));
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('H4: rule_text_sha1 {} with a non-empty header.rules FAILS at build',
+      mark(r.out, 'header sealed') === '✘', line(r.out, 'header sealed').trim());
+    check('H4: …and the message names the real rules, never "[]"',
+      /R1, R2/.test(line(r.out, 'header sealed')) && !/header\.rules is \[\]/.test(r.out),
+      line(r.out, 'header sealed').trim());
+  }
+
+  // H5 — the same fixture at PLAN phase is not a failure: the plan lane has not sealed yet, which is
+  // normal. It must still say so truthfully rather than claiming an empty grain.
+  {
+    const r = run('fx-kickoff-2026-09-08.md', null);
+    check('H5: the same unsealed kickoff at --phase plan does not fail', r.status === 0, 'exit ' + r.status);
+    check('H5: …and the plan-phase line names the rules awaiting a seal',
+      /R1, R2/.test(line(r.out, 'header not sealed yet')), line(r.out, 'header not sealed yet').trim());
+  }
+
+  // H6 — the legitimate empty seal still passes: a sync/config change resting on no rule.
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: [], seals: {}, kpath: 'sync', done: true }));
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('H6: rule_text_sha1 {} with header.rules [] is still a valid empty seal',
+      mark(r.out, 'rule text unchanged since seal') === '✔' && /empty grain/.test(line(r.out, 'rule text unchanged since seal')),
+      line(r.out, 'rule text unchanged since seal').trim());
+  }
+
+  // H7 — a REAL close wrapped in the template's comment is still a close. See the group note.
+  buildClean();
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1'], seals: { R1: sha1(RULE1) }, done: 'nested' }));
+  {
+    const r = runBuild('fx-kickoff-2026-09-08.md');
+    check('H7: a real built_at nested in the build-lane comment IS a close (3 estate records rely on this)',
+      mark(r.out, 'done block') === '✔' && /CLOSED/.test(line(r.out, 'rule text unchanged since seal')),
+      line(r.out, 'done block').trim());
   }
 }
 
