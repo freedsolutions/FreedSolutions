@@ -319,3 +319,96 @@ menu publishes.
 the toggle and on whether that item was hand-edited in Ecom Admin. Never assert menu impact from
 Backoffice data alone. The "broken integration" population is a distinct, un-audited cleanup lane
 (relates to R16 Ecom-Admin override work).
+
+## Backoffice bulk-edit grid [PROBE 2026-09-13]
+
+The Catalog grid (`/products/catalog`) is a virtualised MUI DataGrid with two bulk
+write paths. Both act on the CURRENT tenant catalog; neither is a Looker surface.
+
+### Scope and selection
+
+- Retired items are behind a filter: **More → Retired products → Save**. It defaults
+  OFF, so the grid opens on ACTIVE items only.
+- Filters (Brand / Vendor / Category / Tags) offer only values present on ACTIVE
+  records — a platform defect. Work around it with the search box and column sorting
+  (shift-click multi-sorts, though the server governs the final sort order).
+- Search is a single case-insensitive substring match over the row. A SKU works. A
+  comma-separated list of SKUs matches nothing.
+- Ticking any row reveals a **Bulk actions (N)** button; the button is ABSENT when the
+  selection is empty. That absence is the ONLY trustworthy emptiness signal.
+- The header checkbox opens a menu: Select all (every page) / Select page / Select a
+  quantity / **Select none**.
+- **Selection survives a search change.** Search a SKU, tick it, search the next, tick
+  it — the count accumulates. This is how to build an exact set on a virtualised grid
+  without scrolling, and `(N)` is the invariant to assert before saving.
+- **Selection also survives a save**, and clearing the query does NOT clear it. Use
+  **Select none** between groups, or a later edit silently re-hits the previous set.
+
+### Path A — Bulk edit product details (selection-scoped)
+
+Modal "Catalog bulk edit": a Field dropdown, a value box, `+ Add field` for several
+fields in one save, a trash icon per row, Cancel / Save. Roughly 25 settable fields
+including price, cost, flower equivalent, grams/concentration, name, strain, flavor,
+category, tags and the online/POS availability flags.
+
+- Field LABELS differ from their internal names (e.g. "Flower equivalent" →
+  `FlowerEquivalent`, "Grams/concentration" → `Grams`). Assert the internal name
+  after selecting, not the label.
+- "Grams/concentration" is the field the catalog export calls `Product grams`.
+- The Field dropdown is a MUI Select: it opens on **mousedown**, not `click()`.
+- The value box is a plain MUI text input. Real keystrokes work, and a synthetic
+  native-setter + `input` event also updates React state here and saves correctly —
+  unlike the product FORM's Autocomplete-backed fields, which reject synthetic input.
+- Click the value box and CONFIRM focus before typing: a click while the field
+  dropdown is still closing lands on the dialog container and the keystrokes vanish.
+- Write endpoint `POST /api/product-master/update-products-multiple` → `{"Result":true}`,
+  followed by a grid refetch. Success also shows a "Products updated." toast.
+
+### Path B — Bulk update cost and prices via CSV (BETA)
+
+In both the top-level Actions menu and the Bulk actions menu. Opens a "Before you
+upload" freshness interstitial, then an upload drop zone.
+
+- Contract: the file needs **ProductId** plus at least one of **Price** or **Cost**;
+  add Location price / Location cost only for location-level pricing. **All other
+  columns are ignored.**
+- ProductId is available as a grid column (historically hidden; enable it in the
+  column configuration). Export from the same table to get it.
+- A row supplying both Price and Cost where only one differs produces a genuine no-op
+  on the other. Reconcile an upload as `changed + already-at-target = rows × columns`,
+  never `changed = rows × columns`.
+
+### Traps
+
+1. **Save is enabled with an EMPTY value box.** Saving then blanks that field across
+   the whole selection. Guard on field + non-empty value + expected count immediately
+   before every Save.
+2. **`Bulk unretire products` sits in the same menu**, adjacent to the bulk-edit and
+   price-upload entries. On a retired selection it is the catastrophic neighbour.
+3. **Reloading clears the selection but ALSO drops the Retired filter**, landing on the
+   active catalog. Never reload as a "reset" without re-applying the filter and
+   re-checking the row count.
+4. **Visible checkboxes can all read unchecked while the selection still holds N.**
+   Counting checked DOM checkboxes is not an emptiness check.
+5. **`innerText` on a row collapses blank cells and mis-aligns columns.** Read cells
+   individually and map by header NAME — the column set changes between sessions, and
+   an inserted column shifts every positional index.
+6. Grid cells render flower equivalent and grams WITH a `g` suffix; the bulk-edit input
+   takes the bare number.
+7. Cost is stored to four decimals. Diff money on a half-cent tolerance, never string
+   equality.
+8. The page-side coordinate frame can differ from the screenshot frame. Scale a
+   `getBoundingClientRect()` value by `screenshotWidth / window.innerWidth` before
+   using it as a click coordinate, or drive elements by reference instead.
+
+### Recipe
+
+Per group of items sharing one target value: **Select none** and assert 0 → search
+each SKU, verify the row's SKU and that it carries no do-not-use tag, tick it, assert
+the count rose by exactly one → open the modal, set the field, assert the internal
+name, set the value → guard field + value + count → Save → read every touched SKU back
+by header-name lookup → **Select none**. Keep a done-list on disk so an interrupted run
+resumes without re-writing. A group whose read-back disagrees is a conflict: stop that
+group, never retry blind. Certify the whole run with one FULL-ROW diff of a fresh
+export against a pre-run baseline, attributing every changed cell to a known
+population — an unattributed cell is the finding.
