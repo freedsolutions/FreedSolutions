@@ -302,8 +302,51 @@ if (ARGS[0] === '--stale') {
     if (!missing) console.log(`ok         [${dash}] all ${tiles.length} live tile titles and ${(est.filters || []).length} dashboard filters appear in SOP, WI and guide`);
   }
 
-  const problems = stale + rstale + ahead + content;
-  console.log(problems ? `\n${stale} stale stamp(s), ${rstale} render(s) behind, ${ahead} dictionary-ahead, ${content} content gap(s) — run the runbook (BI-SOP.md §2).` : '\nAll documents current, renders current, dictionary in step, content matches the live tiles and filters.');
+  // TENANT PINS (2026-09-15): every query reachable from a live element must carry BOTH tenant pins
+  // at query level. A query minted by a later build inherits nothing from the board, so an estate
+  // drifts ONE query at a time while every stamp, render and content check reads current — the seven
+  // that drifted on one board were all minted by builds after the rule and none of them was visible
+  // here. Reachable = bound to an element directly, or a source query of a merge an element renders.
+  // A query id that is reachable but absent from this harvest cannot be judged and is counted, never
+  // passed silently: a check is only as wide as the rows it can actually read.
+  console.log('\n== Tenant pins on reachable queries ==');
+  let pins = 0;
+  const PIN_KEYS = ['lsp_location.lsp_name', 'lsp_location.is_sandbox'];
+  const asObj = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v && typeof v === 'object' ? v : {}; };
+  for (const [dash, file] of Object.entries(ESTATES)) {
+    const { est } = loadEstate(file);
+    const byQid = {}, byMid = {};
+    for (const el of est.elements || []) {
+      if (el.query_id) (byQid[el.query_id] = byQid[el.query_id] || []).push(el);
+      if (el.merge_result_id) (byMid[el.merge_result_id] = byMid[el.merge_result_id] || []).push(el);
+      if (el.look_query_id) (byQid[el.look_query_id] = byQid[el.look_query_id] || []).push(el);
+    }
+    const reach = new Map();
+    for (const [qid, els] of Object.entries(byQid)) reach.set(qid, els.slice());
+    for (const [mid, m] of Object.entries(est.merges || {})) {
+      if (!byMid[mid]) continue;                       // merge nothing renders is not reachable
+      for (const sq of m.source_queries || []) {
+        const els = reach.get(sq.query_id) || [];
+        for (const el of byMid[mid]) if (!els.includes(el)) els.push(el);
+        reach.set(sq.query_id, els);
+      }
+    }
+    let bad = 0, unread = 0;
+    for (const [qid, els] of reach) {
+      const q = (est.queries || {})[qid];
+      if (!q) { unread++; continue; }
+      const missing = PIN_KEYS.filter(k => !(k in asObj(q.filters)));
+      if (!missing.length) continue;
+      bad++; pins++;
+      const owners = els.map(el => `${el.id} "${el.title || '(untitled)'}"`).join(', ') || '(no live tile)';
+      console.log(`** TENANT PIN ** [${dash}] query ${qid} (${q.view || q.model || '?'}) missing ${missing.join(' + ')} -> tiles: ${owners}`);
+    }
+    if (!bad) console.log(`ok         [${dash}] all ${reach.size - unread} readable reachable quer${reach.size - unread === 1 ? 'y' : 'ies'} carry both tenant pins${unread ? ` (${unread} reachable id(s) not in this harvest — NOT judged)` : ''}`);
+    else if (unread) console.log(`           [${dash}] plus ${unread} reachable id(s) not in this harvest — NOT judged`);
+  }
+
+  const problems = stale + rstale + ahead + content + pins;
+  console.log(problems ? `\n${stale} stale stamp(s), ${rstale} render(s) behind, ${ahead} dictionary-ahead, ${content} content gap(s), ${pins} unpinned quer${pins === 1 ? 'y' : 'ies'} — run the runbook (BI-SOP.md §2).` : '\nAll documents current, renders current, dictionary in step, content matches the live tiles and filters, every reachable query pinned.');
   process.exit(problems ? 1 : 0);
 }
 
