@@ -278,6 +278,16 @@ type; it only fills empty type/potency fields. Wrong matches are corrected by se
 match and saving again; the library connection is removed by editing the Product Name away from
 the pre-populated catalog name.
 
+⚠️ **[PROBE 2026-09-15] "It only fills empty fields" is wrong for the Backoffice link path: it fills
+NOTHING.** The earlier reading of the line above — that a link inherits a description or an image
+into a blank local field — does not survive a full-population check. The **Manage brand updates**
+dialog that the picker raises ships with **every checkbox unchecked**, and the adjacent **Link
+without updates** button takes the link and nothing else. Linking a large retired population through
+that path moved the link column and no other field: descriptions stayed blank where they were blank,
+images stayed absent where they were absent. Treat the documented auto-fill as describing the
+**Connect / E-Commerce admin** match, not `Backoffice → Catalog → Global Brand Catalog`. If you want
+a field filled, check its box deliberately or write it yourself.
+
 ⚠️ **[PROBE] contradicts this on the Backoffice path (pilot tenant, 2026-08-30).** Auditing 337 Backoffice
 Global-Brand-Catalog links: **26 (~8%) still serve a copy of the catalog image as it existed when
 the link was made**, up to 17 months stale (e.g. Rove Skywalker OG local 2024-04-25 vs brand
@@ -577,11 +587,49 @@ from an already-tagged item inherits it.
   `retailerCatalog` (your own matching item, including its strain id and its
   brand-catalog link id). `totalCount: 0` is real evidence of absence; an empty rendered
   grid is not.
+- **`search-catalog-products` IS brand-scopable — the key is PLURAL** [PROBE 2026-09-15].
+  `BrandCatalogBrandIds` takes an **array**. The singular spellings are accepted by the
+  endpoint and **silently ignored**, returning the unscoped result set, which is what an
+  earlier probe measured and wrongly recorded as "cannot be scoped by brand". `SearchTerm: ""`
+  is legal and, with the brand ids set, enumerates that brand's whole catalog.
+- **The 20 rows are a default PAGE SIZE, not a ceiling** [PROBE 2026-09-15]. Page with
+  `Limit` **and** `Offset` together: `Limit` on its own **422s**, and `Offset >= 10000`
+  **500s** while `meta.totalCount` saturates at 10,000. Within those bounds absence is
+  provable — but a 20-row answer alone never is, so never read "20 returned" as "20 exist".
+- **The picker commits the link server-side; the product form's Save is NOT part of it**
+  [PROBE 2026-09-15]. Choosing a candidate and pressing **Link without updates** fires
+  `POST /api/v2/brands-catalog/link-catalog-product` with
+  `{…ctx, BrandCatalogBrandId, BrandCatalogBrandName, BrandCatalogProductId,
+  BrandCatalogProductVersion: 0, ProductId}` and the link is live on that response. Driving
+  the UI additionally fires a full-form `update-product`; the API path does not need it and
+  does not send it. This is why the picker works on a product whose form will not Save —
+  see the retired read/write path below.
 - `status` (`Active` / archived) **is present on the global payload**, so the
   is-it-Active check is machine-readable from this surface rather than eyeball-only.
 - **A near-name hit is not your record.** One returned row sharing a word with your
   strain is a different cultivar. Linking it writes that product's art and description
   onto yours. No linkable record is a normal outcome; leave it unlinked.
+
+### Retired products: a separate endpoint, a form that will not Save, a blank export column [PROBE 2026-09-15]
+
+- **Retired products live on their own read.** `get-product-master-retired-v2` returns them;
+  `get-product-master-v2` returns **active only**. The grid's *Retired products* toggle is a **saved
+  user preference**, not a request-body flag — flipping it changes which endpoint the page calls, so
+  a replayed request body will not follow the toggle and a harvest that only ever calls the active
+  endpoint reports a retired population of zero without erroring.
+- **`IsCannabisProduct` is the STRING `"Yes"` / `"No"` on both endpoints**, not a boolean. A
+  truthiness test (`if (p.IsCannabisProduct)`) is true for `"No"` as well, so it counts **every** row
+  as cannabis and silently inflates any survivor set built on it. Compare to `"Yes"`.
+- **A retired item's product form will not Save — but the link picker does not need it.** Selecting
+  a candidate commits through `link-catalog-product` on its own (see the picker section above), so a
+  retired product can be linked **without unretiring it**. Verified on retired items linked through
+  the picker and read back on `get-product-master-retired-v2`. Any edit that DOES go through the form
+  still needs unretire → edit → retire.
+- ⚠️ **The Catalog export cannot be used to read a retired item's link state.** `Brand catalog
+  product` exports **blank on retired rows even when the link exists and the product card shows it** —
+  measured across a full retired export at zero populated rows against hundreds of links written and
+  read back on the retired endpoint the same day, while the ACTIVE export matched the API exactly.
+  Read retired link state from the API harvest, never from that column. Filed as a Dutchie bug.
 
 ### Invoice intake caveat
 
