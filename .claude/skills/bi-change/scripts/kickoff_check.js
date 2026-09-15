@@ -178,6 +178,24 @@ function builtAtIsReal(v) {
   if (!/^\d{4}-\d{2}-\d{2}/.test(v.trim())) return false;
   return !Number.isNaN(Date.parse(v.trim()));
 }
+// Two timestamps decide the scope-diff waiver — the done block's `built_at` and the live snapshot's
+// `harvested_at` — and they are NOT written in the same shape. The build lane writes whatever the
+// machine handed it: `…Z` (42 of 45 estate closes), a `-04:00` offset (2), once a bare date. A STRING
+// compare reads those shapes as TEXT, and text puts `-04:00` before `Z` at the very same instant, so a
+// harvest that PREDATES the close can read as newer and the diff is waived while the run prints green.
+// So compare INSTANTS, never characters. `instant()` is the only reader of either value.
+function instant(v) { const t = Date.parse(String(v == null ? '' : v).trim()); return Number.isNaN(t) ? null : t; }
+// A shape worth naming in the output. `Z` is the convention and says nothing (null). A bare date and a
+// zoneless stamp both PARSE — the first as midnight UTC, the second as this machine's local time — so
+// they are real instants and stay real closes, but neither is the instant anybody built anything at,
+// and a reader comparing them by eye deserves to be told which one they are looking at.
+function tsForm(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return 'bare date, read as midnight UTC';
+  if (/[+-]\d{2}:?\d{2}$/.test(s)) return 'UTC offset';
+  if (/Z$/i.test(s)) return null;
+  return 'no zone, read as this machine’s local time';
+}
 // The done block AS A CLOSE: null when absent, or present-but-not-a-real-close. `doneRaw` keeps the
 // block itself so the key check can still report what is wrong with it.
 function doneBlock() {
@@ -718,12 +736,29 @@ for (const id of H.dashboards) {
     // Only a REAL close waives the scope diff. The old test was `doneBlk.obj.built_at` truthy plus a
     // STRING comparison against it, so the placeholder `<ISO>` was truthy and compared as text: '2' sorts
     // below '<', so it happened not to waive — by accident, not by design. One placeholder spelt `0000-…`
-    // would have waived every board silently.
+    // would have waived every board silently. `builtAtIsReal` now settles the placeholder, and the
+    // comparison is on INSTANTS (see `instant`): text sorts a `-04:00` close AHEAD of a `Z` harvest taken
+    // at the same moment, which waived a diff that should have run. The waiver is the dangerous branch,
+    // so every way of not knowing — a `built_at` that is no close, a `harvested_at` that will not parse —
+    // runs the diff and says why. Refusing to waive costs a measurement; waiving wrongly costs the gate.
+    // The label `scope <id>` belongs to the scope VERDICT and carries exactly one line per board, waived or
+    // measured — a baseline diffs per check label, so a second line under a label it already owns reads as
+    // a flip that never happened. Anything this branch has to say about the timestamps goes out under its
+    // own label, and only when there is something to say.
     const doneBlk = doneBlock().close;
-    if (doneBlk && b.harvested_at > doneBlk.obj.built_at) {
-      // closed kickoff: later builds have moved the live snapshot on; its own verification happened at built_at
-      info('scope ' + id, 'closed ' + doneBlk.obj.built_at + '; live snapshot ' + b.harvested_at + ' is newer, so the scope diff no longer applies');
-      continue;
+    if (doneBlk) {
+      const builtTs = instant(doneBlk.obj.built_at), harvTs = instant(b.harvested_at);
+      const form = tsForm(doneBlk.obj.built_at);
+      if (form) info('scope ' + id + ' waiver', 'built_at ' + doneBlk.obj.built_at + ' is a ' + form +
+        ' — compared as an instant against the snapshot’s ' + b.harvested_at);
+      if (harvTs === null) {
+        info('scope ' + id + ' waiver', 'the live snapshot’s harvested_at ' + JSON.stringify(b.harvested_at) +
+          ' does not parse as a timestamp, so a close cannot waive anything — diffing');
+      } else if (builtTs !== null && harvTs > builtTs) {
+        // closed kickoff: later builds have moved the live snapshot on; its own verification happened at built_at
+        info('scope ' + id, 'closed ' + doneBlk.obj.built_at + '; live snapshot ' + b.harvested_at + ' is newer, so the scope diff no longer applies');
+        continue;
+      }
     }
     if (b.harvested_at <= a.harvested_at) fail('re-harvest ' + id, cur + ' (' + b.harvested_at + ') is not newer than the baseline (' + a.harvested_at + ')');
     else ok('re-harvest ' + id, b.harvested_at);
@@ -819,7 +854,9 @@ else {
   else if (!builtAtIsReal(done.obj.built_at)) fail('done block built_at',
     JSON.stringify(done.obj.built_at) + ' is not a timestamp — the build lane writes a real ISO built_at; ' +
     'until it does this kickoff is OPEN, not closed');
-  else ok('done block', 'built_at ' + done.obj.built_at + ', open items ' + (done.obj.open_items || []).length);
+  else ok('done block', 'built_at ' + done.obj.built_at +
+    ((f) => f ? ' — a ' + f + ', real but not the convention' : '')(tsForm(done.obj.built_at)) +
+    ', open items ' + (done.obj.open_items || []).length);
 }
 
 report();

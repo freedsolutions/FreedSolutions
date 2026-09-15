@@ -131,16 +131,21 @@ function ddPreamble(n, shape = 'v1') {
 //                         therefore MUST keep counting as a close (group H7)
 // `seals`: null = key absent · {} = the template's empty placeholder · {Rn: hash} = a real seal.
 //          An empty object is truthy, which is the whole reason H4/H5 exist.
-function kickoff({ rules = ['R1'], seals = null, done = false, kpath = 'rule', ratified = true }) {
+// `builtAt` overrides the close's timestamp (group K compares INSTANTS across three written shapes:
+// `…Z`, a `-04:00` offset and a bare date). `dashboards` / `baseline` / `scope` let a fixture reach
+// the estate scope diff at all — with `dashboards: []` the whole waiver branch is unreachable, which
+// is why the defect group K covers could sit in the gate unmeasured.
+function kickoff({ rules = ['R1'], seals = null, done = false, kpath = 'rule', ratified = true,
+                   builtAt = '2026-09-08T00:00:00Z', dashboards = [], baseline = null, scope = {} }) {
   const hdr = {
-    path: kpath, lane: 'build', model: 'opus', rules, dashboards: [], scope: {},
-    baseline: null, ratified,
+    path: kpath, lane: 'build', model: 'opus', rules, dashboards, scope,
+    baseline, ratified,
   };
   if (seals) hdr.rule_text_sha1 = seals;
   const doneJson = built => JSON.stringify(
     { built_at: built, harvest: {}, elements_touched: [], counts: {}, open_items: [] }, null, 2);
   const doneLines = {
-    true: ['<!-- bi-change:done -->', '```json', doneJson('2026-09-08T00:00:00Z'), '```'],
+    true: ['<!-- bi-change:done -->', '```json', doneJson(builtAt), '```'],
     placeholder: ['<!-- bi-change:done -->', '```json', doneJson('<ISO>'), '```'],
     nested: ['<!-- appended by the build lane — verbatim shape:',
       '<!-- bi-change:done -->', '```json', doneJson('2026-09-08T00:00:00Z'), '```', '-->'],
@@ -1008,6 +1013,96 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
     const r = run('fx-kickoff-2026-09-08.md', 'fail');
     check('J7: a register with no `Since` column reports D1 as `·`, naming the columns it found',
       mark(r.out, D1) === '·' && /no `Since` column/.test(line(r.out, D1)), line(r.out, D1).trim());
+  }
+}
+
+// =============================================================================================
+// K. THE SCOPE-DIFF WAIVER COMPARES INSTANTS, NOT CHARACTERS (2026-09-15).
+//
+// A closed kickoff waives its scope diff once the live snapshot has moved on past the close: the
+// build verified the board at `built_at`, and later builds have since changed it, so a diff against
+// that old baseline measures other people's work. The test for "has moved on past" was
+// `b.harvested_at > doneBlk.obj.built_at` — a JavaScript STRING comparison of two ISO stamps that
+// are not written in the same shape. The build lane writes whatever the machine handed it: 42 of the
+// 45 closes in the reference estate end in `Z`, two carry a `-04:00` offset, one is a bare date.
+// Text sorts `2026-09-09T21:05:00-04:00` BELOW `2026-09-10T01:05:00Z` although they are the SAME
+// INSTANT, so a harvest that does not postdate the close reads as though it does and the diff is
+// waived — silently, with the run printing green, which is the worst way for a gate to be wrong.
+//
+// ⚠ WHY THIS NEEDED A FIXTURE AND NOT A RE-RUN. Baselining the gate over all 46 kickoffs in the
+// reference estate before and after the fix produced ZERO verdict flips. Not because the defect is
+// imaginary, but because neither offset-stamped kickoff declares a dashboard, so neither one reaches
+// this branch at all, and the bare-date one waives under both readings. The defect is latent: it
+// needs a kickoff that is closed with an offset stamp AND carries a baseline. K1 is that kickoff.
+// A fix whose only evidence is "nothing changed" has not been shown to do anything — K1 is the
+// falsification, and it fails against the pre-2026-09-15 gate.
+// =============================================================================================
+{
+  // A board pair the scope diff can actually read: same element, one title changed, in scope. The
+  // baseline is always older than the current snapshot so the `re-harvest` check cannot fire and
+  // confuse the assertion — the only thing these fixtures vary is `built_at`.
+  const BOARD = '99999';
+  const HARVEST = '2026-09-10T01:05:00.000Z';
+  function estatePair() {
+    const el = (title) => ({ id: '900001', type: 'vis', title, query_id: 'q1' });
+    fs.writeFileSync(path.join(EST, 'estate-' + BOARD + '.pre-fx.json'),
+      JSON.stringify({ harvested_at: '2026-09-09T00:00:00.000Z', elements: [el('Fixture tile')], filters: [] }, null, 2));
+    fs.writeFileSync(path.join(EST, 'estate-' + BOARD + '.json'),
+      JSON.stringify({ harvested_at: HARVEST, elements: [el('Fixture tile v2')], filters: [] }, null, 2));
+  }
+  function scopeFixture(builtAt) {
+    buildClean();
+    estatePair();
+    fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'), kickoff({
+      rules: ['R1'], seals: { R1: sha1(RULE1) }, done: true, kpath: 'tile', builtAt,
+      dashboards: [BOARD], baseline: 'estate-' + BOARD + '.pre-fx.json', scope: { elements: ['900001'] },
+    }));
+    return runBuild('fx-kickoff-2026-09-08.md');
+  }
+  // `line()` matches a label PREFIX, and `scope 99999 waiver` shares its prefix with the verdict
+  // line `scope 99999`. Ask for the em dash so the verdict is read, never the note beside it — a
+  // prefix collision here would have these assertions grading the wrong line.
+  const verdict = (out) => line(out, 'scope ' + BOARD + ' —');
+  const waived = (out) => /no longer applies/.test(verdict(out));
+  const measured = (out) => /changed, \d+ added, \d+ removed/.test(verdict(out));
+
+  // K1 — THE NEW GUARD. An offset `built_at` naming the SAME INSTANT as the harvest must not waive:
+  // the waiver needs the snapshot to be strictly NEWER than the close, and an equal instant is not
+  // newer. Under the old string compare this waived, because `-04:00` sorts below `Z`.
+  {
+    const r = scopeFixture('2026-09-09T21:05:00-04:00');   // === 2026-09-10T01:05:00.000Z
+    check('K1: an offset built_at EQUAL to the harvest instant does NOT waive the scope diff',
+      !waived(r.out) && measured(r.out), verdict(r.out).trim());
+    check('K1: …and the run names the shape it had to reconcile',
+      /UTC offset/.test(line(r.out, 'scope ' + BOARD + ' waiver')), line(r.out, 'scope ' + BOARD + ' waiver').trim());
+  }
+
+  // K2 — THE CONTROL. A `Z` close LATER than the harvest must not waive either. Both readings agree
+  // here, which is the point: it holds the ordinary case still, so K1 cannot be passing merely
+  // because the fix broke the waiver outright.
+  {
+    const r = scopeFixture('2026-09-11T00:00:00Z');        // after the 09-10 harvest
+    check('K2: a Z built_at LATER than the harvest does NOT waive the scope diff',
+      !waived(r.out) && measured(r.out), verdict(r.out).trim());
+  }
+
+  // K3 — THE REGRESSION FLOOR. The waiver must still fire when it should, or K1 and K2 prove only
+  // that the branch is dead. 36 of the reference estate's scope lines are this case.
+  {
+    const r = scopeFixture('2026-09-09T12:00:00Z');        // before the 09-10 harvest
+    check('K3: a Z built_at EARLIER than the harvest still waives the scope diff',
+      waived(r.out) && !measured(r.out), verdict(r.out).trim());
+  }
+
+  // K4 — the bare date. It parses (midnight UTC), so it stays a real close and still decides the
+  // waiver; the gate simply says which shape it read, because midnight is not when anyone built.
+  {
+    const r = scopeFixture('2026-09-09');                  // midnight UTC, before the harvest
+    check('K4: a bare-date built_at is still a real close and still waives',
+      waived(r.out) && mark(r.out, 'done block') === '✔', line(r.out, 'done block').trim());
+    check('K4: …and both the done block and the waiver name it as a bare date',
+      /bare date/.test(line(r.out, 'done block')) && /bare date/.test(line(r.out, 'scope ' + BOARD + ' waiver')),
+      line(r.out, 'scope ' + BOARD + ' waiver').trim());
   }
 }
 
