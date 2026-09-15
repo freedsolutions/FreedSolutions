@@ -78,7 +78,12 @@ Every path ends with `check` green, a Status section with a done block, and the 
   latest harvest `estate-<id>.json` → `estate-<id>.pre-<slug>.json`; no login needed), write the
   kickoff from `templates/kickoff.md`, seal it (`check --seal`) once the rule text is final and
   again after ratification if a rule cell changed, put the open questions to Adam in ONE message,
-  set `ratified: true` when every row has a ruling. **May not** write to BI.
+  set `ratified: true` when every row has a ruling, and — for every rule this change MINTS or
+  AMENDS — append its ruling to `DECISIONS.md` with the kickoff named in the record cell. The gate
+  fails a ratified kickoff whose minted rules have no such row (D1), and fails any run where a
+  register rule has no row at all (D2): the register says what the rule IS, DECISIONS says who
+  decided it and which change carries the evidence. Append only — never rewrite a row.
+  **May not** write to BI.
 - **build** may: write to BI inside `scope`, edit Dictionary **impl cells and the header stamp**,
   edit guide / SOP / WI / README, render, append Status. **May not**: edit rule text (the gate
   hashes every rule cell at seal time and fails on any change), touch elements outside `scope`,
@@ -273,11 +278,16 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 - `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   and the render script.
+- `scripts/render_docs.sh <source.md> [...]` — DOCX + PDF into `<source dir>/renders/`. It **exits 1**
+  when xelatex reports any `Missing character`, printing the warning lines and the source path, and it
+  renders every file in the list before taking that exit (2026-09-14). The renders are kept: they are
+  still the best available copy, they are simply short a glyph. Before this the count was printed and
+  never read, and the Dictionary shipped a PDF with a dropped em-dash for a full day.
 
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 121 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 139 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
   an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score
@@ -293,7 +303,15 @@ this skill can be trusted, and each is proven to fail, not merely to pass:**
   `header.rules` must FAIL at build phase and name those rules, and — the guard that encodes a
   diagnosis that was wrong the first time — a REAL `built_at` nested inside the build-lane comment
   must still count as a close, because three closed estate records are written that way.
-  Exit 1 on any failed assertion. A check that cannot be made to
+  **Group J — the DECISIONS record (2026-09-14):** a rule whose register `Since` equals the
+  kickoff's own date was MINTED by that change and owes a `DECISIONS.md` row whose record cell names
+  that kickoff (**D1**), and every register rule owes at least one row from some change (**D2**). The
+  cases that matter: a row naming a SIBLING kickoff must still fail D1 while D2 stays green — that is
+  the shape a "does the rule appear anywhere" check misses; an absent `DECISIONS.md` is ✘ on both and
+  must not throw; an unratified plan owes nothing yet; a cite-only rule is counted, never failed; and
+  an unshaped register row reports `·`, never a green tick over a `Since` cell it could not read.
+  `Since` is found by header NAME, so a register with no such column says so instead of reading
+  whatever sits at that index. Exit 1 on any failed assertion. A check that cannot be made to
   fail has not been tested — this skill has shipped an inert check before.
 
 **And before fixing a gate, baseline it.** Run the CURRENT gate over every kickoff in a real estate,

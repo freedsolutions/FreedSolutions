@@ -233,6 +233,10 @@ for (const m of dd.matchAll(/^\| (R\d+) \|([^\r\n]*)$/gm)) {
     // as unmeasured rather than counted as passing.
     ruleCell: cells[0] || '',
     legacyRule: m[2].split(' | ').map(c => c.trim())[0] || '',
+    // The cut cells, for checks that address a column BY HEADER NAME (D1 reads `Since`). Null on an
+    // unshaped row for the same reason `impl` is: index 2 of an ambiguous cut is not the column the
+    // header says it is, and a check that reads it is testing whatever happens to sit there.
+    cells: shaped ? cells : null,
     segments: cells.length, shaped, line: m[0],
   };
 }
@@ -326,6 +330,102 @@ if (seal) {
     'header.rules names ' + grain.join(', ') + ' and rule_text_sha1 is empty — run `--seal` once the rule text is final');
 } else if (phase === 'build') fail('header sealed', 'run `--seal` from the plan lane before handing off');
 else info('header not sealed yet', 'run `--seal` once the R rows are written');
+
+// ---------- DECISIONS: the ruling is on record ----------
+// Placed HERE — after the seal block, ahead of the scope/scan machinery — so both checks run at
+// `--phase plan` as well as at build. A plan-lane seal is exactly the moment the row is owed: the
+// rule text has just been fixed and hashed, and the ruling that fixed it is what DECISIONS.md holds.
+//
+// WHY. Until 2026-09-14 the gate did not mention DECISIONS.md at all (`grep -n DECISIONS` → 0 hits),
+// so a change could mint a rule, seal it, close green, and leave no record of WHO ruled and WHY.
+// Measured that night on one estate: five rules minted with no row, and one rule (R73, minted four
+// days earlier) with no row at all. The register says what the rule IS; DECISIONS says who decided
+// it and which change carries the evidence. A register row with no ruling behind it is canon with
+// no provenance, which is the one thing the estate cannot reconstruct later.
+//
+// Two checks, deliberately different in grain:
+//   D1 is about THIS change — a rule it minted or amended owes a row that names THIS kickoff.
+//   D2 is estate-wide — every register rule owes at least one row, from any change, any date.
+// Both `fail` from the start: the surface was brought under them first (the one missing row was
+// backfilled 2026-09-14 on Adam's ruling), which is the same order every cap above was flipped in —
+// a check that reddens every kickoff for a breach the running change cannot fix teaches the reader
+// to ignore the gate.
+const DEC = path.join(EST_DIR, 'DECISIONS.md');
+{
+  const decText = fs.existsSync(DEC) ? read(DEC) : null;
+  // A row is `| date | Rn | ruling… | record |`. The ruling cell carries backticks, quotes and
+  // escaped `\|` — Product Line names are themselves pipe-delimited — so it is cut with the gate's
+  // own unescaped-pipe splitter and the record is the LAST cell, never a counted index.
+  const byRule = {};
+  let decRowCount = 0;
+  if (decText !== null) {
+    for (const m of decText.matchAll(/^\| (\d{4}-\d\d-\d\d) \| (R\d+) \| ([^\r\n]*)$/gm)) {
+      const cells = splitCells(m[3]);
+      // exactly one trailing empty segment, from the row's closing pipe — a genuinely empty record
+      // cell must survive as '' rather than silently promoting the ruling text into its place
+      if (cells.length && cells[cells.length - 1] === '') cells.pop();
+      decRowCount++;
+      (byRule[m[2]] = byRule[m[2]] || []).push({ date: m[1], record: cells.length ? cells[cells.length - 1] : '' });
+    }
+  }
+  const byNum = (a, b) => Number(a.slice(1)) - Number(b.slice(1));
+
+  // --- D1: a rule this change minted or amended names this kickoff in its record cell ---
+  // `Since` is found BY HEADER NAME, the same way EXPECT takes the segment count from the register's
+  // own header row. A constant index would read `Links` on the pre-Phase-B register and silently
+  // classify every rule as cite-only.
+  const hdrNames = hdrRow ? splitCells(hdrRow[1]) : [];
+  if (hdrNames.length && hdrNames[hdrNames.length - 1] === '') hdrNames.pop();
+  const sinceIdx = hdrNames.findIndex(h => /^since$/i.test(h));
+  const kickBase = path.basename(KICK);
+  // the LAST date in the basename: the slug may legitimately carry one of its own
+  const kickDates = kickBase.match(/\d{4}-\d{2}-\d{2}/g);
+  const kickDate = kickDates ? kickDates[kickDates.length - 1] : null;
+
+  if (decText === null) fail('DECISIONS: minted rules on record', 'no DECISIONS.md in ' + EST_DIR +
+    ' — the rulings behind this estate’s rules have nowhere to live');
+  else if (H.ratified !== true) info('DECISIONS: minted rules on record',
+    'header.ratified is not true — Adam has not ruled yet, so no row is owed from this kickoff');
+  else if (sinceIdx < 0) info('DECISIONS: minted rules on record',
+    'the register header names no `Since` column (' + (hdrNames.join(', ') || 'header unreadable') +
+    ') — a mint cannot be told from a citation, so nothing is owed');
+  else if (!kickDate) info('DECISIONS: minted rules on record',
+    'no YYYY-MM-DD in the kickoff basename "' + kickBase + '" — cannot tell which rules this change minted');
+  else {
+    const known = H.rules.filter(r => rows[r]);
+    // An unshaped row's cells are not the columns the header names, so its `Since` is unreadable.
+    // Such a rule is never counted as minted AND never lets the line read a clean ✔ — a green tick
+    // over an unread column is the inert-check shape. A real orphan still reddens regardless: an
+    // unmeasurable sibling must not downgrade a miss that WAS measured.
+    const unshaped = known.filter(r => !rows[r].shaped);
+    const shapedRules = known.filter(r => rows[r].shaped);
+    const minted = shapedRules.filter(r => (rows[r].cells[sinceIdx] || '') === kickDate);
+    const recorded = minted.filter(r => (byRule[r] || []).some(d => d.record.includes(kickBase)));
+    const orphan = minted.filter(r => !recorded.includes(r));
+    const detail = minted.length + ' minted of ' + H.rules.length + ' header rule(s) — ' +
+      recorded.length + ' recorded (Since = ' + kickDate + ', ' + decRowCount + ' DECISIONS row(s) read)';
+    const unshapedNote = unshaped.length ? '; ' + unshaped.length + ' header rule(s) on an unshaped register row, `Since` unreadable: ' +
+      unshaped.sort(byNum).join(', ') + ' — escape the pipes as `\\|` to restore the check' : '';
+    if (orphan.length) fail('DECISIONS: minted rules on record', detail + '; no row naming `' + kickBase +
+      '` for ' + orphan.sort(byNum).join(', ') + ' — record the ruling before this change closes' + unshapedNote);
+    else if (unshaped.length) info('DECISIONS: minted rules on record', detail + unshapedNote);
+    else ok('DECISIONS: minted rules on record', detail);
+  }
+
+  // --- D2: every register rule has at least one row, any date, any record ---
+  // Estate-wide on every run, like the size caps: a rule minted by some OTHER change with no ruling
+  // behind it is a hole in canon whether or not this change touches it.
+  const allRules = Object.keys(rows);
+  if (decText === null) fail('DECISIONS: every register rule recorded', 'no DECISIONS.md in ' + EST_DIR +
+    ' — ' + allRules.length + ' register rule(s) unmeasurable');
+  else {
+    const missing = allRules.filter(r => !byRule[r]);
+    const detail = (allRules.length - missing.length) + ' of ' + allRules.length + ' rule(s) recorded';
+    if (missing.length) fail('DECISIONS: every register rule recorded', detail + ' — no row at all for ' +
+      missing.sort(byNum).join(', '));
+    else ok('DECISIONS: every register rule recorded', detail);
+  }
+}
 
 // ---------- C3–C8: the SCAFFOLD caps ----------
 // These measure the tenant pointer file, the estate README, the guides, the tenant root and the

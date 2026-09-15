@@ -11,7 +11,9 @@
 // fixture broken in exactly one place must report ✘ with the count we expect. A check that cannot
 // be made to fail has not been tested.
 //
-// Four groups:
+// The groups, in the order they were added (E and G predate F and H; J is the newest — and note
+// that the 2026-09-14 handoff calls J's cases E1–E6, which collides with the register-header group
+// already holding that letter; renaming a cited label is worse than a gap, so they are J1–J6 here):
 //   A. each size cap — green when clean, red when broken (under `--caps fail`), and never red
 //      under `--caps info`, which is what "report-only for one run, then enforce" rests on.
 //   B. the seal grain — an OPEN kickoff with in-grain drift must STILL FAIL (the regression guard),
@@ -21,6 +23,11 @@
 //   D. `--pointer <tenant dir>` — the kickoff-free scaffold check: it runs with no kickoff, scores
 //      C3–C8 and nothing that needs a register or a header, still reddens on an enforced breach,
 //      and finds the estate by the Dictionary rather than by the folder's name.
+//   E. the REGISTER HEADER shape — both the 5-column and the 8-column register parse, to the count
+//      their own header row declares, and NOT BUILT is read out of segment 2 and nowhere else.
+//   F. the SCAFFOLD · G. C8 template conformance · H. the two template placeholders.
+//   J. the DECISIONS record — a minted rule's ruling is on file and names this kickoff (D1), and
+//      every register rule has a ruling somewhere (D2).
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -57,6 +64,8 @@ const RULE2 = 'Fixture rule two, also short.';
 // `v1` is the pre-compaction 5-column register; `v2` is the 8-column contract Phase B left behind.
 // Group E proves both, in both directions: parse to the right segment count, and read NOT BUILT out
 // of segment 2 rather than out of whatever column happens to sit there.
+// `v1` has NO `Since` column at all, which is itself a case D1 must handle: it finds the column by
+// header NAME, so on v1 it can only report that a mint is indistinguishable from a citation.
 const HEADERS = {
   v1: {
     cols: ['Rule', 'Key', 'Implementation', 'Ruled'],
@@ -64,9 +73,11 @@ const HEADERS = {
   },
   v2: {
     cols: ['Rule', 'Grain', 'Surface', 'Status', 'Since', 'Links', 'Record'],
-    cells: (txt, impl) => [txt, 'per product', impl, 'ACTIVE', '2026-09-09', '—', 'fx-kickoff-2026-09-08.md'],
+    cells: (txt, impl, since) => [txt, 'per product', impl, 'ACTIVE', since || '2026-09-09', '—', 'fx-kickoff-2026-09-08.md'],
   },
 };
+// A rule is `[id, text, impl, since]`. `since` reaches the `Since` column on v2 and is ignored by
+// v1, which has no such column — deliberately, so the two shapes stay honestly different.
 function dd(rules, shape = 'v1') {
   const h = HEADERS[shape];
   return [
@@ -78,10 +89,32 @@ function dd(rules, shape = 'v1') {
     '',
     '| # | ' + h.cols.join(' | ') + ' |',
     '|---'.repeat(h.cols.length + 1) + '|',
-    ...rules.map(([id, txt, impl]) => '| ' + id + ' | ' + h.cells(txt, impl || 'tile 1').join(' | ') + ' |'),
+    ...rules.map(([id, txt, impl, since]) => '| ' + id + ' | ' + h.cells(txt, impl || 'tile 1', since).join(' | ') + ' |'),
     '',
   ].join('\n');
 }
+
+// The decisions record. Every fixture ruling carries a `code span` AND an escaped `\|` on purpose:
+// the record is the LAST cell, and a naive `split('|')` would cut the ruling in two and read the
+// fragment after the bare pipe as the record. If the gate ever regresses to a plain split, the
+// clean case below stops finding `fx-kickoff-2026-09-08.md` and goes red on its own.
+function decisions(rows) {
+  return [
+    '# Fixture decisions record',
+    '',
+    '| date | rule | ruling | record |',
+    '|---|---|---|---|',
+    ...rows.map(([date, rule, record]) =>
+      '| ' + date + ' | ' + rule + ' | Fixture ruling, with a `code span` and an escaped \\| pipe. | ' + record + ' |'),
+    '',
+  ].join('\n');
+}
+// R1 is recorded by THIS kickoff, R2 by an earlier one — so on the v2 register (R1 Since
+// 2026-09-08, R2 Since 2026-09-01) R1 is minted by this change and R2 is cite-only.
+const CLEAN_DECISIONS = [
+  ['2026-09-08', 'R1', '`fx-kickoff-2026-09-08.md`'],
+  ['2026-09-01', 'R2', '`other-kickoff-2026-09-01.md`'],
+];
 // A Dictionary whose PREAMBLE — the lines before the first `## ` heading — is exactly `n` lines.
 // dd() opens with 4 such lines, so the rest is filler that must not itself start a section.
 function ddPreamble(n, shape = 'v1') {
@@ -98,10 +131,10 @@ function ddPreamble(n, shape = 'v1') {
 //                         therefore MUST keep counting as a close (group H7)
 // `seals`: null = key absent · {} = the template's empty placeholder · {Rn: hash} = a real seal.
 //          An empty object is truthy, which is the whole reason H4/H5 exist.
-function kickoff({ rules = ['R1'], seals = null, done = false, kpath = 'rule' }) {
+function kickoff({ rules = ['R1'], seals = null, done = false, kpath = 'rule', ratified = true }) {
   const hdr = {
     path: kpath, lane: 'build', model: 'opus', rules, dashboards: [], scope: {},
-    baseline: null, ratified: true,
+    baseline: null, ratified,
   };
   if (seals) hdr.rule_text_sha1 = seals;
   const doneJson = built => JSON.stringify(
@@ -163,6 +196,10 @@ function buildClean() {
   fs.rmSync(ROOT, { recursive: true, force: true });
   fs.mkdirSync(EST, { recursive: true });
   fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), dd([['R1', RULE1], ['R2', RULE2]]));
+  // D1/D2 `fail` from the start, so the clean baseline must satisfy them or every assertion in
+  // every group that expects exit 0 would redden on a missing DECISIONS.md rather than on the one
+  // thing its own fixture broke.
+  fs.writeFileSync(path.join(EST, 'DECISIONS.md'), decisions(CLEAN_DECISIONS));
   fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd(CLEAN_BULLETS));
   fs.writeFileSync(path.join(EST, 'README.md'), '# Fixture\n\n**Last synced: 2026-09-08** (one board re-harvested).\n');
   fs.writeFileSync(path.join(EST, 'dashboard-99999-fixture.md'),
@@ -841,6 +878,139 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
   }
 }
 
+// =============================================================================================
+// J. THE DECISIONS RECORD — D1 and D2 (2026-09-14). Until this change `kickoff_check.js` never
+// mentioned `DECISIONS.md`: a change could mint a rule, seal it and close green with no record of
+// who ruled it or why. D1 is per-change (a rule whose register `Since` equals THIS kickoff's date
+// owes a row naming THIS kickoff); D2 is estate-wide (every register rule owes at least one row).
+//
+// ⚠ NAMING. The handoff spec calls these cases E1–E6. Group E above was already taken by the
+// REGISTER HEADER SHAPE group, and renaming a cited label is worse than a gap — so they live here
+// as J1–J6 in the spec's order, and J7 covers the `Since`-less register the spec describes in prose.
+//
+// Both checks `fail` from the start, which is only legitimate because the surface was brought under
+// them first — the one register rule with no row anywhere was backfilled on Adam's ruling the same
+// day. That is the order every cap in group C was flipped in.
+//
+// Each case breaks the clean fixture in EXACTLY ONE place, and the two checks are read separately:
+// a case that reddens both tells you nothing about which one fired.
+// =============================================================================================
+{
+  const D1 = 'DECISIONS: minted rules on record';
+  const D2 = 'DECISIONS: every register rule recorded';
+  // The v2 register is the one that carries a `Since` column, so D1 is only measurable on it.
+  // R1 Since = the kickoff's own date (minted by this change); R2 earlier (cite-only).
+  const V2 = () => dd([['R1', RULE1, 'tile 1', '2026-09-08'], ['R2', RULE2, 'tile 1', '2026-09-01']], 'v2');
+  function buildDecClean() {
+    buildClean();
+    fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), V2());
+  }
+
+  // J0 — the clean case. Both green, with the counts the spec names.
+  buildDecClean();
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J0: D1 is ✔ "1 minted of 1" on the clean fixture',
+      mark(r.out, D1) === '✔' && /1 minted of 1 header rule\(s\) — 1 recorded/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J0: D2 is ✔ "2 of 2" on the clean fixture',
+      mark(r.out, D2) === '✔' && /2 of 2 rule\(s\) recorded/.test(line(r.out, D2)), line(r.out, D2).trim());
+    check('J0: the DECISIONS fixture does not redden the run (exit 0)', r.status === 0, 'exit ' + r.status);
+  }
+
+  // J1 (spec E1) — R1's row deleted. D1 loses the row naming this kickoff; D2 loses R1 entirely.
+  buildDecClean();
+  fs.writeFileSync(path.join(EST, 'DECISIONS.md'), decisions(CLEAN_DECISIONS.filter(d => d[1] !== 'R1')));
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J1: a minted rule with no row FAILS D1, naming the rule and the kickoff',
+      mark(r.out, D1) === '✘' && /no row naming `fx-kickoff-2026-09-08\.md` for R1/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J1: …and D2 FAILS with a count of 1 of 2, naming R1',
+      mark(r.out, D2) === '✘' && /1 of 2 rule\(s\) recorded — no row at all for R1/.test(line(r.out, D2)), line(r.out, D2).trim());
+    check('J1: the run reddens (exit 1)', r.status === 1, 'exit ' + r.status);
+  }
+
+  // J2 (spec E2) — R1 HAS a row, but its record cell names a sibling kickoff. This is the case the
+  // estate's own history is full of, and the one a "does the rule appear anywhere" check misses: D2
+  // must stay green while D1 reddens. If D1 ever degrades into D2, this is the case that catches it.
+  buildDecClean();
+  fs.writeFileSync(path.join(EST, 'DECISIONS.md'), decisions([
+    ['2026-09-08', 'R1', '`other-kickoff-2026-09-01.md`'],
+    ['2026-09-01', 'R2', '`other-kickoff-2026-09-01.md`'],
+  ]));
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J2: a row whose record names a SIBLING kickoff still FAILS D1',
+      mark(r.out, D1) === '✘' && /R1/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J2: …while D2 stays ✔ — the rule IS recorded, just not by this change',
+      mark(r.out, D2) === '✔' && /2 of 2 rule\(s\) recorded/.test(line(r.out, D2)), line(r.out, D2).trim());
+  }
+
+  // J3 (spec E3) — no DECISIONS.md at all. Both checks ✘ with a plain detail, exit 1, and NO throw:
+  // an absent file must be a finding, not a crash that takes every other check down with it.
+  buildDecClean();
+  fs.rmSync(path.join(EST, 'DECISIONS.md'));
+  {
+    const r = spawnSync(process.execPath, [GATE, path.join(EST, 'fx-kickoff-2026-09-08.md'), '--phase', 'plan'], { encoding: 'utf8' });
+    const out = (r.stdout || '').replace(/\r\n/g, '\n');
+    const err = (r.stderr || '').trim();
+    check('J3: a missing DECISIONS.md is ✘ on D1', mark(out, D1) === '✘', line(out, D1).trim());
+    check('J3: a missing DECISIONS.md is ✘ on D2', mark(out, D2) === '✘', line(out, D2).trim());
+    check('J3: it exits 1 and does NOT throw (no stack trace on stderr)',
+      r.status === 1 && !/^\s*at .*:\d+:\d+/m.test(err),
+      'exit ' + r.status + (err ? ' | stderr: ' + err.split('\n')[0] : ' | stderr empty'));
+  }
+
+  // J4 (spec E4) — an UNRATIFIED plan. Adam has not ruled yet, so there is no ruling to record and
+  // nothing is owed; D1 says so rather than reddening a plan that is doing the right thing.
+  buildDecClean();
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1'], seals: { R1: sha1(RULE1) }, done: false, ratified: false }));
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J4: an unratified kickoff reports D1 as `·`, not owed yet', mark(r.out, D1) === '·', line(r.out, D1).trim());
+    check('J4: …and does not redden the plan run', r.status === 0, 'exit ' + r.status);
+  }
+
+  // J5 (spec E5) — two header rules, only ONE minted by this change. The cite-only rule must be
+  // counted in the detail and never failed: citing a rule is not amending it.
+  buildDecClean();
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+    kickoff({ rules: ['R1', 'R2'], seals: { R1: sha1(RULE1), R2: sha1(RULE2) }, done: false }));
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J5: a cite-only rule is counted, not failed — D1 ✔ "1 minted of 2"',
+      mark(r.out, D1) === '✔' && /1 minted of 2 header rule\(s\) — 1 recorded/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J5: …and the run stays green', r.status === 0, 'exit ' + r.status);
+  }
+
+  // J6 (spec E6) — an UNSHAPED register row (a bare `|` in the rule text). Its cells are not the
+  // columns the header names, so `Since` is unreadable: D1 must report `·`, never a green tick over
+  // a column it could not read. The kickoff is left unsealed so the ONE broken thing is the row
+  // shape — an unshaped row is hashed whole, which would otherwise redden the seal check too.
+  buildDecClean();
+  fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'),
+    dd([['R1', 'Fixture rule one | with a bare pipe in it.', 'tile 1', '2026-09-08'], ['R2', RULE2, 'tile 1', '2026-09-01']], 'v2'));
+  fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'), kickoff({ rules: ['R1'], done: false }));
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J6: an unshaped register row reports D1 as `·`, never a silent ✔',
+      mark(r.out, D1) === '·' && /`Since` unreadable: R1/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J6: …and D2 is unaffected — it needs no cells, only the rule id',
+      mark(r.out, D2) === '✔' && /2 of 2 rule\(s\) recorded/.test(line(r.out, D2)), line(r.out, D2).trim());
+  }
+
+  // J7 — the v1 register has no `Since` column at all. D1 finds the column BY NAME, so it must say
+  // it cannot tell a mint from a citation rather than reading index 4 of a 5-column row and calling
+  // whatever sits there a date. This is the same defect class as the NOT BUILT check reading `8/30;
+  // 8/31` out of a hardcoded index.
+  buildClean();   // v1 is buildClean's own shape
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J7: a register with no `Since` column reports D1 as `·`, naming the columns it found',
+      mark(r.out, D1) === '·' && /no `Since` column/.test(line(r.out, D1)), line(r.out, D1).trim());
+  }
+}
+
 // ---- report ---------------------------------------------------------------------------------
 let bad = 0;
 console.log('gate self-test — ' + GATE);
@@ -858,7 +1028,9 @@ if (bad) {
   console.log('PASS — every cap fires and reddens on a broken fixture, stays quiet on a clean one,');
   console.log('       the seal grain still FAILS an open kickoff whose in-grain rule text moved, and');
   console.log('       --pointer scores C3–C8 with no kickoff and reddens on an enforced breach;');
-  console.log('       and the scaffold stands a tenant up that passes its own gate runs, while');
-  console.log('       refusing an unfilled placeholder and refusing to overwrite a live tenant.');
+  console.log('       the scaffold stands a tenant up that passes its own gate runs, while');
+  console.log('       refusing an unfilled placeholder and refusing to overwrite a live tenant;');
+  console.log('       and a minted rule with no DECISIONS row — or one recorded against a SIBLING');
+  console.log('       kickoff — reddens, while a cite-only rule and an unratified plan do not.');
 }
 process.exit(bad ? 1 : 0);
