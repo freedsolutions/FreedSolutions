@@ -317,3 +317,346 @@ menu publishes.
 the toggle and on whether that item was hand-edited in Ecom Admin. Never assert menu impact from
 Backoffice data alone. The "broken integration" population is a distinct, un-audited cleanup lane
 (relates to R16 Ecom-Admin override work).
+
+## Backoffice bulk-edit grid [PROBE 2026-09-13]
+
+The Catalog grid (`/products/catalog`) is a virtualised MUI DataGrid with two bulk
+write paths. Both act on the CURRENT tenant catalog; neither is a Looker surface.
+
+### Scope and selection
+
+- Retired items are behind a filter: **More → Retired products → Save**. It defaults
+  OFF, so the grid opens on ACTIVE items only.
+- Filters (Brand / Vendor / Category / Tags) offer only values present on ACTIVE
+  records — a platform defect. Work around it with the search box and column sorting
+  (shift-click multi-sorts, though the server governs the final sort order).
+- Search is a single case-insensitive substring match over the row. A SKU works. A
+  comma-separated list of SKUs matches nothing.
+- Ticking any row reveals a **Bulk actions (N)** button; the button is ABSENT when the
+  selection is empty. That absence is the ONLY trustworthy emptiness signal.
+- The header checkbox opens a menu: Select all (every page) / Select page / Select a
+  quantity / **Select none**.
+- **Selection survives a search change.** Search a SKU, tick it, search the next, tick
+  it — the count accumulates. This is how to build an exact set on a virtualised grid
+  without scrolling, and `(N)` is the invariant to assert before saving.
+- **Selection also survives a save**, and clearing the query does NOT clear it. Use
+  **Select none** between groups, or a later edit silently re-hits the previous set.
+
+### Path A — Bulk edit product details (selection-scoped)
+
+Modal "Catalog bulk edit": a Field dropdown, a value box, `+ Add field` for several
+fields in one save, a trash icon per row, Cancel / Save. Roughly 25 settable fields
+including price, cost, flower equivalent, grams/concentration, name, strain, flavor,
+category, tags and the online/POS availability flags.
+
+- Field LABELS differ from their internal names (e.g. "Flower equivalent" →
+  `FlowerEquivalent`, "Grams/concentration" → `Grams`). Assert the internal name
+  after selecting, not the label.
+- "Grams/concentration" is the field the catalog export calls `Product grams`.
+- The Field dropdown is a MUI Select: it opens on **mousedown**, not `click()`.
+- The value box is a plain MUI text input. Real keystrokes work, and a synthetic
+  native-setter + `input` event also updates React state here and saves correctly —
+  unlike the product FORM's Autocomplete-backed fields, which reject synthetic input.
+- Click the value box and CONFIRM focus before typing: a click while the field
+  dropdown is still closing lands on the dialog container and the keystrokes vanish.
+- Write endpoint `POST /api/product-master/update-products-multiple` → `{"Result":true}`,
+  followed by a grid refetch. Success also shows a "Products updated." toast.
+
+### Path B — Bulk update cost and prices via CSV (BETA)
+
+In both the top-level Actions menu and the Bulk actions menu. Opens a "Before you
+upload" freshness interstitial, then an upload drop zone.
+
+- Contract: the file needs **ProductId** plus at least one of **Price** or **Cost**;
+  add Location price / Location cost only for location-level pricing. **All other
+  columns are ignored.**
+- ProductId is available as a grid column (historically hidden; enable it in the
+  column configuration). Export from the same table to get it.
+- A row supplying both Price and Cost where only one differs produces a genuine no-op
+  on the other. Reconcile an upload as `changed + already-at-target = rows × columns`,
+  never `changed = rows × columns`.
+
+### Traps
+
+1. **Save is enabled with an EMPTY value box.** Saving then blanks that field across
+   the whole selection. Guard on field + non-empty value + expected count immediately
+   before every Save.
+2. **`Bulk unretire products` sits in the same menu**, adjacent to the bulk-edit and
+   price-upload entries. On a retired selection it is the catastrophic neighbour.
+3. **Reloading clears the selection but ALSO drops the Retired filter**, landing on the
+   active catalog. Never reload as a "reset" without re-applying the filter and
+   re-checking the row count.
+4. **Visible checkboxes can all read unchecked while the selection still holds N.**
+   Counting checked DOM checkboxes is not an emptiness check.
+5. **`innerText` on a row collapses blank cells and mis-aligns columns.** Read cells
+   individually and map by header NAME — the column set changes between sessions, and
+   an inserted column shifts every positional index.
+6. Grid cells render flower equivalent and grams WITH a `g` suffix; the bulk-edit input
+   takes the bare number.
+7. Cost is stored to four decimals. Diff money on a half-cent tolerance, never string
+   equality.
+8. The page-side coordinate frame can differ from the screenshot frame. Scale a
+   `getBoundingClientRect()` value by `screenshotWidth / window.innerWidth` before
+   using it as a click coordinate, or drive elements by reference instead.
+
+### Recipe
+
+Per group of items sharing one target value: **Select none** and assert 0 → search
+each SKU, verify the row's SKU and that it carries no do-not-use tag, tick it, assert
+the count rose by exactly one → open the modal, set the field, assert the internal
+name, set the value → guard field + value + count → Save → read every touched SKU back
+by header-name lookup → **Select none**. Keep a done-list on disk so an interrupted run
+resumes without re-writing. A group whose read-back disagrees is a conflict: stop that
+group, never retry blind. Certify the whole run with one FULL-ROW diff of a fresh
+export against a pre-run baseline, attributing every changed cell to a known
+population — an unattributed cell is the finding.
+
+---
+
+## Item creation by Copy item [PROBE 2026-09-13]
+
+Creating a catalog item by copying an existing member of the same product line, rather
+than filling the Add-product form from scratch. The copy inherits the whole product
+line's lane facts, so only the genuinely variable attributes are edited. Verified on a
+three-item vendor-invoice intake.
+
+**The variable attributes of a product line are: Name, Strain and/or Flavor, and the
+ecom attributes.** Everything else is a lane fact and should arrive correct by
+inheritance. If a field you did not intend to change differs from the siblings, that is
+a finding about the source item, not something to fix silently on the copy.
+
+### Where the control is
+
+Item page -> **Actions > Copy** (the menu also holds `Retire`). It is **not** on the
+catalog grid — the grid's own Actions menu carries only coupon / bulk-CSV / export /
+print. Open the item you want to copy first.
+
+### What the copy carries
+
+Everything: category, type, unit, cannabis flags, grams/concentration, flower
+equivalent, price, cost, taxed prices, vendor, brand, servings per unit, tags, the
+online-available flag, online title, online description, **and images**.
+
+**Only the SKU is new** — it is issued automatically. Never reuse a retired item's SKU;
+this path cannot, which is one of its advantages.
+
+**Strain Type is not an item field.** It derives from the Strain record and updates
+itself the moment the Strain is set; it is displayed under the item title. Do not look
+for a control for it.
+
+### The name is set before the copy exists
+
+`Copy` opens a **`Confirm copy product`** modal — a pre-save form, not an immediate
+write. It carries one field, `Product name`, pre-filled with the source name plus a
+**` (Copy)`** suffix (capital C). Replace the whole value with the final name **here**,
+then `Confirm`. The name the modal holds is the name the new item is created with, so
+the ` (Copy)` string never has to be cleaned up afterwards, and the new name is never
+derived by editing the old one in place.
+
+### Field-entry mechanics
+
+- **Strain** is a **modal picker with its own search box**, not an inline autocomplete.
+  Click the field, type, and click the option. The option row shows the strain's type
+  beneath its name, which is a free pre-flight check that you are taking the right record.
+- Where two strains share a prefix (`X` and `X + Y`), both appear. Take the exact one.
+- **Plain text inputs are React-controlled and fight synthetic clearing.** `ctrl+a` +
+  `Delete` then typing can interleave old and new text into a corrupt value, and a
+  same-length result makes that easy to miss. Two reliable options: click the field,
+  `End`, then `Backspace` with a repeat count past the full length before typing; or set
+  the value with the native property setter and dispatch bubbling `input` + `change`
+  events. The native-setter route is proven to register with the framework — the value
+  survives save and reload.
+- **Verify on the element you actually edited.** A loose selector such as
+  "first text input on the page" can return a different field and report a confident,
+  false green. Resolve the control from its label, and re-read that same node.
+
+### The ecom payload is a template — attempt the link BEFORE wiping it
+
+The copied description is typically **a strain-specific opening paragraph followed by
+reusable brand boilerplate**. Do not wipe it:
+
+1. The boilerplate is worth keeping, and retyping it invites drift. Splice at a stable
+   marker (the first words of the boilerplate) and keep the tail byte-for-byte.
+2. The existing ecom content is match signal for the global-catalog link, and a
+   successful link overwrites the description anyway. Wiping first is both destructive
+   and wasted work.
+
+Replace only the strain paragraph. **Sourcing chain:**
+
+1. The brand's own site.
+2. dutchie.com — other retailers' menus.
+3. Leafly, for the strain itself.
+4. **Leafly for the BASE strain**, where the item is a named variant (a backcross, a
+   phenotype number, a selection) and the variant itself has no entry anywhere. Write it
+   in the house register as a description of the line the cultivar belongs to.
+
+Omit medical claims and potency figures at every rung. Where the house strain record and
+a public database disagree on variety, the house record is canon — write the copy so it
+does not contradict it.
+
+**Do not manufacture sensory or effects copy from nothing, and do not borrow a
+near-name's copy.** Other cultivars sharing a word with yours are different products;
+their descriptions are not weak evidence about yours, they are evidence about them.
+Rung 4 is the sanctioned fallback precisely because it is honest about what it asserts:
+the base strain's character, attributed to the line rather than invented for the variant.
+If even rung 4 is unavailable, ship the brand boilerplate alone and flag the item.
+
+**Online title follows the current (non-canonical) ecom convention**, not the canonical
+item-name grammar — it tracks whatever the live siblings use. Only the strain name
+changes.
+
+### Images
+
+- If the carried image is **generic brand art, leave it** — it is as correct on the new
+  item as on the old one.
+- If it is **strain- or product-specific**, it is wrong on the new item and must not
+  ship. A named product's label art on a different product is a defect, not a placeholder.
+- Delete it, and if no replacement can be mined cheaply, **leave the item image-less and
+  let the missing-image flag stand as the honest state** for a human to fill last.
+- Deleting the local image first is required anyway before adopting brand art, since the
+  pre-link image otherwise keeps sort order 1 and stays the customer-facing image.
+
+### Chaining copies
+
+Once one item is finished and image-free, **use it as the source for the next one**. The
+next copy then carries no image to delete and carries the governance tag forward. The
+source stays a product-line sibling, so the method's premise still holds. Order the run
+so the most-edited item is built first and the rest descend from it.
+
+### Governance tag on creation
+
+Apply the estate's item-QC tag at creation. It surfaces the new item on a QC tile until
+a human reviews it and removes the tag, which is what makes a deliberately thin
+description or a missing image a tracked open item rather than a silent gap. A copy made
+from an already-tagged item inherits it.
+
+### The global-catalog link picker
+
+- The picker pre-selects the item's **Global Brand** and lists that brand's catalog
+  products. A brand being present globally does not mean *your* product is.
+- **Clear any pre-selected Strain Type filter.** It is prefilled from the item's own
+  strain type and silently narrows the result set. The control reads `Strain Type (1)`
+  when one is set and is bare when none is — check the label rather than opening it.
+  Use `Select none`; note that pressing Escape closes the whole modal, not just the
+  dropdown.
+- **Keep the Category filter** — it usefully excludes wrong-category records. QC it for
+  tinctures, which may be filed under edibles.
+- **Search the first word of the strain name only**, for partial-match tolerance.
+- The picker grid is **virtualised**: reading rendered rows under-reports. The backing
+  search call returns `data` (global candidates, with `meta.totalCount`) alongside
+  `retailerCatalog` (your own matching item, including its strain id and its
+  brand-catalog link id). `totalCount: 0` is real evidence of absence; an empty rendered
+  grid is not.
+- `status` (`Active` / archived) **is present on the global payload**, so the
+  is-it-Active check is machine-readable from this surface rather than eyeball-only.
+- **A near-name hit is not your record.** One returned row sharing a word with your
+  strain is a different cultivar. Linking it writes that product's art and description
+  onto yours. No linkable record is a normal outcome; leave it unlinked.
+
+### Invoice intake caveat
+
+**A vendor's first invoice is not that vendor's list price.** Opening orders carry
+new-account concessions and can show a price spread that looks like a potency or volume
+tier but is not. Do not carry a first-order price onto a new item as standing cost —
+confirm against a repeat order or the vendor's list before treating any price as the
+lane's.
+
+An invoice line that matches **no existing product line** is a stop for a human, never
+an automatic create: the copy method presupposes a sibling to copy.
+
+### Verification
+
+Read every field back **after saving and reloading the page**, not from the form state
+you just edited. A staged value that never registered with the framework looks identical
+to a saved one until the reload. Confirm the catalog total moved by exactly the number
+of items created, and diff a fresh export against a pre-run baseline with a row guard:
+expected additions, zero removals, and zero changed cells on pre-existing rows.
+
+## Product export & attribute bulk update by CSV [DOC-ADAM 2026-09-14]
+
+Backoffice Catalog → Export emits the **Product export**: one row per product, **63 columns**, keyed
+on `ProductId`. Its headers are Dutchie's own attribute names, and they are the headers a
+Dutchie-side **CSV bulk update** accepts. Per Dutchie (relayed by Adam, 2026-09-14) every column
+in this export is an attribute their load can update; five are PROVEN by a load that landed the same
+day — `Name`, `Strain`, `Flavor`, `Online title`, `Online description`. Treat the rest as asserted
+until a load proves each one.
+
+### The 63 headers, in order
+
+`ProductId`, `SKU`, `Name`, `Abbreviation`, `Product grams`, `Strain`, `Price`, `Rec price`, `Cost`,
+`Category`, `UPC`, `Default pricing tier`, `Flower equivalent`, `Alternate description`, `Vendor`,
+`Is cannabis`, `Is additive`, `Is available online`, `Is POS available`, `Is retired`, `Taxable`,
+`Is finished`, `Is test product`, `Allow automatic discounts`, `Brand name`, `Online title`,
+`Online description`, `Default unit`, `Unit type`, `Net weight`, `Net weight unit`, `Gross weight`,
+`Non cannabis weight`, `Non cannabis weight unit`, `Low inventory threshold`, `Instructions`,
+`Allergens`, `Ingredients`, `Days supply`, `Size`, `WeedMapsOrderable`, `Dosage`, `Flavor`,
+`Medical customers only`, `Max quantity per transaction`, `Producer`, `Lineage`, `NDC`,
+`Expiration days`, `Tags`, `Location_Price`, `Location_Cost`, `Location_PricingTier`,
+`Location_OnlineAvailable`, `Location_POSAvailable`, `Location_MaxPurchasable`,
+`Location_LowInventoryThreshold`, `Sync To Metrc`, `Use Sku Number As Serial No`, `Regulatory Name`,
+`THC Content`, `CBD Content`, `External ID`.
+
+### Reading the export
+
+- Cells are Excel-formula-quoted: `="value"`, blank is `=""`. Strip per CELL, never per column —
+  `Online description` is inconsistent (in one 862-row export, 45 wrapped, the rest plain).
+- Booleans come in two vocabularies: `Yes`/`No` (`Is cannabis`, `Is available online`,
+  `Is POS available`, `Is retired`, `Taxable`, `Sync To Metrc`, `Use Sku Number As Serial No`)
+  and `true`/`false` (`Is additive`, `Is finished`, `Is test product`, `Allow automatic discounts`,
+  `WeedMapsOrderable`). Do not normalise one vocabulary into the other on an upload.
+- `Product grams` is the bare number (`1`); the 27-column Catalog export from the BI tile prints
+  `1g`. Same field, two spellings — see the map below.
+- The export follows the grid's state: a grid opened on active items exports active items only
+  (`Is retired` = No on every row). Turn the Retired products filter ON before exporting retired
+  rows, and confirm the export followed it [unproven — the retired-filtered export has not been
+  pulled yet].
+- There is **no image column**. An image cannot be set or cleared by CSV; the item form and the
+  Copy-item recipe above govern images.
+- Multi-tag `Tags` cells: separator unverified (every observed cell held one tag).
+
+### Map to the 27-column Catalog export (BI tile)
+
+| Product export | Catalog export | Note |
+|---|---|---|
+| `Name` | `Product` | the item name; the upload header is `Name` |
+| `Brand name` | `Brand` | |
+| `Flower equivalent` | `Flower equiv` | |
+| `Product grams` `1` | `Product grams` `1g` | number vs unit-suffixed string |
+| `Price` / `Cost` | `Price` / `Cost` | Product export adds `Rec price` and the `Location_*` overrides |
+| `ProductId` `SKU` `Strain` `Flavor` `Category` `Vendor` `Tags` `Is available online` `Online title` `Online description` | same names | |
+| `Rec price`, `Location_*`, `UPC`, `Dosage`, `Default pricing tier`, `Producer`, `Lineage`, `NDC`, `Allergens`, `Ingredients`, `Instructions`, `External ID` | — | Product-export only |
+| — | `Master category`, `Global Category`, `Global SubCategory`, `Strain Type`, `Servings per Unit`, `CBD content`, `Brand catalog product`, `Available` | Catalog-export only — the classification and link surface lives there |
+
+### The CSV bulk-update contract (Dutchie-side load, by support ticket)
+
+- One file per attribute: `ProductId` + the ONE column that changes (an ecom clear carries
+  `Online title` + `Online description` together). Rows: only the products that change.
+- Values are plain — no `="…"` wrapper — UTF-8 without BOM, CRLF, straight apostrophes.
+  Accented letters pass through unchanged.
+- A `Strain` value must equal an existing Strain record's name; the load matches, it never mints.
+  Create the record first. **The match is case-INSENSITIVE and it sees records the Strains export
+  does not list.** Measured on a 624-row Strain load (2026-09-14): 8 rows bound to a NAMESAKE
+  record — 2 came back with different casing, 6 with a Strain Type unlike the live record's, 1 with
+  no Type — while the Strains export (1,216 records) held no case-insensitive duplicate at all.
+  Setting `Strain` also DERIVES the item's Strain Type from the record it bound (595 cells moved
+  on that load). Expect both after any Strain load: the string exact, and Strain Type equal to the
+  live record's Type; a miss is a re-bind through the item form or the bulk-edit grid.
+- **A blank cell CLEARS the field.** Omit every column you are not changing; a blank appears only
+  in a file whose purpose is a clear, and the ticket says so in words.
+- The Backoffice bulk-edit grid (Path A/B above) is the self-serve alternative: ~25 fields,
+  selection-scoped, no ticket — but it cannot carry a per-row VALUE list at estate scale (names,
+  strains). Price/Cost alone have the self-serve CSV (Path B). Everything else at scale is this path.
+- Retired rows load without un-retiring; say so in the ticket anyway.
+
+### Verification, both sides of the load
+
+1. Before sending: every `ProductId` exists in a frozen export pulled the same day; every value
+   differs from the current value or is an intended clear; no duplicate `ProductId`; no blank
+   outside a clear file; a row count per file stated in the ticket.
+2. After the load: pull the export again and diff FULL rows against the pre-load freeze. Changed
+   cells = rows × columns per file; every other cell identical. A cell that moved outside your
+   columns is a finding about the load, not about your file.
+3. A rejected file re-emits to a NEW versioned filename. A sent file is never edited.
+
+Source: a Backoffice Product export and a four-file bulk update applied in the same day's load
+(2026-09-14), read against the BI-tile Catalog export of the same catalog.

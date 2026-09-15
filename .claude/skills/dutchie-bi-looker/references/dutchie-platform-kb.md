@@ -573,3 +573,92 @@ you just edited. A staged value that never registered with the framework looks i
 to a saved one until the reload. Confirm the catalog total moved by exactly the number
 of items created, and diff a fresh export against a pre-run baseline with a row guard:
 expected additions, zero removals, and zero changed cells on pre-existing rows.
+
+## Product export & attribute bulk update by CSV [DOC-ADAM 2026-09-14]
+
+Backoffice Catalog → Export emits the **Product export**: one row per product, **63 columns**, keyed
+on `ProductId`. Its headers are Dutchie's own attribute names, and they are the headers a
+Dutchie-side **CSV bulk update** accepts. Per Dutchie (relayed by Adam, 2026-09-14) every column
+in this export is an attribute their load can update; five are PROVEN by a load that landed the same
+day — `Name`, `Strain`, `Flavor`, `Online title`, `Online description`. Treat the rest as asserted
+until a load proves each one.
+
+### The 63 headers, in order
+
+`ProductId`, `SKU`, `Name`, `Abbreviation`, `Product grams`, `Strain`, `Price`, `Rec price`, `Cost`,
+`Category`, `UPC`, `Default pricing tier`, `Flower equivalent`, `Alternate description`, `Vendor`,
+`Is cannabis`, `Is additive`, `Is available online`, `Is POS available`, `Is retired`, `Taxable`,
+`Is finished`, `Is test product`, `Allow automatic discounts`, `Brand name`, `Online title`,
+`Online description`, `Default unit`, `Unit type`, `Net weight`, `Net weight unit`, `Gross weight`,
+`Non cannabis weight`, `Non cannabis weight unit`, `Low inventory threshold`, `Instructions`,
+`Allergens`, `Ingredients`, `Days supply`, `Size`, `WeedMapsOrderable`, `Dosage`, `Flavor`,
+`Medical customers only`, `Max quantity per transaction`, `Producer`, `Lineage`, `NDC`,
+`Expiration days`, `Tags`, `Location_Price`, `Location_Cost`, `Location_PricingTier`,
+`Location_OnlineAvailable`, `Location_POSAvailable`, `Location_MaxPurchasable`,
+`Location_LowInventoryThreshold`, `Sync To Metrc`, `Use Sku Number As Serial No`, `Regulatory Name`,
+`THC Content`, `CBD Content`, `External ID`.
+
+### Reading the export
+
+- Cells are Excel-formula-quoted: `="value"`, blank is `=""`. Strip per CELL, never per column —
+  `Online description` is inconsistent (in one 862-row export, 45 wrapped, the rest plain).
+- Booleans come in two vocabularies: `Yes`/`No` (`Is cannabis`, `Is available online`,
+  `Is POS available`, `Is retired`, `Taxable`, `Sync To Metrc`, `Use Sku Number As Serial No`)
+  and `true`/`false` (`Is additive`, `Is finished`, `Is test product`, `Allow automatic discounts`,
+  `WeedMapsOrderable`). Do not normalise one vocabulary into the other on an upload.
+- `Product grams` is the bare number (`1`); the 27-column Catalog export from the BI tile prints
+  `1g`. Same field, two spellings — see the map below.
+- The export follows the grid's state: a grid opened on active items exports active items only
+  (`Is retired` = No on every row). Turn the Retired products filter ON before exporting retired
+  rows, and confirm the export followed it [unproven — the retired-filtered export has not been
+  pulled yet].
+- There is **no image column**. An image cannot be set or cleared by CSV; the item form and the
+  Copy-item recipe above govern images.
+- Multi-tag `Tags` cells: separator unverified (every observed cell held one tag).
+
+### Map to the 27-column Catalog export (BI tile)
+
+| Product export | Catalog export | Note |
+|---|---|---|
+| `Name` | `Product` | the item name; the upload header is `Name` |
+| `Brand name` | `Brand` | |
+| `Flower equivalent` | `Flower equiv` | |
+| `Product grams` `1` | `Product grams` `1g` | number vs unit-suffixed string |
+| `Price` / `Cost` | `Price` / `Cost` | Product export adds `Rec price` and the `Location_*` overrides |
+| `ProductId` `SKU` `Strain` `Flavor` `Category` `Vendor` `Tags` `Is available online` `Online title` `Online description` | same names | |
+| `Rec price`, `Location_*`, `UPC`, `Dosage`, `Default pricing tier`, `Producer`, `Lineage`, `NDC`, `Allergens`, `Ingredients`, `Instructions`, `External ID` | — | Product-export only |
+| — | `Master category`, `Global Category`, `Global SubCategory`, `Strain Type`, `Servings per Unit`, `CBD content`, `Brand catalog product`, `Available` | Catalog-export only — the classification and link surface lives there |
+
+### The CSV bulk-update contract (Dutchie-side load, by support ticket)
+
+- One file per attribute: `ProductId` + the ONE column that changes (an ecom clear carries
+  `Online title` + `Online description` together). Rows: only the products that change.
+- Values are plain — no `="…"` wrapper — UTF-8 without BOM, CRLF, straight apostrophes.
+  Accented letters pass through unchanged.
+- A `Strain` value must equal an existing Strain record's name; the load matches, it never mints.
+  Create the record first. **The match is case-INSENSITIVE and it sees records the Strains export
+  does not list.** Measured on a 624-row Strain load (2026-09-14): 8 rows bound to a NAMESAKE
+  record — 2 came back with different casing, 6 with a Strain Type unlike the live record's, 1 with
+  no Type — while the Strains export (1,216 records) held no case-insensitive duplicate at all.
+  Setting `Strain` also DERIVES the item's Strain Type from the record it bound (595 cells moved
+  on that load). Expect both after any Strain load: the string exact, and Strain Type equal to the
+  live record's Type; a miss is a re-bind through the item form or the bulk-edit grid.
+- **A blank cell CLEARS the field.** Omit every column you are not changing; a blank appears only
+  in a file whose purpose is a clear, and the ticket says so in words.
+- The Backoffice bulk-edit grid (Path A/B above) is the self-serve alternative: ~25 fields,
+  selection-scoped, no ticket — but it cannot carry a per-row VALUE list at estate scale (names,
+  strains). Price/Cost alone have the self-serve CSV (Path B). Everything else at scale is this path.
+- Retired rows load without un-retiring; say so in the ticket anyway.
+
+### Verification, both sides of the load
+
+1. Before sending: every `ProductId` exists in a frozen export pulled the same day; every value
+   differs from the current value or is an intended clear; no duplicate `ProductId`; no blank
+   outside a clear file; a row count per file stated in the ticket.
+2. After the load: pull the export again and diff FULL rows against the pre-load freeze. Changed
+   cells = rows × columns per file; every other cell identical. A cell that moved outside your
+   columns is a finding about the load, not about your file.
+3. A rejected file re-emits to a NEW versioned filename. A sent file is never edited.
+
+Source: a Backoffice Product export and a four-file bulk update applied in the same day's load
+(2026-09-14), read against the BI-tile Catalog export of the same catalog.
