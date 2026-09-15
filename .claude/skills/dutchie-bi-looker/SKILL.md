@@ -127,6 +127,14 @@ const h = {
 
 ### Write surfaces
 
+⚠ **Every write path below is written bare, but must be sent PREFIXED: `/api/internal/core/4.0/<path>`.**
+Measured 2026-09-15 on a live bind. A bare `POST /queries` returns **HTML** (and `JSON.parse` dies on
+`<!DOCTYPE`), and a bare `PATCH /dashboard_elements/<id>` returns **403 `text/html`** — which reads exactly
+like the CSRF failure described above and sends you hunting a token that is fine. The tell is the
+`content-type`: a real auth failure and a wrong path both 403, so branch on `content-type` and on whether the
+GET surfaces work with the same headers. `/api/internal/dashboard_elements/<id>` (no `core/4.0`) is a clean
+404. Reads are the exception: `GET /api/internal/dashboards/<id>` has no `core/4.0` segment.
+
 - `PATCH /dashboard_elements/<id>` — `{title}` rename ✅ · `{merge_result_id}` repoint ✅ (listens
   survive) · `{result_maker:{filterables:[{model,view,listen:[{dashboard_filter_name,field}]}]}}`
   ✅ the filter-mapping fix, one call replacing the whole Tiles-to-update panel flow ·
