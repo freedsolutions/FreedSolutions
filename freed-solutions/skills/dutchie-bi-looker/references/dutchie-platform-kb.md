@@ -345,9 +345,20 @@ write paths. Both act on the CURRENT tenant catalog; neither is a Looker surface
 ### Path A — Bulk edit product details (selection-scoped)
 
 Modal "Catalog bulk edit": a Field dropdown, a value box, `+ Add field` for several
-fields in one save, a trash icon per row, Cancel / Save. Roughly 25 settable fields
-including price, cost, flower equivalent, grams/concentration, name, strain, flavor,
-category, tags and the online/POS availability flags.
+fields in one save, a trash icon per row, Cancel / Save. Exactly 25 settable fields
+(internal names, read from the dropdown 2026-09-15): `CustomerTypes`, `BrandId`,
+`CBDContent`, `IsCannabisProduct`, `ProductCategoryId`, `Cost`, `DefaultUnitId`,
+`ExternalSubCategory`, `Flavor`, `FlowerEquivalent`, `EcomCategory`, `Grams`,
+`LowInventory`, `MetrcBrand`, `Name`, `IsOnlineProduct`, `IsPosProduct`, `Price`,
+`PricingTier`, `ServingSizePerUnit`, `StrainId`, `SyncToMetrcItem`, `Tags`,
+`UnitTypeId`, `VendorId`.
+
+- Strain is `StrainId`, not a string: the value is a strain RECORD picked by name, so the
+  bind is exact and a generic entry such as `THC` works here where the product form's
+  Autocomplete resists it. Read the bound name back after the save.
+- **`Online title`, `Online description` and images are NOT grid fields.** They are written
+  on the product form's Online details tab only (see "Online description on the product
+  form" below).
 
 - Field LABELS differ from their internal names (e.g. "Flower equivalent" →
   `FlowerEquivalent`, "Grams/concentration" → `Grams`). Assert the internal name
@@ -410,6 +421,25 @@ resumes without re-writing. A group whose read-back disagrees is a conflict: sto
 group, never retry blind. Certify the whole run with one FULL-ROW diff of a fresh
 export against a pre-run baseline, attributing every changed cell to a known
 population — an unattributed cell is the finding.
+
+### Online description on the product form [PROBE 2026-09-15]
+
+`/products/catalog/<ProductId>` → Online details tab. Proven on two records (one append,
+one full replacement), each re-read byte-exact after a full page reload.
+
+- Resolve the field by id: textarea `input-input_Online description:`. A bare "first
+  textarea" selector also matches `Large online description:` and writes the wrong field.
+- Real keystrokes APPEND only. `Backspace` and `ctrl+a` + `Delete` delete nothing even with
+  focus confirmed by a real click — the value length does not move. `ctrl+End` does not move
+  the caret; `setSelectionRange(len, len)` does, and keystrokes then register at the end.
+- A REPLACEMENT goes through the native `HTMLTextAreaElement` value setter plus bubbling
+  `input` and `change` events; that enables Save and survives reload. Guard on
+  `value === target` immediately before Save.
+- Read the LIVE field before composing a replacement: the Catalog export collapses the
+  newlines inside a description (a 129-char live value exported as 126), so an export cell
+  is not the byte-exact baseline. Copy a sibling's text from the sibling's own field, never
+  from a markdown file — a curly apostrophe straightened in transit breaks byte-identity.
+- The tool key name is `Backspace`; a wrong name (`BackSpace`) reports success and does nothing.
 
 ---
 
@@ -613,6 +643,10 @@ until a load proves each one.
 - There is **no image column**. An image cannot be set or cleared by CSV; the item form and the
   Copy-item recipe above govern images.
 - Multi-tag `Tags` cells: separator unverified (every observed cell held one tag).
+- Newlines inside `Online description` do not survive the 27-column Catalog export (BI tile):
+  a 129-char live value exported as 126 [proven 2026-09-15]. Whether the 63-column Product
+  export keeps them is unproven. Neither export is the byte-exact baseline for a description
+  rewrite — read the live field.
 
 ### Map to the 27-column Catalog export (BI tile)
 
