@@ -612,6 +612,16 @@ from an already-tagged item inherits it.
   the UI additionally fires a full-form `update-product`; the API path does not need it and
   does not send it. This is why the picker works on a product whose form will not Save —
   see the retired read/write path below.
+- **Unlinking is its own call too, and also needs no Save** [PROBE 2026-09-16]. The item
+  page's **Unlink from global product** → confirm fires
+  `POST /api/v2/brands-catalog/unlink-from-catalog-product` with `{…ctx, ProductId}`. It
+  commits on a RETIRED product, and an API replay of the same body commits identically
+  (6 of 6, full-row certified: `BrandCatalogProductId` is the only field that moves, and the
+  description the item already carries is untouched). Record the old link id before the call —
+  the response does not return it, and it is the only way to restore the link.
+- **After an unlink the page offers a "potential match" — treat it as a name hit.** It
+  proposed a different flavour of the same product line, because the names share every
+  word but the flavour. Accepting it is a link like any other: gate it, never click through.
 - `status` (`Active` / archived) **is present on the global payload**, so the
   is-it-Active check is machine-readable from this surface rather than eyeball-only.
 - **A near-name hit is not your record.** One returned row sharing a word with your
