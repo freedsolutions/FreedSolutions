@@ -452,6 +452,14 @@ one full replacement), each re-read byte-exact after a full page reload.
   is not the byte-exact baseline. Copy a sibling's text from the sibling's own field, never
   from a markdown file — a curly apostrophe straightened in transit breaks byte-identity.
 - The tool key name is `Backspace`; a wrong name (`BackSpace`) reports success and does nothing.
+- **A form Save writes more than the field you edited [PROBE 2026-09-16].** On a record never
+  saved through the form, `IngredientList` goes `null` → `""` and `NonCannabisWeightUnit`
+  `null` → `0` on the same Save. Both are empty → empty; nothing an operator sees changes. A
+  full-row certifier WILL report them, so declare both as a form-Save signature rather than
+  calling them drift. A catalog that has been form-edited before already carries the pattern
+  on the rows that were saved, so a mixed `null` / `""` census is expected, not a defect.
+- Certify by an API full-row diff of the product-master row, before vs after. A "Product
+  updated." toast is not a read-back.
 
 ---
 
