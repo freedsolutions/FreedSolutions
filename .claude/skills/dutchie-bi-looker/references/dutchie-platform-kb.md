@@ -384,6 +384,30 @@ fields in one save, a trash icon per row, Cancel / Save. Exactly 25 settable fie
   dropdown is still closing lands on the dialog container and the keystrokes vanish.
 - Write endpoint `POST /api/product-master/update-products-multiple` → `{"Result":true}`,
   followed by a grid refetch. Success also shows a "Products updated." toast.
+- The modal is WIDER than the default pane. Emulate a wider viewport before opening it,
+  or Save sits off-screen — and inside the modal drive by element REF only (see Traps).
+
+### Path A′ — the same endpoint, called directly [PROBE 2026-09-18]
+
+The picker's own Save posts a flat body, captured from a real UI save:
+
+    {"ProductList":[<productId>, …], "FieldList":[{"StrainId": <id>}],
+     "CustomerTypes":[], "TaxCategories":[], "Tags":[],
+     "SessionId":"…", "LspId":…, "LocId":…, "OrgId":…, "UserId":…}
+
+- One call per VALUE: `FieldList` carries the same value for every id in `ProductList`, so group the
+  work by target value (one call per strain, per flavor; a per-item field such as `Name` is one call each).
+- `{"Result":true}` plus HTTP 200 is the success pair; read the row back regardless.
+- Field names are the INTERNAL ones (`StrainId`, `Flavor`, `Name`), which the modal also exposes as the
+  value control's accessible name once a field is chosen — assert it there before trusting a label.
+- Record ids come from `POST /api/strain/get-strains` (`StrainName` → `StrainId`); resolve every name to
+  EXACTLY ONE live record first and abort on an ambiguity. This binds by RECORD, which is what makes it
+  safe where a CSV load is not: the CSV binds by NAME, case-insensitively, archived records included.
+- Cost: the picker path is ~8 browser calls per item (search, tick, two menu clicks, field, record search,
+  pick, Save) against one HTTP call per group here. Use the UI to PROVE the payload on a live save, then
+  replay its exact shape; a body invented from the form's own state is not the same request.
+- Verify with `get-product-master-v2` (active) + `get-product-master-retired-v2` (retired), which return
+  `{Data:{products:[…]}}`; compare name, the numeric id and the derived `StrainType` per item.
 
 ### Path B — Bulk update cost and prices via CSV (BETA)
 
@@ -421,6 +445,10 @@ upload" freshness interstitial, then an upload drop zone.
 8. The page-side coordinate frame can differ from the screenshot frame. Scale a
    `getBoundingClientRect()` value by `screenshotWidth / window.innerWidth` before
    using it as a click coordinate, or drive elements by reference instead.
+9. **Inside this modal, drive by element REF only.** In a real run a guessed coordinate
+   aimed at the value box landed on Save and CLEARED a live field (trap 1, executed).
+   Refs also go stale on every re-render, so re-read them after each save rather than
+   reusing a ref or a remembered position.
 
 ### Recipe
 
@@ -433,6 +461,27 @@ resumes without re-writing. A group whose read-back disagrees is a conflict: sto
 group, never retry blind. Certify the whole run with one FULL-ROW diff of a fresh
 export against a pre-run baseline, attributing every changed cell to a known
 population — an unattributed cell is the finding.
+
+### Minting a Strain record on the Strains page [PROBE 2026-09-18]
+
+`/products/strains` → **Add strain**. Five controls: Name, Description, Abbreviation (all required),
+Type (a MUI Select) and External ID, then Save. House convention fills Name = Abbreviation = Description.
+
+- The Type list is `None / Hybrid / Indica / Indica-Hybrid / Sativa / Sativa-Hybrid / CBD / THC / 1 to 1 /
+  2 to 1 / 5 to 1 / 10 to 1 / 20 to 1 / 50 to 1`. Open it, press the first letter, then **`Enter`** —
+  the key name `Return` moves the highlight but does NOT commit, so the list stays open.
+- **A Save clicked while that list is still closing is swallowed and writes nothing** — no toast, the form
+  simply stays filled. Wait ~2s after the commit, click Save, then confirm you are back on the list.
+- Every ref goes stale on each save; re-read the page for the next record rather than reusing one.
+- Read back by searching the name: the row must appear exactly once with the Type you chose. A search that
+  returns two rows means a duplicate mint, not a stale grid.
+- The same form edits an existing record (click its name), which is how a record's Type is corrected.
+
+### Clearing an attribute through the grid
+
+An empty value box is the supported CLEAR for the selection's field: the same Save that trap 1 warns about
+is the intended path when a blank IS the target (proven on `Flavor`, read back as empty on both endpoints).
+State the clear in words before running it, and never leave an empty box in a modal you opened for a set.
 
 ### Online description on the product form [PROBE 2026-09-15]
 
