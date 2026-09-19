@@ -483,7 +483,7 @@ than things to remember — a session read this section on 2026-09-18 and still 
   caught.** The records carry no archive/active field — observed as exactly `StrainId`,
   `StrainName`, `StrainDescription`, `Abbreviation`, `StrainAbbreviation`, `StrainType`,
   `ExternalId` — and the Strains page offers one Type filter, four columns and no archived toggle.
-  That absence is the answer, not a gap: a strain id still REFERENCED by live items (the item rows
+  That absence is the answer, not a gap: a strain id still REFERENCED by catalog item rows (which
   render its name and type) was absent from this read entirely, and strain records that a
   name-bound CSV load had demonstrably bound items to were likewise absent while their live
   namesakes were present — the response carried no case-insensitive duplicate names at all. So an

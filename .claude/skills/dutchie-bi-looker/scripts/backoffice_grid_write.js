@@ -444,7 +444,7 @@
           //
           // Proven 2026-09-19 on a live tenant: this read EXCLUDES records that still exist and are
           // still referenced. Of the distinct strain ids carried by the active plus retired catalog,
-          // one was bound to six live items — the items render its name and type — and it was absent
+          // one was bound to six catalog items — the item rows render its name and type — and it was absent
           // from this read entirely. Separately, seven strain records that a name-bound CSV load had
           // demonstrably bound items to were absent here, while their live namesakes were present,
           // and the response carried no case-insensitive duplicate names at all.
