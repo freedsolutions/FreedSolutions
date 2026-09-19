@@ -264,6 +264,13 @@ its lock. The holder file is `%LOCALAPPDATA%\ms-playwright-mcp\HOLDER.json` (mac
 - **`references/dutchie-platform-kb.md`** — Dutchie platform behaviour: catalog→inventory
   attribute inheritance classes, the PLC-keyed flower-equivalency system, lookup-list endpoints,
   the repurposed-field watch-list. Entries dated [DOC]/[PROBE]/[TENANT].
+- **`scripts/backoffice_grid_write.js`** — the DEFAULT path for a Backoffice catalog grid write:
+  a guarded page-side helper for an already-signed-in tab that calls the bulk-edit endpoint
+  directly, plans by default (`dryRun` is TRUE), harvests its envelope from the page's own traffic
+  rather than composing one, and turns each documented trap into a named hard stop. Proven by
+  `scripts/backoffice_grid_write_selftest.js` (node, mocked fetch, login-free): every refusal green
+  on a clean fixture and red on a fixture broken in one place. Details in the KB under *Backoffice
+  bulk-edit grid → Recipe*.
 - **`references/mdm-product-line-rules.md`** — portable product-line/QC rule patterns. The
   client's `DATA-DICTIONARY.md` outranks it.
 - **Ripple scanning** is the `bi-change` skill's job:

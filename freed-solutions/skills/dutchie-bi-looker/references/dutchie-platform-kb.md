@@ -448,9 +448,47 @@ upload" freshness interstitial, then an upload drop zone.
    Refs also go stale on every re-render, so re-read them after each save rather than
    reusing a ref or a remembered position.
 
+Traps 1, 8 and 9 all come from driving the modal. The guarded helper named under *Recipe* does not
+drive it: it calls the endpoint directly and REFUSES the bad write rather than warning about it.
+Reach for the modal only for what the helper does not cover.
+
 ### Recipe
 
-Per group of items sharing one target value: **Select none** and assert 0 → search
+**Default path: `<this skill>/scripts/backoffice_grid_write.js`.** A guarded page-side helper for a
+tab you are already signed in to. It is the DEFAULT for a grid write; the picker recipe below is the
+fallback for anything it refuses or does not cover. It turns the traps above into hard stops rather
+than things to remember — a session read this section on 2026-09-18 and still executed trap 1.
+
+    gridWrite({ productIds, field, value, clear, expectCount, scope, refuseTags, dryRun })
+
+- `dryRun` defaults to TRUE and returns the plan. Refusals are NAMED and stop the run: an unproven
+  field, an empty value without an explicit `clear`, a count that disagrees with the id list, a
+  duplicate id, a strain id that is non-numeric / unresolved / archived, a product id that does not
+  resolve on the read for its `scope`, and an item carrying a caller-supplied refuse-tag. It names
+  no tag itself — the caller passes the tenant's.
+- It invents nothing. The envelope values are harvested from a request the PAGE made, and each read
+  is a replay of the page's own request, so an unobserved endpoint is a stop (`MISSING_READ_CAPTURE`)
+  rather than a guessed path. Let the grid issue its own read first; `gridWriteCapture()` reports
+  what it has.
+- It reads EVERY item back on the matching endpoint and marks any disagreement a CONFLICT, including
+  a write that returns the success pair while nothing moves. It never retries blind. Full per-item
+  before/after and a resume done-list sit on `window.__gridWrite`, because the in-page JS channel
+  truncates near 1 KB.
+- v1 allowlist is `StrainId`, `Flavor`, `Name` — what the direct-call entry above proves, each
+  carrying its provenance into the plan. `Tags` is deliberately excluded: replace-or-append is
+  unproven, and a guess there rewrites governance silently.
+- **[PROBE 2026-09-19] `get-strains` can carry no archived state at all.** Records observed with
+  exactly `StrainId`, `StrainName`, `StrainDescription`, `Abbreviation`, `StrainAbbreviation`,
+  `StrainType`, `ExternalId`, and the Strains page offers one Type filter, four columns and no
+  archived toggle. So "not archived" is UNPROVABLE there, not false. The helper stops
+  (`ARCHIVE_CHECK_UNAVAILABLE`) and the caller clears that one stop per call with
+  `acceptNoArchiveFlag: true`, which is recorded in the plan. It can never clear a record the read
+  positively reports as archived. The standing guard is the record-id bind: a NAME is refused
+  outright, and a name is the path that reaches an archived namesake.
+- Selftest `scripts/backoffice_grid_write_selftest.js` (node, mocked fetch, no login) proves every
+  refusal green on a clean fixture and red on a fixture broken in one place.
+
+Fallback — driving the modal by hand. Per group of items sharing one target value: **Select none** and assert 0 → search
 each SKU, verify the row's SKU and that it carries no do-not-use tag, tick it, assert
 the count rose by exactly one → open the modal, set the field, assert the internal
 name, set the value → guard field + value + count → Save → read every touched SKU back
