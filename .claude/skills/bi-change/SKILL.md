@@ -324,4 +324,11 @@ aimed at one unbuilt one.
   (case-insensitively, which is what catches a lowercase filename token) or a concrete
   `clients/<real slug>/` path — and, SCOPED to `templates/client/`, no rule id `Rnn`, because a
   register label that survived the lift points at a rule the scaffolded tenant will never own. A
-  generic `clients/<slug>/` placeholder is the portable mechanism and is allowed. Exit 1 on any hit. It excludes only itself, and prints that exclusion every run.
+  generic `clients/<slug>/` placeholder is the portable mechanism and is allowed. It also fails a
+  **tenant id presented as a real value** — a quoted run of bare integers beside an `lsp_id` /
+  `loc_id` / `LspId` / `LocId` key, which is the form an embed user attribute gets quoted back in;
+  a schema line (`lsp_id|number`), an elided payload (`"LspId":…`) and a `"<lsp id>"` placeholder
+  are the mechanism and pass. Last class is **not** a client leak and is named apart: a concrete
+  **backoffice server host** (`<label>.backoffice.dutchie.com`) pins one Dutchie SERVER CLUSTER
+  that many tenants share — genericise it to `<server>`, but do not read it as a tenant name. The
+  shared Looker host is generic and is not a hit. Exit 1 on any hit. It excludes only itself, and prints that exclusion every run.

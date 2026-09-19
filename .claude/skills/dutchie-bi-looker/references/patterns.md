@@ -355,7 +355,7 @@ symptom is a Looker page that loads to a blank shell and never renders (`Add cal
 never appears). It is not a login problem.
 
 Fix: navigate to any Backoffice BI-tools page (e.g.
-`omega.backoffice.dutchie.com/reports/bi-tools/explore`). It issues a **fresh signed nonce**
+`<server>.backoffice.dutchie.com/reports/bi-tools/explore`). It issues a **fresh signed nonce**
 and re-sets the cookie. Then go back to the Looker URL. No re-login needed if the Backoffice
 session is still good. Saved merge work is unaffected.
 

@@ -50,7 +50,7 @@ days-of-supply figure computed without this filter is meaningless.
 surprising — an unfamiliar category label, an implausible SKU count — check this filter
 before forming any conclusion or reporting a finding.
 
-Note `lsp_id` in the embed user attributes may list several ids (e.g. `"1132, 1852"`),
+Note `lsp_id` in the embed user attributes may list several ids (e.g. `"<lsp id>, <lsp id>"`),
 which is what permits the cross-tenant read in the first place. A single `logged_in_lsp_id`
 does **not** constrain what a query returns.
 
