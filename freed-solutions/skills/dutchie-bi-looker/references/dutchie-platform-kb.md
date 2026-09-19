@@ -406,6 +406,10 @@ The picker's own Save posts a flat body, captured from a real UI save:
   replay its exact shape; a body invented from the form's own state is not the same request.
 - Verify with `get-product-master-v2` (active) + `get-product-master-retired-v2` (retired), which return
   `{Data:{products:[…]}}`; compare name, the numeric id and the derived `StrainType` per item.
+- **[PROBE 2026-09-19] This call writes RETIRED items WITHOUT unretiring them.** Proven in real runs
+  for `StrainId`, `Flavor` (the explicit clear included) and `Name`, each read back afterwards on the
+  retired read. The item stays retired throughout; the adjacent `Bulk unretire products` menu entry is
+  never part of this path and nothing here needs it.
 
 ### Path B — Bulk update cost and prices via CSV (BETA)
 
@@ -447,6 +451,12 @@ upload" freshness interstitial, then an upload drop zone.
    aimed at the value box landed on Save and CLEARED a live field (trap 1, executed).
    Refs also go stale on every re-render, so re-read them after each save rather than
    reusing a ref or a remembered position.
+10. **Several guarded writes looped inside ONE in-page call can wedge the tab.**
+    [PROBE 2026-09-19] Each write does full catalog read-backs, so a loop that is fine
+    one call at a time exhausts the call and times out. After a timeout the helper's
+    done-list UNDER-counts — writes that landed are missing from it, so it reads as
+    fewer done than there are. Establish state from a fresh read of the LIVE rows, never
+    from that list, and continue ONE write per call.
 
 Traps 1, 8 and 9 all come from driving the modal. The guarded helper named under *Recipe* does not
 drive it: it calls the endpoint directly and REFUSES the bad write rather than warning about it.
