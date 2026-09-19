@@ -25,12 +25,13 @@
  *   it cannot prove is a named hard stop rather than a warning. If a guard is in your way, the
  *   answer is to prove the missing fact, never to widen the guard.
  *
- * THE ONE CLEARABLE STOP
- *   `acceptNoArchiveFlag: true` clears ARCHIVE_CHECK_UNAVAILABLE for one call, and only that one
- *   stop: it fires when the Strains read carries no archive/active field at all, so "not archived"
- *   is UNPROVABLE rather than false. The acknowledgement is recorded in the plan and parked with
- *   the run. It can never clear STRAIN_ID_ARCHIVED — a record the read positively reports as
- *   archived is refused with no override. Nothing else here is clearable by a flag.
+ *   No stop here is clearable by a flag. Every one is cleared by proving the missing fact.
+ *
+ * HOW AN ARCHIVED STRAIN IS CAUGHT
+ *   By RESOLUTION, not by a flag. The Strains read is the live list: proven 2026-09-19 on a live
+ *   tenant, where a strain id bound to six current items was absent from it entirely. So an
+ *   archived id simply fails to resolve and is refused as STRAIN_ID_UNRESOLVED. The separate
+ *   archived-flag branch is kept for the day the platform exposes one.
  *
  * Selftest: `node backoffice_grid_write_selftest.js` (login-free, mocked fetch).
  */
@@ -350,7 +351,7 @@
     var doneKey = field + '|' + (clear ? '<CLEAR>' : String(payloadValue)) + '|';
 
     var state = { ctx: ctx, ctxSource: got.source, rows: null, idKey: null, tagKey: null,
-      before: {}, declares: [], archiveCheck: null, archiveNote: null };
+      before: {}, declares: [], archiveCheck: null };
 
     var trigger = scope === 'retired'
       ? 'Open the catalog grid with More → Retired products → Save'
@@ -439,26 +440,21 @@
         var archKey = keyOf(hit[0], /archiv/i) || keyOf(hit[0], /^is_?active$/i) ||
           keyOf(hit[0], /^(is)?deleted$/i);
         if (!archKey) {
-          // Observed 2026-09-18: this read can return records carrying only StrainId, StrainName,
-          // StrainDescription, Abbreviation, StrainAbbreviation, StrainType and ExternalId — no
-          // archive/active field at all — and the Strains page exposes no archived state either.
-          // Where the platform cannot answer, this helper does not invent an answer. The caller
-          // clears the stop per call, and the acknowledgement is recorded in the plan.
+          // No archive/active field on the record — and that is not a gap, it is the answer.
           //
-          // The acknowledgement clears only an UNPROVABLE check. It can never clear a record the
-          // read positively reports as archived: that branch is below and takes no override.
-          if (o.acceptNoArchiveFlag !== true) {
-            return refuse('ARCHIVE_CHECK_UNAVAILABLE',
-              'the Strains read exposes no archive/active flag, so "not archived" cannot be proven ' +
-              'for StrainId ' + payloadValue + '. Binding to an archived namesake is the exact ' +
-              'failure this refusal exists to stop. If this surface has no archived state, clear ' +
-              'this stop deliberately with acceptNoArchiveFlag:true and it will be recorded.');
-          }
-          state.archiveCheck = 'NOT PROVEN (accepted)';
-          state.archiveNote = 'this Strains read exposes no archive/active field, so "not archived" ' +
-            'was NOT proven; the caller accepted that explicitly on this call. The standing guard is ' +
-            'the record-id bind: a NAME is refused outright, and a name is the path that reaches an ' +
-            'archived namesake.';
+          // Proven 2026-09-19 on a live tenant: this read EXCLUDES records that still exist and are
+          // still referenced. Of the distinct strain ids carried by the active plus retired catalog,
+          // one was bound to six live items — the items render its name and type — and it was absent
+          // from this read entirely. Separately, seven strain records that a name-bound CSV load had
+          // demonstrably bound items to were absent here, while their live namesakes were present,
+          // and the response carried no case-insensitive duplicate names at all.
+          //
+          // So the read is the LIVE list, and `hit.length` above is already the liveness proof: an
+          // archived id fails to resolve and is refused as STRAIN_ID_UNRESOLVED before reaching here.
+          // An extra "prove it is not archived" stop would be ceremony, and a stop a caller must
+          // always wave through is a stop that stops meaning anything. The flag branch below is kept
+          // for the day this surface grows one.
+          state.archiveCheck = 'by resolution — this read is the live list';
           state.strainName = sNameKey ? hit[0][sNameKey] : null;
           return null;
         }
@@ -512,7 +508,7 @@
       };
       STORE.runs.push({ at: new Date().toISOString(), plan: plan, body: body,
         before: state.before, strainName: state.strainName || null,
-        archiveNote: state.archiveNote || null, after: null, conflicts: [] });
+        after: null, conflicts: [] });
       if (dryRun) return plan;
 
       var run = STORE.runs[STORE.runs.length - 1];

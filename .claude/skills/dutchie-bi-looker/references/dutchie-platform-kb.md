@@ -479,14 +479,21 @@ than things to remember — a session read this section on 2026-09-18 and still 
 - v1 allowlist is `StrainId`, `Flavor`, `Name` — what the direct-call entry above proves, each
   carrying its provenance into the plan. `Tags` is deliberately excluded: replace-or-append is
   unproven, and a guess there rewrites governance silently.
-- **[PROBE 2026-09-19] `get-strains` can carry no archived state at all.** Records observed with
-  exactly `StrainId`, `StrainName`, `StrainDescription`, `Abbreviation`, `StrainAbbreviation`,
-  `StrainType`, `ExternalId`, and the Strains page offers one Type filter, four columns and no
-  archived toggle. So "not archived" is UNPROVABLE there, not false. The helper stops
-  (`ARCHIVE_CHECK_UNAVAILABLE`) and the caller clears that one stop per call with
-  `acceptNoArchiveFlag: true`, which is recorded in the plan. It can never clear a record the read
-  positively reports as archived. The standing guard is the record-id bind: a NAME is refused
-  outright, and a name is the path that reaches an archived namesake.
+- **[PROBE 2026-09-19] `get-strains` is the LIVE list, and that is how an archived strain is
+  caught.** The records carry no archive/active field — observed as exactly `StrainId`,
+  `StrainName`, `StrainDescription`, `Abbreviation`, `StrainAbbreviation`, `StrainType`,
+  `ExternalId` — and the Strains page offers one Type filter, four columns and no archived toggle.
+  That absence is the answer, not a gap: a strain id still REFERENCED by live items (the item rows
+  render its name and type) was absent from this read entirely, and strain records that a
+  name-bound CSV load had demonstrably bound items to were likewise absent while their live
+  namesakes were present — the response carried no case-insensitive duplicate names at all. So an
+  archived id simply fails to resolve, and **resolution against this read IS the archive check.**
+  The helper refuses it as `STRAIN_ID_UNRESOLVED`; it keeps a flag branch for the day the platform
+  grows one. Corollary for the *Product export & attribute bulk update by CSV* entry: whatever
+  surface shows archived strain records, it is not this endpoint.
+- A record can therefore exist, be referenced by items, and be invisible in both the Strains page
+  and its export — unreachable for editing from the UI. Census strain ids from the item rows, not
+  from the Strains list, when you need the true referenced set.
 - Selftest `scripts/backoffice_grid_write_selftest.js` (node, mocked fetch, no login) proves every
   refusal green on a clean fixture and red on a fixture broken in one place.
 

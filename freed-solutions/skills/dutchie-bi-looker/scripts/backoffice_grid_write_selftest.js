@@ -69,24 +69,13 @@ function cleanWrite() {
   };
 }
 
-// A tenant whose Strains read carries NO archive field at all, with the stop cleared deliberately.
-// Observed live 2026-09-18: the read can return only StrainId / StrainName / StrainDescription /
-// Abbreviation / StrainAbbreviation / StrainType / ExternalId, so "not archived" is UNPROVABLE
-// there rather than false.
+// The shape a live tenant actually returns: no archive field anywhere on the record. Proven
+// 2026-09-19 — the read is the LIVE list, so an archived id is caught by failing to resolve, not
+// by a flag. This fixture must therefore COMPLETE, not stop.
 function cleanNoFlag() {
   const s = cleanWrite();
-  s.label = 'StrainId write where the platform exposes no archive flag';
+  s.label = 'StrainId write where the platform exposes no archive flag at all';
   s.strains.forEach(function (r) { delete r.IsArchived; });
-  s.args.acceptNoArchiveFlag = true;
-  return s;
-}
-
-// The acknowledgement must clear ONLY the unprovable check. A record the read positively reports
-// as archived stays refused, ack or no ack.
-function cleanAckWithFlag() {
-  const s = cleanWrite();
-  s.label = 'the ack is present but the platform DOES expose a flag';
-  s.args.acceptNoArchiveFlag = true;
   return s;
 }
 
@@ -261,18 +250,17 @@ const CASES = [
   // 5. StrainId must be numeric, live and not archived
   { reason: 'STRAIN_ID_NOT_NUMERIC', note: 'a name passed where the record id belongs',
     base: cleanWrite, brk: function (s) { s.args.value = 'FIXTURE-ALPHA'; } },
-  { reason: 'STRAIN_ID_UNRESOLVED', note: 'id absent from the live Strains read',
+  // THIS is the archive guard. Proven live 2026-09-19: a strain id bound to six current items was
+  // absent from this read, so an archived record fails here and never reaches a flag check.
+  { reason: 'STRAIN_ID_UNRESOLVED', note: 'id absent from the read — the archive guard itself',
     base: cleanWrite, brk: function (s) { s.args.value = 777; } },
   { reason: 'STRAIN_ID_ARCHIVED', note: 'id resolves to an archived record',
     base: cleanWrite, brk: function (s) { s.args.value = 102; } },
-  { reason: 'ARCHIVE_CHECK_UNAVAILABLE', note: 'strain rows expose no archive flag to check',
-    base: cleanWrite, brk: function (s) {
-      s.strains.forEach(function (r) { delete r.IsArchived; });
+  { reason: 'STRAIN_ID_ARCHIVED', note: 'the flag branch still refuses where a platform has one',
+    base: cleanNoFlag, brk: function (s) {
+      s.strains.forEach(function (r) { r.IsArchived = Number(r.StrainId) === 102; });
+      s.args.value = 102;
     } },
-  { reason: 'ARCHIVE_CHECK_UNAVAILABLE', note: 'withdrawing the explicit ack restores the stop',
-    base: cleanNoFlag, brk: function (s) { delete s.args.acceptNoArchiveFlag; } },
-  { reason: 'STRAIN_ID_ARCHIVED', note: 'the ack must NOT override a proven-archived record',
-    base: cleanAckWithFlag, brk: function (s) { s.args.value = 102; } },
 
   // 6. every product id must resolve on the read for its scope
   { reason: 'SCOPE_INVALID', note: 'a scope with no read endpoint',
@@ -371,18 +359,15 @@ function extras() {
 
     // Where the platform CAN answer the archive question, the result says so by field name.
     eq(r.res.archiveCheck, 'proven on `IsArchived`',
-      'archiveCheck names the field the liveness proof came from');
+      'archiveCheck names the field the liveness proof came from, where one exists');
 
     // Where it cannot, the acknowledgement is carried in the result and parked in full, so a
     // cleared stop is never invisible after the fact.
     return run(cleanNoFlag());
   }).then(function (r) {
-    eq(r.res.ok, true, 'ack — an acknowledged unprovable archive check completes');
-    eq(r.res.archiveCheck, 'NOT PROVEN (accepted)',
-      'ack — the result states that the check was NOT proven, not that it passed');
-    const parked = r.sandbox.window.__gridWrite.runs[0];
-    ok(/NOT proven/i.test(parked.archiveNote || ''),
-      'ack — the full reason is parked with the run for the record');
+    eq(r.res.ok, true, 'no-flag tenant — completes with no ceremony and no flag to pass');
+    eq(r.res.archiveCheck, 'by resolution — this read is the live list',
+      'no-flag tenant — the result states HOW liveness was established');
     return run(cleanWrite());
   }).then(function (r) {
 
