@@ -459,6 +459,24 @@ upload" freshness interstitial, then an upload drop zone.
     done-list UNDER-counts — writes that landed are missing from it, so it reads as
     fewer done than there are. Establish state from a fresh read of the LIVE rows, never
     from that list, and continue ONE write per call.
+11. **A timed-out write is done-UNKNOWN in both directions, even at one write per call.**
+    [PROBE 2026-09-19, two write lanes, 123 writes] A single guarded write can still time
+    out. Across seven timeouts six had LANDED and one had NOT, so neither "it failed, retry"
+    nor "it landed, move on" is safe: a blind retry double-writes nothing here (the write is
+    idempotent) but a blind skip leaves a hole the done-list will not show. Read the live
+    row first, then decide. Retired rows are read back on the retired endpoint.
+12. **A timed-out in-page JS call poisons that tab's JS channel.** [PROBE 2026-09-19] Every
+    later call on the tab hangs or errors until the page is RELOADED. The reload drops the
+    pasted helper and its read captures, so: reload → re-paste the helper → re-prove one
+    refusal → re-trigger the reads. The retired read does not re-fire on a no-change Save;
+    toggle the retired filter OFF then ON to make the app request it again. Until the
+    capture is back the helper refuses with `MISSING_READ_CAPTURE` and writes nothing —
+    that refusal is the guard working, not a fault.
+13. **A page can serve its list from cache and fire no request to capture.** [PROBE
+    2026-09-19] Opening Configure → Categories by in-app navigation fired the Tax and
+    Purchase-limit lookups but NOT `get-product-categories`. Every call on that screen
+    carries the same bare session envelope, so the body captured from a sibling lookup
+    replays the missing read. Never hand-build the envelope; borrow a live one.
 
 Traps 1, 8 and 9 all come from driving the modal. The guarded helper named under *Recipe* does not
 drive it: it calls the endpoint directly and REFUSES the bad write rather than warning about it.
@@ -531,6 +549,14 @@ Type (a MUI Select) and External ID, then Save. House convention fills Name = Ab
 - Read back by searching the name: the row must appear exactly once with the Type you chose. A search that
   returns two rows means a duplicate mint, not a stale grid.
 - The same form edits an existing record (click its name), which is how a record's Type is corrected.
+- **RENAME vs RE-BIND reach different things.** [PROBE 2026-09-19, Inventory export] Editing a record
+  (its name or its Type) flows to every item bound to it AND to those items' on-hand packages — the
+  Inventory export's package `Strain` followed a renamed record with no package edit. Re-binding an item
+  to a DIFFERENT record moves the item only: its existing packages keep the old record until each is
+  edited by hand. So when one item (or one brand's items) is the record's whole membership, RENAME it;
+  mint + re-bind only when other items must keep the old value. A Type change on a shared record
+  re-derives Strain Type on every item bound to it — list the membership before changing it. After any
+  re-bind of an item with stock, compare package Strain with item Strain on the Inventory export.
 
 ### Clearing an attribute through the grid
 
