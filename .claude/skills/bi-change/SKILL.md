@@ -277,6 +277,7 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   you touch the tenant `CLAUDE.md`. It finds the estate by the Dictionary, not by a folder name.
 - `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
+  `--stale` also reads `<estate>/onepagers.json` (the canonical business one-pagers: generator, delivered file, the rules it prints, a seal) and reports ONE-PAGER BEHIND; `--seal-onepager <key>|all` re-seals after a human confirms the document or a regeneration.
   and the render script.
 - `scripts/render_docs.sh <source.md> [...]` — DOCX + PDF into `<source dir>/renders/`. It **exits 1**
   when xelatex reports any `Missing character`, printing the warning lines and the source path, and it

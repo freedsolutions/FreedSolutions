@@ -8,6 +8,8 @@
 //   node <skill>/scripts/bi_impact_scan.js --estate <dir> --verify "<n>" Step 4 residual check: structured
 //                                                                        surfaces only, raw hits classified
 //   node <skill>/scripts/bi_impact_scan.js --estate <dir> --stale        doc-stamp vs harvest freshness +
+//                                                                        + canonical one-pagers (onepagers.json)
+//   node <skill>/scripts/bi_impact_scan.js --estate <dir> --seal-onepager <key>|all   hash the rules a one-pager prints
 //                                                                        render freshness + dictionary-ahead
 //                                                                        + content checks (tiles/filters in docs)
 //
@@ -208,6 +210,54 @@ function localDay(iso) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+// ================= canonical one-pagers (2026-09-22) =================
+// `<estate>/onepagers.json` lists the business-facing documents a generator produces (a designed PDF the
+// business reads from). The stamps above cannot see them: a rule can be re-ruled in the Dictionary while
+// the one-pager that prints it sits delivered under an older date, and nothing reddened. Two axes decide
+// BEHIND, both read from canon: (1) a printed rule's `Since` date is later than the document's delivery
+// date; (2) a printed rule's text hash differs from the hash sealed into the register. Cure = regenerate
+// to a NEW versioned name, or a human confirms the document still reads true and re-seals it
+// (`--seal-onepager <key>|all`). The hash is the SAME function kickoff_check.js seals with.
+const ONEPAGERS = path.join(EST_DIR, 'onepagers.json');
+function ruleSha1(t) { return require('crypto').createHash('sha1').update(t.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 12); }
+function dictionaryRows() {
+  const dd = fs.readFileSync(path.join(EST_DIR, 'DATA-DICTIONARY.md'), 'utf8');
+  const split = b => b.split(/(?<!\\)\|/).map(c => c.trim());
+  const hdr = dd.match(/^\| # \|([^\r\n]*)$/m);
+  const names = hdr ? split(hdr[1]) : [];                 // ['Rule','Grain',...,''] — index i = cell i
+  const EXPECT = names.length || 4;
+  const rows = {};
+  for (const m of dd.matchAll(/^\| (R\d+) \|([^\r\n]*)$/gm)) {
+    if (rows[m[1]]) continue;                              // first contiguous register wins, as in the gate
+    const cells = split(m[2]); const shaped = cells.length === EXPECT;
+    const col = n => { const i = names.indexOf(n); return shaped && i >= 0 ? cells[i] : null; };
+    rows[m[1]] = { rule: shaped ? (cells[0] || '') : m[2], since: col('Since'), status: col('Status'), shaped };
+  }
+  return rows;
+}
+function loadOnepagers() {
+  if (!fs.existsSync(ONEPAGERS)) return null;
+  const j = JSON.parse(fs.readFileSync(ONEPAGERS, 'utf8'));
+  return Array.isArray(j.docs) ? j : null;
+}
+function localToday() { const d = new Date(); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
+if (ARGS[0] === '--seal-onepager') {
+  const key = ARGS[1]; const reg = loadOnepagers();
+  if (!key || !reg) { console.log('usage: --seal-onepager <key>|all   (needs <estate>/onepagers.json)'); process.exit(1); }
+  const rows = dictionaryRows(); let n = 0;
+  for (const d of reg.docs) {
+    if (key !== 'all' && d.key !== key) continue;
+    const missing = (d.rules || []).filter(r => !rows[r]);
+    if (missing.length) { console.log(`** ${d.key}: cites ${missing.join(', ')} not in the Dictionary — fix the register before sealing`); process.exit(1); }
+    d.rule_text_sha1 = Object.fromEntries((d.rules || []).map(r => [r, ruleSha1(rows[r].rule)]));
+    d.sealed = localToday(); n++;
+    console.log(`sealed ${d.key} (${d.title}): ${Object.keys(d.rule_text_sha1).length} rule cell(s) hashed, sealed ${d.sealed}`);
+  }
+  if (!n) { console.log(`no document keyed ${key} in ${ONEPAGERS}`); process.exit(1); }
+  fs.writeFileSync(ONEPAGERS, JSON.stringify(reg, null, 2) + '\n');
+  process.exit(0);
+}
+
 if (ARGS[0] === '--stale') {
   console.log('== BI doc-freshness check ==\n');
   let latestHarvest = null; const boardDay = {};
@@ -345,8 +395,40 @@ if (ARGS[0] === '--stale') {
     else if (unread) console.log(`           [${dash}] plus ${unread} reachable id(s) not in this harvest — NOT judged`);
   }
 
-  const problems = stale + rstale + ahead + content + pins;
-  console.log(problems ? `\n${stale} stale stamp(s), ${rstale} render(s) behind, ${ahead} dictionary-ahead, ${content} content gap(s), ${pins} unpinned quer${pins === 1 ? 'y' : 'ies'} — run the runbook (BI-SOP.md §2).` : '\nAll documents current, renders current, dictionary in step, content matches the live tiles and filters, every reachable query pinned.');
+  // CANONICAL ONE-PAGERS (2026-09-22): see the block above the --stale mode.
+  console.log('\n== Canonical one-pagers (onepagers.json) ==');
+  let behind = 0;
+  const reg = loadOnepagers();
+  if (!reg) console.log('  (no onepagers.json in the estate — nothing registered)');
+  else {
+    const rows = dictionaryRows(); const TENANT = path.dirname(EST_DIR);
+    for (const d of reg.docs) {
+      const reasons = [];
+      const delivered = path.join(TENANT, d.delivered || '');
+      if (!d.delivered || !fs.existsSync(delivered)) reasons.push(`delivered file missing: ${d.delivered || '(none)'}`);
+      const gen = path.join(TENANT, d.generator || '');
+      if (d.generator && fs.existsSync(gen) && fs.existsSync(delivered) && fs.statSync(gen).mtimeMs > fs.statSync(delivered).mtimeMs + 60000)
+        reasons.push('generator edited after the delivered file (regenerate, or the edit is not delivered)');
+      if (!d.delivered_on) reasons.push('no delivered_on date');
+      for (const r of d.rules || []) {
+        const row = rows[r];
+        if (!row) { reasons.push(`cites ${r}, not in the Dictionary`); continue; }
+        if (row.status && row.status !== 'ACTIVE') reasons.push(`${r} is ${row.status}`);
+        // a re-seal is a human's attestation that the document still reads true on that date, so the
+        // Since axis measures against the LATER of delivery and seal; regenerating moves delivered_on instead
+        const asOf = (d.sealed && d.delivered_on && d.sealed > d.delivered_on) ? d.sealed : d.delivered_on;
+        if (row.since && asOf && row.since > asOf) reasons.push(`${r} ruled ${row.since}, after ${asOf === d.delivered_on ? 'delivery' : 'the seal of'} ${asOf}`);
+        const sealed = (d.rule_text_sha1 || {})[r];
+        if (sealed && ruleSha1(row.rule) !== sealed) reasons.push(`${r} text moved since the seal${d.sealed ? ' of ' + d.sealed : ''}`);
+      }
+      if (!d.sealed || !Object.keys(d.rule_text_sha1 || {}).length) reasons.push('not sealed (`--seal-onepager ' + d.key + '`)');
+      if (reasons.length) { behind++; console.log(`** ONE-PAGER BEHIND ** ${d.key} "${d.title}" (delivered ${d.delivered_on || '?'}) — ${reasons.join('; ')} -> regenerate to a NEW version, or confirm it still reads true and re-seal`); }
+      else console.log(`ok         ${d.key} "${d.title}" delivered ${d.delivered_on}, ${(d.rules || []).length} rule(s) in step, sealed ${d.sealed}`);
+    }
+  }
+
+  const problems = stale + rstale + ahead + content + pins + behind;
+  console.log(problems ? `\n${stale} stale stamp(s), ${rstale} render(s) behind, ${ahead} dictionary-ahead, ${content} content gap(s), ${pins} unpinned quer${pins === 1 ? 'y' : 'ies'}, ${behind} one-pager(s) behind — run the runbook (BI-SOP.md §2).` : '\nAll documents current, renders current, dictionary in step, content matches the live tiles and filters, every reachable query pinned, every canonical one-pager in step.');
   process.exit(problems ? 1 : 0);
 }
 
@@ -375,7 +457,7 @@ if (ARGS[0] === '--verify') {
 
 // ================= needle mode =================
 const raw = ARGS[0];
-if (!raw) { console.log('usage: node bi_impact_scan.js "<needle>" | "/regex/[i]" | --verify "<needle>" | --stale'); process.exit(1); }
+if (!raw) { console.log('usage: node bi_impact_scan.js "<needle>" | "/regex/[i]" | --verify "<needle>" | --stale | --seal-onepager <key>|all'); process.exit(1); }
 const re = makeRe(raw);
 const { worklist, total } = scanEstates(re);
 const docTargets = [...CROSS_DOCS, ...guideFiles()];
