@@ -340,8 +340,12 @@ write paths. Both act on the CURRENT tenant catalog; neither is a Looker surface
 - Filters (Brand / Vendor / Category / Tags) offer only values present on ACTIVE
   records — a platform defect. Work around it with the search box and column sorting
   (shift-click multi-sorts, though the server governs the final sort order).
-- Search is a single case-insensitive substring match over the row. A SKU works. A
-  comma-separated list of SKUs matches nothing.
+- Search is a single case-insensitive substring match over the row ON THE ACTIVE GRID. A SKU
+  works there; a comma-separated list of SKUs matches nothing. **With the Retired filter ON the
+  search box is INERT** [PROBE 2026-09-22]: real keystrokes set it to a SKU and then to a brand
+  substring and the grid stayed at 23 of 23 pages with unchanged head rows, and the captured
+  `get-product-master-retired-v2` body never gained a search key — no client filter, no refetch.
+  Reach a retired row by sorting a column (SKU ascending works) and paging to the bracketing page.
 - Ticking any row reveals a **Bulk actions (N)** button; the button is ABSENT when the
   selection is empty. That absence is the ONLY trustworthy emptiness signal.
 - The header checkbox opens a menu: Select all (every page) / Select page / Select a
@@ -475,6 +479,27 @@ upload" freshness interstitial, then an upload drop zone.
     Purchase-limit lookups but NOT `get-product-categories`. Every call on that screen
     carries the same bare session envelope, so the body captured from a sibling lookup
     replays the missing read. Never hand-build the envelope; borrow a live one.
+14. **The virtual scroller keeps its scrollTop across page changes.** [PROBE 2026-09-22] After
+    paging deep and jumping back, a page's apparent head row is whatever sits under the retained
+    offset, not the page's first row (page 9 read as starting at SKU 38122597; its real first row
+    was 35350937), so a bracketing search reads wrong. Set `.MuiDataGrid-virtualScroller`'s
+    `scrollTop` to 0 after every page change before reading the head or tail row.
+15. **The More-filters dialog gives all THREE of its toggles one DOM id** (`toggle-toggle_`).
+    [PROBE 2026-09-22] `getElementById` / `querySelector('#toggle-toggle_')` silently returns the
+    first one. Resolve the retired toggle through its own label text ("Show products that have
+    been retired"), take the checkbox scoped to that label's row, and read the other two back
+    as still off before Save.
+16. **A hidden browser tab throttles the write channel.** [PROBE 2026-09-20/21, two write sessions]
+    In the Claude Browser pane, a tab the app reports as hidden runs a guarded write at ~37 s
+    instead of ~6 s; the fetch outlasts the tool ceiling, the channel wedges (trap 12) and every
+    recovery costs a reload plus re-install. 190 names cost three wedges in the first ten items.
+    The same 46 + 42 writes in BrowserOS neo — a real, visible window signed in as the operator —
+    ran with ONE timeout and no wedge. **Channel rule:** pane-sized write batches (up to ~50
+    cells) go through neo, one tab, one writer, the helper injected and hash-verified in-page,
+    the envelope captured from the page's own read, progress persisted to disk after every
+    call (page storage dies with the tab). Name batches above that go by the bulk CSV that
+    support applies (one attribute per file). Never run two writers on one catalog; parallel
+    tabs are for read-only work.
 
 Traps 1, 8 and 9 all come from driving the modal. The guarded helper named under *Recipe* does not
 drive it: it calls the endpoint directly and REFUSES the bad write rather than warning about it.
