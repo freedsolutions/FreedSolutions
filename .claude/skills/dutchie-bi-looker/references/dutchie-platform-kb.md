@@ -812,6 +812,24 @@ from an already-tagged item inherits it.
   word but the flavour. Accepting it is a link like any other: gate it, never click through.
 - `status` (`Active` / archived) **is present on the global payload**, so the
   is-it-Active check is machine-readable from this surface rather than eyeball-only.
+- **The catalog search returns ALL state libraries, and no server-side filter narrows it** [PROBE
+  2026-09-22]. A global record carries `stateLibrary`; a brand that reads 160 records in your state
+  reads 1,641 unscoped. `StateLibrary`, `State`, `StateCode`, `StateLibraries`, `Categories`,
+  `Category`, `SubCategories`, `SortBy` and `SortDirection` are all accepted and silently ignored
+  (`totalCount` never moves), exactly like the singular brand-id key. Apply the state scope
+  CLIENT-SIDE on `stateLibrary`, and say so in the harvest file's record — an earlier harvest was
+  state-scoped without saying so, and an unscoped re-run would have read five times the records as
+  additions. `Limit: 500` is honoured. The rate limit is bursty: ~140 calls/min ran 90 s then 429;
+  ~50/min with a 1.2 s pacer and exponential back-off ran the rest clean.
+- **`batch-catalog-products` resolves records BY ID, up to 1,000 per call** (key
+  `BrandCatalogProductIds`, cookie only) [PROBE 2026-09-22]. It is the arbiter for an apparent
+  removal: of 809 ids an older harvest held and a new one did not, 765 still existed (probe gaps),
+  11 had left the state library and 33 were gone. A raw set difference would have claimed 809.
+  Column mapping for a harvest, proven against an older file: `wg` = `suggestedWeightGrams` (not
+  `weightGrams`, null on the rows that matter), `pk` = `suggestedPackSize`, `dose` = `dosageMg`.
+- **A bare body on the product-master reads returns 200 with an EMPTY product list** [PROBE
+  2026-09-22]. A harvest that tests only the status code reads "no products" as a fact about the
+  tenant. Assert the row count against a known population (the export's) before trusting a read.
 - **A near-name hit is not your record.** One returned row sharing a word with your
   strain is a different cultivar. Linking it writes that product's art and description
   onto yours. No linkable record is a normal outcome; leave it unlinked.
