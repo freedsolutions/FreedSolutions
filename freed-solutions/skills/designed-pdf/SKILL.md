@@ -31,8 +31,9 @@ before delivery. The HTML generator is the single source; the PDF is an output.
   front and enforced by `render_pdf.py --pages N`.
 - **Audience** (required): who signs off. Drives tone (fragments, plain "We recommend") and what
   gets cut first.
-- **Output name** (required): `<slug>-<date>.html` and `.pdf` beside the deliverable. If a prior
-  version was delivered, a NEW versioned name; never overwrite a delivered file.
+- **Output name** (required): business-facing — `<Title on the page> - v<n>.html` and `.pdf` beside the
+  deliverable (ruled 2026-09-22): no date in the name (the page carries it), no client token, a version
+  counter that never resets. Every delivery is a NEW version number; never overwrite a delivered file.
 - **Palette** (optional): defaults to the base. Change only tints, never the rule that colour
   carries meaning.
 
