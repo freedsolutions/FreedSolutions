@@ -821,6 +821,12 @@ from an already-tagged item inherits it.
   state-scoped without saying so, and an unscoped re-run would have read five times the records as
   additions. `Limit: 500` is honoured. The rate limit is bursty: ~140 calls/min ran 90 s then 429;
   ~50/min with a 1.2 s pacer and exponential back-off ran the rest clean.
+- **`search-catalog-products`, `batch-catalog-products` and `/api/graphql` answer on the browser's
+  own cookie with NO session envelope** [PROBE 2026-09-22]. Only the two product-master reads need the
+  page's location context. A harvest therefore needs no envelope capture at all; a session that cannot
+  capture one is not blocked from the catalog side. In neo, a call that would outrun the 30 s cap is
+  started as an in-page background job and polled cheaply, and an oversized `evaluate` result spills
+  to a local file, which is a working path to disk when the anchor-click download is dead.
 - **`batch-catalog-products` resolves records BY ID, up to 1,000 per call** (key
   `BrandCatalogProductIds`, cookie only) [PROBE 2026-09-22]. It is the arbiter for an apparent
   removal: of 809 ids an older harvest held and a new one did not, 765 still existed (probe gaps),
