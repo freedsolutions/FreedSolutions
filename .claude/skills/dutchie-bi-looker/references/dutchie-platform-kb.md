@@ -509,6 +509,30 @@ upload" freshness interstitial, then an upload drop zone.
     write-approval prompt is per CALL, not per session, so a denied call mid-loop leaves a partial
     bind; record the bind ORDER so a resume is unambiguous.
 
+18. **The Brands CSV export can serve one cached copy for over an hour.** [PROBE 2026-09-22] After
+    Dutchie's own auto-association bound 47 local brand records, two Brands exports pulled 55 minutes
+    apart were byte-identical and still showed them unassociated; a third pull minutes later matched
+    the live read. Two identical re-pulls prove a CACHE, not a decoupled column — re-pull LATER before
+    calling an export wrong, and keep the live read as the arbiter meanwhile. The association read is
+    the page's own `POST /api/graphql` `getBrands` (paged, `brandCatalogBrandId` per record) plus
+    `batch-catalog-brands` to resolve the id to an active `isGlobal: true` record; the grid shows the
+    same state as a verified badge with the global name, versus a `Link to global brand` button.
+19. **`search-catalog-brands` is NOT the global brand catalog.** [PROBE 2026-09-22] `SearchTerm: ""`
+    returned 438 brands, 128 already linked, and none of the fourteen Global Brands that
+    `batch-catalog-brands` resolved by id. A zero here is not evidence that a Global Brand is absent,
+    so it cannot serve as an "exactly one resolves" gate; gate on the live association (trap 18).
+20. **`Manage brand updates` → `Link without updates` issued NO link call on a RETIRED item.** [PROBE
+    2026-09-22, neo] The 155-field diff showed 0 changes; what fired looked like a product-form
+    preflight, and a retired form will not Save. The 9/15 probe of the same button on an active item
+    committed server-side, so the button's behaviour depends on the item's state. On retired items use
+    the direct `link-catalog-product` call (the retired write path below). The same button ignored a
+    synthetic `.click()` that drove every other control on the app; it needed a full pointer sequence.
+21. **The link picker applies a HIDDEN subcategory filter that can hide an Active approved record.**
+    [PROBE 2026-09-22] Three approved records of one brand sat in subcategory `candy` while the items
+    were `Gummies`; the picker reported "No matching products found in the global catalog" for all
+    three. The records existed and linked by id. "No matching products" is a filter result, not
+    evidence of absence — resolve the record by id through the search call before reading it as missing.
+
 Traps 1, 8 and 9 all come from driving the modal. The guarded helper named under *Recipe* does not
 drive it: it calls the endpoint directly and REFUSES the bad write rather than warning about it.
 Reach for the modal only for what the helper does not cover.
@@ -751,7 +775,8 @@ from an already-tagged item inherits it.
   Use `Select none`; note that pressing Escape closes the whole modal, not just the
   dropdown.
 - **Keep the Category filter** — it usefully excludes wrong-category records. QC it for
-  tinctures, which may be filed under edibles.
+  tinctures, which may be filed under edibles. A SUBCATEGORY filter also applies and is not
+  shown (trap 21): an approved record in `candy` is invisible to a `Gummies` item.
 - **Search the first word of the strain name only**, for partial-match tolerance.
 - The picker grid is **virtualised**: reading rendered rows under-reports. The backing
   search call returns `data` (global candidates, with `meta.totalCount`) alongside
