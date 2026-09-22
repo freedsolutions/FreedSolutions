@@ -500,6 +500,12 @@ upload" freshness interstitial, then an upload drop zone.
     call (page storage dies with the tab). Name batches above that go by the bulk CSV that
     support applies (one attribute per file). Never run two writers on one catalog; parallel
     tabs are for read-only work.
+17. **neo's in-page download is gated PER TAB.** [PROBE 2026-09-22, Looker harvest ×3] The first
+    anchor-click download on a tab lands; later ones on the same tab are silently dropped while the
+    page reports success. One fresh tab per file, and verify each file's size and SHA-256 on disk
+    against the in-page digest — that check is what caught it. Also seen on the same run: the
+    write-approval prompt is per CALL, not per session, so a denied call mid-loop leaves a partial
+    bind; record the bind ORDER so a resume is unambiguous.
 
 Traps 1, 8 and 9 all come from driving the modal. The guarded helper named under *Recipe* does not
 drive it: it calls the endpoint directly and REFUSES the bad write rather than warning about it.

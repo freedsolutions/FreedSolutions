@@ -57,6 +57,13 @@
   // a guess there silently rewrites governance. Note that the ENVELOPE also carries a `Tags: []`
   // key — that is part of the captured body, not the Tags field, and the two never mix.
   var ALLOWED = {
+    BrandId: {
+      cast: 'number',
+      clearProven: false,             // an empty brand box was never proven; a clear is not this batch
+      provenance: 'payload captured from a real UI save 2026-09-22: FieldList:[{"BrandId": <id>}], ' +
+        'key for key the envelope Name and Flavor were captured with',
+      derives: 'BrandName',           // the read-back display name follows the record; declare it
+    },
     StrainId: {
       cast: 'number',
       clearProven: false,               // the empty-box clear was proven on Flavor, not here
