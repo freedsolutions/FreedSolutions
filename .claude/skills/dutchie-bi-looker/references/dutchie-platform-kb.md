@@ -501,7 +501,11 @@ upload" freshness interstitial, then an upload drop zone.
     the envelope captured from the page's own read, progress persisted to disk after every
     call (page storage dies with the tab). Name batches above that go by the bulk CSV that
     support applies (one attribute per file). Never run two writers on one catalog; parallel
-    tabs are for read-only work.
+    tabs are for read-only work. [PROBE 2026-09-23, 47 writes] neo tabs still hang under the
+    full product-master reads (four tabs lost in one lane); keeping the neo window FRONTED helped, and
+    every hang was resumed from a live read, never a blind retry. A write in flight on a hung tab can
+    still land: the next guard found the unlink already done and refused a second call, so the landing
+    time is unknown and recorded as such.
 17. **neo's in-page download is gated PER TAB.** [PROBE 2026-09-22, Looker harvest ×3] The first
     anchor-click download on a tab lands; later ones on the same tab are silently dropped while the
     page reports success. One fresh tab per file, and verify each file's size and SHA-256 on disk
@@ -521,17 +525,20 @@ upload" freshness interstitial, then an upload drop zone.
     returned 438 brands, 128 already linked, and none of the fourteen Global Brands that
     `batch-catalog-brands` resolved by id. A zero here is not evidence that a Global Brand is absent,
     so it cannot serve as an "exactly one resolves" gate; gate on the live association (trap 18).
-20. **`Manage brand updates` → `Link without updates` issued NO link call on a RETIRED item.** [PROBE
-    2026-09-22, neo] The 155-field diff showed 0 changes; what fired looked like a product-form
-    preflight, and a retired form will not Save. The 9/15 probe of the same button on an active item
-    committed server-side, so the button's behaviour depends on the item's state. On retired items use
-    the direct `link-catalog-product` call (the retired write path below). The same button ignored a
+20. **`Manage brand updates` → `Link without updates` issues NO link call — on RETIRED items [PROBE
+    2026-09-22, neo] and on ACTIVE items too [PROBE 2026-09-23, neo, 47 writes].** The 155-field diff
+    showed 0 changes; what fired looked like a product-form preflight. The 9/15 probe that recorded the
+    button committing server-side is no longer reproducible; treat the button as inert on both states and
+    use the direct `link-catalog-product` call (the retired write path below), proving the shape on the
+    first guarded call. `unlink-from-catalog-product` works the same way. The same button ignored a
     synthetic `.click()` that drove every other control on the app; it needed a full pointer sequence.
 21. **The link picker applies a HIDDEN subcategory filter that can hide an Active approved record.**
     [PROBE 2026-09-22] Three approved records of one brand sat in subcategory `candy` while the items
     were `Gummies`; the picker reported "No matching products found in the global catalog" for all
     three. The records existed and linked by id. "No matching products" is a filter result, not
     evidence of absence — resolve the record by id through the search call before reading it as missing.
+    [PROBE 2026-09-23] The picker search returned ZERO records for an entire brand whose records linked
+    by id, so the gap is not only a subcategory filter; a whole-brand zero proves nothing either.
 
 Traps 1, 8 and 9 all come from driving the modal. The guarded helper named under *Recipe* does not
 drive it: it calls the endpoint directly and REFUSES the bad write rather than warning about it.
