@@ -650,6 +650,25 @@ one full replacement), each re-read byte-exact after a full page reload.
   full-row certifier WILL report them, so declare both as a form-Save signature rather than
   calling them drift. A catalog that has been form-edited before already carries the pattern
   on the rows that were saved, so a mixed `null` / `""` census is expected, not a defect.
+- **A form Save also DROPS the item's location-override row [PROBE 2026-09-25].** The Save
+  posts the full record. When the item carries a location row (`LocationID` set, usually with
+  `LocationRecPrice`), every `Location*` field reads `null` after the Save (`LocationID`,
+  `LocationRecPrice`, `LocationExternalCategory`, `LocationSalesAccount`). Proven on a one-field
+  Name edit (one Save, no location tab opened, no dialog), then at catalog scale: every row with
+  the form-Save signature above carried no location row, while a large share of the rows never
+  saved through the form carried one. Rows renamed through the bulk-edit grid kept theirs, so
+  the grid does neither the normalisation nor the drop.
+  **Unknown:** what the row's price fields mean. `LocationRecPrice` is not the same grain as
+  `RecPrice` (one probe read the grid Price equal to `LocationRecPrice` while `RecPrice`
+  differed, and the Location details tab showed the row as blank / 0), so make no sell-price
+  claim from these fields. **Rule until that is settled:** read the product-master row's
+  `Location*` fields before any form Save, and do not Save through the form on an item whose
+  `LocationID` is set (use the grid, or get a ruling first). In a full-row certify, declare the
+  drop with its before values.
+- **A page-side `fetch` wrapper must call a BOUND fetch [PROBE 2026-09-25].** A wrapper that
+  keeps `const f = window.fetch` and later calls `f(...)` throws Illegal invocation inside the
+  app's own request. The item form's Save then stops silently after `validate-sku` and writes
+  nothing. Use `window.fetch.bind(window)`, or hook `XMLHttpRequest` only.
 - Certify by an API full-row diff of the product-master row, before vs after. A "Product
   updated." toast is not a read-back.
 
