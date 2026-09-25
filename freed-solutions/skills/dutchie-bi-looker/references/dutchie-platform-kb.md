@@ -660,17 +660,21 @@ one full replacement), each re-read byte-exact after a full page reload.
   whose other row fields were already empty, so nulling the price left nothing to see. Rows renamed
   through the bulk-edit grid kept their location fields, so the grid does neither the normalisation
   nor the price null.
-  **Unknown:** what the row's price fields mean. `LocationRecPrice` is not the same grain as
-  `RecPrice` (one probe read the grid Price equal to `LocationRecPrice` while `RecPrice`
-  differed, and the Location details tab showed the row as blank / 0), so make no sell-price
-  claim from these fields.
-  **Rule until the price fields are understood:** no item-form Save on an item that carries a
-  location row (`LocationID` set). A tenant may use RecPrice-only location rows as its menu
-  rec-price mechanism, and the Save erases that price. Read the product-master row's `Location*`
-  fields before any form Save. To change one location-row field, replay the form's own
-  `update-product` body with that one field edited, and check the body's `LocationRecPrice`
-  against the pre-read before you send it. In a full-row certify, declare any `LocationRecPrice`
-  change with its before value.
+  **What the price fields mean [PROBE 2026-09-25, 13 item-form reads + the store's own menu read].**
+  The product-master `Price` is the form's Base price and the sell price: the ecom menu and the POS
+  package charge it, and each taxed price is `Price` × the location's tax factor. The product
+  `RecPrice` is displayed and charged nowhere in the surfaces read (item form, Location details tab,
+  menu). A location row that holds only `RecPrice` mirrors the product `RecPrice`. The Location
+  details tab does not render it (Base price blank, Rec taxed price a computed 0), and the menu
+  ignores it. Removing that 0 in the tab deletes the row and writes the base price back.
+  So a form Save on such an item changes nothing sellable: declare its `LocationRecPrice` null in a
+  full-row certify with the before value, like the hidden-null signature above. A location-override
+  QC counts as an override only a row with a non-price field set or a price that differs from the
+  sell price; a RecPrice-only row is not a defect. Not read: a POS register quote at checkout.
+  **To change one location-row field** the form cannot reach, replay the form's own `update-product`
+  body with that one field edited. The body writes the row from a nested `locationData` object as well
+  as the top-level `Location*` keys, so edit both. Blanking a row's only non-price field in one call
+  deleted the whole row, rec price included, rather than blanking the field.
 - **A page-side `fetch` wrapper must call a BOUND fetch [PROBE 2026-09-25].** A wrapper that
   keeps `const f = window.fetch` and later calls `f(...)` throws Illegal invocation inside the
   app's own request. The item form's Save then stops silently after `validate-sku` and writes
