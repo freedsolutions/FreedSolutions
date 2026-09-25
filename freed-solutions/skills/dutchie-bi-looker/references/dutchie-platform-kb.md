@@ -179,6 +179,8 @@ lane exists; Adam's 59 historic Limited-tagged packages are queryable there.
 - Category/Tax/PLC config endpoints: the estate's `category-qc/extract.md`.
 - Fields-config (get_validated_forms): the estate's `fields-config/README.md`.
 - Smart-tag rule surface: the estate's `smart-tag-13948-roster-2026-08-26.md`.
+- The documented POS public API (`api.pos.dutchie.com`, Basic auth, no session): its own
+  section at the end of this file, "POS public API".
 
 ## 5. Ingestion queue (articles spotted, not yet read)
 
@@ -963,7 +965,8 @@ until a load proves each one.
 - The Backoffice bulk-edit grid (Path A/B above) is the self-serve alternative: ~25 fields,
   selection-scoped, no ticket — but it cannot carry a per-row VALUE list at estate scale (names,
   strains). Price/Cost alone have the self-serve CSV (Path B). Everything else at scale is this path.
-- Retired rows load without un-retiring; say so in the ticket anyway.
+- Retired rows load without un-retiring; say so in the ticket anyway. Re-proven 2026-09-25 on a
+  261-row retired `Name` load: 261 cells at target, 0 other cells moved on the full retired export.
 
 ### Verification, both sides of the load
 
@@ -977,3 +980,83 @@ until a load proves each one.
 
 Source: a Backoffice Product export and a four-file bulk update applied in the same day's load
 (2026-09-14), read against the BI-tile Catalog export of the same catalog.
+
+## POS public API (`api.pos.dutchie.com`) [DOC 2026-09-25 · PROBE 2026-09-25]
+
+The documented integrator API. It is NOT the Backoffice internal REST layer (section "Backoffice
+Internal REST API" in the SKILL/patterns): no login, no session context, one key per location.
+Spec: `https://api.pos.dutchie.com/swagger/v001/swagger.json` (OpenAPI 3.0.4, "Dutchie Point of
+Sale API v1.0.0"; browsable at `/swagger/index.html`). Save a dated copy beside the work that
+reads it; the endpoint descriptions carry contract facts that the schemas do not.
+
+### Auth [DOC]
+
+- HTTP Basic. Username = the Location Key; password = the Integrator Key, optional today, so the
+  password is empty: `Authorization: Basic base64(locationKey + ":")`.
+- **Encode the header client-side.** `GET /util/AuthorizationHeader/{apiKey}` returns a ready
+  header value, but the spec calls it a testing convenience, and it puts the key in a URL path,
+  which lands in every proxy and server log. A tool never calls it.
+- `GET /whoami` is the first call. It proves the header and names the location. Log the location
+  name only. Never log a request header or save one with a response.
+- The key belongs to the operator. It reaches a session only from an environment variable or a
+  secrets file outside the repo, and never appears in a URL, a log, a saved response, a diff or a
+  message. A missing key is a stop that asks for it to be set, never a prompt for its value.
+
+### Rate limits [DOC]
+
+- Per endpoint, per Location Key, per minute. Baseline 120 (`GET /products`,
+  `POST /products/product`). Bulk operations 10. The tier table lists `GET /inventory` and
+  `GET /whoami` at 200, but those endpoints' own descriptions say 120: pace to the lower number.
+- A 429 returns `{"Message": ..., "TraceId": ...}`. Back off exponentially. Re-GET before any
+  re-POST: a write that threw may have landed.
+
+### Write contract: `POST /products/product` [DOC]
+
+- `ProductId` present = update. `ProductId` absent = create (needs SKU and `productName`).
+- **Omitted fields are overwritten with null or zero.** The endpoint's own description says so:
+  `Optional<T>` fields keep their value when omitted, regular fields do not. Every update is a
+  full echo of a fresh GET, mapped to the upload schema. Never send a partial body, not even as a
+  probe. The only proof of a clean write is a GET-vs-GET diff on every field; a 2xx is not proof.
+- `isActive` defaults to `true` on the upload schema. A retired item's body must carry
+  `isActive: false`, or the write brings the item back to life.
+- `bypassExternalUpdate` defaults to `true` (no traceability push). `syncExternally` sends the
+  change to the state traceability system; leave it unset for attribute work.
+- `description` is deprecated on the upload schema; `alternateName` replaces it.
+- Read and write schemas differ. `ProductDetail` (GET, 101 fields) references by id;
+  `ProductDetailUpload` (69 fields) takes most references by name (`strainId` -> `strain`,
+  `brandId` -> `brandName`, category and tax categories by name) and tags by id. After that
+  id-to-name mapping, 26 GET fields still have no upload field (among them `internalName`,
+  `flavor`, `dosage`, `effects`, `allergens`, the image fields, `lineageName`,
+  `distillationName`, `libraryProductId`). If a write clears one of those,
+  this API cannot put it back; restore it through the Backoffice (grid Path A, or the image
+  control).
+- `POST /products/products` (bulk) is not atomic: it returns HTTP 200 with a mixed array of
+  saved records and per-item errors. Check every item. A bad row in a bulk call is hard to
+  attribute; prove a shape on single calls first.
+
+### Field identity [PROBE 2026-09-25, read-only, 2,496 rows]
+
+- GET `internalName` = the Backoffice item **Name** (equal to the export's `Product` / `Name`
+  cell on every row read).
+- GET `productName` = the **Online title** when one is set, otherwise `internalName`.
+- The upload schema has **no `internalName` field.** Whether the upload `productName` ("display
+  name") writes the Name or the Online title is UNPROVEN: no write has been made. Until a probe
+  settles it, rename items through the bulk-edit grid (Path A) or the CSV bulk update by support,
+  not through this API.
+- The probe that settles it: one retired item whose Online title differs from its Name, full-echo
+  body, `isActive: false`. Success = `internalName` moves to the target and the Online title stays.
+  If the Online title moves instead, restore it by the same echo call (it is an upload field) and
+  treat the route as closed for Names.
+- A pre-write guard that compares GET `productName` to the current Name skips every item that has
+  an Online title. Guard on `internalName`.
+
+### Reach [DOC + PROBE 2026-09-25]
+
+- `GET /products` returns only products enabled for API access and online availability (spec). On
+  the pilot tenant it returned about three quarters of the retired catalog [TENANT]. Reconcile the
+  write set against what the API can reach before any pass.
+- `GET /inventory` returns only API-enabled products with non-zero stock (spec). One read returned
+  0 rows while the Backoffice grid showed stocked items; the cause is not known. Do not use it as an
+  on-hand read until that is explained.
+- `GET /tags` returns 404. There is no single-product GET: read a product by listing and filtering.
+- Responses are bare JSON (no envelope); dates are ISO-8601 UTC with `Z`; ids are integers.
