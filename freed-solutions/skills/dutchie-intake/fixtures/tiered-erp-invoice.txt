@@ -1,0 +1,78 @@
+                                                                                                   Invoice
+
+                                                                                                   Invoice Nbr.:             000417
+                                                                                                   Date:                     20-Sep-2026
+                                                                                                   Due Date:                 19-Nov-2026
+                                                                                                   Currency:                 USD
+                                                                                                           Example Standard Invoice Terms and Conditions below
+                                                                                                                           apply to this Invoice.
+
+Northwind Growers LLC
+1 Example Way
+Exampletown, ZZ, 00000
+
+
+
+BILL TO:                                                                                SHIP TO:
+Example Retail | Store 1                                                                Example Retail | Store 1
+Example Retail LLC                                                                      2 Sample Street
+2 Sample Street                                                                         Sampleville ZZ 00000
+
+
+
+CUSTOMER REF. NBR.                      TERMS                                          Price Class                                  CONTACT
+                                        Net 30 Days                                    PARTNER2
+NO.  ITEM                                                  QTY.   UOM        BASE PRICE         YOUR     PRICE DISC.      PRICE DISC.     LINE DISC         DISCCODE           EXTPRICE
+                                                                                                PRICE              AMT
+
+1    Acme Farms | Blue Dream | Cart | 1.0g |                   1     CASE            240.00     192.00           (48.00)         20.00%            0.00                           192.00
+     Hybrid
+
+         1A4000000000000000000011                        12.0 EA
+
+3    Acme Farms | Gelato | Flavor Line | All-                  2     CASE            300.00     240.00          (120.00)         20.00%           10.00                           470.00
+     In-One | 2.0g | Indica
+
+         1A4000000000000000000012                        24.0 EA
+
+2    Acme Farms | OG Kush | Cart | 0.5g | Indica               1     CASE            150.00     150.00             0.00           0.00%            0.00                           150.00
+                                                                                                   Invoice
+
+                                                                                                   Invoice Nbr.:             000417
+                                                                                                   Date:                     20-Sep-2026
+                                                                                                   Due Date:                 19-Nov-2026
+                                                                                                   Currency:                 USD
+                                                                                                           Example Standard Invoice Terms and Conditions below
+                                                                                                                           apply to this Invoice.
+
+Northwind Growers LLC
+1 Example Way
+Exampletown, ZZ, 00000
+
+
+
+BILL TO:                                                                                SHIP TO:
+Example Retail | Store 1                                                                Example Retail | Store 1
+Example Retail LLC                                                                      2 Sample Street
+2 Sample Street                                                                         Sampleville ZZ 00000
+
+
+
+CUSTOMER REF. NBR.                      TERMS                                          Price Class                                  CONTACT
+                                        Net 30 Days                                    PARTNER2
+NO.  ITEM                                                  QTY.   UOM        BASE PRICE         YOUR     PRICE DISC.      PRICE DISC.     LINE DISC         DISCCODE           EXTPRICE
+                                                                                                PRICE              AMT
+
+         1A4000000000000000000013                        12.0 EA
+
+
+
+ NOTE:                                                                                                  Other Discount:                  Gross Total                       990.00
+
+                                                                                                                                          Price Tier Disc Amount         (168.00)
+ Payment Instructions:      See remittance advice                                                                                        Your Gross                        822.00
+                                                                                                                                         Line Discount:                    (10.00)
+                                                                                                                                         Document Discount:                (12.00)
+                                                                                                                                         Credit Memo Total:                  0.00
+                                                                                                                                         Balance Due:                      800.00
+                                                                                                                                         Terms Discount:                     0.00

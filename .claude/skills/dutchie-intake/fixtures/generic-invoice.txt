@@ -1,0 +1,11 @@
+Example Supply Co
+Invoice # G-7
+Date: 09/21/2026
+From: Example Supply Co
+
+Description                          Qty        Unit Price        Amount
+Widget Farms gummies 100mg 10pk      10         6.00              60.00
+Widget Farms tincture 1000mg         2          25.00             50.00
+Subtotal                                                          110.00
+Shipping                                                            5.00
+Total                                                             115.00
