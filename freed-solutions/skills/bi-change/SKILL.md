@@ -61,7 +61,7 @@ after the seal without a re-seal that quotes his words. Two changes in flight = 
 |---|---|---|---|---|---|
 | `rule` | Canon change with no BI surface | R row (rule or §2b) | none | ITEM-CREATION SOP/WI when operator-facing | R rows present; `--stale` |
 | `tile` | Change an existing tile, filter or default | R row impl cell | scope elements; `--verify` retire needles | affected rows + stamps | scope diff vs baseline |
-| `new-tile` | New tile on an existing board | R row impl cell | `scope.new_elements`; layout | tile entry, WI row, guide section, tile counts | new titles present in SOP, WI and guide |
+| `new-tile` | New tile on an existing board | R row impl cell | `scope.new_elements`; layout | tile entry, WI row, guide section, tile counts | new titles present in SOP, WI and the guide of the board that carries them |
 | `dashboard` | New board | rows as needed | new `estate-<id>.json` | new guide file, SOP section (Appendix A), WI page (A2), README roster | guide + SOP section + README present |
 | `retire` | Remove a tile, board or rule | strike-through + supersede, never delete | `scope.retired_elements` | entries removed | retired titles absent from every doc |
 | `config` | Backoffice category or field config | R row + drift log | only where a QC flag enforces it | ITEM-CREATION SOP/WI | R rows present; `--stale` |
@@ -286,7 +286,7 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 139 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 149 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
   an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score
@@ -310,7 +310,11 @@ this skill can be trusted, and each is proven to fail, not merely to pass:**
   must not throw; an unratified plan owes nothing yet; a cite-only rule is counted, never failed; and
   an unshaped register row reports `·`, never a green tick over a `Since` cell it could not read.
   `Since` is found by header NAME, so a register with no such column says so instead of reading
-  whatever sits at that index. Exit 1 on any failed assertion. A check that cannot be made to
+  whatever sits at that index. **Group L — new tiles are documented on their own board (2026-09-26):**
+  on a change touching two boards, a new title named in the SOP, the WI and the guide of the board
+  whose live harvest carries it must pass with ONE docs line, not fail on the other board's guide;
+  dropping it from its own guide must still fail, naming that guide; and a title no header board
+  carries fails `new tile on a board`. Exit 1 on any failed assertion. A check that cannot be made to
   fail has not been tested — this skill has shipped an inert check before.
 
 **And before fixing a gate, baseline it.** Run the CURRENT gate over every kickoff in a real estate,

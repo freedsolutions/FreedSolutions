@@ -28,6 +28,8 @@
 //   F. the SCAFFOLD · G. C8 template conformance · H. the two template placeholders.
 //   J. the DECISIONS record — a minted rule's ruling is on file and names this kickoff (D1), and
 //      every register rule has a ruling somewhere (D2).
+//   K. the scope-diff waiver compares instants · L. a new tile is documented on the board that
+//      carries it, not on every board the header names (L1 fails against the pre-2026-09-26 gate).
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -1106,6 +1108,68 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
   }
 }
 
+// =============================================================================================
+// L. A NEW TILE IS DOCUMENTED ON THE BOARD THAT CARRIES IT (2026-09-26).
+//
+// The new-title doc check ran inside the per-board loop, so a change touching two boards demanded
+// every new title in BOTH guides: a correct doc set went red, and the only way green was to pad an
+// unrelated guide. The check now resolves each title to the board whose live harvest holds it.
+// L1 is the falsification — it FAILS against the pre-2026-09-26 gate, which reddens on the second
+// board's guide. L2 proves the scoped check still fires; L3 that an unbuilt title cannot hide.
+// =============================================================================================
+{
+  const A = '99998', B = '99999';
+  const el = (id, title) => ({ id, type: 'vis', title, query_id: 'q' + id });
+  function twoBoards({ guideA = true, extraTitle = null } = {}) {
+    buildClean();
+    const w = (f, o) => fs.writeFileSync(path.join(EST, f), JSON.stringify(o, null, 2));
+    // Board A gains the new tile; board B changes an in-scope element, so both boards "moved".
+    w('estate-' + A + '.pre-fx.json', { harvested_at: '2026-09-09T00:00:00.000Z', elements: [el('800001', 'Old tile A')], filters: [] });
+    w('estate-' + A + '.json', { harvested_at: '2026-09-10T00:00:00.000Z', elements: [el('800001', 'Old tile A'), el('800002', 'Tile Alpha')], filters: [] });
+    w('estate-' + B + '.pre-fx.json', { harvested_at: '2026-09-09T00:00:00.000Z', elements: [el('900001', 'Tile B')], filters: [] });
+    w('estate-' + B + '.json', { harvested_at: '2026-09-10T00:00:00.000Z', elements: [el('900001', 'Tile B v2')], filters: [] });
+    fs.writeFileSync(path.join(EST, 'BI-SOP.md'), '# SOP\n\n- Tile Alpha — on ' + A + '\n');
+    fs.writeFileSync(path.join(EST, 'BI-WI.md'), '# WI\n\n- Tile Alpha — why\n');
+    fs.writeFileSync(path.join(EST, 'dashboard-' + A + '-fixture.md'),
+      guide(['- 2026-09-08 — fx-kickoff-2026-09-08.md']) + (guideA ? '\n## Tile Alpha\n' : ''));
+    // Board B's guide (from buildClean) deliberately never names Tile Alpha.
+    fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'), kickoff({
+      rules: ['R1'], seals: { R1: sha1(RULE1) }, done: false, kpath: 'new-tile',
+      dashboards: [A, B], baseline: { [A]: 'estate-' + A + '.pre-fx.json', [B]: 'estate-' + B + '.pre-fx.json' },
+      scope: { elements: ['900001'], new_elements: ['Tile Alpha', ...(extraTitle ? [extraTitle] : [])] },
+    }));
+    return runBuild('fx-kickoff-2026-09-08.md');
+  }
+  const docs = (out, t) => out.split('\n').filter(l => l.trim().slice(2).startsWith('new tile in docs "' + t + '"'));
+  const onBoard = (out, t) => line(out, 'new tile on a board "' + t + '"');
+
+  // L1 — THE NEW GUARD. Documented in SOP, WI and its own board's guide only → green, ONE line.
+  {
+    const r = twoBoards();
+    const d = docs(r.out, 'Tile Alpha');
+    check('L1: a new tile documented only on its own board passes the docs check',
+      d.length === 1 && d[0].trim()[0] === '✔' && d[0].includes('dashboard-' + A), d.map(x => x.trim()).join(' | ') || '(absent)');
+    check('L1: …and the owning board is named with its element id',
+      mark(r.out, 'new tile on a board "Tile Alpha"') === '✔' && onBoard(r.out, 'Tile Alpha').includes(A + ' (element 800002)'),
+      onBoard(r.out, 'Tile Alpha').trim());
+  }
+  // L2 — THE CONTROL. Drop it from its own guide → red, naming that guide and no other.
+  {
+    const r = twoBoards({ guideA: false });
+    const d = docs(r.out, 'Tile Alpha');
+    check('L2: a new tile missing from its OWN board guide still fails, naming that guide',
+      d.length === 1 && d[0].trim()[0] === '✘' && d[0].includes('dashboard-' + A) && !d[0].includes('dashboard-' + B),
+      d.map(x => x.trim()).join(' | ') || '(absent)');
+  }
+  // L3 — a title no board carries cannot pass by being named in the docs.
+  {
+    const r = twoBoards({ extraTitle: 'Tile Ghost' });
+    check('L3: a new title that no header board carries fails `new tile on a board`',
+      mark(r.out, 'new tile on a board "Tile Ghost"') === '✘' && /not built/.test(onBoard(r.out, 'Tile Ghost')),
+      onBoard(r.out, 'Tile Ghost').trim());
+  }
+}
+
 // ---- report ---------------------------------------------------------------------------------
 let bad = 0;
 console.log('gate self-test — ' + GATE);
@@ -1126,6 +1190,7 @@ if (bad) {
   console.log('       the scaffold stands a tenant up that passes its own gate runs, while');
   console.log('       refusing an unfilled placeholder and refusing to overwrite a live tenant;');
   console.log('       and a minted rule with no DECISIONS row — or one recorded against a SIBLING');
-  console.log('       kickoff — reddens, while a cite-only rule and an unratified plan do not.');
+  console.log('       kickoff — reddens, while a cite-only rule and an unratified plan do not;');
+  console.log('       and a new tile is checked against the guide of the board that carries it.');
 }
 process.exit(bad ? 1 : 0);

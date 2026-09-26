@@ -725,6 +725,9 @@ if (BI_PATHS.has(H.path) || H.path === 'config') {
 // ---------- estate scope diff ----------
 function loadEstate(file) { const d = JSON.parse(read(path.join(EST_DIR, file))); return d.sandbox || d; }
 function estateFile(id) { return fs.readdirSync(EST_DIR).find(f => new RegExp('^estate-' + id + '[^.]*\\.json$').test(f)); }
+// Boards whose docs block ran (not skipped by a missing estate or baseline, nor waived as closed), with
+// the doc surfaces it read. The new-title check below reads this map after the loop.
+const docsBoards = {};
 for (const id of H.dashboards) {
   const cur = estateFile(id);
   if (!cur) { fail('estate ' + id, 'no estate-' + id + '*.json — harvest it'); continue; }
@@ -813,13 +816,53 @@ for (const id of H.dashboards) {
     if (readme.includes('estate-' + id)) ok('README roster ' + id, 'present'); else fail('README roster ' + id, 'README.md does not list estate-' + id);
   }
   const surfaces = [['BI-SOP.md', norm(sop)], ['BI-WI.md', norm(wi)], [guide || '(no guide)', norm(guide ? read(path.join(EST_DIR, guide)) : '')]];
-  for (const t of H.scope.new_elements) {
-    const missing = surfaces.filter(([, s]) => !s.includes(norm(t))).map(([n]) => n);
-    if (missing.length) fail('new tile in docs "' + t.slice(0, 40) + '"', 'missing from ' + missing.join(', ')); else ok('new tile in docs "' + t.slice(0, 40) + '"', 'SOP, WI, guide');
-  }
+  docsBoards[id] = { sop: surfaces[0], wi: surfaces[1], guide: surfaces[2] };
   for (const t of H.scope.retired_titles) {
     const still = surfaces.filter(([, s]) => s.includes(norm(t))).map(([n]) => n);
     if (still.length) fail('retired tile out of docs "' + t.slice(0, 40) + '"', 'still named in ' + still.join(', ')); else ok('retired tile out of docs "' + t.slice(0, 40) + '"', 'gone');
+  }
+}
+
+// ---------- new tiles: in the docs of the board that CARRIES them ----------
+// A new title belongs to the board whose live harvest holds an element with that title. Its tile entry
+// lives in the SOP, the WI and THAT board's guide — not in every guide the header names.
+//
+// ⚠ Until 2026-09-26 this ran inside the per-board loop, so on a change touching three boards every
+// new title had to appear in all three guides, and a build either padded unrelated guides with
+// related-tiles lines or went red on a correct doc set (measured on a multi-board new-tile plan whose
+// T4/T7 tiles sit on one board and T6 on another). It also printed the same label once per board, which
+// the per-label baseline diff reads as several verdicts. Now: one line per title, owner-scoped.
+//
+// A title that NO header board carries is its own failure (`new tile on a board`): at build phase the
+// tile was not built, or was built under another title, and no guide can be picked to check. Boards
+// skipped above (waived as closed, or missing an estate or baseline) are not read for ownership, the
+// same as before: they never reached the docs check at all.
+if (Object.keys(docsBoards).length) {
+  const carried = {};
+  for (const id of Object.keys(docsBoards)) {
+    const cur = estateFile(id);
+    const els = cur ? (loadEstate(cur).elements || []) : [];
+    carried[id] = els.map(e => ({ id: String(e.id), title: norm(e.title || '') }));
+  }
+  for (const t of H.scope.new_elements) {
+    const label = '"' + t.slice(0, 40) + '"';
+    const owners = Object.keys(carried).filter(id => carried[id].some(e => e.title === norm(t)));
+    if (!owners.length) {
+      fail('new tile on a board ' + label, 'no board among ' + Object.keys(carried).join(', ') +
+        ' carries this title in its live harvest — not built, or built under another title');
+      const any = Object.values(docsBoards)[0];
+      const missing = [any.sop, any.wi].filter(([, s]) => !s.includes(norm(t))).map(([n]) => n);
+      if (missing.length) fail('new tile in docs ' + label, 'missing from ' + missing.join(', ') + ' (guide unresolved: no owning board)');
+      else ok('new tile in docs ' + label, 'SOP, WI (guide unresolved: no owning board)');
+      continue;
+    }
+    ok('new tile on a board ' + label, owners.map(id => id + ' (element ' +
+      carried[id].filter(e => e.title === norm(t)).map(e => e.id).join(', ') + ')').join('; '));
+    const first = docsBoards[owners[0]];
+    const surf = [first.sop, first.wi, ...owners.map(id => docsBoards[id].guide)];
+    const missing = surf.filter(([, s]) => !s.includes(norm(t))).map(([n]) => n);
+    if (missing.length) fail('new tile in docs ' + label, 'missing from ' + missing.join(', '));
+    else ok('new tile in docs ' + label, 'SOP, WI, ' + owners.map(id => docsBoards[id].guide[0]).join(', '));
   }
 }
 
