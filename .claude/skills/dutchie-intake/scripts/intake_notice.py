@@ -3,7 +3,7 @@ command when the CSV carries a NEW_PL or NEW_BRAND row.
 
   python intake_notice.py --intake <intake-vN.csv> --tenant <CLAUDE.md> [--out-dir <dir>]
   (without --tenant: --template <notice.md> --operator "<name>" [--floor-sheet "<command>"])
-  options: --item-qc-tag "<tag>"   the R83 tag the notice names (default `BI - Item QC`)
+  options: --item-qc-tag "<tag>"   the R83 tag the notice names (default `ITM - Item QC`)
   python intake_notice.py --selftest
 
 Created items = verdict NEW_ITEM_WITH_SIBLING with the new key read back (`new_sku`). The notice is

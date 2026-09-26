@@ -33,8 +33,8 @@ CATALOG_REQUIRED = [c for c in CATALOG_COLS if c not in ("ProductId", "Available
 STRAINS_REQUIRED = ["Strain name", "Type"]
 COL_RETIRED = "Is retired"
 
-DEFAULT_ITEM_QC_TAG = "BI - Item QC"     # R83: rides the copy, read back after create
-DEFAULT_DEAD_TAG = "BI - Do Not Use"     # R81: a dead record is never a sibling
+DEFAULT_ITEM_QC_TAG = "ITM - Item QC"    # R83: rides the copy, read back after create
+DEFAULT_DEAD_TAG = "ITM - Do Not Use"    # R81: a dead record is never a sibling
 PKG_PREFIX = "PKG - "                    # R62 / R72 tag family
 
 

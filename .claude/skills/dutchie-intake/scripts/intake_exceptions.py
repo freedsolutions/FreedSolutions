@@ -3,7 +3,8 @@ then the ONE pre-create STOP message.
 
   python intake_exceptions.py --intake <intake-vN.csv> --lines <lines.csv> [--po <po.csv>]
                               --tenant <CLAUDE.md> [--asof YYYY-MM-DD] [--out-dir <dir>]
-  (without --tenant: --expiry-days <n> --operator "<name>" [--po-source apex|vendor pdf|none])
+  (without --tenant: --expiry-days <n> --operator "<name>" --deal-tag "<tag>"
+   [--po-source apex|vendor pdf|none])
   --program <line_no>=<program>   rule a program for one product line (repeatable); a bare
                                   `--program <program>` rules it for every line. Overrides the PO.
   python intake_exceptions.py --selftest
@@ -14,7 +15,7 @@ intake CSV with `flags`, `landed_unit_cost`, `po_line_ref` and `expiry_date` fil
 `<stem>-exceptions-<timestamp>.csv`, and prints the STOP message (markdown) to stdout.
 
 R103 landed unit cost: a line-level discount stays on its line (net ext = ext + discount) and marks
-the line `PROMO_MARKER` (a marker only, not an exception); each order-level credit / shipping /
+the line `DEAL_MARKER` (a marker only, not an exception); each order-level credit / shipping /
 discount is spread pro-rata by the product line's ext_cost; landed unit = (net ext + share) / units.
 Free goods (ext 0) take no share and keep their stated cost.
 
@@ -22,9 +23,9 @@ Flag table (rule, class; the R102 flags are STOP-class: they are listed in the S
 never fail the runner - only a DEFECT exits 1):
   COST_DRIFT           R102 (see R50)            STOP    list unit cost != the lane Cost (penny exact,
                                                           R50) and no discount or credit explains it
-  PROMO_UNDECIDED      R102 (see R62 R72 R84)    STOP    landed unit (R103, the cost the package is
+  DEAL_UNDECIDED      R102 (see R62 R72 R84)    STOP    landed unit (R103, the cost the package is
                                                           received at) <= 0.90 x lane Cost (R62) AND no
-                                                          ruled Promo, Tier or margin program (PO
+                                                          ruled Vendor Deal, Tier or margin program (PO
                                                           `program` column or --program) - whether or
                                                           not any discount line is printed. May co-fire
                                                           with COST_DRIFT on the same line.
@@ -48,7 +49,7 @@ from intake_match import LINES_REQUIRED, V3_COLS  # noqa: E402
 
 R62_RATIO = 0.90          # R62: package cost <= 0.90 x catalog cost, boundary inclusive (ruled, not tuned)
 PO_REQUIRED = ["po_no", "po_line", "sku", "description", "units", "unit_cost"]
-FLAGS = [("COST_DRIFT", "R102 (see R50)", "STOP"), ("PROMO_UNDECIDED", "R102 (see R62 R72 R84)", "STOP"),
+FLAGS = [("COST_DRIFT", "R102 (see R50)", "STOP"), ("DEAL_UNDECIDED", "R102 (see R62 R72 R84)", "STOP"),
          ("EXPIRY_NEAR", "R102", "STOP"), ("PO_MISMATCH", "R102", "STOP"), ("PKG_TAG_DUE", "R62 (see R72)", "INFO"),
          ("LANDED_UNRECONCILED", "R103", "DEFECT")]
 RULE = {f: r for f, r, _ in FLAGS}
@@ -133,7 +134,9 @@ def program_for(i_line_no, po_line, programs):
     return (programs.get(str(i_line_no)) or programs.get("*") or ((po_line or {}).get("program") or "")).strip()
 
 
-def evaluate(intake, lines, po=None, expiry_days=90, asof=None, programs=None):
+def evaluate(intake, lines, po=None, expiry_days=90, asof=None, programs=None, deal_tag=None):
+    # `deal_tag` is the tenant's ruled one-time vendor-deal package tag (pointer `Vendor deal tag`); the
+    # skill never spells a tenant's tag, so the STOP text names the pointer when none is passed.
     """Pure. Returns (rows with filled columns, exceptions list, defects list, summary dict)."""
     prod = pair(intake, lines)
     lc, sums, defects = landed(prod, lines)
@@ -156,7 +159,7 @@ def evaluate(intake, lines, po=None, expiry_days=90, asof=None, programs=None):
 
         promo = v["disc"] > 0
         if promo:
-            flags.append("PROMO_MARKER")
+            flags.append("DEAL_MARKER")
         if lane is not None and unit is not None and abs(unit - lane) >= 0.005:
             net_unit_after_disc = (v["net_ext"] + v["share_cd"]) / units if units else None
             restored = net_unit_after_disc is not None and abs(net_unit_after_disc - lane) < 0.005
@@ -167,10 +170,10 @@ def evaluate(intake, lines, po=None, expiry_days=90, asof=None, programs=None):
         pl = pom.get(i - 1, (None, []))[0] if po is not None else None
         below = lane is not None and v["landed_unit"] is not None and v["landed_unit"] <= R62_RATIO * lane + 1e-9
         if below and not program_for(ln["line_no"], pl, programs):
-            add("PROMO_UNDECIDED", f"landed unit {v['landed_unit']:.4f} <= {R62_RATIO:.2f} x lane Cost {lane:.2f} "
-                                   f"and no Promo, Tier or margin program ruled"
+            add("DEAL_UNDECIDED", f"landed unit {v['landed_unit']:.4f} <= {R62_RATIO:.2f} x lane Cost {lane:.2f} "
+                                   f"and no Vendor Deal, Tier or margin program ruled"
                                    + (f" (line discount {v['disc']:.2f} printed)" if promo else " (no discount printed)")
-                                   + f" - `{PKG_PREFIX}Promo` until a tier is proven (R84)")
+                                   + f" - `{deal_tag or 'the Vendor deal tag'}` until a tier is proven (R84)")
         exp = r["expiry_date"]
         if exp:
             try:
@@ -255,10 +258,11 @@ def main(argv):
         if "lane cost" not in ptr["Standard cost"].lower():
             abort(f"`Standard cost: {ptr['Standard cost']}` - only the lane Cost (R50) standard is implemented")
         days, operator, po_source = int(ptr["Expiry threshold days"]), ptr["Operator"], ptr["PO source"].lower()
+        deal_tag = ptr["Vendor deal tag"]
     else:
-        d, operator = get_flag(argv, "--expiry-days"), get_flag(argv, "--operator")
-        if not (d and operator):
-            abort("without --tenant pass --expiry-days and --operator (the thresholds are ruled, never defaulted)")
+        d, operator, deal_tag = get_flag(argv, "--expiry-days"), get_flag(argv, "--operator"), get_flag(argv, "--deal-tag")
+        if not (d and operator and deal_tag):
+            abort("without --tenant pass --expiry-days, --operator and --deal-tag (ruled, never defaulted)")
         days, po_source = int(d), (get_flag(argv, "--po-source", "none")).lower()
     _, intake = read_csv(ip, V3_COLS, "--intake")
     _, lines = read_csv(lp, LINES_REQUIRED, "--lines")
@@ -270,7 +274,7 @@ def main(argv):
     for v in get_all(argv, "--program"):
         k, _, prog = v.partition("=") if "=" in v else ("*", "", v)
         programs[k.strip()] = prog.strip()
-    rows, exc, defects, summary = evaluate(intake, lines, po, days, get_flag(argv, "--asof"), programs)
+    rows, exc, defects, summary = evaluate(intake, lines, po, days, get_flag(argv, "--asof"), programs, deal_tag)
     d_, stem = version_stem(ip)
     out_dir = get_flag(argv, "--out-dir") or d_
     out_intake = next_version(out_dir, stem)
@@ -314,10 +318,10 @@ def selftest():
     rows, exc, defects, _ = evaluate(intake, lines, po, 90)
     fired = lambda f: [e["line_no"] for e in exc if e["flag"] == f]  # noqa: E731
     t.check("COST_DRIFT fires on C (drift only) and D (both)", fired("COST_DRIFT") == ["3", "4"], str(fired("COST_DRIFT")))
-    t.check("PROMO_UNDECIDED fires on B (promo only) and D (both)", fired("PROMO_UNDECIDED") == ["2", "4"],
-            str(fired("PROMO_UNDECIDED")))
+    t.check("DEAL_UNDECIDED fires on B (promo only) and D (both)", fired("DEAL_UNDECIDED") == ["2", "4"],
+            str(fired("DEAL_UNDECIDED")))
     t.check("QUIET: COST_DRIFT on B (list = lane; the discount is the promo)", "2" not in fired("COST_DRIFT"))
-    t.check("QUIET: PROMO_UNDECIDED on C (above lane) and A (control)", not {"1", "3"} & set(fired("PROMO_UNDECIDED")))
+    t.check("QUIET: DEAL_UNDECIDED on C (above lane) and A (control)", not {"1", "3"} & set(fired("DEAL_UNDECIDED")))
     t.check("EXPIRY_NEAR fires on A only", fired("EXPIRY_NEAR") == ["1"], str(fired("EXPIRY_NEAR")))
     t.check("PO_MISMATCH fires on B only (qty)", fired("PO_MISMATCH") == ["2"], str(fired("PO_MISMATCH")))
     t.check("PKG_TAG_DUE fires on B and D", fired("PKG_TAG_DUE") == ["2", "4"], str(fired("PKG_TAG_DUE")))
@@ -326,15 +330,15 @@ def selftest():
             rows[1]["landed_unit_cost"])
     t.check("QUIET: LANDED_UNRECONCILED on a clean invoice", defects == [])
     po2 = [dict(p) for p in po]
-    po2[1]["program"] = PKG_PREFIX + "Promo"
-    t.check("QUIET: PROMO_UNDECIDED on B once the PO names a program",
-            [e["line_no"] for e in evaluate(intake, lines, po2, 90)[1] if e["flag"] == "PROMO_UNDECIDED"] == ["4"])
-    t.check("QUIET: PROMO_UNDECIDED on D under a --program override",
+    po2[1]["program"] = PKG_PREFIX + "Vendor Deal"
+    t.check("QUIET: DEAL_UNDECIDED on B once the PO names a program",
+            [e["line_no"] for e in evaluate(intake, lines, po2, 90)[1] if e["flag"] == "DEAL_UNDECIDED"] == ["4"])
+    t.check("QUIET: DEAL_UNDECIDED on D under a --program override",
             [e["line_no"] for e in evaluate(intake, lines, po, 90, programs={"4": "margin"})[1]
-             if e["flag"] == "PROMO_UNDECIDED"] == ["2"])
+             if e["flag"] == "DEAL_UNDECIDED"] == ["2"])
     lines4 = [dict(x) for x in lines if x.get("order_level_kind") != "discount"]
     t.check("FIRES without any discount line printed (D still fires, B stops)",
-            [e["line_no"] for e in evaluate(intake, lines4, po, 90)[1] if e["flag"] == "PROMO_UNDECIDED"] == ["4"])
+            [e["line_no"] for e in evaluate(intake, lines4, po, 90)[1] if e["flag"] == "DEAL_UNDECIDED"] == ["4"])
     free = [ln(1, "A", 10, 0, 0), {"line_no": "901", "description": "Shipping", "ext_cost": "5", "is_order_level": "Y",
                                     "order_level_kind": "shipping"}]
     t.check("FIRES: LANDED_UNRECONCILED when no ext carries the order-level lines",

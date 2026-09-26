@@ -14,7 +14,7 @@ Intended signatures (documented so phase 2 builds to them; none of these runs to
       -> a NEW receipt prep sheet, one row per package (a `;`-joined package_id splits into one row per
          tag): package_id, SKU, qty, invoice unit cost, landed unit cost
          (R103), the `PKG - ` tag decision with its rule (R62 / R72 / R84), room (hold for FIFO vs
-         floor), expiry, flags. Human: reviews physical vs sheet, rules the PROMO_UNDECIDED rows.
+         floor), expiry, flags. Human: reviews physical vs sheet, rules the DEAL_UNDECIDED rows.
   receive.py --enter <prep.csv> --tenant <CLAUDE.md>
       -> the inventory receipt, one package per write-channel call (route still to be probed).
   receive.py --check <prep.csv> <receipt-detail.csv> [--tenant <CLAUDE.md>]

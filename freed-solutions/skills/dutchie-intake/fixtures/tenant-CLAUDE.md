@@ -20,4 +20,5 @@ Not a real tenant. Relative paths resolve against this file's folder.
 - Watermark: 500
 - Notice template: ../templates/notice.md
 - Floor sheet: python floor_sheet.py <intake.csv>
+- Vendor deal tag: `PKG - Vendor Deal`
 - Export QC / Inventory QC: (the BI Change Pointers lines)

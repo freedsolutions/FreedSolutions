@@ -23,6 +23,8 @@ record that ruled it in the tenant's DECISIONS.
 - Notice template: <abs path>            # a tenant copy of the skill's templates/notice.md
 - Floor sheet: <command>                 # printed (never run) when a NEW_PL / NEW_BRAND row exists;
                                          # `<intake.csv>` in the command is replaced by the intake path
+- Vendor deal tag: <PKG - tag>           # the ruled one-time vendor cost deal package tag (R62); must
+                                         # start `PKG - `; DEAL_UNDECIDED names it in the STOP
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 ```
 

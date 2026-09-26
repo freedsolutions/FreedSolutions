@@ -48,6 +48,7 @@ the second is the `bi-change` block the tenant already has.
 - Intake dir: <abs path>           - Exports dir: <abs path>         - Standard cost: lane Cost (R50)
 - Expiry threshold days: <n>       - PO source: <apex | vendor pdf | none>
 - Watermark: <product_id>          - Notice template: <abs path>     - Floor sheet: <command>
+- Vendor deal tag: <PKG - tag>
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
@@ -114,7 +115,7 @@ through connector bodies only.
    the last two are `parse_source` and `package_id`.
 3. `intake_exceptions.py --intake <v1> --lines <lines.csv> [--po <po.csv>] --tenant <CLAUDE.md>`:
    R102 `COST_DRIFT` (list unit vs lane Cost, quiet when a discount or credit explains it),
-   `PROMO_UNDECIDED` (landed unit <= 0.90 x lane Cost, R62, and no ruled Promo, Tier or margin
+   `DEAL_UNDECIDED` (landed unit <= 0.90 x lane Cost, R62, and no ruled Vendor Deal, Tier or margin
    program - PO `program` column or `--program <line>=<program>` - whether or not a discount line is
    printed; may co-fire with `COST_DRIFT`), `EXPIRY_NEAR`, `PO_MISMATCH`; the R62 INFO read
    `PKG_TAG_DUE`; R103 `landed_unit_cost`. Writes `-v2` + `-exceptions-<ts>.csv`, prints the STOP.

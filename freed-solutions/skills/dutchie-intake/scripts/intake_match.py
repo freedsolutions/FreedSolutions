@@ -9,7 +9,7 @@ package tag(s) printed on the invoice line, `;`-joined; blank when the layout pr
                          --strains <strains.csv> [--tenant <CLAUDE.md>] [--out-dir <dir>] [--slug <name>]
   python intake_match.py --lines <lines.csv> --exports-dir <dir> --min-rows <n> [--min-rows-retired <n>] ...
   options: --brand "<Catalog Brand>"   force the brand for every line (a single-brand invoice)
-           --item-qc-tag "<tag>"       the R83 tag the create adds (default `BI - Item QC`)
+           --item-qc-tag "<tag>"       the R83 tag the create adds (default `ITM - Item QC`)
            --dead-tag "<tag>"          the R81 dead-record tag; such rows are never matched or copied
            --drop-tag "<tag>"          a tag the copy must NOT keep (repeatable), e.g. a status tag
   python intake_match.py --selftest

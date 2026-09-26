@@ -21,12 +21,12 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import EXIT_ABORT, EXIT_OK, Selftest, get_flag  # noqa: E402
+from intake_common import EXIT_ABORT, EXIT_OK, PKG_PREFIX, Selftest, get_flag  # noqa: E402
 
 INTAKE_HEAD, BI_HEAD = "## Intake Pointers", "## BI Change Pointers"
 REQUIRED_INTAKE = ["Operator", "Mail label", "Drive invoices folder", "Intake dir", "Exports dir",
                    "Standard cost", "Expiry threshold days", "PO source", "Watermark",
-                   "Notice template", "Floor sheet"]
+                   "Notice template", "Floor sheet", "Vendor deal tag"]
 REQUIRED_BI = ["Backoffice login", "Write channel"]
 PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir"]
 CHANNELS = ["neo", "playwright", "pane"]
@@ -106,6 +106,9 @@ def validate(res):
     po = res["intake"].get("PO source")
     if po is not None and not is_placeholder(po) and po.lower() not in PO_SOURCES:
         probs.append(f"`PO source` must be one of {PO_SOURCES}, got {po!r}")
+    deal = res["intake"].get("Vendor deal tag")
+    if deal is not None and not is_placeholder(deal) and not deal.startswith(PKG_PREFIX):
+        probs.append(f"`Vendor deal tag` must be a package tag (`{PKG_PREFIX}...`, R47), got {deal!r}")
     wc = res["bi"].get("Write channel")
     if wc is not None and not is_placeholder(wc) and not ladder(res["raw"].get("bi:Write channel", wc)):
         probs.append(f"`Write channel` names no known channel {CHANNELS}")
@@ -159,6 +162,7 @@ SAMPLE = """# Tenant
 - Watermark: 1000
 - Notice template: ./intake/notice.md
 - Floor sheet: python scripts/floor_sheet.py <intake.csv>
+- Vendor deal tag: `PKG - Vendor Deal`   # one-time vendor cost deal (R62), set at receiving
 
 ## Change log
 - Operator: not-a-pointer (outside the block)
@@ -181,6 +185,10 @@ def selftest():
     t.check("FIRES: a duplicate key is refused", any("duplicate" in p for p in validate(parse_text(dup))))
     bad = SAMPLE.replace("Expiry threshold days: 90", "Expiry threshold days: ninety")
     t.check("FIRES: a non-integer threshold is refused", any("whole number" in p for p in validate(parse_text(bad))))
+    nod = SAMPLE.replace("- Vendor deal tag: `PKG - Vendor Deal`", "- Vendor deal tag: `Vendor Deal`")
+    t.check("FIRES: a Vendor deal tag outside the package prefix is refused",
+            any("package tag" in p for p in validate(parse_text(nod))))
+    t.check("the Vendor deal tag value is the backticked span", r["intake"]["Vendor deal tag"] == "PKG - Vendor Deal")
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()
