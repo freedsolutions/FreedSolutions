@@ -306,6 +306,21 @@ live reference to the brand's `dutchie-images.s3` asset. Detection of staleness 
 `CatalogImageId` not present in the linked record's current `images[]._id`. A local id **newer**
 than anything on the brand record = orphaned reference; the UI re-sync will not stick (3 SKUs).
 
+**[PROBE 2026-09-25] An item carries an image LIST, not one slot — local and brand art can coexist.**
+`get-product-extra-info` returns `Data.images[]`, one row per image: `SortOrder`, `CatalogImageId`,
+`ProductImageFileName` (the blob URL). A local upload has `CatalogImageId: null`; adopted brand art is
+also a LOCAL copy, distinguished only by carrying its `CatalogImageId`. Lists of 2 and 3 catalog images
+were read live (8 of 44 linked items sampled), and the 8/30 audit above found local-first + brand-art
+lists on 25 of 337. So "keep ours and pull the global image in too" is possible: adopting the record's
+art APPENDS it behind the existing image, which keeps `SortOrder 1` and stays customer-facing; lead with
+the brand art only by deleting or re-ordering ours. The product-master read carries ONE field,
+`ProductImageFileName` = the `SortOrder 1` file, so a count needs the extra-info read. On a linked item
+the page offers only **Unlink from global product**; the **Manage brand updates** dialog, where the
+image box sits, is raised by the link picker, so an image adopt rides the link step. Open
+observation, one sample, cause unproven: a valid 225×225 local image (served by both the blob and
+the POS image CDN) rendered in neither the form's Images panel nor the menu preview, which fell back
+to stock category art. A size floor is a hypothesis, not a finding.
+
 **[DOC] No documented size limit for POS catalog images.** Article 12882291561491 gives upload steps
 only. Ecom dimensions (Product 1600x1600, Banner 3019x900) are documented separately and are Ecom-
 only. Six pilot-tenant SKUs had brand catalog images rejected as too large against an undocumented limit.
