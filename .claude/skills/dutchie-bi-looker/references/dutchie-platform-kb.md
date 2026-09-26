@@ -331,10 +331,27 @@ the Save button lights up afterwards, but pressing it would add a full-form writ
 and PNG both land as `.jpg`. Driving it from an agent browser: the file input has no accessible node
 until it is made visible, so give it a label and a display style, snapshot, then set the file on that
 ref. Leaving the page with the lit Save can raise a leave-page prompt that stalls the next navigation.
-**Adopting brand art on an item that is ALREADY linked is not the same path.** Its page offers only
-**Unlink from global product** — no picker — and the brand-updates dialog (the image box) belongs to
-the picker, so an adopt means unlink → relink the same record → tick only the image box. Unproven: not
-run (2026-09-26), because an unlink is a link-state change of its own and needs its own ruling.
+**Adopting brand art on an item that is ALREADY linked [PROBE 2026-09-26, 7 of 10, retired items].**
+Its page offers only **Unlink from global product** — no picker — and the brand-updates dialog (the
+image box) belongs to the picker, so an adopt is unlink → pick the same record → tick only IMAGES →
+relink. The route that held, one item at a time:
+1. Record the current `BrandCatalogProductId`, then unlink by the direct
+   `unlink-from-catalog-product` call (the page's Unlink button ignored clicks in an agent tab).
+2. **Link product** → the picker. It opens pre-filtered on the ITEM's Category and Strain Type, which
+   hides records (trap 21): search a distinctive phrase, and clear a filter with its **Select none**.
+3. **Prove the row is YOUR record id** before picking — read the id off the picker's own
+   `search-catalog-products` response. Byte-identical names are common (a newer same-name twin was the
+   only row offered on 2 of 10); a twin's art is another record's art, so abort and relink.
+4. Pick → **Link** → *Manage brand updates* opens with every box unchecked; tick only IMAGES (some
+   boxes are disabled) → **Use brand updates**. That fires `download-image`, `validate-sku`,
+   `add-product-image` and NOTHING ELSE: the image lands at once, the link only STAGES on the form.
+5. Do not Save the form. Relink by the direct `link-catalog-product` call to the recorded id.
+Read-back on every adopt: exactly one new `images[]` row, `SortOrder 1`, `CatalogImageId` equal to an
+id in the record's own `images[]`, and a full-row diff where only `ProductImageFileName` moved.
+**A 4500 × 4500 PNG record image silently failed:** `download-image` returned it, `add-product-image`
+never fired, no error showed — the undocumented size limit above, observed. Every MUI control in
+this flow (Link product, the row radio, Link, the checkboxes, Use brand updates) ignored a bare click
+in a hidden agent tab and answered a full pointer sequence (`pointerdown` … `click`).
 
 **[DOC] No documented size limit for POS catalog images.** Article 12882291561491 gives upload steps
 only. Ecom dimensions (Product 1600x1600, Banner 3019x900) are documented separately and are Ecom-
