@@ -331,7 +331,8 @@ the Save button lights up afterwards, but pressing it would add a full-form writ
 and PNG both land as `.jpg`. Driving it from an agent browser: the file input has no accessible node
 until it is made visible, so give it a label and a display style, snapshot, then set the file on that
 ref. Leaving the page with the lit Save can raise a leave-page prompt that stalls the next navigation.
-**Adopting brand art on an item that is ALREADY linked [PROBE 2026-09-26, 7 of 10, retired items].**
+**Adopting brand art on an item that is ALREADY linked [PROBE 2026-09-26, 9 of 10 retired items; the tenth was
+too large and was uploaded as a shrunk copy].**
 Its page offers only **Unlink from global product** — no picker — and the brand-updates dialog (the
 image box) belongs to the picker, so an adopt is unlink → pick the same record → tick only IMAGES →
 relink. The route that held, one item at a time:
@@ -339,17 +340,27 @@ relink. The route that held, one item at a time:
    `unlink-from-catalog-product` call (the page's Unlink button ignored clicks in an agent tab).
 2. **Link product** → the picker. It opens pre-filtered on the ITEM's Category and Strain Type, which
    hides records (trap 21): search a distinctive phrase, and clear a filter with its **Select none**.
-3. **Prove the row is YOUR record id** before picking — read the id off the picker's own
-   `search-catalog-products` response. Byte-identical names are common (a newer same-name twin was the
-   only row offered on 2 of 10); a twin's art is another record's art, so abort and relink.
+3. **Pick by the record's exact name, then PROVE it by the image:** after the adopt, the new image's
+   `CatalogImageId` must be in the target record's own `images[]` (`batch-catalog-products`). Do NOT
+   prove the row from a captured `search-catalog-products` body: the picker fires several searches (filters,
+   typing), and the LAST captured response need not be the list on screen — on 2026-09-26 that read named a
+   *Budder* record as the pre-roll row's "twin", and nearly re-linked the item to a different product. A real
+   near-twin exists too (`… [1g]` vs `…` on one brand): a record whose description is a COA / lab-results
+   string is the bad one — move the link to the good record (Adam, 2026-09-26).
 4. Pick → **Link** → *Manage brand updates* opens with every box unchecked; tick only IMAGES (some
-   boxes are disabled) → **Use brand updates**. That fires `download-image`, `validate-sku`,
-   `add-product-image` and NOTHING ELSE: the image lands at once, the link only STAGES on the form.
-5. Do not Save the form. Relink by the direct `link-catalog-product` call to the recorded id.
+   boxes are disabled) → **Use brand updates**. What fires depends on the `Tags` field config:
+   - **`Tags` = Required:** `download-image`, `validate-sku`, `add-product-image` only — the image lands,
+     the link only STAGES (the "soft save" fails on a false "Tags is required"; Dutchie bug, reported
+     2026-09-26). Do not Save the form; relink by the direct `link-catalog-product` call.
+   - **`Tags` = Show:** the same three PLUS `update-product` and `link-catalog-product` — the link commits
+     itself. ⚠️ That `update-product` NULLED `ProductTags` on 2 of 2 items; restore the tag through the form
+     (tag list → tick → Save), read it back. Declare the form-Save signature on the certify.
 Read-back on every adopt: exactly one new `images[]` row, `SortOrder 1`, `CatalogImageId` equal to an
 id in the record's own `images[]`, and a full-row diff where only `ProductImageFileName` moved.
-**A 4500 × 4500 PNG record image silently failed:** `download-image` returned it, `add-product-image`
-never fired, no error showed — the undocumented size limit above, observed. Every MUI control in
+**A 4500 × 4500 PNG record image (18 MB) failed:** `download-image` returned it, `add-product-image`
+never fired, and the only signal is a transient error toast top-right ("too large") that an agent tab's
+read missed — Adam saw it; ticket sent 2026-09-26. Fallback: download the record's image, shrink it
+(1600 × 1600 JPG, the documented ecom product size) and upload it as a local image (`CatalogImageId` null). Every MUI control in
 this flow (Link product, the row radio, Link, the checkboxes, Use brand updates) ignored a bare click
 in a hidden agent tab and answered a full pointer sequence (`pointerdown` … `click`).
 
