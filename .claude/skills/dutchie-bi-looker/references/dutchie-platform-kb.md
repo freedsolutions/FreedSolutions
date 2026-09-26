@@ -321,6 +321,21 @@ observation, one sample, cause unproven: a valid 225×225 local image (served by
 the POS image CDN) rendered in neither the form's Images panel nor the menu preview, which fell back
 to stock category art. A size floor is a hypothesis, not a finding.
 
+**[PROBE 2026-09-26] Adding a local image is its own call, and it works on a RETIRED item.** Online
+details → **Add image** → the file input (`input[type=file]`, `accept="image/*"`, hidden behind a
+`Choose file` button) → the file uploads at once through `POST /api/storefront/add-product-image`
+(`Result: true`, the response names the new blob file). No form Save is needed, and none was sent —
+the Save button lights up afterwards, but pressing it would add a full-form write for nothing. 17 of
+17 retired, image-less items: each read back ONE `images[]` row, `SortOrder 1`, `CatalogImageId` null,
+`ProductImageFileName` moved on the product-master row and nothing else, `IsRetired` still true. JPG
+and PNG both land as `.jpg`. Driving it from an agent browser: the file input has no accessible node
+until it is made visible, so give it a label and a display style, snapshot, then set the file on that
+ref. Leaving the page with the lit Save can raise a leave-page prompt that stalls the next navigation.
+**Adopting brand art on an item that is ALREADY linked is not the same path.** Its page offers only
+**Unlink from global product** — no picker — and the brand-updates dialog (the image box) belongs to
+the picker, so an adopt means unlink → relink the same record → tick only the image box. Unproven: not
+run (2026-09-26), because an unlink is a link-state change of its own and needs its own ruling.
+
 **[DOC] No documented size limit for POS catalog images.** Article 12882291561491 gives upload steps
 only. Ecom dimensions (Product 1600x1600, Banner 3019x900) are documented separately and are Ecom-
 only. Six pilot-tenant SKUs had brand catalog images rejected as too large against an undocumented limit.
@@ -665,7 +680,14 @@ one full replacement), each re-read byte-exact after a full page reload.
   saved through the form, `IngredientList` goes `null` → `""` and `NonCannabisWeightUnit`
   `null` → `0` on the same Save. Both are empty → empty; nothing an operator sees changes. A
   full-row certifier WILL report them, so declare both as a form-Save signature rather than
-  calling them drift. A catalog that has been form-edited before already carries the pattern
+  calling them drift.
+  **[PROBE 2026-09-26] The signature is wider on some records** (39 retired form Saves, full-row
+  diffed): `DoHApproved` and `HighCBD` null → `false` (29 items), `MetrcDescription` null → `""` (23),
+  `ActiveIngredients` null → `"[]"` and `TotalAmountUnitOfMeasure` null → `4` (20, edibles and merch
+  among them). Same class — the form posts its default into a null hidden field — so declare it by
+  rule (before null, after the form default), never by listing SKUs. And `IsOnlineProduct` written
+  OFF by the form reads back lowercase `"no"`, where a CSV load writes `"No"`: compare the flag
+  case-insensitively. A catalog that has been form-edited before already carries the pattern
   on the rows that were saved, so a mixed `null` / `""` census is expected, not a defect.
 - **A form Save keeps the item's location-override row but NULLS its `LocationRecPrice` [PROBE
   2026-09-25, narrowed by a second probe the same day].** The Save posts the full record. The form
@@ -908,6 +930,14 @@ from an already-tagged item inherits it.
   retired product can be linked **without unretiring it**. Verified on retired items linked through
   the picker and read back on `get-product-master-retired-v2`. Any edit that DOES go through the form
   still needs unretire → edit → retire.
+  ⚠️ **[PROBE 2026-09-26] Superseded as a rule: the form DOES Save a retired item.** 39 of 39 retired
+  items saved through their own form (`validate-sku` 200 → `update-product` 200, `Result: true`) with
+  no unretire, and every one read back `IsRetired: true` on the retired endpoint. Fields written: `Name`,
+  `Online title`, `Online description` (native setter + `input`/`change`), `Category`, `Tags` and
+  `Available online` (real clicks). A refusal is therefore that record's form VALIDATION (customer
+  type, Strain, Tags were the causes seen 9/14 and 9/25), not the retired state; try the plain Save
+  first and fall back to unretire → edit → retire only on a refusal. Certify full-row: the Save
+  carries the form-Save signature (see *Online description on the product form*).
 - ⚠️ **The Catalog export cannot be used to read a retired item's link state.** `Brand catalog
   product` exports **blank on retired rows even when the link exists and the product card shows it** —
   measured across a full retired export at zero populated rows against hundreds of links written and
