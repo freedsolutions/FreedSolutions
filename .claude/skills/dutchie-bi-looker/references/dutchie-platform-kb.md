@@ -344,6 +344,14 @@ local row (`CatalogImageId` null). When `add-product-image` never fires (oversiz
 remove anything. **Picker count trap:** the footer ("Displaying 1 - 3 of 3") counts rows the Category
 pre-filter (trap 21) hides — one radio on screen against a count of 3 was the same brand's other-category
 records, not a twin.
+**[PROBE 2026-09-26] The Brands-team FYI is "Report a correction" — for an EXISTING record only.** Products →
+Brands → the brand → the right pane's menu preview → **See something wrong? Report a correction** opens a
+dialog, "Report a brand correction", with one free-text box ("What needs to be corrected?") and **Send
+correction**; the brand operations team reviews it by hand. The message names the Global Catalog product
+(name + id), the issue and the recommended fix — never our SKU. Scope (Adam, 2026-09-26): it corrects a
+record that EXISTS (a wrong description, weight or image). A MISSING record (the brand publishes no record for
+our product) is not a correction; it goes through the brand-submission route, not this dialog. Filling the box
+sends nothing; only the button does, and it is outward-facing, so a lane stops before it.
 **Adopting brand art on an item that is ALREADY linked [PROBE 2026-09-26, 9 of 10 retired items; the tenth was
 too large and was uploaded as a shrunk copy].**
 Its page offers only **Unlink from global product** — no picker — and the brand-updates dialog (the
