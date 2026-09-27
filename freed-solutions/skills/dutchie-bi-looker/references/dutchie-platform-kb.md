@@ -329,6 +329,19 @@ the Save button lights up afterwards, but pressing it would add a full-form writ
 and PNG both land as `.jpg`. Driving it from an agent browser: the file input has no accessible node
 until it is made visible, so give it a label and a display style, snapshot, then set the file on that
 ref. Leaving the page with the lit Save can raise a leave-page prompt that stalls the next navigation.
+**[PROBE 2026-09-26] Removing one image is its own call too — no form Save.** Online details → the
+image tile's **Delete image** (`aria-label="Delete image"`) fires `POST /api/storefront/remove-product-image`
+with `{…ctx, ProductImageId, ProductId}` at once: no confirm dialog, `Result: true`. `ProductImageId` is the
+`images[].Id` from `get-product-extra-info`. An API replay of the same body commits identically (7 of 7
+retired items). The full product-master row diff is EMPTY, the image list loses that row, and the next image
+moves up to `SortOrder 1`. The route that held for "take the brand art, drop ours", one item at a time:
+on an UNLINKED item, pick the record in the link picker → **Use brand updates** with IMAGES only (it links and
+appends the art behind ours in one step; the same Save nulls `ProductTags` and drops a location-override row,
+see below) → prove every adopted `CatalogImageId` is in the record's own `images[]` → only THEN remove the
+local row (`CatalogImageId` null). When `add-product-image` never fires (oversize art), keep ours and do not
+remove anything. **Picker count trap:** the footer ("Displaying 1 - 3 of 3") counts rows the Category
+pre-filter (trap 21) hides — one radio on screen against a count of 3 was the same brand's other-category
+records, not a twin.
 **Adopting brand art on an item that is ALREADY linked [PROBE 2026-09-26, 9 of 10 retired items; the tenth was
 too large and was uploaded as a shrunk copy].**
 Its page offers only **Unlink from global product** — no picker — and the brand-updates dialog (the
