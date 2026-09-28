@@ -497,6 +497,19 @@ The picker's own Save posts a flat body, captured from a real UI save:
   for `StrainId`, `Flavor` (the explicit clear included) and `Name`, each read back afterwards on the
   retired read. The item stays retired throughout; the adjacent `Bulk unretire products` menu entry is
   never part of this path and nothing here needs it.
+- **[PROBE 2026-09-28] `Cost`, `Price` and `FlowerEquivalent` ride the same body as NUMBERS**
+  (`FieldList:[{"Price": 25}]`). Each was proven by a one-item probe on a retired item with a full-row
+  read-back of every key on the retired read: each moved exactly its own field, and the shadow fields
+  (`RecPrice`, `RecFlowerEquivalent`, the `Location*` columns) did not move. They are still NOT on
+  `backoffice_grid_write.js`'s allowlist. Add them there with this provenance before a helper-driven run.
+- **A one-item probe is the fallback proof when the modal cannot be driven.** A background tab of an agent
+  browser does not paint the virtualised grid (rows beyond the first render stay empty in `innerText`
+  and the scroller does not re-render), so the "prove the payload on a real UI save" step can be
+  impractical there. The substitute: capture the page's own read for the envelope context, send ONE
+  item, read the WHOLE row back, and diff every key against the pre-read. Only the intended field may
+  move, and the pre-read is the restore value. Then run the batch and diff the whole catalog once at the end.
+- **The grid's *Retired products* toggle is a saved user preference.** Turning it on to capture the
+  retired read changes the operator's own grid. Turn it back off at the end.
 
 ### Path B — Bulk update cost and prices via CSV (BETA)
 
