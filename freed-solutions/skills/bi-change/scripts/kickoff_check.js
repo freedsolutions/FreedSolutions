@@ -800,7 +800,14 @@ for (const id of H.dashboards) {
     // Spacers do not count as evidence the build landed — a blank tile someone else added must not
     // satisfy this check on behalf of a build that never wrote anything.
     const realAdded = added.length - addedSpacers.length, realRemoved = removed.length - removedSpacers.length;
-    if (H.path !== 'sync' && !changed.length && !realAdded && !realRemoved && H.path !== 'rule') fail('estate ' + id + ' moved', 'no element differs from the baseline — was the build applied and re-harvested?');
+    // A `config` change that DECLARES no BI surface (every scope list empty, filters false) re-harvests its
+    // boards only to prove the labels moved and nothing else did, so "no element differs" is the expected
+    // verdict there, not evidence of an unapplied build (2026-09-27, brand-rename wave). Any non-empty scope
+    // list, or any other path, keeps the check exactly as it was.
+    const declaredNoBI = H.path === 'config' && !H.scope.elements.length && !H.scope.new_elements.length &&
+      !H.scope.retired_elements.length && !H.scope.filters;
+    if (declaredNoBI && !changed.length && !realAdded && !realRemoved) ok('estate ' + id + ' moved', 'unmoved, as declared — config with an empty scope');
+    else if (H.path !== 'sync' && !changed.length && !realAdded && !realRemoved && H.path !== 'rule') fail('estate ' + id + ' moved', 'no element differs from the baseline — was the build applied and re-harvested?');
     const fa = JSON.stringify(a.filters || []), fb = JSON.stringify(b.filters || []);
     if (fa !== fb && !H.scope.filters) fail('scope ' + id + ' dashboard filters', 'filters changed but scope.filters is not true');
     else if (fa !== fb) ok('scope ' + id + ' dashboard filters', 'changed, in scope');

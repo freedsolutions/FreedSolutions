@@ -30,6 +30,8 @@
 //      every register rule has a ruling somewhere (D2).
 //   K. the scope-diff waiver compares instants · L. a new tile is documented on the board that
 //      carries it, not on every board the header names (L1 fails against the pre-2026-09-26 gate).
+//   M. a config change with an empty declared scope reads its unmoved board as "unmoved, as
+//      declared" (M1 fails against the pre-2026-09-27 gate); a declared element or another path still fails.
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -1167,6 +1169,47 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
     check('L3: a new title that no header board carries fails `new tile on a board`',
       mark(r.out, 'new tile on a board "Tile Ghost"') === '✘' && /not built/.test(onBoard(r.out, 'Tile Ghost')),
       onBoard(r.out, 'Tile Ghost').trim());
+  }
+}
+
+// =============================================================================================
+// M. A CONFIG CHANGE THAT DECLARES NO BI SURFACE IS "UNMOVED, AS DECLARED" (2026-09-27).
+//
+// `estate <id> moved` exempted only `sync` and `rule`, so a `config` kickoff that re-harvests its
+// boards to prove nothing moved (every scope list empty, filters false) could never go green. M1 is
+// the new guard (it FAILS against the pre-2026-09-27 gate); M2 and M3 are the controls — a non-empty
+// scope, or a path other than config, still fails the unmoved board exactly as before.
+// =============================================================================================
+{
+  const BRD = '99997';
+  const el = (id, title) => ({ id, type: 'vis', title, query_id: 'q' + id });
+  const EMPTY = { elements: [], new_elements: [], retired_elements: [], retired_titles: [], filters: false };
+  function unmoved({ kpath = 'config', scope = EMPTY } = {}) {
+    buildClean();
+    const w = (f, o) => fs.writeFileSync(path.join(EST, f), JSON.stringify(o, null, 2));
+    w('estate-' + BRD + '.pre-fx.json', { harvested_at: '2026-09-09T00:00:00.000Z', elements: [el('700001', 'Tile M')], filters: [] });
+    w('estate-' + BRD + '.json', { harvested_at: '2026-09-10T00:00:00.000Z', elements: [el('700001', 'Tile M')], filters: [] });
+    fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'), kickoff({
+      rules: ['R1'], seals: { R1: sha1(RULE1) }, done: false, kpath,
+      dashboards: [BRD], baseline: { [BRD]: 'estate-' + BRD + '.pre-fx.json' }, scope,
+    }));
+    return runBuild('fx-kickoff-2026-09-08.md');
+  }
+  const moved = out => line(out, 'estate ' + BRD + ' moved');
+  {
+    const r = unmoved();
+    check('M1: a config kickoff with an empty scope and an unmoved board reads "unmoved, as declared"',
+      mark(r.out, 'estate ' + BRD + ' moved') === '✔' && /unmoved, as declared/.test(moved(r.out)), moved(r.out).trim() || '(absent)');
+  }
+  {
+    const r = unmoved({ scope: Object.assign({}, EMPTY, { elements: ['700001'] }) });
+    check('M2: a config kickoff that DECLARES an element still fails an unmoved board',
+      mark(r.out, 'estate ' + BRD + ' moved') === '✘', moved(r.out).trim() || '(absent)');
+  }
+  {
+    const r = unmoved({ kpath: 'tile' });
+    check('M3: a tile kickoff with an unmoved board still fails `estate moved`',
+      mark(r.out, 'estate ' + BRD + ' moved') === '✘', moved(r.out).trim() || '(absent)');
   }
 }
 
