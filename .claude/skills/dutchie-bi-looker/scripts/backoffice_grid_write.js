@@ -80,6 +80,32 @@
       clearProven: false,
       provenance: 'named by the KB direct-call entry as a per-item field (one call each)',
     },
+    // Per-item NUMBERS (one call per value, like Name). Proven 2026-09-28 by one-item probes on
+    // retired items: a direct call FieldList:[{<field>: <number>}] with a full-row read-back moved
+    // only that field; the shadow fields (RecPrice, RecFlowerEquivalent, the Location* columns)
+    // did not move (platform KB, "Path A′ — the same endpoint, called directly", PROBE 2026-09-28).
+    // An empty-box clear was never probed on any of the three: clearProven stays false.
+    Cost: {
+      cast: 'number',
+      clearProven: false,
+      provenance: 'proven 2026-09-28 by one-item probes on retired items, direct call ' +
+        'FieldList:[{Cost: <number>}], full-row read-back moved only that field; RecPrice / ' +
+        'RecFlowerEquivalent / Location* unmoved (platform KB, Path A′, PROBE 2026-09-28)',
+    },
+    Price: {
+      cast: 'number',
+      clearProven: false,
+      provenance: 'proven 2026-09-28 by one-item probes on retired items, direct call ' +
+        'FieldList:[{Price: <number>}], full-row read-back moved only that field; RecPrice / ' +
+        'RecFlowerEquivalent / Location* unmoved (platform KB, Path A′, PROBE 2026-09-28)',
+    },
+    FlowerEquivalent: {
+      cast: 'number',
+      clearProven: false,
+      provenance: 'proven 2026-09-28 by one-item probes on retired items, direct call ' +
+        'FieldList:[{FlowerEquivalent: <number>}], full-row read-back moved only that field; ' +
+        'RecPrice / RecFlowerEquivalent / Location* unmoved (platform KB, Path A′, PROBE 2026-09-28)',
+    },
   };
 
   var WRITE_PATH = '/api/product-master/update-products-multiple';   // documented in full

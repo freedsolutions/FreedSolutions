@@ -42,9 +42,27 @@ function product(id, over) {
     StrainId: 999,          // deliberately NOT the target, so a swallowed write is visible
     StrainType: 'Unknown',
     Flavor: 'FIXTURE-FLAVOR',
+    Cost: 999,              // the three numeric per-item fields, each deliberately NOT the target
+    Price: 999,
+    FlowerEquivalent: 999,
     Tags: '',
   }, over || {});
 }
+
+// A clean numeric write of one of the per-item number fields (Cost / Price / FlowerEquivalent) to
+// one active item, mirroring cleanWrite's mocked reads.
+function cleanNumber(field) {
+  return function () {
+    const s = cleanWrite();
+    s.label = 'write ' + field + ' (a number) to one active item';
+    s.args = {
+      productIds: [9001], field: field, value: 12.5,
+      expectCount: 1, scope: 'active', refuseTags: ['FIXTURE-DEAD-TAG'], dryRun: false,
+    };
+    return s;
+  };
+}
+const NUMBER_FIELDS = ['Cost', 'Price', 'FlowerEquivalent'];
 
 function cleanWrite() {
   return {
@@ -220,8 +238,8 @@ const CASES = [
   // 1. field is not settable / not on the v1 proven allowlist
   { reason: 'FIELD_NOT_SETTABLE', note: 'field absent from the KB 25',
     base: cleanWrite, brk: function (s) { s.args.field = 'NotARealField'; } },
-  { reason: 'FIELD_NOT_PROVEN', note: 'settable but no direct-call proof (Cost)',
-    base: cleanWrite, brk: function (s) { s.args.field = 'Cost'; } },
+  { reason: 'FIELD_NOT_PROVEN', note: 'settable but no direct-call proof (Grams)',
+    base: cleanWrite, brk: function (s) { s.args.field = 'Grams'; } },
   { reason: 'FIELD_NOT_PROVEN', note: 'Tags is settable but its direct-call semantics are unproven',
     base: cleanWrite, brk: function (s) { s.args.field = 'Tags'; } },
 
@@ -232,6 +250,17 @@ const CASES = [
     base: cleanWrite, brk: function (s) { s.args.clear = true; } },
   { reason: 'CLEAR_UNPROVEN_FOR_FIELD', note: 'the empty-box clear is proven on Flavor only',
     base: cleanClear, brk: function (s) { s.args.field = 'StrainId'; } },
+
+  // 2b. the per-item number fields (proven 2026-09-28): an empty value is refused without clear,
+  //     and a clear is refused because none of the three has a proven empty-box clear
+  { reason: 'EMPTY_VALUE_WITHOUT_CLEAR', note: 'Cost — empty value, no clear flag',
+    base: cleanNumber('Cost'), brk: function (s) { s.args.value = ''; } },
+  { reason: 'EMPTY_VALUE_WITHOUT_CLEAR', note: 'Price — empty value, no clear flag',
+    base: cleanNumber('Price'), brk: function (s) { s.args.value = ''; } },
+  { reason: 'EMPTY_VALUE_WITHOUT_CLEAR', note: 'FlowerEquivalent — empty value, no clear flag',
+    base: cleanNumber('FlowerEquivalent'), brk: function (s) { s.args.value = ''; } },
+  { reason: 'CLEAR_UNPROVEN_FOR_FIELD', note: 'Price — a clear is not proven on the number fields',
+    base: cleanNumber('Price'), brk: function (s) { s.args.value = ''; s.args.clear = true; } },
 
   // 3. a multi-item clear needs the count stated
   { reason: 'CLEAR_MULTI_COUNT_UNCONFIRMED', note: 'clear widened to 2 items, count still 1',
@@ -401,6 +430,29 @@ function extras() {
       eq(r.res.ok, true, 'clear — the explicit clear completes');
       eq(JSON.stringify(r.writes[0].body.FieldList), '[{"Flavor":""}]', 'clear — posts an empty value');
     });
+  }).then(function () {
+    // The per-item number fields (Cost / Price / FlowerEquivalent, proven 2026-09-28): each PLANS on
+    // the mocked read with dryRun as the default (zero writes, the 9/28 provenance carried in the
+    // plan), and a live write posts the value as a NUMBER, one item per call, read back exactly.
+    return NUMBER_FIELDS.reduce(function (chain, field) {
+      return chain.then(function () {
+        const plan = cleanNumber(field)();
+        delete plan.args.dryRun;
+        return run(plan);
+      }).then(function (r) {
+        eq(r.res.ok, true, field + ' — plans on a mocked read');
+        eq(r.res.dryRun, true, field + ' — dryRun is the default');
+        eq(r.writes.length, 0, field + ' — the plan sends zero writes');
+        ok(/2026-09-28/.test(String(r.res.provenance || '')), field + ' — the plan carries the 2026-09-28 provenance');
+        return run(cleanNumber(field)());
+      }).then(function (r) {
+        eq(r.res.ok, true, field + ' — the live write completes');
+        eq(r.writes.length, 1, field + ' — one item, one call');
+        eq(JSON.stringify(r.writes[0].body.FieldList), '[{"' + field + '":12.5}]',
+          field + ' — FieldList carries the value as a NUMBER, not a string');
+        eq(r.res.verified, 1, field + ' — read back exactly once');
+      });
+    }, Promise.resolve());
   });
 }
 
