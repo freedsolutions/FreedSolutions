@@ -1194,6 +1194,11 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   split in Looker — and it returns other tenants' rows unless the query pins `transaction_item_discounts.lsp_id`.
   Any name-keyed filter loses ALL its history at a rename until the filter moves; move it in the same change.
 - **Discount configs store tag IDS, not names** — a tag rename does not break a tag-restricted discount.
+- **Discount configs store BRAND RECORD IDS, not names** [PROBE 2026-09-27] — a brand display-name rename leaves a
+  brand-scoped discount byte-identical (full-config read before/after). Re-binding the ITEMS to another brand record
+  does empty the scope (`Eligible products: 0`); re-point `Reward.Restrictions.Brand.RestrictionIds` in the wizard's
+  Requirements › Edit filters › Brand modal (turn off "Hide options with no eligible products" to see a record whose
+  items are elsewhere). That save moved exactly one config field.
 - **A wizard save rewrites fields nobody touched:** a blank `OnlineName` is filled from the Name; a
   `DiscountMenuDisplayDetails` card is created; `Reward.HighestOrLowest` "low" is cleared on calc 6 (the Summary step
   hides it); `WallClockValidDateFrom/To` are copied from `ValidDateFrom/To`. Edits to Expired discounts SAVE. Certify
@@ -1205,3 +1210,21 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - A percent is stored as a fraction: `DiscountValue` 0.5 = 50 % off.
 - The detail route is `/marketing/discounts/all/discount/<id>` (pushState + popstate); a row click does not open it.
   Archived discounts load through the same route with `IsDeleted` = true.
+
+## Brand records (Products › Brands) [PROBE 2026-09-27, brand rename wave]
+
+- **A display-name rename is one call and moves no item.** The record form saves `POST /api/brand/update-brand`
+  `{BrandCatalogBrandId, BrandId, BrandName, …ctx}`; read back by the page's `getBrand` GraphQL. Every item bound to the
+  record reads the new `BrandName` on the next catalog read with no item write (active and retired alike); the record
+  id and the Global Brand link (`BrandCatalogBrandId`) do not change.
+- **Ecommerce shows the Global Brand's name, not the local display name** — the record page's Menu preview ("how your
+  brand appears on the online menu") prints the Global Brand name after a local rename.
+- **Delete is a soft flag:** the row menu's Delete (behind a bare "Are you sure?" that names nothing) posts
+  `POST /api/brand/update-brand-deleted {Id, IsDeleted: true}`; the record then shows only with "Include inactive
+  brands". Re-bind its items first (grid `BrandId`), and re-point any discount that scopes it.
+- **Looker lags the catalog in two steps:** after a brand rename plus item-name writes, the BI brand label moved within
+  the hour while product names and brand ids had not — a name-vs-brand token check reads the whole renamed set as
+  mismatched until the product rows refresh. Read that window as the falsification, not a defect.
+- **The item-write fast path:** the grid write `update-products-multiple` per item, with ONE full catalog read after
+  the batch (diff every key), finishes in minutes; a full `get-product-master-*` read per item in a hidden neo tab
+  took ~3 min each. The endpoint rate-limits at ~60 writes/min (HTTP 429 = not applied; re-read, then resume).
