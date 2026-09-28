@@ -275,6 +275,14 @@ const CASES = [
   { reason: 'CLEAR_UNPROVEN_FOR_FIELD', note: 'Price — a clear is not proven on the number fields',
     base: cleanNumber('Price'), brk: function (s) { s.args.value = ''; s.args.clear = true; } },
 
+  //     and a NON-NUMERIC value is refused: Number('3.5g') is NaN, which would post as null
+  { reason: 'VALUE_NOT_NUMERIC', note: 'Cost — a currency string where a number belongs',
+    base: cleanNumber('Cost'), brk: function (s) { s.args.value = '$12'; } },
+  { reason: 'VALUE_NOT_NUMERIC', note: 'Price — a numeric STRING is still a string',
+    base: cleanNumber('Price'), brk: function (s) { s.args.value = '12.50'; } },
+  { reason: 'VALUE_NOT_NUMERIC', note: 'FlowerEquivalent — the export grams string ("3.5g")',
+    base: cleanNumber('FlowerEquivalent'), brk: function (s) { s.args.value = '3.5g'; } },
+
   // 2c. ProductCategoryId (proven 2026-09-28): binds by record id, and no clear is proven
   { reason: 'CATEGORY_ID_NOT_NUMERIC', note: 'a Category label passed where the record id belongs',
     base: cleanCategory, brk: function (s) { s.args.value = 'FIXTURE-CATEGORY-NEW'; } },

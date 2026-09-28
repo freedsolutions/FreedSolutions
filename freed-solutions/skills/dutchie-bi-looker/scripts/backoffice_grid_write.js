@@ -397,6 +397,15 @@
         'not the label. Got ' + JSON.stringify(o.value) + '.'));
     }
 
+    // Any other number field (Cost, Price, FlowerEquivalent, ...): a non-numeric value casts to NaN,
+    // which serialises as null — a silent CLEAR of the field, not an error. Refuse before the network.
+    if (allow.cast === 'number' && !clear &&
+        (typeof o.value !== 'number' || !isFinite(o.value))) {
+      return Promise.resolve(refuse('VALUE_NOT_NUMERIC',
+        field + ' is a number field: pass a finite number (a string like "3.5g" or "$12" posts as null). ' +
+        'Got ' + JSON.stringify(o.value) + '.'));
+    }
+
     // --- network: context, then the reads that back each remaining refusal -------------------
     var got = ensureContext(o.ctx);
     if (got.error) return Promise.resolve(got.error);

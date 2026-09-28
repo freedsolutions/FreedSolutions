@@ -501,7 +501,9 @@ The picker's own Save posts a flat body, captured from a real UI save:
   (`FieldList:[{"Price": 25}]`). Each was proven by a one-item probe on a retired item with a full-row
   read-back of every key on the retired read: each moved exactly its own field, and the shadow fields
   (`RecPrice`, `RecFlowerEquivalent`, the `Location*` columns) did not move. All three are on
-  `backoffice_grid_write.js`'s allowlist with this provenance.
+  `backoffice_grid_write.js`'s allowlist with this provenance. Pass a NUMBER: a string such as the
+  export's `3.5g` or `$12` casts to NaN and serialises as `null`, a silent clear, so the helper refuses
+  any non-numeric value on a number field as `VALUE_NOT_NUMERIC` (numeric strings included).
 - **[PROBE 2026-09-28] `ProductCategoryId` rides the same body as a RECORD id and DERIVES the `Category`
   label.** A one-item probe on a retired item with a full-row read-back moved exactly two cells: the id
   and the display `Category`. `MasterCategory` and `IsRetired` did not move. One more one-item call and one
