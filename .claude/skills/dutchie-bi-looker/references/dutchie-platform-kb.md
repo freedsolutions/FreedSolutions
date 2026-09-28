@@ -1185,3 +1185,25 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   on-hand read until that is explained.
 - `GET /tags` returns 404. There is no single-product GET: read a product by listing and filtering.
 - Responses are bare JSON (no envelope); dates are ISO-8601 UTC with `Z`; ids are integers.
+
+## Discounts (Backoffice Marketing › Discounts) [PROBE 2026-09-26/27, discount lanes]
+
+- **A discount rename rewrites history, on both surfaces.** The Backoffice Discount Detail report shows the CURRENT
+  name on sales made before the rename; its `Discount Description` column keeps the name AS AT THE SALE, and its
+  `Discount Code` column shows the CURRENT code (rows sold with no code read the code added later). Looker
+  `transaction_item_discounts.name` also shows the current name; `reason` is the name stamped at the sale and is not a
+  key (manual discounts carry the staff note there). The explore carries NO discount id — same-name twins cannot be
+  split in Looker — and it returns other tenants' rows unless the query pins `transaction_item_discounts.lsp_id`.
+  Any name-keyed filter loses ALL its history at a rename until the filter moves; move it in the same change.
+- **Discount configs store tag IDS, not names** — a tag rename does not break a tag-restricted discount.
+- **A wizard save rewrites fields nobody touched:** a blank `OnlineName` is filled from the Name; a
+  `DiscountMenuDisplayDetails` card is created; `Reward.HighestOrLowest` "low" is cleared on calc 6 (the Summary step
+  hides it); `WallClockValidDateFrom/To` are copied from `ValidDateFrom/To`. Edits to Expired discounts SAVE. Certify
+  every discount write by a full-config diff, and read the hidden reward fields before editing a live discount.
+- `RestrictToGroupIds`: `[]` = "All customer groups"; `[-1]` = the UI option "No group assigned" (read in the summary
+  panel; a ring-up has not proven what it excludes).
+- The Discounts CSV export's `ID` column carries the EXTERNAL id for Alpine IQ discounts (`ApplicationMethodId` 5); the
+  Dutchie id is the grid `Id`, and the config `ExternalId` holds the external one.
+- A percent is stored as a fraction: `DiscountValue` 0.5 = 50 % off.
+- The detail route is `/marketing/discounts/all/discount/<id>` (pushState + popstate); a row click does not open it.
+  Archived discounts load through the same route with `IsDeleted` = true.
