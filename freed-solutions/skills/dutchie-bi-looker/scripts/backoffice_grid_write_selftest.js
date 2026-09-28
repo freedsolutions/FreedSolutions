@@ -45,8 +45,21 @@ function product(id, over) {
     Cost: 999,              // the three numeric per-item fields, each deliberately NOT the target
     Price: 999,
     FlowerEquivalent: 999,
+    ProductCategoryId: 999, // deliberately NOT the target
+    Category: 'FIXTURE-CATEGORY-OLD',
     Tags: '',
   }, over || {});
+}
+
+// A clean Category move (ProductCategoryId, proven 2026-09-28 on retired items) of one retired item.
+function cleanCategory() {
+  const s = cleanWrite();
+  s.label = 'move one retired item to another Category by record id';
+  s.args = {
+    productIds: [9101], field: 'ProductCategoryId', value: 501,
+    expectCount: 1, scope: 'retired', refuseTags: ['FIXTURE-DEAD-TAG'], dryRun: false,
+  };
+  return s;
 }
 
 // A clean numeric write of one of the per-item number fields (Cost / Price / FlowerEquivalent) to
@@ -262,6 +275,14 @@ const CASES = [
   { reason: 'CLEAR_UNPROVEN_FOR_FIELD', note: 'Price — a clear is not proven on the number fields',
     base: cleanNumber('Price'), brk: function (s) { s.args.value = ''; s.args.clear = true; } },
 
+  // 2c. ProductCategoryId (proven 2026-09-28): binds by record id, and no clear is proven
+  { reason: 'CATEGORY_ID_NOT_NUMERIC', note: 'a Category label passed where the record id belongs',
+    base: cleanCategory, brk: function (s) { s.args.value = 'FIXTURE-CATEGORY-NEW'; } },
+  { reason: 'EMPTY_VALUE_WITHOUT_CLEAR', note: 'ProductCategoryId — empty value, no clear flag',
+    base: cleanCategory, brk: function (s) { s.args.value = ''; } },
+  { reason: 'CLEAR_UNPROVEN_FOR_FIELD', note: 'ProductCategoryId — a clear is not proven',
+    base: cleanCategory, brk: function (s) { s.args.value = ''; s.args.clear = true; } },
+
   // 3. a multi-item clear needs the count stated
   { reason: 'CLEAR_MULTI_COUNT_UNCONFIRMED', note: 'clear widened to 2 items, count still 1',
     base: cleanClear, brk: function (s) { s.args.productIds = [9001, 9002]; } },
@@ -453,6 +474,28 @@ function extras() {
         eq(r.res.verified, 1, field + ' — read back exactly once');
       });
     }, Promise.resolve());
+  }).then(function () {
+    // ProductCategoryId (proven 2026-09-28): plans with dryRun as the default and the 9/28
+    // provenance; a live write posts the id as a NUMBER on the retired read and DECLARES the
+    // derived Category label instead of treating it as a defect.
+    const plan = cleanCategory();
+    delete plan.args.dryRun;
+    return run(plan).then(function (r) {
+      eq(r.res.ok, true, 'ProductCategoryId — plans on a mocked retired read');
+      eq(r.res.dryRun, true, 'ProductCategoryId — dryRun is the default');
+      eq(r.writes.length, 0, 'ProductCategoryId — the plan sends zero writes');
+      ok(/2026-09-28/.test(String(r.res.provenance || '')), 'ProductCategoryId — the plan carries the 2026-09-28 provenance');
+      ok(/cross-MC move is UNPROVEN/.test(String(r.res.provenance || '')), 'ProductCategoryId — the plan states the cross-MC gap');
+      return run(cleanCategory());
+    }).then(function (r) {
+      eq(r.res.ok, true, 'ProductCategoryId — the live write completes');
+      eq(r.writes.length, 1, 'ProductCategoryId — one item, one call');
+      eq(JSON.stringify(r.writes[0].body.FieldList), '[{"ProductCategoryId":501}]',
+        'ProductCategoryId — FieldList carries the id as a NUMBER');
+      eq(r.res.verified, 1, 'ProductCategoryId — read back exactly once');
+      ok(/Category is DERIVED/.test(JSON.stringify(r.res.declares || [])),
+        'ProductCategoryId — declares the derived Category label rather than treating it as a defect');
+    });
   });
 }
 

@@ -498,8 +498,21 @@ The picker's own Save posts a flat body, captured from a real UI save:
 - **[PROBE 2026-09-28] `Cost`, `Price` and `FlowerEquivalent` ride the same body as NUMBERS**
   (`FieldList:[{"Price": 25}]`). Each was proven by a one-item probe on a retired item with a full-row
   read-back of every key on the retired read: each moved exactly its own field, and the shadow fields
-  (`RecPrice`, `RecFlowerEquivalent`, the `Location*` columns) did not move. They are still NOT on
-  `backoffice_grid_write.js`'s allowlist. Add them there with this provenance before a helper-driven run.
+  (`RecPrice`, `RecFlowerEquivalent`, the `Location*` columns) did not move. All three are on
+  `backoffice_grid_write.js`'s allowlist with this provenance.
+- **[PROBE 2026-09-28] `ProductCategoryId` rides the same body as a RECORD id and DERIVES the `Category`
+  label.** A one-item probe on a retired item with a full-row read-back moved exactly two cells: the id
+  and the display `Category`. `MasterCategory` and `IsRetired` did not move. One more one-item call and one
+  multi-item call to a second Category followed, each read back, and a later catalog export showed only the
+  Category cells moved. Every move stayed inside ONE Master Category, so whether a cross-MC move
+  re-derives `MasterCategory` is UNPROVEN: read the full row on the first cross-MC item. Pass the numeric
+  id, never the label; a label cast to a number serialises as `null`, and the helper refuses it as
+  `CATEGORY_ID_NOT_NUMERIC`. On `backoffice_grid_write.js`'s allowlist with this provenance.
+- **A timed-out evaluate can still have landed.** A write whose in-page evaluate timed out on the tool
+  side had already written. Read the row back before any retry; never re-send on a timeout alone.
+- **Repeated full reads exhaust RAM.** The retired read is ~8 MB. Re-parsing it in full after every write
+  drove free RAM to ~230 MB twice on an 8 GB box and timed out two calls. Read the catalog once, then
+  compare per-row hashes, or read back only the ids written, instead of re-reading the whole catalog.
 - **A one-item probe is the fallback proof when the modal cannot be driven.** A background tab of an agent
   browser does not paint the virtualised grid (rows beyond the first render stay empty in `innerText`
   and the scroller does not re-render), so the "prove the payload on a real UI save" step can be

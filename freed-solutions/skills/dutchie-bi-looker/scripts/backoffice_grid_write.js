@@ -106,6 +106,21 @@
         'FieldList:[{FlowerEquivalent: <number>}], full-row read-back moved only that field; ' +
         'RecPrice / RecFlowerEquivalent / Location* unmoved (platform KB, Path A′, PROBE 2026-09-28)',
     },
+    // The Category, by RECORD id. Proven 2026-09-28 on retired items: a one-item probe
+    // FieldList:[{ProductCategoryId: <id>}] with a full-row read-back moved exactly two cells, the id
+    // and the derived `Category` label; then a second one-item call and one multi-item call to a second
+    // Category, each read back. Every move stayed inside ONE Master Category, so "MasterCategory
+    // unmoved" is not proof that a cross-MC move leaves it unmoved: read the full row on the first
+    // cross-MC item. An empty-box clear was never probed.
+    ProductCategoryId: {
+      cast: 'number',
+      clearProven: false,
+      provenance: 'proven 2026-09-28 on retired items: one-item probe FieldList:[{ProductCategoryId: <id>}], ' +
+        'full-row read-back moved only the id and the derived Category label, then a second one-item ' +
+        'call and one multi-item call, read back; every move stayed inside one Master Category, so a ' +
+        'cross-MC move is UNPROVEN (platform KB, Path A′, PROBE 2026-09-28)',
+      derives: 'Category',              // the read-back label follows the record; declare it
+    },
   };
 
   var WRITE_PATH = '/api/product-master/update-products-multiple';   // documented in full
@@ -373,6 +388,13 @@
         'StrainId binds by RECORD: pass the numeric id from the Strains read, not a name. ' +
         'Got ' + JSON.stringify(o.value) + '. Resolving a name here is what a CSV load does, and ' +
         'that is the path that can hit an archived namesake.'));
+    }
+    // A Category NAME cast to a number is NaN, which serialises as null: a silent blank, not an error.
+    if (field === 'ProductCategoryId' && !clear &&
+        (typeof o.value !== 'number' || !isFinite(o.value))) {
+      return Promise.resolve(refuse('CATEGORY_ID_NOT_NUMERIC',
+        'ProductCategoryId binds by RECORD: pass the numeric category id from the categories read, ' +
+        'not the label. Got ' + JSON.stringify(o.value) + '.'));
     }
 
     // --- network: context, then the reads that back each remaining refusal -------------------
