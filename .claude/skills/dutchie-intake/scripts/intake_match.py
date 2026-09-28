@@ -109,9 +109,30 @@ def form_score(form, dtoks):
     return sum(1 for x in toks if x in dtoks) / len(toks)
 
 
+_PACK_RE = re.compile(r"(?<![\d.])(\d{1,3})\s*(?:-\s*)?(?:pk|pack|ct|count|piece|pc)s?\b|(?<![\d.])(\d{1,3})\s*[x×]\s*(?=\d)", re.I)
+
+
+def pack_count_of(desc):
+    """The pack count a line prints (`3pk`, `3-pack`, `10 ct`, `3 x 0.5g`), else None."""
+    m = _PACK_RE.search(desc or "")
+    return None if not m else int(m.group(1) or m.group(2))
+
+
 def dose_of(desc):
-    m = re.search(r"(\d+(?:\.\d+)?)\s*(mg|g)\b", desc or "", re.I)
-    return None if not m else (float(m.group(1)) / 1000.0 if m.group(2).lower() == "mg" else float(m.group(1)))
+    """The line's TOTAL grams, the grain the catalog's `Product grams` carries. A pack line prints the
+    per-piece weight (`0.5g x 3pk`), so the total is weight x count unless the line also prints the
+    total itself (`1.5g (3 x 0.5g)`), in which case that printed total wins."""
+    ws = [float(a) / 1000.0 if u.lower() == "mg" else float(a)
+          for a, u in re.findall(r"(\d+(?:\.\d+)?)\s*(mg|g)\b", desc or "", re.I)]
+    if not ws:
+        return None
+    n = pack_count_of(desc)
+    if not n or n < 2:
+        return ws[0]
+    for w in ws:
+        if any(abs(w - v * n) < 1e-6 for v in ws if v != w):
+            return w
+    return round(min(ws) * n, 4)
 
 
 def vendor_tokens(v):
@@ -446,6 +467,14 @@ def selftest():
 
     t.check("EXISTS fires", run("Acme Blue Dream preroll 1g")["verdict"] == "EXISTS")
     t.check("QUIET: EXISTS needs the grams", run("Acme Blue Dream preroll 2g")["verdict"] != "EXISTS")
+    t.check("dose_of: single = first weight", dose_of("Acme Blue Dream Pre-Roll 1g") == 1.0)
+    t.check("dose_of: pack total = per-piece x count", dose_of("Acme Blue Dream Pre-Roll 0.5g x 3pk") == 1.5)
+    t.check("dose_of: count before weight", dose_of("Acme Blue Dream 3-pack Pre-Roll 0.5g") == 1.5)
+    t.check("dose_of: 10 ct", dose_of("Acme Blue Dream Pre-Roll 0.5g 10 ct") == 5.0)
+    t.check("dose_of: printed total wins", dose_of("Acme Blue Dream Pre-Roll 1.5g (3 x 0.5g)") == 1.5)
+    t.check("dose_of: mg dose, no pack", dose_of("Acme Gummy 100mg 10pk") == 0.1 * 10)
+    t.check("dose_of: '1 x' is not a pack", dose_of("Acme Blue Dream 1 x 3.5g") == 3.5)
+    t.check("pack_count_of: none on a single", pack_count_of("Acme Blue Dream Pre-Roll 1g") is None)
     t.check("RETIRED_MATCH fires", run("Acme Sour Diesel pre-roll 1g")["verdict"] == "RETIRED_MATCH")
     r = run("Acme Gelato preroll 1g")
     t.check("NEW_ITEM_WITH_SIBLING fires", r["verdict"] == "NEW_ITEM_WITH_SIBLING", r["verdict"])
