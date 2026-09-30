@@ -1239,6 +1239,54 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - The detail route is `/marketing/discounts/all/discount/<id>` (pushState + popstate); a row click does not open it.
   Archived discounts load through the same route with `IsDeleted` = true.
 
+### Building and editing a discount in the wizard [PROBE 2026-09-27/30, discount build lanes]
+
+- **Read.** `POST /api/v2/discount/get-discount-by-id` returns the full config. The app caches a discount it has shown,
+  so a second open fires no request: for a clean re-read, reload the list page, re-install the XHR hook, then open the
+  id. Click the wizard's "Exit" before opening another discount. The post-save refresh can race the menu-card save.
+- **Wizard steps:** Configure · Details · Requirements · Rewards · Online details · Summary. On the Summary, the
+  "Edit" buttons open them in that order (0 = Configure, 1 = Details, 2 = Requirements, 3 = Rewards, last = Online
+  details). "Update discount" saves (`update-discount-item`, then `update-discount-menu-card`).
+- **Copy SAVES at once.** The row menu's "Copy" calls `copy-discount` and saves a new discount named
+  `COPY -- <name>` with the source's dates and scope, then opens it. It drops the order sources
+  (`PlatformTypeRestrictions` empty = all). Copy an EXPIRED discount as the template, so the copy cannot run before it
+  is edited; edit and certify it in the same sitting; check no `COPY -- ` row is left.
+- **Row menu.** The action button sits in a pinned column that scrolls apart from the grid, and a background tab may
+  not paint the menu until a frame is forced (a screenshot). The grid's display order is not the order of its `rows`
+  prop: find a row with the grid API (`getRowIndexRelativeToVisibleRows(id)`, then `scrollToIndexes`), then click the
+  button at its live rect with a real click. Confirm the open menu belongs to the right row (`aria-expanded` owner).
+- **Dates.** Start and End are MUI text inputs that commit on BLUR: focus, select the text with `setSelectionRange`
+  (`Control+a` selects the page after a reload), type real keys `MM/DD/YYYY hh:mm AM`, press Tab, then "Done". A
+  scripted "Done" click without the Tab loses the typed value. "Never" is stored as `4200-04-19T00:00:00`; tick
+  "Specify end date" first. `ValidDateFrom/To` carry the time.
+- **Details radio groups.** In order: "Limit per customer", "Restrict availability by day of week or time of day",
+  "Available online". Pick a group by its label, never by position.
+- **Customer type.** The "Customer type(s)" box opens a checkbox menu with "Select none". Clear it with "Select none",
+  then close the menu by clicking the "Who is eligible" heading (Escape does not close it). The config then drops the
+  whole `CustomerType` restriction block.
+- **Order sources** map to `PlatformTypeRestrictions`: 1 Mobile App (iOS), 2 Online Menu, 3 Kiosk, 4 In Store (POS);
+  empty = all. Order types are 1-5; empty = all.
+- **Conditions.** "Cart contains" offers At least / Every / Exactly / Between, stored on the item-count threshold
+  (`ThresholdTypeId` 1; 2 = spend, 3 = weight): Every N = `ThresholdMin` N, `ThresholdMax` null; At least N =
+  `ThresholdMin` N, `ThresholdMax` 10000; Exactly N = both N. With no requirement block the condition lives on
+  `Reward`; with one it lives on `Constraints[0]`. Every N on a percent reward skips an odd unit; At least N discounts
+  every unit once N are in the cart.
+- **Mechanics.** A per-item price = "Price to amount - each item" (`CalculationMethodId` 3) with "No condition". A
+  bundle = "Price to amount - total amount" (6) with "Every N items". Buy X, get Y = a requirement (`Constraints`) plus
+  a reward applied to "A different set of products", with its own condition and filters. A price cap is stored twice
+  (`Reward.MaxPrice` and a `Restrictions.Price` block). A percent is a fraction (0.15 = 15 %).
+- **Filters.** A filter modal (Brand, Category, Weight, Product) opens on a real click on its row in the Filters list.
+  Turn off "Hide options with no eligible products" before searching, or a record outside the current scope is not
+  listed. Search boxes are per filter (`Search categories by name`, `Search brands by name`, ...).
+- **A Product filter holding only RETIRED items cannot be cleared in its modal** (they are not listed). Workaround:
+  "+ Add another requirement" shows a "delete requirement N" button; delete the old requirement. The fresh
+  requirement's count box is BLANK and "Done" does nothing until a count is typed.
+- **Archive.** Row menu › "Archive" › a modal naming `(<id>) <name>` › "Archive" (`set-delete-discount`). It moves
+  only `IsDeleted`; archived discounts restore from the Archived tab.
+- **Certify** every write by a full flat diff of the config against the pre-write read (or, for a copy, against its
+  template): only the planned keys may move. A guard read of the Summary text before "Update discount" catches a
+  dropped field before it is saved.
+
 ## Brand records (Products › Brands) [PROBE 2026-09-27, brand rename wave]
 
 - **A display-name rename is one call and moves no item.** The record form saves `POST /api/brand/update-brand`
