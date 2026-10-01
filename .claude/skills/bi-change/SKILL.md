@@ -295,6 +295,17 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   and sends the previous version there to the Recycle Bin, only once a byte-identical frozen copy exists.
   Dry-run by default; `--selftest` = 28 checks. The pointer's `Export refresh` line carries the tenant's
   folders.
+- `scripts/publish_docs.py --estate <estate dir> --out <dir> [--reference] [--apply]` — keep ONE folder a
+  person reads from equal to the estate's CURRENT documents, so nobody copies a PDF by hand or reads a
+  superseded version. It reads `onepagers.json` and the `--stale` scan: an in-step document is copied under
+  its delivered name; a document the scan calls BEHIND is HELD (not published, its last published version
+  stays, `_Index.txt` says why); another version of a published title in the folder goes to the Recycle
+  Bin, only when a byte-identical copy exists under `deliverables/`. `onepagers.json` may carry
+  `"retired_words": [...]` — a name canon no longer uses; a document whose HTML source prints one is HELD,
+  which the rule seal cannot see (a page can print a category or tag name that no cited rule cell spells).
+  `--reference` adds the technical renders under `Reference/`, only when the scan reports no stale stamp,
+  no render behind and no dictionary-ahead document. It never runs a generator and never edits the estate.
+  Dry-run by default; `--selftest` = 16 checks.
 - `scripts/render_docs.sh <source.md> [...]` — DOCX + PDF into `<source dir>/renders/`. It **exits 1**
   when xelatex reports any `Missing character`, printing the warning lines and the source path, and it
   renders every file in the list before taking that exit (2026-09-14). The renders are kept: they are
