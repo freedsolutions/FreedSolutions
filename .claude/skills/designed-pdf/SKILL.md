@@ -48,7 +48,9 @@ Missing page budget or audience: ask one question, then proceed.
 - `components.md` - one description and HTML snippet per component, plus the generator skeleton
   and the fit-to-budget ladder. Read it before writing a generator.
 - `render_pdf.py` - `python .claude/skills/designed-pdf/render_pdf.py <html> <out.pdf> [--pages N]`.
-  Prints the page count; exit 1 if the count exceeds the budget; exit 2 if the render failed.
+  Prints the page count and the print scale of every page; exit 1 if the count exceeds the budget;
+  exit 2 if the render failed; exit 3 if a page printed below `--min-scale` (default 1.0: the
+  browser shrank it). `--selftest` proves the scale check fails a shrunk page and passes its twin.
 - `example.html` - every component in one two-page document. Render it to see the target look.
 
 ## Workflow
@@ -73,7 +75,10 @@ a code string. Write copy as fragments. Run it to produce `<name>.html`.
 python .claude/skills/designed-pdf/render_pdf.py <name>.html <name>.pdf --pages <N>
 ```
 
-Exit 1 means over budget: go to step 5, do not deliver.
+Exit 1 means over budget: go to step 5, do not deliver. Exit 3 means the browser shrank the page
+to fit something wider than the page box: every font printed smaller than its CSS size, and the
+page count and the look both hide it. Let the wide element wrap or narrow it, then re-render; never
+pass `--min-scale` under 1.0 to make the gate quiet.
 
 ### 4. Read the pages
 
@@ -147,6 +152,13 @@ In the order the feedback arrived:
 - "Segoe UI" is Windows-only. The stack falls back to Calibri, Arial, sans-serif.
 - Letter size is set in `@page`. A4 is a one-line change in the document's CSS block.
 - `pypdf` counts the pages; without it `render_pdf.py` falls back to a regex count.
+- **Chromium shrinks, it does not overflow.** One `white-space: nowrap` chip, pill or label wider
+  than its column scales the WHOLE page down (seen at 0.88 and 0.96: an 8.4pt body printing near
+  7.4pt), and the page still fits its budget. `render_pdf.py` measures it with a `position: fixed`
+  1in probe in a throwaway copy of the HTML (Chromium repeats a fixed element on every page and
+  scales it with the page); the probe never reaches the delivered PDF. It needs PyMuPDF; without
+  it the scale prints as NOT MEASURED. Give any long chip or pill `white-space: normal` inside a
+  narrow column.
 
 ## References
 
