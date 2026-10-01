@@ -46,6 +46,7 @@ KINDS = {
 }
 CATALOG = {"active": ("catalog-active", "Catalog - Active"), "retired": ("catalog-retired", "Catalog - Retired")}
 DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})([a-z]?)-(.+)\.csv$", re.I)
+LATEST, MANIFEST = "latest", "MANIFEST.json"
 
 
 class Abort(Exception):
@@ -134,6 +135,40 @@ def frozen_copy_of(exports_dir, digest, cache):
         for f in Path(exports_dir).glob("*.csv"):
             cache.setdefault(sha256(f), f)
     return cache.get(digest)
+
+
+def all_slugs():
+    return [v[0] for v in CATALOG.values()] + [v[0] for v in KINDS.values() if v[0]]
+
+
+def write_latest(exports_dir, mirror_dir=None, apply=True):
+    """The `latest/` VIEW: one fixed name per kind (`<slug>.csv`) holding the newest frozen file, plus a
+    MANIFEST.json that says which frozen file each one is. A view, so it is the one place this tool
+    overwrites; the frozen files stay the record. `mirror_dir` gets the same files (an off-machine copy).
+    Returns the manifest dict."""
+    kinds = {}
+    for slug in all_slugs():
+        f = newest_frozen(exports_dir, slug)
+        if f:
+            kinds[slug] = {"frozen": f.name, "rows": row_count(f), "sha256": sha256(f),
+                           "pulled_at": dt.datetime.fromtimestamp(f.stat().st_mtime).isoformat(timespec="seconds")}
+    manifest = {"generated_at": dt.datetime.now().isoformat(timespec="seconds"),
+                "note": "latest/<slug>.csv is a copy of the frozen file named here; the frozen file is the record",
+                "kinds": kinds}
+    if not apply:
+        return manifest
+    import json
+    targets = [Path(exports_dir) / LATEST] + ([Path(mirror_dir)] if mirror_dir else [])
+    for t in targets:
+        t.mkdir(parents=True, exist_ok=True)
+        for slug, k in kinds.items():
+            dst = t / f"{slug}.csv"
+            if not dst.exists() or sha256(dst) != k["sha256"]:
+                shutil.copy2(Path(exports_dir) / k["frozen"], dst)
+                if sha256(dst) != k["sha256"]:
+                    raise Abort(f"latest copy is not byte-identical: {dst}")
+        (t / MANIFEST).write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest
 
 
 def recycle(path):
@@ -346,6 +381,29 @@ def selftest():
             check("never overwrite: an existing target aborts", False)
         except Abort:
             check("never overwrite: an existing target aborts", True)
+
+        import json
+        mirror = td / "mirror"
+        m = write_latest(ex, mirror)
+        lat = ex / LATEST
+        check("latest: one fixed name per kind that has a frozen file",
+              sorted(f.name for f in lat.glob("*.csv")) == ["catalog-active.csv", "catalog-retired.csv", "strains.csv"])
+        check("latest: each file is byte-identical to the frozen file the manifest names",
+              all(sha256(lat / f"{s}.csv") == sha256(ex / k["frozen"]) == k["sha256"] for s, k in m["kinds"].items()))
+        check("latest: the manifest names the NEWEST frozen file by date and letter",
+              m["kinds"]["catalog-active"]["frozen"] == "2026-01-02-catalog-active.csv"
+              and json.loads((lat / MANIFEST).read_text(encoding="utf-8"))["kinds"]["strains"]["frozen"] == "2026-01-02-strains.csv")
+        check("mirror: the off-machine folder holds the same files and manifest",
+              sorted(f.name for f in mirror.iterdir()) == sorted(f.name for f in lat.iterdir())
+              and all(sha256(mirror / f.name) == sha256(f) for f in lat.glob("*.csv")))
+        execute(steps3)
+        write_latest(ex, mirror)
+        check("latest: a newer freeze replaces the view (the view is the one place that overwrites)",
+              sha256(lat / "catalog-active.csv") == sha256(again) == sha256(mirror / "catalog-active.csv")
+              and (ex / "2026-01-02-catalog-active.csv").exists())
+        check("latest: the view never feeds back into the freeze history",
+              newest_frozen(ex, "catalog-active").name == "2026-01-02a-catalog-active.csv"
+              and not any(DATED.match(f.name) for f in lat.glob("*.csv")))
     print(f"\n{'PASS' if not fails else 'FAIL'} — {len(ran) - len(fails)}/{len(ran)}.")
     return 1 if fails else 0
 
@@ -361,6 +419,8 @@ def main():
     ap.add_argument("--active", help="state which file is the ACTIVE catalog export")
     ap.add_argument("--retired", help="state which file is the RETIRED catalog export")
     ap.add_argument("--no-retire", action="store_true")
+    ap.add_argument("--mirror-dir", help="an off-machine folder that receives a copy of the latest/ view")
+    ap.add_argument("--refresh-latest", action="store_true", help="rebuild latest/ (and the mirror) from the frozen files; no input files")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
@@ -368,6 +428,12 @@ def main():
         return selftest()
     if not a.exports_dir:
         ap.error("--exports-dir is required")
+    if a.refresh_latest:
+        m = write_latest(a.exports_dir, a.mirror_dir, apply=a.apply)
+        print(("APPLY" if a.apply else "DRY RUN (nothing written; pass --apply)") + " — latest view")
+        for slug, k in m["kinds"].items():
+            print(f"  latest/{slug}.csv  <-  {k['frozen']}  ({k['rows']} rows, pulled {k['pulled_at']})")
+        return 0
     files = [Path(f) for f in a.files]
     if not files and a.src:
         cutoff = dt.datetime.now().timestamp() - a.since_minutes * 60
@@ -386,7 +452,11 @@ def main():
         show(steps, notes)
         if a.apply:
             execute(steps)
+            m = write_latest(a.exports_dir, a.mirror_dir)
+            print(f"  latest/ view refreshed: {len(m['kinds'])} kind(s)" + (f"; mirrored to {a.mirror_dir}" if a.mirror_dir else ""))
             print("done.")
+        else:
+            print("  latest/ view would be refreshed" + (f" and mirrored to {a.mirror_dir}" if a.mirror_dir else ""))
     except Abort as e:
         print("ABORT: " + str(e))
         return 1

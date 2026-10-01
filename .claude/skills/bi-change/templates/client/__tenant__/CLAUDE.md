@@ -26,7 +26,7 @@ is gitignored and absent from task worktrees.
   Edit the source under `freed-solutions/skills/bi-change/scripts/`, then re-sync the wrapper.
 - **Render:** `bash .claude/skills/bi-change/scripts/render_docs.sh <source.md ...>` from the repo root → DOCX + PDF into `<source dir>/renders/`
 - **Export QC:** `python clients/<client>/<tenant>/scripts/export_qc.py [export.csv] [--retired] [--json out]` (`/bi-change qc`). Package grain: `inventory_qc.py`. Every runner obeys the lane contract in `scripts/README.md`.
-- **Export refresh:** `python .claude/skills/bi-change/scripts/export_refresh.py --exports-dir <abs path>\exports --drop-dir "<abs drop folder>" --src <download dir> [--apply]` — after every export pull: freeze, place, retire the previous version (Recycle Bin).
+- **Export refresh:** `python .claude/skills/bi-change/scripts/export_refresh.py --exports-dir <abs path>\exports --mirror-dir "<abs mirror folder>" --src <download dir> [--apply]` — after every export pull: freeze, refresh `exports\latest\` (fixed names + MANIFEST.json), mirror. Read `latest\`.
 - **Explore catalog sync:** `.claude/skills/bi-change/scripts/explore_catalog_harvest.js` → `bi-estate/explore-catalog-<date>.json` → `explore_catalog_index.js <dump>`
 - **Backoffice login:** `<backoffice_url>` — Looker read surface `https://leaflogix.looker.com/embed/preload` (internal API needs `X-CSRF-Token` + `X-Requested-With: XMLHttpRequest`)
 - **Write channel:** `playwright` under HOLDER.json; the login is Adam's — the build lane opens the login page and notifies, never handles credentials. Reads: any channel.
