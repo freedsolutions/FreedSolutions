@@ -128,6 +128,7 @@ worktrees do not contain `clients/`):
 - Render: <command>                 # DOCX + PDF beside a source .md
 - Backoffice login: <url>           # where the login stop opens
 - Write channel: playwright | pane  # see below; reads may use any channel
+- Export refresh: <command>         # after every export pull: freeze + place + retire (see Scripts)
 - Canon: Dictionary > rule patterns reference > skill > memory; runbook = BI-SOP.md §2
 ```
 
@@ -279,6 +280,16 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   `--stale` also reads `<estate>/onepagers.json` (the canonical business one-pagers: generator, delivered file, the rules it prints, a seal) and reports ONE-PAGER BEHIND; `--seal-onepager <key>|all` re-seals after a human confirms the document or a regeneration.
   and the render script.
+- `scripts/export_refresh.py --exports-dir <dir> --drop-dir <dir> [files | --src <download dir>] [--apply]`
+  — the FILE half of an export pull, so nobody renames, moves or deletes an export by hand. A lane pulls
+  in the browser (the pull recipe is platform knowledge: `dutchie-bi-looker`'s KB); this tool then
+  classifies each file by its HEADER (never its name), splits the two catalog exports by ProductId
+  overlap with the newest frozen pair (a tie aborts), guards the header and the row count against the
+  newest frozen file of that kind, freezes `<date><letter>-<slug>.csv` into the exports dir (one letter
+  per run, never an overwrite), places `<date>-<Label>.csv` in the drop dir — the folder a person reads
+  from — and sends the previous version there to the Recycle Bin, only once a byte-identical frozen copy
+  exists. Dry-run by default; `--selftest` = 20 checks. The pointer's `Export refresh` line carries the
+  tenant's two folders.
 - `scripts/render_docs.sh <source.md> [...]` — DOCX + PDF into `<source dir>/renders/`. It **exits 1**
   when xelatex reports any `Missing character`, printing the warning lines and the source path, and it
   renders every file in the list before taking that exit (2026-09-14). The renders are kept: they are
