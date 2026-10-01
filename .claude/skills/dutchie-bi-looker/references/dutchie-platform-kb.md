@@ -1306,3 +1306,55 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - **The item-write fast path:** the grid write `update-products-multiple` per item, with ONE full catalog read after
   the batch (diff every key), finishes in minutes; a full `get-product-master-*` read per item in a hidden neo tab
   took ~3 min each. The endpoint rate-limits at ~60 writes/min (HTTP 429 = not applied; re-read, then resume).
+
+## Category records (Products › Configure › Categories) [PROBE 2026-10-01, Master Category rename]
+
+- **The Master Category is free text on the category record.** It is a plain textbox on the record form, not a
+  picklist, and there is no MC registry: the tenant's MC set is whatever its category records say. An MC rename is an
+  edit on every record that carries the old word. The item reads THROUGH: every item of an edited category showed the
+  new MC on the next catalog read (active and retired alike) with no item write.
+- **Route:** Configure › Categories → search → click the record's Category cell (`[data-field="ProductCategory"]`,
+  role `cell`, not `gridcell`) → the Master category textbox → Update. The row menu carries only Delete. The FL EQ
+  "Apply to this location" / "Apply to all locations" buttons overwrite item FL EQ — never touch them on an MC edit.
+- **What one Update sends:** `update-product-category` (the full record; `CustomerTypesChanged: false`,
+  `EcomCategoriesChanged: false` when only the MC moved) plus two UI side calls, `label-settings/product-category/update`
+  (`Settings: []`) and `update-product-category-flowereq` (null body).
+- **An MC-only Update pushes nothing else to the items.** 18 populated records (737 items: 221 active, 516 retired),
+  hashed full-row live reads before the first save and after the last, 153 non-MC fields per row: 737 rows moved, the
+  Master Category only; 0 other fields, 0 other rows, item FL EQ unmoved, 0 item-level ecom overrides disturbed. This
+  narrows the older caution that an Update "may push Global Category / SubCategory down to the items": it does not on
+  an MC-only edit. An edit that changes GC / GSC (`EcomCategoriesChanged: true`) is UNTESTED, and that caution stands
+  for it.
+- **Make the first populated save observable.** Probe on 0-item records first, then save a record that holds ACTIVE
+  items before one whose items are all retired, so the next active read shows the save moved exactly that record's
+  items and nothing else. A retired-only record is proven only by the retired read.
+- **Dual-first on the BI side.** Add the new word beside the old one in every BI expression that tests the MC BEFORE
+  the first record save; no tile then reads a renamed line wrongly at any point. On this run Looker's
+  `products.master_category` read the new value on the first read after the saves, with no visible lag (contrast the
+  brand-rename lag under Brand records). Do not rely on that: read until every leg shows the new word at the old count.
+
+## Export pull per kind (Backoffice Actions › Export) [PROBE 2026-10-01, nine-kind pull]
+
+- **One recipe for every list page:** Actions › Export → a column dialog → Export CSV. The default column set is the
+  grid's visible set, and it matched the prior files on every kind: Catalog 27 of 89, Categories 6 of 8, Inventory 25
+  of 69, Discounts 9 of 10. Clear any search box first; the export follows the page's filter.
+- **Where each kind lives:** Products › Catalog (active) · the same page with More › "Show products that have been
+  retired" ON (the retired file holds retired rows ONLY; turn the toggle back OFF after) · Products › Configure ›
+  Categories · Products › Inventory · Products › Strains · Products › Brands · Products › Tags, the `Tags` tab (the
+  Smart tags tab has NO Export) · Marketing › Discounts › All discounts · Settings › Rooms › Rooms.
+- **The file lands in Downloads as `<YYYY-MM-DD>-<Kind>.csv`** (`2026-10-01-Catalog.csv`); a second export of the same
+  kind on the same day gets ` (1)` (the retired Catalog after the active one). Record size + SHA-256 on disk, then
+  rename by content, never by the order of the clicks.
+- **Row counts are business state.** A kind can fall hard for a known cause (an archive of expired discounts cut one
+  list to a third in a morning); a row guard on the freeze step should abort, and the guard is widened only on the
+  named cause.
+
+## Session mechanics on a long Backoffice write run [PROBE 2026-10-01]
+
+- **The retired catalog read fires only when the retired toggle is set.** `get-product-master-retired-v2` is a
+  separate endpoint from the active read. For a second (post-write) retired read, replay the page's OWN earlier request
+  (the same path and its bare 5-key envelope, captured on the first toggle) instead of toggling the filter again; then
+  restore the toggle to OFF.
+- **A Backoffice tab grows with every save and read.** Reloading the tab every 3 saves released about 800 MB on a
+  machine near its memory floor. Read free memory ALONE (not in the same call as a page read) before each write step,
+  and stop with the form staged and unsaved when it is under the floor.
