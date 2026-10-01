@@ -28,6 +28,7 @@ import hashlib
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -141,6 +142,18 @@ def all_slugs():
     return [v[0] for v in CATALOG.values()] + [v[0] for v in KINDS.values() if v[0]]
 
 
+def put_view(src, dst):
+    """Copy CONTENT into a view file. A frozen file may be read-only; `copy2` would carry that bit onto the view and
+    the NEXT refresh could not overwrite it (2026-10-01). So: clear the bit on an existing target, copy the bytes only,
+    then keep the source's mtime so the view still shows when the export was pulled."""
+    dst = Path(dst)
+    if dst.exists():
+        os.chmod(dst, stat.S_IWRITE | stat.S_IREAD)
+    shutil.copyfile(src, dst)
+    st = os.stat(src)
+    os.utime(dst, (st.st_atime, st.st_mtime))
+
+
 def write_latest(exports_dir, mirror_dir=None, apply=True):
     """The `latest/` VIEW: one fixed name per kind (`<slug>.csv`) holding the newest frozen file, plus a
     MANIFEST.json that says which frozen file each one is. A view, so it is the one place this tool
@@ -164,7 +177,7 @@ def write_latest(exports_dir, mirror_dir=None, apply=True):
         for slug, k in kinds.items():
             dst = t / f"{slug}.csv"
             if not dst.exists() or sha256(dst) != k["sha256"]:
-                shutil.copy2(Path(exports_dir) / k["frozen"], dst)
+                put_view(Path(exports_dir) / k["frozen"], dst)
                 if sha256(dst) != k["sha256"]:
                     raise Abort(f"latest copy is not byte-identical: {dst}")
         (t / MANIFEST).write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -403,6 +416,19 @@ def selftest():
         check("latest: a newer freeze replaces the view (the view is the one place that overwrites)",
               sha256(lat / "catalog-active.csv") == sha256(again) == sha256(mirror / "catalog-active.csv")
               and (ex / "2026-01-02-catalog-active.csv").exists())
+        ro = ex / "2026-01-03-strains.csv"
+        write(ro, KINDS["strains"][2], [["C", "Sativa", "C", "C"]] * 12)
+        os.chmod(ro, stat.S_IREAD)
+        write_latest(ex, mirror)
+        newer = ex / "2026-01-04-strains.csv"
+        write(newer, KINDS["strains"][2], [["D", "Hybrid", "D", "D"]] * 13)
+        try:
+            write_latest(ex, mirror)
+            ok_ro = sha256(lat / "strains.csv") == sha256(newer) == sha256(mirror / "strains.csv") and os.access(lat / "strains.csv", os.W_OK)
+        except PermissionError:
+            ok_ro = False
+        os.chmod(ro, stat.S_IWRITE | stat.S_IREAD)
+        check("latest: a READ-ONLY frozen file does not make the view read-only (the next refresh overwrites)", ok_ro)
         check("latest: the view never feeds back into the freeze history",
               newest_frozen(ex, "catalog-active").name == "2026-01-02a-catalog-active.csv"
               and not any(DATED.match(f.name) for f in lat.glob("*.csv")))
