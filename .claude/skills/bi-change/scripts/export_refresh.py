@@ -335,6 +335,8 @@ def selftest():
             check("row guard: a filtered export aborts", False)
         except Abort as e:
             check("row guard: a filtered export aborts", "row guard" in str(e))
+        st_w, _ = plan([filtered], ex, None, "2026-01-02", row_guard=(0.05, 2.0))
+        check("row guard: a stated wider guard admits the same file", [s["do"] for s in st_w] == ["freeze"])
         drift = dl / "drift.csv"
         write(drift, cat_h + ["New column"], [r + ["x"] for r in act])
         try:
@@ -419,6 +421,9 @@ def main():
     ap.add_argument("--active", help="state which file is the ACTIVE catalog export")
     ap.add_argument("--retired", help="state which file is the RETIRED catalog export")
     ap.add_argument("--no-retire", action="store_true")
+    ap.add_argument("--row-guard", default="0.5,2.0",
+                    help="allowed row-count ratio vs the newest frozen file, LO,HI (default 0.5,2.0). Widen it only for a "
+                         "KNOWN cause — a bulk archive, a purge — and say the cause in the run record")
     ap.add_argument("--mirror-dir", help="an off-machine folder that receives a copy of the latest/ view")
     ap.add_argument("--refresh-latest", action="store_true", help="rebuild latest/ (and the mirror) from the frozen files; no input files")
     ap.add_argument("--apply", action="store_true")
@@ -447,7 +452,9 @@ def main():
     if a.retired:
         forced[str(Path(a.retired))] = "retired"
     try:
-        steps, notes = plan(files, a.exports_dir, a.drop_dir, a.date, forced=forced, retire=not a.no_retire)
+        lo, hi = (float(x) for x in a.row_guard.split(","))
+        steps, notes = plan(files, a.exports_dir, a.drop_dir, a.date, row_guard=(lo, hi), forced=forced,
+                            retire=not a.no_retire)
         print(("APPLY" if a.apply else "DRY RUN (nothing written; pass --apply)") + f" — set {a.date}")
         show(steps, notes)
         if a.apply:

@@ -291,7 +291,7 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   so the mirror is its backup). `--refresh-latest` rebuilds the view from the frozen history with no input.
   `--drop-dir` is optional and legacy: it also places `<date>-<Label>.csv` in a folder a person reads from
   and sends the previous version there to the Recycle Bin, only once a byte-identical frozen copy exists.
-  Dry-run by default; `--selftest` = 26 checks. The pointer's `Export refresh` line carries the tenant's
+  Dry-run by default; `--selftest` = 27 checks. The pointer's `Export refresh` line carries the tenant's
   folders.
 - `scripts/render_docs.sh <source.md> [...]` — DOCX + PDF into `<source dir>/renders/`. It **exits 1**
   when xelatex reports any `Missing character`, printing the warning lines and the source path, and it
