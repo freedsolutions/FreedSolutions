@@ -985,6 +985,11 @@ from an already-tagged item inherits it.
   11 had left the state library and 33 were gone. A raw set difference would have claimed 809.
   Column mapping for a harvest, proven against an older file: `wg` = `suggestedWeightGrams` (not
   `weightGrams`, null on the rows that matter), `pk` = `suggestedPackSize`, `dose` = `dosageMg`.
+- **`batch-catalog-products` read SINGLE-encoded through the page's own fetch, 2026-09-23 → 10-01**
+  [PROBE 2026-10-01]: `text/plain` whose first `JSON.parse` is an object, and a known record reads
+  `Active`. The 2026-09-03 double-encode note (patterns.md) did not reproduce on this route. Parse
+  until the value is not a string, and prove the read on a known Active record before trusting an
+  `ABSENT`: a tolerant parser works on both encodings, so it cannot tell you which one you got.
 - **A bare body on the product-master reads returns 200 with an EMPTY product list** [PROBE
   2026-09-22]. A harvest that tests only the status code reads "no products" as a fact about the
   tenant. Assert the row count against a known population (the export's) before trusting a read.
