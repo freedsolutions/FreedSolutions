@@ -179,6 +179,7 @@ lane exists; Adam's 59 historic Limited-tagged packages are queryable there.
 - Category/Tax/PLC config endpoints: the estate's `category-qc/extract.md`.
 - Fields-config (get_validated_forms): the estate's `fields-config/README.md`.
 - Smart-tag rule surface: the estate's `smart-tag-13948-roster-2026-08-26.md`.
+- **Smart-tag save [PROBE 2026-10-01]:** the editor (Products › Tags › Smart tags › the tag) posts `POST /api/smart-tags/save-smart-tag` with `Name` and the whole `RuleGroup`; a strain-`in` rule's value is ONE comma-joined id list, edited in the rule's picker (search the name, tick the one exact match; the button reads `N items selected`, so assert N rises by one per tick; never `Select all` / `Select none`). The tag is retroactive and immediate: `get-quantity-summary` and `preview-smart-tag-packages` both read the new package set right after the Save. `preview-smart-tag-packages` with an edited `RuleGroup` evaluates a rule WITHOUT saving it, so the after-count can be measured before the write.
 - The documented POS public API (`api.pos.dutchie.com`, Basic auth, no session): its own
   section at the end of this file, "POS public API".
 
@@ -718,6 +719,7 @@ Type (a MUI Select) and External ID, then Save. House convention fills Name = Ab
 - Read back by searching the name: the row must appear exactly once with the Type you chose. A search that
   returns two rows means a duplicate mint, not a stale grid.
 - The same form edits an existing record (click its name), which is how a record's Type is corrected.
+- **The Strains form posts ONE call [PROBE 2026-10-01]:** `POST /api/strain/update-strain` with the ctx envelope plus `StrainId`, `StrainName`, `StrainDescription`, `Abbreviation`, `StrainType`, `ExternalId` — the FULL record, both for an edit and for a create (`StrainId: 0` creates; the response `Data` carries the new id). Prove it with one UI save per kind, then a replay of the same body is the bulk path: guard each call on a fresh `get-strains` read (the old record unchanged, the target name absent case-insensitively), and read back the record and the list count after it.
 - **RENAME vs RE-BIND reach different things.** [PROBE 2026-09-19, Inventory export] Editing a record
   (its name or its Type) flows to every item bound to it AND to those items' on-hand packages — the
   Inventory export's package `Strain` followed a renamed record with no package edit. Re-binding an item
@@ -774,6 +776,7 @@ one full replacement), each re-read byte-exact after a full page reload.
   whose other row fields were already empty, so nulling the price left nothing to see. Rows renamed
   through the bulk-edit grid kept their location fields, so the grid does neither the normalisation
   nor the price null.
+  **[PROBE 2026-10-01] The row's fate is decided by its other fields.** A form Save nulls `LocationRecPrice` even when its body posts the value back (`locationData.RecPrice` and `LocationRecPrice` both carried it); a row that held ONLY that field is then deleted (`get-product-loc-info` returns `Data: null`), while a row with another populated field survives (the 9/25 probes). Read the row before the Save and name the outcome after it.
   **What the price fields mean [PROBE 2026-09-25, 13 item-form reads + the store's own menu read].**
   The product-master `Price` is the form's Base price and the sell price: the ecom menu and the POS
   package charge it, and each taxed price is `Price` × the location's tax factor. The product
