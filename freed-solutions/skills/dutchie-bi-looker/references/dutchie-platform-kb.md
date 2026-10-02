@@ -792,6 +792,16 @@ one full replacement), each re-read byte-exact after a full page reload.
   body with that one field edited. The body writes the row from a nested `locationData` object as well
   as the top-level `Location*` keys, so edit both. Blanking a row's only non-price field in one call
   deleted the whole row, rec price included, rather than blanking the field.
+- **Load each item form by a FULL navigation, never an SPA hop from another item's form [PROBE 2026-10-02].**
+  A `history.pushState` + `popstate` move from one item form to the next renders the new item's
+  fields, but the Strain autocomplete keeps the PREVIOUS form's selected record id: the next Save
+  posted `StrainId` of the item before (with `Strain` null in the body) and wrote that strain onto
+  an item that had none. Two Saves in a row on items sharing one strain hid it; the third item
+  showed it. Caught only by the full-row read-back. Repair: load the form fresh, clear the Strain
+  with the field's own Clear control, Save (`StrainId` null in the body), read back. Guard every
+  form Save by diffing its `update-product` body against a live `get-product-details-v2` read on
+  the keys you did not mean to touch (`StrainId`, `Flavor`, `BrandId`, `ProductCategoryId`,
+  `Name`, `Price`) before you accept it.
 - **A page-side `fetch` wrapper must call a BOUND fetch [PROBE 2026-09-25].** A wrapper that
   keeps `const f = window.fetch` and later calls `f(...)` throws Illegal invocation inside the
   app's own request. The item form's Save then stops silently after `validate-sku` and writes
