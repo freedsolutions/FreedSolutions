@@ -1296,6 +1296,32 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - **Certify** every write by a full flat diff of the config against the pre-write read (or, for a copy, against its
   template): only the planned keys may move. A guard read of the Summary text before "Update discount" catches a
   dropped field before it is saved.
+- **Location.** [PROBE 2026-10-01] Details › "Location(s) available" (`#input-input_Location(s) available:`) › open
+  the box (mousedown + click) › "Select none" › click the "Where will it be offered" heading › "Done". The Summary line
+  then reads "All locations", and the save moves only `LocationRestrictions` (`[<loc id>]` → `[]`).
+- **Filters that point at deleted records.** [PROBE 2026-10-01] A filter whose records were deleted (a collapsed
+  brand, a retired category) shows blank names ("INCLUDED: , ,") and its rows cannot be unticked. Ticking a live
+  record and saving the modal REPLACES the hidden ids. To clear a dead-only filter, tick and untick any row, then
+  "Save" ("NO FILTERS APPLIED"). A row in the Filters list opens its modal on pointer events (pointerdown/up or a
+  real click), not a plain `.click()`.
+- **Archived discounts read by id** like live ones (the detail route fires `get-discount-by-id`). [PROBE 2026-10-01]
+- **Bulk-read pace.** [PROBE 2026-10-01] About 1 read per 2 s holds steady; near ~50 reads a minute the endpoint slowed
+  sharply before the 60/min limit. Drive the pacing from the automation runtime, not from a page-side timer (a
+  background tab throttles page timers).
+- **Modal grids are virtualized.** [PROBE 2026-10-01] A DataGrid in a modal renders only its visible rows: scroll its
+  `.MuiDataGrid-virtualScroller` to reach a row. Do not search to find it: a search can drop the current selection.
+- **Create discount from scratch.** [PROBE 2026-10-02] An Archived row's menu offers only "Unarchive" (no "Copy"), so
+  an archived template is read for its config and the new discount is built with "Create discount". Defaults: Start =
+  today 12:00 AM, End = Never, no location, all order sources and types, online Yes, online name = the name, display
+  priority = the next rank (it can load blank: type it), one requirement with "No condition", "Include non-cannabis
+  items" ticked. Filters set on that no-condition requirement, with the reward applied to "The same products specified
+  in requirements", are stored on `Reward.Restrictions` with `Constraints` empty (the same shape as an older brand-wide
+  deal). The wizard has no brand-funding (vendor-funded) field: `BrandFunded*` and `PromotionFundingLimitTypeId` stay
+  null, so a vendor split is carried by the code.
+- **Typing a date and time.** [PROBE 2026-10-02] Typing the full `MM/DD/YYYY hh:mm AM` into an empty or fully selected
+  field can keep the date and drop the time (it lands on 12:00 AM or the current clock time). Reliable: select the date
+  part (`setSelectionRange(0, 10)`), type the date, Tab; then select the time part (`setSelectionRange(11, 19)`), type
+  `hh:mm AM`, Tab. Read the field back after each Tab, and guard the Summary `Starts:` / `Ends:` lines before saving.
 
 ## Brand records (Products › Brands) [PROBE 2026-09-27, brand rename wave]
 
