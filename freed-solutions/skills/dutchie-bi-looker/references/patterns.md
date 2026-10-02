@@ -945,6 +945,12 @@ the cross-named `strain.name = products.strain_name` merge rule.
   geometry: header h2 at row 0, bumpers h1 full-width, MC-grain tables h6, item-grain
   tables h11–12, everything w24 (no side-by-side halves — wide tables crush).
   Pattern: header → [bumper → tile(s)] per section.
+  ⚠ **A `granular` dashboard renders from `granular_row/column/width/height`, not `row/column`** [PROBE 2026-10-02].
+  When the dashboard GET says `layout_granularity: "granular"`, each component also carries the granular set, mapped
+  row ×2, column ×3, width ×3, height ×2. A PATCH of `{row, column, width, height}` alone returns 200 and reads back
+  correctly, but the board still draws the OLD layout, and a new tile (granular fields null) is drawn at the BOTTOM.
+  Send both sets in one PATCH. First assert the ×2/×3 map on every component you are not moving, then reload with a
+  cache-buster and read the tile order off the page.
 - **Number formats live in `vis_config.series_value_format`** (rides the merge-clone POST;
   per-calc `value_format` on dynamic_fields is usually null). House standards:
   $ = `$#,##0`, percentages = `#,##0.0%` (one decimal), indices = `#,##0.00`,

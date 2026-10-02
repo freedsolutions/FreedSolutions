@@ -1390,3 +1390,18 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - **A Backoffice tab grows with every save and read.** Reloading the tab every 3 saves released about 800 MB on a
   machine near its memory floor. Read free memory ALONE (not in the same call as a page read) before each write step,
   and stop with the form staged and unsaved when it is under the floor.
+
+## Ecom menu cards: what merges two items into one card [PROBE 2026-10-02, duplicate Online Title read]
+
+- **Not the Online Title alone.** Two items of two different brands with an identical Online Title and the same
+  subcategory show as TWO cards on the store's own dutchie.com menu (two pairs read live).
+- **Same brand, title minus its size, same subcategory = ONE card with one option per size.** A 0.5g and a 1g pre-roll of
+  one brand titled `<Strain> Pre-Roll 0.5g` / `<Strain> Pre-Roll 1g` show as one card named `<Strain> Pre-Roll`, with
+  `POSMetaData.children` listing both SKUs. The tenant's operator states the rule as "by title & subcat"; the read adds
+  that brand splits a card too.
+- **How to read it:** on a menu page in a real browser tab, the page's own `FilteredProducts` request (persisted query,
+  hash in the request URL under `performance.getEntriesByType('resource')`) can be replayed same-origin with
+  `types: []` and paged, so it covers the whole menu. A card with more than one distinct `children[].canonicalSKU` is
+  a merged card. A linked Global (brand catalog) product shows under the catalog's name, not the Online Title.
+- The age gate's "Yes" agrees to terms, so do not click it. The products render behind it.
+
