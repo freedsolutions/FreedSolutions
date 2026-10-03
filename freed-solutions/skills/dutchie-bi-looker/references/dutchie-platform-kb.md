@@ -1384,6 +1384,9 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   retired" ON (the retired file holds retired rows ONLY; turn the toggle back OFF after) · Products › Configure ›
   Categories · Products › Inventory · Products › Strains · Products › Brands · Products › Tags, the `Tags` tab (the
   Smart tags tab has NO Export) · Marketing › Discounts › All discounts · Settings › Rooms › Rooms.
+- **The retired toggle lives in the More dialog and applies only on its `Save`** [PROBE 2026-10-03]. Ticking the switch
+  alone (or a programmatic check) leaves the grid on the active count and never fires `get-product-master-retired-v2`;
+  read the grid's `Displaying … of N` line, which must change, before you export. Turn it OFF the same way (switch, then Save).
 - **The file lands in Downloads as `<YYYY-MM-DD>-<Kind>.csv`** (`2026-10-01-Catalog.csv`); a second export of the same
   kind on the same day gets ` (1)` (the retired Catalog after the active one). Record size + SHA-256 on disk, then
   rename by content, never by the order of the clicks.
