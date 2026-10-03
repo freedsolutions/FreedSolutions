@@ -229,7 +229,8 @@ def fu_ctx(desc=FU_DESC, second=False):
     """FORM_UNREAD fixture: the catalog item carries its form word (`Distillate AIO`) in segment 2 and an
     edition word (`Pocket Pro`) in a later segment; the vendor line names the edition, not the form."""
     item = dict(BASE["active"][0], SKU="1006", ProductId="506", Category="Vape", Strain="Lime Sorbet",
-                Product="Acme Farms | Distillate AIO | Lime Sorbet | 2g | Pocket Pro", **{"Product grams": "2g"})
+                Product="Acme Farms | Distillate AIO | Lime Sorbet | 2g | Pocket Pro",
+                **{"Product grams": "2g", "Master category": "Vape"})
     extra = [item]
     if second:
         extra.append(dict(item, SKU="1007", ProductId="507", Product="Acme Farms | Distillate Cart | Lime Sorbet | 2g"))
@@ -243,9 +244,9 @@ def form_unread_exists(c):
     return r["verdict"] == "EXISTS" and "FORM_UNREAD" in r["flags"].split(";") and r["copy_source_sku"] == "1006"
 
 
-def form_named_stays_new_pl(c):
+def form_named_not_exists(c):
     r = row_for(c, FU_BODY)
-    return r["verdict"] == "NEW_PL" and "FORM_UNREAD" not in r["flags"].split(";")
+    return r["verdict"] != "EXISTS" and "FORM_UNREAD" not in r["flags"].split(";")
 
 
 def stop_prints_form_unread(c):
@@ -272,6 +273,31 @@ def tiered_lines(drop_pkg=False):
 
 def notice_text(rows):
     return IN.fill(BASE["notice"], rows, "Pat Example")
+
+
+ACME_VAPE = dict(BASE["active"][3], SKU="1008", ProductId="508", Brand="Acme Farms", Strain="Blue Dream",
+                 Product="Acme Farms | Live Resin Cart | Blue Dream | 1g", Tags="ITM - Protect",
+                 **{"Product grams": "1g"})
+
+
+def new_line_ctx(lane=False):
+    """Line 5 (an Acme 0.5g live resin cart) when Acme carries a 1g cart in Vape: a new LINE, not a new
+    category. lane=True adds the 0.5g lane, so the line has a sibling instead."""
+    extra = [ACME_VAPE] + ([dict(ACME_VAPE, SKU="1005", ProductId="505", Product="Acme Farms | Live Resin Cart | Blue Dream | 0.5g",
+                                 **{"Product grams": "0.5g"})] if lane else [])
+    return ctx(active=BASE["active"] + extra)
+
+
+def new_line_row(c):
+    return row_for(c, "Acme Farms Northern Lights")
+
+
+def new_line_created(rows):
+    """The notice marks a created NEW_PL item for the business's QC."""
+    for r in rows:
+        if r["verdict"] == "NEW_PL":
+            r.update(approved="Y", new_sku="1009", new_productid="509", create_name_FINAL="Acme Farms | Live Resin Cart | Northern Lights | 0.5g")
+    return rows
 
 
 def gelato_is(c, **kv):
@@ -317,11 +343,21 @@ CHECKS = [
     ("STRAIN_MISSING fires once", lambda c: verdict_count(c, "STRAIN_MISSING") == 1,
      ctx(), ctx(strains=dict(BASE["strains"], **{"Mystery Haze": {"type": "Sativa", "id": ""}})),
      "mint the Mystery Haze strain record"),
-    ("NEW_PL fires once", lambda c: verdict_count(c, "NEW_PL") == 1,
-     ctx(), ctx(active=BASE["active"] + [dict(BASE["active"][3], SKU="1005", ProductId="505", Brand="Acme Farms",
-                                                  Product="Acme Farms | Live Resin Cart | Blue Dream | 0.5g",
-                                                  Strain="Blue Dream")]),
-     "add an Acme 0.5g cart lane"),
+    ("NEW_CATEGORY fires once: the cart line places in Vape, where Acme carries nothing",
+     lambda c: verdict_count(c, "NEW_CATEGORY") == 1, ctx(), new_line_ctx(), "give Acme a 1g cart in Vape"),
+    ("NEW_PL fires once: a new line under a known brand, created from its nearest Vape item (R101)",
+     lambda c: verdict_count(c, "NEW_PL") == 1 and new_line_row(c)["copy_source_sku"] == "1008"
+     and new_line_row(c)["action"].startswith("CREATE"),
+     new_line_ctx(), new_line_ctx(lane=True), "add the Acme 0.5g cart lane (a sibling exists)"),
+    ("NEW_PL carries the new-line tag, never its source's decision tag (R83)",
+     lambda c: new_line_row(c)["tags"] == C.DEFAULT_NEW_LINE_TAG and "NEW_LINE_FIELDS" in new_line_row(c)["flags"].split(";"),
+     new_line_ctx(), new_line_ctx(lane=True), "the line gets a sibling (the copy takes the lane tag)"),
+    ("a sibling copy takes its lane's ONE decision tag (R96)",
+     lambda c: new_line_row(c)["tags"] == "ITM - Protect",
+     new_line_ctx(lane=True), mut(new_line_ctx(lane=True), "active", lambda r: r["SKU"] == "1005", Tags="ITM - Discontinue"),
+     "mix the lane (one member Discontinue)"),
+    ("notice marks a created NEW_PL item for review", lambda rows: "NEW LINE, tagged `ITM - New PL`" in notice_text(rows)[0],
+     new_line_created(matched(new_line_ctx())), new_line_created(matched(new_line_ctx(lane=True))), "the line has a sibling"),
     ("NEW_BRAND fires once", lambda c: verdict_count(c, "NEW_BRAND") == 1,
      ctx(), ctx(active=BASE["active"] + [dict(BASE["active"][3], SKU="3001", ProductId="701", Brand="Cedar Co",
                                                   Product="Cedar Co | Gummy | Lime | 0.1g", **{"Product grams": "0.1g"})]),
@@ -332,7 +368,7 @@ CHECKS = [
      ctx(), mut(ctx(), "active", lambda r: r["SKU"] == "1003", Tags=""), "un-tag the dead record"),
     ("lane fields + final name inherited from the sibling",
      lambda c: gelato_is(c, create_name_FINAL="Acme Farms | Pre-Roll | Gelato | 1g", lane_Cost="4.5",
-                         online_title="Gelato Pre-Roll 1g", tags="ITM - Item QC"),
+                         online_title="Gelato Pre-Roll 1g", tags="ITM - Active"),
      ctx(), mut(ctx(), "active", lambda r: r["SKU"] == "1001", Cost="4.75"), "move the sibling's Cost"),
     ("row guard steps over a newer filtered one-off", row_guard_pick, 3, 1, "floor lowered to 1 row"),
     ("a missing column ABORTs (never read as blank)", aborts_on_missing_cost, True, False, "restore the column"),
@@ -372,7 +408,7 @@ CHECKS = [
     ("certify C: 1 foreign cell", lambda c: cert(c)[2]["C"] == 1,
      ctx(), mut(ctx(), "post", lambda r: r["SKU"] == "2001", Price="30"), "revert the foreign write"),
     ("certify RED only for the foreign cell", lambda c: [f.split(":")[0] for f in cert(c)[1]] == ["C_FOREIGN_CELL"],
-     ctx(), mut(ctx(), "post", lambda r: r["SKU"] == "1004", Tags=""), "drop the item-QC tag from the new item"),
+     ctx(), mut(ctx(), "post", lambda r: r["SKU"] == "1004", Tags=""), "drop the decision tag from the new item"),
     ("certify: the sibling is inert", lambda c: not any("SIBLING_NOT_INERT" in f for f in cert(c)[1]),
      ctx(), mut(ctx(), "post", lambda r: r["SKU"] == "1001", **{"Online title": "moved"}), "write to the sibling"),
     ("certify --no-create attributes the declared cell",
@@ -388,7 +424,7 @@ CHECKS = [
     ("receive stub exits 2", lambda a: quiet(RC.main, a) == 2, [], ["--selftest"], "call the selftest path instead"),
     ("EXISTS + FORM_UNREAD: the line omits the form word the catalog carries (edition in a later segment)",
      form_unread_exists, fu_ctx(), fu_ctx(second=True), "add a second brand + body + grams candidate"),
-    ("FORM_UNREAD stays off a line that names a form word: NEW_PL holds", form_named_stays_new_pl,
+    ("FORM_UNREAD stays off a line that names a form word: never EXISTS", form_named_not_exists,
      fu_ctx(FU_DESC.replace("Pocket PRO", "Cart")), fu_ctx(), "remove the form word from the line"),
     ("STOP message prints FORM_UNREAD on its verdict row", stop_prints_form_unread,
      fu_ctx(), fu_ctx(second=True), "add a second candidate (the row reads NEW_PL, flag absent)"),

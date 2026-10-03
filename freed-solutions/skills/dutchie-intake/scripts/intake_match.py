@@ -9,7 +9,11 @@ package tag(s) printed on the invoice line, `;`-joined; blank when the layout pr
                          --strains <strains.csv> [--tenant <CLAUDE.md>] [--out-dir <dir>] [--slug <name>]
   python intake_match.py --lines <lines.csv> --exports-dir <dir> --min-rows <n> [--min-rows-retired <n>] ...
   options: --brand "<Catalog Brand>"   force the brand for every line (a single-brand invoice)
-           --item-qc-tag "<tag>"       the R83 tag the create adds (default `ITM - Item QC`)
+           --new-line-tag "<tag>"      the R83 tag a NEW_PL create carries (default `ITM - New PL`;
+                                       tenant: `New line tag:` in `## Intake Pointers`)
+           --active-tag "<tag>"        the R96 standard state (default `ITM - Active`; tenant: `Active tag:`)
+           --tag-override <line_no>=<tag>  the business's direction for one line's copy (`*=` for every
+                                       line); beats the line's own tag (R96). Repeatable.
            --dead-tag "<tag>"          the R81 dead-record tag; such rows are never matched or copied
            --drop-tag "<tag>"          a tag the copy must NOT keep (repeatable), e.g. a status tag
   python intake_match.py --selftest
@@ -18,7 +22,8 @@ Exports: explicit paths, or `--exports-dir` + `--min-rows` (the freshest file cl
 no floor is guessed). The active export may be the 87-column shape: `Is retired` then splits it.
 Every column read is required; a missing one ABORTs (exit 2).
 
-Verdicts (one per product line; R101 = Copy-from-sibling is the create path, no sibling = STOP):
+Verdicts (one per product line; R101 = Copy-from-sibling is the create path; a new line under a known
+brand is created from the brand's nearest item; a new brand or category = STOP):
   EXISTS                  brand + body (name segment 3) + grams + form match ONE active item; or
                           brand + body + grams match ONE active item, the form test alone fails and
                           the line names NO form word at all -> EXISTS + FORM_UNREAD
@@ -26,12 +31,22 @@ Verdicts (one per product line; R101 = Copy-from-sibling is the create path, no 
   NEW_ITEM_WITH_SIBLING   no match; the R50 lane (Brand + Category + grams + Form word) has an active
                           member, and the strain is a Strain record -> copy from the sibling
   STRAIN_MISSING          as above, but the lane is strain-bearing and no Strain record is named
-  NEW_PL                  the brand exists; no lane fits -> STOP (R101)
+  NEW_PL                  the brand exists; no lane fits; the line's form word places it in a Master
+                          category the brand carries -> copy the brand's NEAREST active item there
+                          (same form word first, then the closest grams), tagged with the new-line tag (R83)
+  NEW_CATEGORY            the brand exists; no lane fits; the line's Master category cannot be read (no
+                          catalog form word, or one spanning two) or the brand has no active item in it -> STOP
   NEW_BRAND               no catalog brand is named or implied by the vendor -> STOP (R101)
 For EXISTS / RETIRED_MATCH the copy_source_* columns carry the MATCHED record, not a copy source.
 
 Sibling = the lane member WITH an image first, then the newest ProductId, then the lowest SKU.
-Lane fields (lane_*) are the sibling's own values: the copy inherits them.
+Lane fields (lane_*) are the sibling's own values: the copy inherits them. A NEW_PL row's lane fields are
+the nearest item's, except Product grams (the line's dose) and Cost (the invoice unit cost).
+
+Decision tag (R96): a sibling copy carries the ONE item-namespace tag every active member of its lane
+carries; a mixed lane, or a member with none, reads the Active tag. The new-line tag is never copied onto
+a sibling copy (R83). `--tag-override` is the business's direction and beats both. Every other
+item-namespace tag the sibling carries is dropped from the copy.
 
 Flag table (flags column; none fails the run):
   AMBIGUOUS_MATCH   R101  STOP  two or more items match equally; the operator picks
@@ -39,12 +54,15 @@ Flag table (flags column; none fails the run):
                                 the catalog (any brand's name segment 2, or a FORM_SYNONYMS token),
                                 and brand + body + grams hit exactly ONE active item.
                                 The operator confirms the matched item before receiving. Two or more
-                                such items, or a line that names another form word, stays NEW_PL.
+                                such items, or a line that names another form word, is not EXISTS
+                                (NEW_PL when the form places it, else NEW_CATEGORY).
                                 No vendor word is added to FORM_SYNONYMS for this: the test is generic.
   LANE_AMBIGUOUS    R50   STOP  two or more lanes fit equally; no sibling chosen
   DOSE_UNREAD       R50   STOP  no grams / mg read from the line; the lane test ran without it
   FLAVOR_TO_SET     R101  STOP  the sibling carries a Flavor: set the new item's own at create
   OT_TEMPLATE_MISS  R101  INFO  the sibling's Online title does not contain its strain; write it by hand
+  NEW_LINE_FIELDS   R101  STOP  a NEW_PL copy inherits a different lane: confirm or edit the name, Price,
+                                Flower equiv, Servings per Unit and Category / Type in the lane cells
   BAD_LINE          R103  DEFECT a product line with no units or unit cost (exit 1)
 """
 import os
@@ -53,7 +71,8 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import (CATALOG_REQUIRED, COL_RETIRED, DEFAULT_DEAD_TAG, DEFAULT_ITEM_QC_TAG,  # noqa: E402
+from intake_common import (CATALOG_REQUIRED, COL_RETIRED, DEFAULT_ACTIVE_TAG, DEFAULT_DEAD_TAG,  # noqa: E402
+                           DEFAULT_NEW_LINE_TAG, ITEM_PREFIX,
                            EXIT_ABORT, EXIT_DEFECT, EXIT_OK, STRAINS_REQUIRED, Selftest, abort, body_of,
                            form_word, freshest, get_all, get_flag, grams_eq, grams_of, has_phrase, lane_key,
                            next_version, norm, num, read_csv, slug, tag_set, write_csv)
@@ -71,9 +90,10 @@ V2_COLS = ["invoice_no", "invoice_date", "invoice_line", "cases", "units_total",
            "lane_CBDContent", "lane_Flavor", "lane_OnlineAvailable", "verified"]
 V3_NEW = ["verdict", "sibling_reason", "flags", "landed_unit_cost", "po_line_ref", "expiry_date", "approved"]
 V3_COLS = V2_COLS + V3_NEW + ["parse_source", "package_id"]
-VERDICTS = ["EXISTS", "RETIRED_MATCH", "NEW_ITEM_WITH_SIBLING", "STRAIN_MISSING", "NEW_PL", "NEW_BRAND"]
+VERDICTS = ["EXISTS", "RETIRED_MATCH", "NEW_ITEM_WITH_SIBLING", "STRAIN_MISSING", "NEW_PL", "NEW_CATEGORY", "NEW_BRAND"]
 FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), ("LANE_AMBIGUOUS", "R50", "STOP"), ("DOSE_UNREAD", "R50", "STOP"),
-         ("FLAVOR_TO_SET", "R101", "STOP"), ("OT_TEMPLATE_MISS", "R101", "INFO"), ("BAD_LINE", "R103", "DEFECT")]
+         ("FLAVOR_TO_SET", "R101", "STOP"), ("OT_TEMPLATE_MISS", "R101", "INFO"), ("NEW_LINE_FIELDS", "R101", "STOP"),
+         ("BAD_LINE", "R103", "DEFECT")]
 LANE_MAP = {"lane_Category": "Category", "lane_Type": "Type", "lane_IsCannabis": "Is cannabis",
             "lane_MasterCategory": "Master category", "lane_GlobalCategory": "Global Category",
             "lane_GlobalSubCategory": "Global SubCategory", "lane_ProductGrams": "Product grams",
@@ -217,6 +237,57 @@ def new_ot(sib, strain):
     return ""
 
 
+def decision_tag(members, prefix=ITEM_PREFIX, active_tag=DEFAULT_ACTIVE_TAG, new_line_tag=DEFAULT_NEW_LINE_TAG):
+    """(tag, why) for a sibling copy (R96): the ONE item-namespace tag every active lane member carries; a
+    mixed lane, or a member with none or two, reads the Active tag. The new-line tag never rides a copy (R83)."""
+    vals = []
+    for r in members:
+        own = sorted(t for t in tag_set(r.get("Tags")) if t.startswith(prefix) and t != new_line_tag)
+        vals.append(own[0] if len(own) == 1 else None)
+    if vals and None not in vals and len(set(vals)) == 1:
+        return vals[0], f"every active member of the lane carries `{vals[0]}`"
+    seen = sorted({v for v in vals if v})
+    return active_tag, ("mixed lane (" + ", ".join(f"`{v}`" for v in seen) + ")" if seen
+                        else "no lane member carries one decision tag") + f": `{active_tag}`"
+
+
+def copy_tags(src, drop_tags, prefix, decision):
+    """The source's tags minus the dropped ones and every item-namespace tag, plus the ONE decision tag."""
+    keep = {t for t in tag_set(src.get("Tags")) - set(drop_tags) if not t.startswith(prefix)}
+    return ", ".join(sorted(keep | {decision}))
+
+
+def place_line(live, brand, dtoks):
+    """(Master category, form word, why-not) for a line that fits no lane: the catalog items whose form word
+    the line names, at the best score, the brand's own first. No MC when no form word is read or the best
+    candidates span two Master categories - the line cannot be placed, so it is not a new LINE."""
+    scored = [(form_score(form_word(r.get("Product")), dtoks), r) for r in live]
+    scored = [(s, r) for s, r in scored if s > 0]
+    if not scored:
+        return None, None, "the line names no form word the catalog carries"
+    pool = [(s, r) for s, r in scored if norm(r.get("Brand")) == norm(brand)] or scored
+    top = max(s for s, _ in pool)
+    best = [r for s, r in pool if s == top]
+    mcs = sorted({r.get("Master category", "") for r in best})
+    if len(mcs) != 1 or not mcs[0]:
+        return None, None, f"the form word read spans {len(mcs)} Master categories ({', '.join(m or 'blank' for m in mcs)})"
+    forms = [form_word(r.get("Product")) for r in best]
+    return mcs[0], max(sorted(set(forms)), key=forms.count), ""
+
+
+def nearest_in_mc(live, brand, mc, dtoks, g):
+    """The brand's active item in the Master category closest to the line: the same form word first, then
+    the closest grams, then the sibling order (image, newest ProductId, lowest SKU). None = the brand has none."""
+    own = [r for r in live if norm(r.get("Brand")) == norm(brand) and r.get("Master category") == mc]
+
+    def key(r):
+        rg = grams_of(r.get("Product grams"))
+        gap = abs(rg - g) if rg is not None and g is not None else float("inf")
+        return (-form_score(form_word(r.get("Product")), dtoks), gap,
+                0 if r.get("Image URL") else 1, -pid_num(r), r.get("SKU", ""))
+    return sorted(own, key=key)[0] if own else None
+
+
 def base_row(line):
     return {"invoice_no": line.get("invoice_no", ""), "invoice_date": line.get("invoice_date", ""),
             "invoice_line": line.get("description", ""), "cases": line.get("cases", ""),
@@ -234,9 +305,12 @@ def fill_from(row, src):
         row[k] = src.get(c, "")
 
 
-def match(lines, active, retired, strains, brand_override=None, item_qc_tag=DEFAULT_ITEM_QC_TAG,
-          dead_tag=DEFAULT_DEAD_TAG, drop_tags=()):
-    """Pure: (intake rows, defects). `strains` = {name: {'type':..., 'id':...}}."""
+def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEFAULT_NEW_LINE_TAG,
+          dead_tag=DEFAULT_DEAD_TAG, drop_tags=(), active_tag=DEFAULT_ACTIVE_TAG, prefix=ITEM_PREFIX,
+          tag_overrides=None):
+    """Pure: (intake rows, defects). `strains` = {name: {'type':..., 'id':...}}. `tag_overrides` =
+    {line_no or '*': tag} - the business's direction for a sibling copy's decision tag (R96)."""
+    tag_overrides = tag_overrides or {}
     live = [r for r in active if not is_dead(r, dead_tag)]
     old = [r for r in retired if not is_dead(r, dead_tag)]
     everything = live + old
@@ -317,9 +391,49 @@ def match(lines, active, retired, strains, brand_override=None, item_qc_tag=DEFA
                 row["flags"] = ";".join(flags)
                 out.append(row)
                 continue
-            row.update(verdict="NEW_PL", action="STOP - new product line (R101)", lane_Brand=brand,
-                       sibling_reason=f"brand {brand!r} has no active lane at "
-                                      f"{'?' if g is None else format(g, 'g')}g with a form word in the line")
+            at = f"{'?' if g is None else format(g, 'g')}g"
+            mc, form, why = place_line(live, brand, dtoks)
+            near = nearest_in_mc(live, brand, mc, dtoks, g) if mc else None
+            if near is None:
+                row.update(verdict="NEW_CATEGORY", action="STOP - new category for the brand (R101)", lane_Brand=brand,
+                           sibling_reason=f"brand {brand!r} has no active lane at {at} with a form word in the line; "
+                                          + (why or f"it has no active item in Master category {mc!r}"))
+                row["flags"] = ";".join(flags)
+                out.append(row)
+                continue
+            fill_from(row, near)
+            desc_wo_brand = desc_n.replace(norm(brand), " ")
+            strain = find_strain(" ".join(desc_wo_brand.split()), strains)
+            reason = (f"new line under {brand!r}: no lane at {at} {form}; nearest active item in Master category "
+                      f"{mc!r}: {near.get('SKU')} {near.get('Product')!r}")
+            if near.get("Strain") and not strain:
+                row.update(verdict="STRAIN_MISSING", action="STOP - mint the Strain record first (R101)",
+                           strain_record="MISSING", sibling_reason=reason + "; no Strain record named in the line")
+                row["flags"] = ";".join(flags)
+                out.append(row)
+                continue
+            flags.append("NEW_LINE_FIELDS")
+            if near.get("Flavor"):
+                flags.append("FLAVOR_TO_SET")
+            s = strain or ""
+            dose = "" if g is None else f"{g:g}g"
+            seg0 = (near.get("Product") or "").split(" | ")[0].strip() or brand
+            if s:
+                flags.append("OT_TEMPLATE_MISS")
+            row.update(verdict="NEW_PL", action="CREATE - copy nearest (new line, R83)",
+                       sibling_reason=reason + "; set or confirm at the stop: name, Price, Flower equiv, "
+                                               "Servings per Unit, Category / Type",
+                       strain_record="LIVE" if s else "",
+                       create_name_FINAL=" | ".join([seg0, form, s, dose]) if s and dose else "",
+                       strain=s, strain_type=(strains.get(s) or {}).get("type", ""),
+                       strain_id=(strains.get(s) or {}).get("id", ""), online_title="",
+                       online_desc_chars=str(len(near.get("Online description") or "")),
+                       online_desc_source="nearest item's template - rewrite for the new line (platform KB sourcing chain)",
+                       image_state=("nearest item's image carried - keep only if generic brand art (platform KB Images)"
+                                    if near.get("Image URL") else "0 images (NO_ECOM_IMAGE - a human supplies art)"),
+                       lane_ProductGrams=dose or row.get("lane_ProductGrams", ""),
+                       lane_Cost=ln.get("unit_cost", "") or row.get("lane_Cost", ""),
+                       tags=copy_tags(near, drop_tags, prefix, new_line_tag))
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
@@ -351,7 +465,10 @@ def match(lines, active, retired, strains, brand_override=None, item_qc_tag=DEFA
             out.append(row)
             continue
         s = strain or ""
-        tags = (tag_set(sib.get("Tags")) - set(drop_tags)) | {item_qc_tag}
+        direction = tag_overrides.get(str(ln.get("line_no", "")).strip()) or tag_overrides.get("*")
+        decision, why = (direction, f"`{direction}` by the business's direction") if direction else \
+            decision_tag(members, prefix, active_tag, new_line_tag)
+        reason += f"; tag {why}"
         ot = new_ot(sib, s) if s else ""
         if s and not ot:
             flags.append("OT_TEMPLATE_MISS")
@@ -363,7 +480,7 @@ def match(lines, active, retired, strains, brand_override=None, item_qc_tag=DEFA
                    online_desc_source="sibling template - replace the strain paragraph (platform KB sourcing chain)",
                    image_state=("sibling image carried - keep only if generic brand art (platform KB Images)"
                                 if sib.get("Image URL") else "0 images (NO_ECOM_IMAGE - a human supplies art)"),
-                   tags=", ".join(sorted(tags)))
+                   tags=copy_tags(sib, drop_tags, prefix, decision))
         row["flags"] = ";".join(flags)
         out.append(row)
     return out, defects
@@ -403,6 +520,26 @@ def load_exports(argv, pointers):
     return (active, retired, strains), a, r, load_strains(strains)
 
 
+def tag_options(argv, ptr):
+    """(new-line tag, Active tag): the flag, else the tenant pointer, else the generic default."""
+    pv = lambda k: (ptr or {}).get("intake", {}).get(k)  # noqa: E731
+    return (get_flag(argv, "--new-line-tag") or pv("New line tag") or DEFAULT_NEW_LINE_TAG,
+            get_flag(argv, "--active-tag") or pv("Active tag") or DEFAULT_ACTIVE_TAG)
+
+
+def parse_overrides(specs, new_line_tag, dead_tag, prefix=ITEM_PREFIX):
+    """`<line_no>=<tag>` / `*=<tag>` -> {key: tag}. A direction must be an item decision tag; the new-line
+    tag and the dead tag are not a sibling copy's to carry (R83, R81): ABORT, never a silent pass."""
+    out = {}
+    for spec in specs:
+        k, sep, v = spec.partition("=")
+        k, v = k.strip(), v.strip()
+        if not sep or not k or not v.startswith(prefix) or v in (new_line_tag, dead_tag):
+            abort(f"--tag-override {spec!r}: want <line_no>=<{prefix}tag> (not the new-line or dead tag)")
+        out[k] = v
+    return out
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -417,9 +554,11 @@ def main(argv):
         ptr = intake_pointers.load(tenant)
     _, lines = read_csv(lines_p, LINES_REQUIRED, "--lines")
     paths, active, retired, strains = load_exports(argv, ptr)
-    rows, defects = match(lines, active, retired, strains, get_flag(argv, "--brand"),
-                          get_flag(argv, "--item-qc-tag", DEFAULT_ITEM_QC_TAG),
-                          get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG), get_all(argv, "--drop-tag"))
+    new_line_tag, active_tag = tag_options(argv, ptr)
+    overrides = parse_overrides(get_all(argv, "--tag-override"), new_line_tag, get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG))
+    rows, defects = match(lines, active, retired, strains, get_flag(argv, "--brand"), new_line_tag,
+                          get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG), get_all(argv, "--drop-tag"),
+                          active_tag, ITEM_PREFIX, overrides)
     out_dir = get_flag(argv, "--out-dir") or (ptr["intake"]["Intake dir"] if ptr else os.path.dirname(os.path.abspath(lines_p)))
     tslug = get_flag(argv, "--slug") or (slug(os.path.basename(os.path.dirname(os.path.abspath(tenant)))) if tenant else "tenant")
     first = next((ln for ln in lines if not ln.get("order_level_kind")), lines[0] if lines else {})
@@ -453,6 +592,19 @@ def _item(sku, product, **kw):
     return r
 
 
+def _aborts(fn):
+    so, se = sys.stdout, sys.stderr
+    try:
+        with open(os.devnull, "w") as dn:
+            sys.stdout = sys.stderr = dn
+            fn()
+    except SystemExit as e:
+        return e.code == EXIT_ABORT
+    finally:
+        sys.stdout, sys.stderr = so, se
+    return False
+
+
 def selftest():
     t = Selftest("intake_match")
     active = [_item("1", "Acme | Pre-Roll | Blue Dream | 1g", pid="11", **{"Image URL": "a.jpg"}),
@@ -482,9 +634,52 @@ def selftest():
     t.check("QUIET: a dead record is never the sibling", r["copy_source_sku"] != "3")
     t.check("final name swaps segment 3 only", r["create_name_FINAL"] == "Acme | Pre-Roll | Gelato | 1g", r["create_name_FINAL"])
     t.check("online title swaps the strain only", r["online_title"] == "Gelato Pre-Roll 1g", r["online_title"])
-    t.check("tags carry the item-QC tag (R83)", DEFAULT_ITEM_QC_TAG in r["tags"], r["tags"])
+    t.check("a copy of an untagged lane reads the Active tag, never the new-line tag (R96, R83)",
+            r["tags"] == DEFAULT_ACTIVE_TAG, r["tags"])
     t.check("STRAIN_MISSING fires", run("Acme Mystery Haze preroll 1g")["verdict"] == "STRAIN_MISSING")
-    t.check("NEW_PL fires", run("Acme Gelato cart 0.5g")["verdict"] == "NEW_PL")
+    t.check("NEW_CATEGORY: a form word no catalog item carries cannot place the line",
+            run("Acme Gelato cart 0.5g")["verdict"] == "NEW_CATEGORY")
+    tagged = [dict(x, Tags=x["Tags"] or "ITM - Protect") for x in active]
+    t.check("a copy takes the ONE tag every lane member carries (R96)",
+            run("Acme Gelato preroll 1g", act=tagged)["tags"] == "ITM - Protect")
+    mixed = [dict(x, Tags=("ITM - Discontinue" if x["SKU"] == "2" else x["Tags"] or "ITM - Protect")) for x in active]
+    t.check("a mixed lane reads the Active tag", run("Acme Gelato preroll 1g", act=mixed)["tags"] == DEFAULT_ACTIVE_TAG)
+    under_qc = [dict(x, Tags=x["Tags"] or DEFAULT_NEW_LINE_TAG) for x in active]
+    t.check("QUIET: a lane still under new-line QC never passes the new-line tag to a copy",
+            run("Acme Gelato preroll 1g", act=under_qc)["tags"] == DEFAULT_ACTIVE_TAG)
+    keep = [dict(x, Tags=("Status - Live, " + (x["Tags"] or "ITM - Protect"))) for x in active]
+    t.check("non-decision tags ride the copy; the decision tag is replaced, not added",
+            run("Acme Gelato preroll 1g", act=keep)["tags"] == "ITM - Protect, Status - Live")
+    rows_o, _ = match([{"description": "Acme Gelato preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",
+                        "line_no": "3"}], tagged, retired, strains, tag_overrides={"3": "ITM - Discontinue"})
+    t.check("the business's direction beats the lane's tag", rows_o[0]["tags"] == "ITM - Discontinue", rows_o[0]["tags"])
+    rows_o, _ = match([{"description": "Acme Gelato preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",
+                        "line_no": "4"}], tagged, retired, strains, tag_overrides={"3": "ITM - Discontinue"})
+    t.check("QUIET: a direction for another line leaves this one on its lane's tag", rows_o[0]["tags"] == "ITM - Protect")
+    t.check("FIRES: a direction naming the new-line tag ABORTs",
+            _aborts(lambda: parse_overrides(["3=" + DEFAULT_NEW_LINE_TAG], DEFAULT_NEW_LINE_TAG, DEFAULT_DEAD_TAG)))
+    t.check("QUIET: a decision-tag direction parses",
+            parse_overrides(["*=ITM - Protect"], DEFAULT_NEW_LINE_TAG, DEFAULT_DEAD_TAG) == {"*": "ITM - Protect"})
+    vape = active + [_item("7", "Acme | Live Resin Cart | Blue Dream | 1g", pid="17", cat="Vape",
+                           **{"Master category": "Vape", "Image URL": "c.jpg", "Tags": "ITM - Protect"}),
+                     _item("8", "Bolt | Gummy | Mango | 100mg", pid="18", cat="Gummy", vendor="Bolt Wholesale",
+                           **{"Master category": "Edible"})]
+    r = run("Acme Gelato cart 0.5g", act=vape)
+    t.check("NEW_PL: a new line under a known brand is a CREATE from the brand's nearest item in the MC",
+            r["verdict"] == "NEW_PL" and r["action"].startswith("CREATE") and r["copy_source_sku"] == "7",
+            f"{r['verdict']} {r['action']} {r['copy_source_sku']}")
+    t.check("NEW_PL carries the new-line tag and drops the nearest item's decision tag (R83)",
+            r["tags"] == DEFAULT_NEW_LINE_TAG, r["tags"])
+    t.check("NEW_PL raises NEW_LINE_FIELDS (STOP) for the inherited lane", "NEW_LINE_FIELDS" in r["flags"].split(";"))
+    t.check("NEW_PL: grams from the line, Cost from the invoice, a name draft in the nearest item's form",
+            r["lane_ProductGrams"] == "0.5g" and r["lane_Cost"] == "4.5"
+            and r["create_name_FINAL"] == "Acme | Live Resin Cart | Gelato | 0.5g",
+            f"{r['lane_ProductGrams']} {r['lane_Cost']} {r['create_name_FINAL']!r}")
+    r = run("Acme Mango gummy 100mg 10pk", act=vape)
+    t.check("NEW_CATEGORY: the MC is read (Edible) but the brand carries no item in it",
+            r["verdict"] == "NEW_CATEGORY" and "Edible" in r["sibling_reason"], f"{r['verdict']} {r['sibling_reason']}")
+    t.check("NEW_PL: a strain-bearing new line with no Strain record is STRAIN_MISSING",
+            run("Acme Mystery Haze cart 0.5g", act=vape)["verdict"] == "STRAIN_MISSING")
     t.check("NEW_BRAND fires", run("Zed Gelato preroll 1g", vendor="Other Co")["verdict"] == "NEW_BRAND")
     t.check("QUIET: the vendor names a single brand", run("Gelato preroll 1g")["verdict"] == "NEW_ITEM_WITH_SIBLING")
     t.check("DOSE_UNREAD fires", "DOSE_UNREAD" in run("Acme Gelato preroll")["flags"])
@@ -509,11 +704,11 @@ def selftest():
             f"{r['verdict']} {r['flags']} {r['copy_source_sku']}")
     two_aio = aio + [_item("6", "Acme | Distillate Cart | Lime Sorbet | 2g", pid="16", cat="Vape")]
     r = run("Acme | Lime Sorbet | Flavor Line | Pocket PRO | 2.0g | Hybrid", act=two_aio)
-    t.check("QUIET: FORM_UNREAD off on two candidates -> NEW_PL", r["verdict"] == "NEW_PL" and "FORM_UNREAD" not in r["flags"],
+    t.check("QUIET: FORM_UNREAD off on two candidates -> an unplaced line stays a STOP (NEW_CATEGORY)", r["verdict"] == "NEW_CATEGORY" and "FORM_UNREAD" not in r["flags"],
             f"{r['verdict']} {r['flags']}")
     r = run("Acme | Lime Sorbet | Flavor Line | Cart | 2.0g | Hybrid", act=aio)
-    t.check("QUIET: FORM_UNREAD off when the line names another form word (cart) -> NEW_PL",
-            r["verdict"] == "NEW_PL" and "FORM_UNREAD" not in r["flags"], f"{r['verdict']} {r['flags']}")
+    t.check("QUIET: FORM_UNREAD off when the line names another form word (cart) -> a STOP (NEW_CATEGORY)",
+            r["verdict"] == "NEW_CATEGORY" and "FORM_UNREAD" not in r["flags"], f"{r['verdict']} {r['flags']}")
     t.check("QUIET: FORM_UNREAD off on a full match", "FORM_UNREAD" not in run("Acme Blue Dream preroll 1g")["flags"])
     return t.done()
 

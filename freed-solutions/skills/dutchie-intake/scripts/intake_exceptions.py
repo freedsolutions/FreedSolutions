@@ -209,8 +209,8 @@ def stop_message(rows, exc, summary, operator, intake_path):
     out = [f"## STOP - pre-create review - {first.get('lane_Vendor') or 'vendor'} invoice {first.get('invoice_no', '')} "
            f"({first.get('invoice_date', '')})", "",
            f"{operator}: fill the `approved` column (Y or N) in `{os.path.basename(intake_path)}`, then reply `approved`.",
-           "Nothing is created before that reply. Only rows with verdict NEW_ITEM_WITH_SIBLING and approved = Y are "
-           "created, one Copy item each (R101).", "",
+           "Nothing is created before that reply. Only rows with verdict NEW_ITEM_WITH_SIBLING or NEW_PL and "
+           "approved = Y are created, one Copy item each (R101).", "",
            "### Verdicts", "",
            "| # | Invoice line | Verdict | Sibling / match | Final name | Landed unit | Flags | approved |",
            "|---|---|---|---|---|---|---|---|"]
@@ -239,7 +239,11 @@ def stop_message(rows, exc, summary, operator, intake_path):
             "word. Confirm the matched item in the Sibling / match column before receiving.",
             "- RETIRED_MATCH: un-retire beats a duplicate (R101). Y = un-retire by hand; never a copy.",
             "- STRAIN_MISSING: mint the Strain record first, re-run `intake`, then approve.",
-            "- NEW_PL / NEW_BRAND: never created by this lane (R101). Rule them outside the run.",
+            "- NEW_PL + Y: a new line under a brand we carry (R101). Created by Copy item from the brand's nearest "
+            "item in the same Master category, tagged with the new-line tag (R83), then handed to the business for QC. "
+            "NEW_LINE_FIELDS (STOP): set or confirm the name, Price, Flower equiv, Servings per Unit and Category / Type "
+            "in the lane cells of this CSV before you reply; certify checks the item against them.",
+            "- NEW_CATEGORY / NEW_BRAND: never created by this lane (R101). Rule them outside the run.",
             "- Any row + N: skipped. A STOP flag stays on the row for the notice and the vendor thread."]
     return "\n".join(out)
 

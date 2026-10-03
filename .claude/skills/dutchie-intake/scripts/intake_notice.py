@@ -3,7 +3,7 @@ command when the CSV carries a NEW_PL or NEW_BRAND row.
 
   python intake_notice.py --intake <intake-vN.csv> --tenant <CLAUDE.md> [--out-dir <dir>]
   (without --tenant: --template <notice.md> --operator "<name>" [--floor-sheet "<command>"])
-  options: --item-qc-tag "<tag>"   the R83 tag the notice names (default `ITM - Item QC`)
+  options: --new-line-tag "<tag>"  the R83 tag the notice names (default `ITM - New PL`; tenant `New line tag:`)
   python intake_notice.py --selftest
 
 Created items = verdict NEW_ITEM_WITH_SIBLING with the new key read back (`new_sku`). The notice is
@@ -20,19 +20,20 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import (DEFAULT_ITEM_QC_TAG, EXIT_ABORT, EXIT_DEFECT, EXIT_OK, Selftest, abort,  # noqa: E402
+from intake_common import (CREATE_VERDICTS, DEFAULT_NEW_LINE_TAG, EXIT_ABORT, EXIT_DEFECT, EXIT_OK,  # noqa: E402
+                           Selftest, abort,
                            get_flag, new_path, read_csv, stamp, version_stem)
 from intake_match import V3_COLS  # noqa: E402
 
-NEW_LINE_VERDICTS = ("NEW_PL", "NEW_BRAND")
+NEW_LINE_VERDICTS = ("NEW_PL", "NEW_CATEGORY", "NEW_BRAND")
 
 
-def fill(template, rows, operator, item_qc_tag=DEFAULT_ITEM_QC_TAG):
-    """(text, created rows, new-line rows, defects)."""
+def fill(template, rows, operator, new_line_tag=DEFAULT_NEW_LINE_TAG):
+    """(text, created rows, new-line rows, defects). A created NEW_PL item is marked for the business's QC."""
     defects = [f"NOT_READ_BACK: {r.get('create_name_FINAL') or r.get('invoice_line')!r}" for r in rows
-               if r.get("verdict") == "NEW_ITEM_WITH_SIBLING" and (r.get("approved") or "").upper() == "Y"
+               if r.get("verdict") in CREATE_VERDICTS and (r.get("approved") or "").upper() == "Y"
                and not (r.get("new_sku") or "").strip()]
-    created = [r for r in rows if r.get("verdict") == "NEW_ITEM_WITH_SIBLING" and (r.get("new_sku") or "").strip()]
+    created = [r for r in rows if r.get("verdict") in CREATE_VERDICTS and (r.get("new_sku") or "").strip()]
     newl = [r for r in rows if r.get("verdict") in NEW_LINE_VERDICTS]
     text = re.sub(r"<!--.*?-->\s*", "", template, flags=re.S)
     brands = sorted({r.get("lane_Brand") for r in created if r.get("lane_Brand")})
@@ -48,7 +49,9 @@ def fill(template, rows, operator, item_qc_tag=DEFAULT_ITEM_QC_TAG):
     for ln in text.split("\n"):
         s = ln.strip()
         if s == "[[items]]":
-            out += [f"- {r.get('create_name_FINAL')} - SKU {r.get('new_sku')}" for r in created]
+            out += [f"- {r.get('create_name_FINAL')} - SKU {r.get('new_sku')}"
+                    + (f" - NEW LINE, tagged `{new_line_tag}`: please review" if r.get("verdict") == "NEW_PL" else "")
+                    for r in created]
         elif s == "[[needs-hand]]":
             out += hand or ["- Nothing."]
         elif s.startswith("[[new-line]]"):
@@ -59,7 +62,8 @@ def fill(template, rows, operator, item_qc_tag=DEFAULT_ITEM_QC_TAG):
     text = "\n".join(out)
     subs = {"<Brand>": " / ".join(brands) or "<Brand>", "<n>": str(len(created)),
             "<invoice number>": first.get("invoice_no") or "<invoice number>",
-            "<invoice date>": first.get("invoice_date") or "<invoice date>", "<item QC tag>": item_qc_tag,
+            "<invoice date>": first.get("invoice_date") or "<invoice date>", "<new line tag>": new_line_tag,
+            "<item QC tag>": new_line_tag,   # the marker's name in a tenant template copied before 2026-10-03
             "<Operator>": operator,
             "<new lines>": "; ".join(f"{r.get('lane_Brand') or ''} {r.get('invoice_line')}".strip() for r in newl)}
     for k, v in subs.items():
@@ -79,7 +83,9 @@ def main(argv):
         import intake_pointers
         p = intake_pointers.load(tenant)["intake"]
         tpl, operator, floor = p["Notice template"], p["Operator"], p["Floor sheet"]
+        ptr_tag = p.get("New line tag")
     else:
+        ptr_tag = None
         tpl, operator, floor = get_flag(argv, "--template"), get_flag(argv, "--operator"), get_flag(argv, "--floor-sheet")
         if not (tpl and operator):
             abort("without --tenant pass --template and --operator")
@@ -88,7 +94,7 @@ def main(argv):
     except OSError:
         abort(f"notice template {tpl} unreadable")
     _, rows = read_csv(ip, V3_COLS, "--intake")
-    text, created, newl, defects = fill(template, rows, operator, get_flag(argv, "--item-qc-tag", DEFAULT_ITEM_QC_TAG))
+    text, created, newl, defects = fill(template, rows, operator, get_flag(argv, "--new-line-tag") or ptr_tag or DEFAULT_NEW_LINE_TAG)
     if defects:
         print("DEFECT - no notice written:\n  " + "\n  ".join(defects))
         return EXIT_DEFECT
@@ -121,7 +127,8 @@ def selftest():
     t.check("image gap listed", "Product image: A | P | W | 1g" in text)
     t.check("QUIET: new-line bullet dropped with no NEW_PL row", "New line:" not in text and not newl)
     t.check("no marker or comment survives", "[[" not in text and "<!--" not in text)
-    t.check("operator and tag filled", "Questions to Pat Example" in text and DEFAULT_ITEM_QC_TAG in text)
+    t.check("operator filled, no marker left", "Questions to Pat Example" in text and "<new line tag>" not in text
+            and "<item QC tag>" not in text)
     rows2 = rows + [{"verdict": "NEW_PL", "invoice_line": "A Haze cart 0.5g", "lane_Brand": "A"}]
     text2, _, newl2, _ = fill(tpl, rows2, "Pat Example")
     t.check("FIRES: new-line bullet kept with a NEW_PL row", "New line: A A Haze cart 0.5g" in text2 and len(newl2) == 1)

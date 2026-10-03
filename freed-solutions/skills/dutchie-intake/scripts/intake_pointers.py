@@ -31,6 +31,7 @@ REQUIRED_BI = ["Backoffice login", "Write channel"]
 PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir"]
 CHANNELS = ["neo", "playwright", "pane"]
 PO_SOURCES = ["apex", "vendor pdf", "none"]
+OPTIONAL_TAG_KEYS = ["New line tag", "Active tag"]   # R83 / R96; absent = the skill's generic default
 
 LINE = re.compile(r"^\s*-\s+(?:\*\*)?(?P<key>[^:*`]+?)(?:\*\*)?:(?:\*\*)?\s*(?P<val>.*)$")
 
@@ -109,6 +110,13 @@ def validate(res):
     deal = res["intake"].get("Vendor deal tag")
     if deal is not None and not is_placeholder(deal) and not deal.startswith(PKG_PREFIX):
         probs.append(f"`Vendor deal tag` must be a package tag (`{PKG_PREFIX}...`, R47), got {deal!r}")
+    for k in OPTIONAL_TAG_KEYS:
+        v = res["intake"].get(k)
+        if v is not None and not is_placeholder(v) and (v.startswith(PKG_PREFIX) or " - " not in v):
+            probs.append(f"`{k}` must be an item decision tag (`<prefix> - <word>`, never `{PKG_PREFIX}...`, R47), got {v!r}")
+    a, n = res["intake"].get("Active tag"), res["intake"].get("New line tag")
+    if a and n and a == n:
+        probs.append("`Active tag` and `New line tag` name the same tag (R96 vs R83)")
     wc = res["bi"].get("Write channel")
     if wc is not None and not is_placeholder(wc) and not ladder(res["raw"].get("bi:Write channel", wc)):
         probs.append(f"`Write channel` names no known channel {CHANNELS}")
@@ -189,6 +197,14 @@ def selftest():
     t.check("FIRES: a Vendor deal tag outside the package prefix is refused",
             any("package tag" in p for p in validate(parse_text(nod))))
     t.check("the Vendor deal tag value is the backticked span", r["intake"]["Vendor deal tag"] == "PKG - Vendor Deal")
+    t.check("QUIET: the two tag keys are optional", "New line tag" not in r["intake"] and validate(r) == [])
+    tg = SAMPLE.replace("## Change log", "- New line tag: `ITM - New PL`\n- Active tag: `ITM - Active`\n\n## Change log", 1)
+    rt = parse_text(tg)
+    t.check("the tag keys parse as backticked spans", validate(rt) == [] and rt["intake"]["New line tag"] == "ITM - New PL", str(validate(rt)))
+    t.check("FIRES: a package tag as the new-line tag is refused",
+            any("item decision tag" in p for p in validate(parse_text(tg.replace("`ITM - New PL`", "`PKG - New PL`")))))
+    t.check("FIRES: one tag named for both keys is refused",
+            any("same tag" in p for p in validate(parse_text(tg.replace("`ITM - New PL`", "`ITM - Active`")))))
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()

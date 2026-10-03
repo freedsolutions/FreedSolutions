@@ -32,7 +32,8 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import (DEFAULT_ITEM_QC_TAG, EXIT_ABORT, EXIT_DEFECT, EXIT_OK, Selftest, abort,  # noqa: E402
+from intake_common import (CREATE_VERDICTS, DEFAULT_ACTIVE_TAG, DEFAULT_NEW_LINE_TAG, EXIT_ABORT,  # noqa: E402
+                           EXIT_DEFECT, EXIT_OK, ITEM_PREFIX, Selftest, abort,
                            get_all, get_flag, grams_eq, new_path, num, read_csv, stamp, tag_set, unwrap,
                            version_stem)
 from intake_match import V3_COLS  # noqa: E402
@@ -85,7 +86,7 @@ def diff_row(a, b, cols):
 
 
 def certify(pre_hdr, pre, post_hdr, post, key, intake=None, no_create=False, allow=(), rows_allowed=None,
-            siblings=None, item_qc_tag=DEFAULT_ITEM_QC_TAG, min_rows=None):
+            siblings=None, prefix=ITEM_PREFIX, min_rows=None):
     """Pure. Returns (report lines, fails list, counts dict)."""
     rep, fails = [], []
     shared = [c for c in pre_hdr if c in post_hdr and c != key]
@@ -102,7 +103,7 @@ def certify(pre_hdr, pre, post_hdr, post, key, intake=None, no_create=False, all
     rep += ["", "## A - intake population", ""]
     declared = set()
     if not no_create:
-        approved = [r for r in (intake or []) if r.get("verdict") == "NEW_ITEM_WITH_SIBLING"
+        approved = [r for r in (intake or []) if r.get("verdict") in CREATE_VERDICTS
                     and (r.get("approved") or "").strip().upper() == "Y"]
         for r in approved:
             if not (r.get(newcol) or "").strip():
@@ -121,8 +122,15 @@ def certify(pre_hdr, pre, post_hdr, post, key, intake=None, no_create=False, all
             for col, t in GRAMS.items():
                 if col in post_hdr and (row.get(col) or tgt.get(t)) and not grams_eq(row.get(col), tgt.get(t)):
                     probs.append(f"{col}: export={row.get(col)!r} target={tgt.get(t)!r}")
-            if "Tags" in post_hdr and item_qc_tag not in tag_set(row.get("Tags")):
-                fails.append(f"TAG_NOT_READ_BACK: {k} lacks `{item_qc_tag}` (R83)")
+            if "Tags" in post_hdr:
+                # R96 / R83: the ONE decision tag the intake row names (the line's tag, or the new-line tag on a
+                # NEW_PL), read back both ways - a copy also inherits its source's tag, which must be gone.
+                want_t = {x for x in tag_set(tgt.get("tags")) if x.startswith(prefix)}
+                got_t = {x for x in tag_set(row.get("Tags")) if x.startswith(prefix)}
+                for x in sorted(want_t - got_t):
+                    fails.append(f"TAG_NOT_READ_BACK: {k} lacks `{x}` (R96 / R83)")
+                for x in sorted(got_t - want_t):
+                    fails.append(f"TAG_EXTRA: {k} carries `{x}`, which the intake row does not name (R96: exactly one)")
             counts["A"] += 1
             counts["A_mismatch"] += len(probs)
             rep.append(f"- {k} {row.get('Product')!r}: {len(FIELD_MAP) + len(GRAMS)} fields checked, "
@@ -214,7 +222,7 @@ def main(argv):
     mr = get_flag(argv, "--min-rows")
     rep, fails, counts = certify(pre_hdr, pre, post_hdr, post, key, intake, no_create, get_all(argv, "--allow"),
                                  listarg(get_flag(argv, "--rows")), listarg(get_flag(argv, "--siblings")),
-                                 get_flag(argv, "--item-qc-tag", DEFAULT_ITEM_QC_TAG), int(mr) if mr else None)
+                                 ITEM_PREFIX, int(mr) if mr else None)
     tenant = get_flag(argv, "--tenant")
     out_dir = get_flag(argv, "--out-dir")
     if not out_dir and tenant:
@@ -247,11 +255,11 @@ def selftest():
     base = [{"SKU": "1", "Available": "10", "Product": "A | P | X | 1g", "Price": "11"},
             {"SKU": "2", "Available": "5", "Product": "A | P | Y | 1g", "Price": "11", "Online title": "Y 1g"},
             {"SKU": "3", "Available": "3", "Product": "B | P | Z | 1g", "Price": "30"}]
-    new = {"SKU": "4", "Available": "0", "Product": "A | P | W | 1g", "Price": "11", "Tags": DEFAULT_ITEM_QC_TAG}
+    new = {"SKU": "4", "Available": "0", "Product": "A | P | W | 1g", "Price": "11", "Tags": DEFAULT_ACTIVE_TAG}
     post_rows = copy.deepcopy(base) + [new]
     post_rows[1]["Available"] = "4"
     intake = [{"verdict": "NEW_ITEM_WITH_SIBLING", "approved": "Y", "new_sku": "4", "copy_source_sku": "1",
-               "create_name_FINAL": "A | P | W | 1g", "lane_Price": "11", "tags": DEFAULT_ITEM_QC_TAG}]
+               "create_name_FINAL": "A | P | W | 1g", "lane_Price": "11", "tags": DEFAULT_ACTIVE_TAG}]
     pre, post = ex(base), ex(post_rows)
     _, fails, c = certify(hdr, pre, hdr, post, "SKU", intake)
     t.check("GREEN: one intake row + one Available drift", fails == [] and c["A"] == 1 and c["B"] == 1, str(fails))
@@ -270,7 +278,18 @@ def selftest():
     t.check("FIRES: a sibling that moved is not inert", any("SIBLING_NOT_INERT" in f for f in certify(hdr, pre, hdr, p5, "SKU", intake)[1]))
     p6 = copy.deepcopy(post)
     p6["4"]["Tags"] = ""
-    t.check("FIRES: the item-QC tag not read back (R83)", any("TAG_NOT_READ_BACK" in f for f in certify(hdr, pre, hdr, p6, "SKU", intake)[1]))
+    t.check("FIRES: the decision tag not read back (R96)", any("TAG_NOT_READ_BACK" in f for f in certify(hdr, pre, hdr, p6, "SKU", intake)[1]))
+    p7 = copy.deepcopy(post)
+    p7["4"]["Tags"] = f"{DEFAULT_ACTIVE_TAG}, ITM - Protect"
+    t.check("FIRES: a tag inherited from the copy source is TAG_EXTRA (R96 exactly one)",
+            any("TAG_EXTRA" in f for f in certify(hdr, pre, hdr, p7, "SKU", intake)[1]))
+    nl = [dict(intake[0], verdict="NEW_PL", tags=DEFAULT_NEW_LINE_TAG)]
+    p8 = copy.deepcopy(post)
+    p8["4"]["Tags"] = DEFAULT_NEW_LINE_TAG
+    _, f9, c9 = certify(hdr, pre, hdr, p8, "SKU", nl)
+    t.check("GREEN: an approved NEW_PL row is a create row with the new-line tag (R83)", f9 == [] and c9["A"] == 1, str(f9))
+    t.check("FIRES: a NEW_PL row read back without the new-line tag",
+            any("TAG_NOT_READ_BACK" in f for f in certify(hdr, pre, hdr, post, "SKU", nl)[1]))
     un = [dict(intake[0], new_sku="")]
     t.check("FIRES: an approved row with no new key", any("NOT_READ_BACK" in f for f in certify(hdr, pre, hdr, post, "SKU", un)[1]))
     nc = copy.deepcopy(pre)

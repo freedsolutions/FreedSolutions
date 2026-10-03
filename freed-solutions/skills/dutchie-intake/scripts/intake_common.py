@@ -33,9 +33,12 @@ CATALOG_REQUIRED = [c for c in CATALOG_COLS if c not in ("ProductId", "Available
 STRAINS_REQUIRED = ["Strain name", "Type"]
 COL_RETIRED = "Is retired"
 
-DEFAULT_ITEM_QC_TAG = "ITM - Item QC"    # R83: rides the copy, read back after create
+ITEM_PREFIX = "ITM - "                  # R47: the item decision-tag namespace
+DEFAULT_NEW_LINE_TAG = "ITM - New PL"   # R83: rides a NEW-LINE create (verdict NEW_PL), read back after create
+DEFAULT_ACTIVE_TAG = "ITM - Active"     # R96: the standard state; a sibling copy of a mixed line reads it
 DEFAULT_DEAD_TAG = "ITM - Do Not Use"    # R81: a dead record is never a sibling
 PKG_PREFIX = "PKG - "                    # R62 / R72 tag family
+CREATE_VERDICTS = ("NEW_ITEM_WITH_SIBLING", "NEW_PL")   # R101: the only verdicts `create` writes, on approved = Y
 
 
 def abort(msg):

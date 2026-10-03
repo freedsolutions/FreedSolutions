@@ -19,7 +19,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
           intake-v3 ◀──create (write channel, Operator's login, one Copy item per call)──┘
               │
               ├──intake_certify (pre / post exports) ──▶ -certify-<ts>.md   (A / B / C, exit 1 on C)
-              └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command on NEW_PL / NEW_BRAND)
+              └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command on NEW_PL / NEW_CATEGORY / NEW_BRAND)
                                                      receive ──▶ phase 2 stub (exit 2)
 ```
 

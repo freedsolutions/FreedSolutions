@@ -105,14 +105,25 @@ through connector bodies only.
    has none). `TOTAL_MISMATCH` (R103) is a DEFECT.
 2. `intake_match.py --lines <lines.csv> --tenant <CLAUDE.md> --min-rows <n>` (or explicit
    `--active --retired --strains`). One verdict per product line: EXISTS, RETIRED_MATCH,
-   NEW_ITEM_WITH_SIBLING, STRAIN_MISSING, NEW_PL, NEW_BRAND. The sibling is the active member of the
+   NEW_ITEM_WITH_SIBLING, STRAIN_MISSING, NEW_PL, NEW_CATEGORY, NEW_BRAND. The sibling is the active member of the
    R50 lane (Brand + Category + grams + Form word, name segment 2) with an image, else the newest.
    Dead records (R81) are never matched or copied. Lane fields are the sibling's own values.
    When brand + body + grams hit exactly ONE active item and only the Form test fails (the line names
    no form word at all), the verdict is EXISTS with the STOP-class flag `FORM_UNREAD` (R101): the
    Operator confirms the match. Two or more candidates, or a line that names a form word, stays
-   NEW_PL. No vendor word goes into the generic form-synonym table. The intake CSV v3 has 54 columns;
+   NEW_PL (or NEW_CATEGORY). No vendor word goes into the generic form-synonym table. The intake CSV v3 has 54 columns;
    the last two are `parse_source` and `package_id`.
+   **Tags (R96, R83).** A sibling copy carries its lane's decision tag: the ONE item-namespace tag every
+   active member carries; a mixed lane reads the Active tag; `--tag-override <line_no>=<tag>` (or `*=`) is
+   the business's direction and beats both. **NEW_PL** - a line that fits no lane under a brand we carry,
+   whose form word places it in a Master category the brand carries - is a CREATE from the brand's nearest
+   active item there (same form word first, then the closest grams), tagged with the new-line tag and
+   flagged `NEW_LINE_FIELDS` (STOP): the copy inherits a different lane, so the Operator sets or confirms
+   name, Price, Flower equiv, Servings per Unit and Category / Type in the lane cells at the one stop.
+   Grams come from the line, Cost from the invoice. **NEW_CATEGORY** (the brand has no item in that Master
+   category, or the line cannot be placed) and **NEW_BRAND** stay STOPs (R101). Tag names: the tenant's
+   optional `New line tag:` / `Active tag:` pointers, else `--new-line-tag` / `--active-tag`, else the
+   generic defaults in `intake_common.py`.
 3. `intake_exceptions.py --intake <v1> --lines <lines.csv> [--po <po.csv>] --tenant <CLAUDE.md>`:
    R102 `COST_DRIFT` (list unit vs lane Cost, quiet when a discount or credit explains it),
    `DEAL_UNDECIDED` (landed unit <= 0.90 x lane Cost, R62, and no ruled Vendor Deal, Tier or margin
@@ -122,7 +133,7 @@ through connector bodies only.
 4. Send the STOP message (below) and stop.
 
 **`create`** - the only Dutchie write. Operator's login. Only rows with `verdict =
-NEW_ITEM_WITH_SIBLING` and `approved = Y`, in a version written AFTER the Operator's reply.
+NEW_ITEM_WITH_SIBLING` or `NEW_PL`, and `approved = Y`, in a version written AFTER the Operator's reply.
 1. Freeze the baseline first: the Operator exports Active; an export that replaces a file in place is
    copied aside before any write.
 2. Login stop (below). Then per row, ONE write-channel call: open the sibling by ProductId ->
@@ -130,8 +141,9 @@ NEW_ITEM_WITH_SIBLING` and `approved = Y`, in a version written AFTER the Operat
    Confirm -> Strain (modal picker: type, take the exact option, check the type shown under it) and
    Flavor when flagged `FLAVOR_TO_SET` -> Online title and description (replace the strain paragraph
    only) -> images per the KB -> Save.
-3. Read back after a reload: ProductId, SKU, name, Strain, Tags. The item-QC tag (R83) rides the copy;
-   it is READ BACK, never assumed, and added if absent. Check for an inherited location-override row.
+3. Read back after a reload: ProductId, SKU, name, Strain, Tags. The copy inherits its source's tags: set
+   the ONE decision tag the intake row's `tags` cell names (the lane's tag, or the new-line tag on a NEW_PL)
+   and remove the source's; it is READ BACK, never assumed (certify fails `TAG_NOT_READ_BACK` / `TAG_EXTRA`). Check for an inherited location-override row.
 4. Write `new_sku`, `new_productid`, `verified`, `action = CREATED` into a NEW intake version. One
    Status line per item. A failure stops the run: fall down the ladder and record it; never retry blind.
 Platform mechanics: `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Item creation by Copy item".
@@ -144,7 +156,8 @@ existing items instead. The certify report goes to the kickoff's Status; C cells
 
 **`notice`** - `intake_notice.py --intake <vN> --tenant <CLAUDE.md>` fills the tenant's template
 (a copy of `templates/notice.md`). It refuses (DEFECT) while an approved row lacks its read-back
-SKU. A NEW_PL / NEW_BRAND row prints the `Floor sheet:` command; review it, then run it. The Operator
+SKU. A created NEW_PL item is marked on its line for the business's review. A NEW_PL / NEW_CATEGORY /
+NEW_BRAND row prints the `Floor sheet:` command; review it, then run it. The Operator
 adds recipients and sends; this skill sends nothing.
 
 **`receive`** - phase 2, not built. `receive.py` exits 2 and points at the receiving plan in the
@@ -161,8 +174,8 @@ first. The message, printed by `intake_exceptions.py`, has exactly three parts:
 2. **Exceptions table** - `# | Flag | Rule | Row | Detail`, every R102 flag and the R62 read, each
    with its R number. `PO_MISMATCH` reads `n/a` when no PO was given, never zero.
 3. **The approve column** - the Operator fills `approved` (Y / N) in the named intake CSV version and
-   replies. What Y does per verdict is printed with it: only NEW_ITEM_WITH_SIBLING + Y is created;
-   RETIRED_MATCH is an un-retire by hand (R101); NEW_PL / NEW_BRAND / STRAIN_MISSING are never
+   replies. What Y does per verdict is printed with it: only NEW_ITEM_WITH_SIBLING + Y and NEW_PL + Y are
+   created; RETIRED_MATCH is an un-retire by hand (R101); NEW_CATEGORY / NEW_BRAND / STRAIN_MISSING are never
    created by this lane.
 
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.

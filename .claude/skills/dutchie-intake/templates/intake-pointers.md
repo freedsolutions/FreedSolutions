@@ -21,11 +21,13 @@ record that ruled it in the tenant's DECISIONS.
 - PO source: <apex | vendor pdf | none>  # PO_MISMATCH input; `none` makes the flag n/a
 - Watermark: <product_id>                # the go-live watermark of the new-items queue
 - Notice template: <abs path>            # a tenant copy of the skill's templates/notice.md
-- Floor sheet: <command>                 # printed (never run) when a NEW_PL / NEW_BRAND row exists;
+- Floor sheet: <command>                 # printed (never run) when a NEW_PL / NEW_CATEGORY / NEW_BRAND row exists;
                                          # `<intake.csv>` in the command is replaced by the intake path
 - Vendor deal tag: <PKG - tag>           # the ruled one-time vendor cost deal package tag (R62); must
                                          # start `PKG - `; DEAL_UNDECIDED names it in the STOP
 - Export QC / Inventory QC: (the BI Change Pointers lines)
+- New line tag: <ITM - tag>              # OPTIONAL (R83): the tag a NEW_PL create carries; default `ITM - New PL`
+- Active tag: <ITM - tag>                # OPTIONAL (R96): the standard state a mixed lane's copy reads; default `ITM - Active`
 ```
 
 The `Write channel` line in `## BI Change Pointers` is read as an ORDERED LADDER: the first channel
