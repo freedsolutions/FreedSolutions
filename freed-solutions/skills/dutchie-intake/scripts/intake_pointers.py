@@ -28,10 +28,15 @@ REQUIRED_INTAKE = ["Operator", "Mail label", "Drive invoices folder", "Intake di
                    "Standard cost", "Expiry threshold days", "PO source", "Watermark",
                    "Notice template", "Floor sheet", "Vendor deal tag"]
 REQUIRED_BI = ["Backoffice login", "Write channel"]
-PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir"]
+PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir", "Market archive"]
 CHANNELS = ["neo", "playwright", "pane"]
 PO_SOURCES = ["apex", "vendor pdf", "none"]
 OPTIONAL_TAG_KEYS = ["New line tag", "Active tag"]   # R83 / R96; absent = the skill's generic default
+# The MSRP read (intake_msrp.py). Optional here; intake_msrp ABORTs without center, radius and own store.
+OPTIONAL_MARKET_KEYS = ["Market center", "Market radius mi", "Market box", "Market archive", "Own store",
+                        "MSRP anchor", "MSRP floor x cost"]
+MSRP_ANCHORS = ["market", "own lanes"]
+_NUM = r"-?\d+(?:\.\d+)?"
 
 LINE = re.compile(r"^\s*-\s+(?:\*\*)?(?P<key>[^:*`]+?)(?:\*\*)?:(?:\*\*)?\s*(?P<val>.*)$")
 
@@ -117,6 +122,18 @@ def validate(res):
     a, n = res["intake"].get("Active tag"), res["intake"].get("New line tag")
     if a and n and a == n:
         probs.append("`Active tag` and `New line tag` name the same tag (R96 vs R83)")
+    mk = {k: res["intake"].get(k) for k in OPTIONAL_MARKET_KEYS}
+    mk = {k: v for k, v in mk.items() if v is not None and not is_placeholder(v)}
+    if "Market center" in mk and not re.fullmatch(rf"\s*{_NUM}\s*,\s*{_NUM}\s*", mk["Market center"]):
+        probs.append(f"`Market center` must be `lat,lng`, got {mk['Market center']!r}")
+    if "Market radius mi" in mk and not re.fullmatch(r"\d+(?:\.\d+)?", mk["Market radius mi"]):
+        probs.append(f"`Market radius mi` must be a number of miles, got {mk['Market radius mi']!r}")
+    if "Market box" in mk and not re.fullmatch(rf"\s*{_NUM}(?:\s*,\s*{_NUM}){{3}}\s*", mk["Market box"]):
+        probs.append(f"`Market box` must be `south,west,north,east`, got {mk['Market box']!r}")
+    if "MSRP anchor" in mk and mk["MSRP anchor"].strip().lower() not in MSRP_ANCHORS:
+        probs.append(f"`MSRP anchor` must be one of {MSRP_ANCHORS}, got {mk['MSRP anchor']!r}")
+    if "MSRP floor x cost" in mk and not re.fullmatch(r"\d+(?:\.\d+)?", mk["MSRP floor x cost"]):
+        probs.append(f"`MSRP floor x cost` must be a number (2 = keystone), got {mk['MSRP floor x cost']!r}")
     wc = res["bi"].get("Write channel")
     if wc is not None and not is_placeholder(wc) and not ladder(res["raw"].get("bi:Write channel", wc)):
         probs.append(f"`Write channel` names no known channel {CHANNELS}")
@@ -205,6 +222,23 @@ def selftest():
             any("item decision tag" in p for p in validate(parse_text(tg.replace("`ITM - New PL`", "`PKG - New PL`")))))
     t.check("FIRES: one tag named for both keys is refused",
             any("same tag" in p for p in validate(parse_text(tg.replace("`ITM - New PL`", "`ITM - Active`")))))
+    t.check("QUIET: the market keys are optional", "Market center" not in r["intake"] and validate(r) == [])
+    mkt = SAMPLE.replace("## Change log", "- Market center: 42.36,-71.06\n- Market radius mi: 15\n"
+                         "- Market box: 41.4,-72.1,42.9,-69.9\n- Own store: exampleco\n\n## Change log", 1)
+    t.check("the market keys parse and validate", validate(parse_text(mkt)) == [] and
+            parse_text(mkt)["intake"]["Market radius mi"] == "15", str(validate(parse_text(mkt))))
+    t.check("FIRES: a market center that is not lat,lng is refused",
+            any("Market center" in p for p in validate(parse_text(mkt.replace("42.36,-71.06", "downtown")))))
+    t.check("FIRES: a market box short of four numbers is refused",
+            any("Market box" in p for p in validate(parse_text(mkt.replace("41.4,-72.1,42.9,-69.9", "41.4,-72.1")))))
+    t.check("FIRES: a radius that is not a number is refused",
+            any("radius" in p for p in validate(parse_text(mkt.replace("radius mi: 15", "radius mi: fifteen")))))
+    ms = mkt.replace("## Change log", "- MSRP anchor: own lanes\n- MSRP floor x cost: 2\n\n## Change log", 1)
+    t.check("the MSRP anchor and floor parse and validate", validate(parse_text(ms)) == [], str(validate(parse_text(ms))))
+    t.check("FIRES: an unknown MSRP anchor is refused",
+            any("MSRP anchor" in p for p in validate(parse_text(ms.replace("anchor: own lanes", "anchor: vibes")))))
+    t.check("FIRES: a floor that is not a number is refused",
+            any("floor" in p for p in validate(parse_text(ms.replace("cost: 2", "cost: keystone")))))
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()

@@ -32,7 +32,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 | Mode | Script | Login | Output |
 |---|---|---|---|
 | `pull` | session procedure (Gmail + Drive connectors) | connector only | Drive copy, inbox mirror, `manifest.jsonl` |
-| `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` | none | lines CSV, intake v1 + v2, exceptions CSV, STOP message |
+| `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` -> `intake_msrp.py` (new lines only) | none | lines CSV, intake v1 + v2, exceptions CSV, `-msrp-<ts>.md`, STOP message |
 | `create` | `intake_plan.py`, then `gridBatch` + `intake_ui_run.py` (UI rows) in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL, the keyMap |
 | `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
 | `notice` | `intake_notice.py` | none | `-notice-<ts>.md` (a draft; the Operator sends) |
@@ -48,6 +48,7 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 | `scripts/intake_parse.py` + `scripts/parsers/` | invoice -> lines CSV (layout plugins) |
 | `scripts/intake_match.py` | lines -> intake v1 (verdicts, lanes, `unretire_set`) |
 | `scripts/intake_exceptions.py` | R102 flags, R62 read, R103 landed cost; the STOP message |
+| `scripts/intake_msrp.py` | the recommended MSRP per new line (market + own shelf + floor), pending business confirmation |
 | `scripts/intake_plan.py` | approved intake + the freeze -> the R124 plan file (refuses an UNPROVEN channel) |
 | `scripts/intake_certify.py` | `--plan`: the ONE batch certify on the Active + Retired union; single-pair mode for hand writes |
 | `scripts/intake_notice.py` | the new-items notice draft |

@@ -24,3 +24,8 @@ Not a real tenant. Relative paths resolve against this file's folder.
 - Floor sheet: python floor_sheet.py <intake.csv>
 - Vendor deal tag: `PKG - Vendor Deal`
 - Export QC / Inventory QC: (the BI Change Pointers lines)
+- Market center: 42.36,-71.06            # MSRP read: the comparables centre
+- Market radius mi: 15
+- Own store: exampleco                   # dropped from every market read
+- MSRP anchor: own lanes
+- MSRP floor x cost: 2

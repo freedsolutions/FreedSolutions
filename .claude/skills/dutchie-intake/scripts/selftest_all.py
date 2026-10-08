@@ -38,7 +38,8 @@ import intake_pointers as PTR  # noqa: E402
 import receive as RC  # noqa: E402
 
 SCRIPTS = ["intake_pointers.py", "intake_parse.py", "intake_match.py", "intake_exceptions.py",
-           "intake_plan.py", "intake_certify.py", "intake_notice.py", "intake_ui_run.py", "receive.py"]
+           "intake_plan.py", "intake_certify.py", "intake_notice.py", "intake_ui_run.py", "receive.py",
+           "intake_msrp.py"]
 # The batch runner lives in the sibling skill (one allowlist, one refusal set for every lane): its batch
 # cases run here too, so the whole R124 chain - plan, gridBatch, certify - is proven by one command.
 GRID_SELFTEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "dutchie-bi-looker", "scripts",
@@ -782,6 +783,14 @@ def cli_chain():
         step("certify (RED on the one foreign cell)", ["intake_certify.py", "--pre", fx("catalog-active.csv"), "--post",
                                                        fx("certify-post.csv"), "--intake", v3], 1)
         step("notice", ["intake_notice.py", "--intake", v3, "--tenant", fx("tenant-CLAUDE.md")], 0)
+        out = step("msrp (offline: own lanes only, the STOP block printed)",
+                   ["intake_msrp.py", "--intake", v2, "--tenant", fx("tenant-CLAUDE.md"), "--active",
+                    fx("catalog-active.csv"), "--min-rows", "1", "--no-live", "--no-archive", "--out-dir", t], 0)
+        mf = [n for n in os.listdir(t) if "-msrp-" in n and n.endswith(".md")]
+        ok = len(mf) == 1 and "pending business confirmation" in out and "## MSRP" in out
+        print(f"  {'PASS' if ok else 'FAIL'}  the msrp read wrote ONE -msrp-<ts>.md and printed the pending STOP block")
+        if not ok:
+            bad.append("msrp output")
         step("receive stub", ["receive.py"], 2)
         pin = os.path.join(t, "plan-intake-v1.csv")
         shutil.copy(fx("plan-intake.csv"), pin)

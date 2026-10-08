@@ -28,7 +28,17 @@ record that ruled it in the tenant's DECISIONS.
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 - New line tag: <ITM - tag>              # OPTIONAL (R83): the tag a NEW_PL create carries; default `ITM - New PL`
 - Active tag: <ITM - tag>                # OPTIONAL (R96): the standard state a mixed lane's copy reads; default `ITM - Active`
+- Market center: <lat,lng>               # MSRP read (intake_msrp.py): the centre of the comparables set
+- Market radius mi: <n>                  # MSRP read: the comparables radius in miles
+- Market box: <S,W,N,E>                  # OPTIONAL: the live-feed listing box; default = twice the radius
+- Market archive: <abs path>             # OPTIONAL: a dated menu harvest (menu_*.json + dispensaries_*.json)
+- Own store: <token[, token]>            # MSRP read: the tenant's own store(s), dropped before matching
+- MSRP anchor: <market | own lanes>      # OPTIONAL (ruled): which evidence sets the number; default `market`
+- MSRP floor x cost: <n>                 # OPTIONAL (ruled): the number is never below cost x n (2 = keystone)
 ```
+
+The MSRP keys are read only by `intake_msrp.py`; the other runners ignore them. `MSRP anchor` and
+`MSRP floor x cost` are the business's pricing ruling: write the ruled values and name the record.
 
 The `Write channel` line in `## BI Change Pointers` is read as an ORDERED LADDER: the first channel
 named is tried first, the next is the fallback. Example: `neo` -> `playwright` -> `pane`.
