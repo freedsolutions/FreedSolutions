@@ -752,6 +752,11 @@ Type (a MUI Select) and External ID, then Save. House convention fills Name = Ab
   mint + re-bind only when other items must keep the old value. A Type change on a shared record
   re-derives Strain Type on every item bound to it — list the membership before changing it. After any
   re-bind of an item with stock, compare package Strain with item Strain on the Inventory export.
+- **A Strain record CAN be deleted [PROBE 2026-10-08].** On the Strains LIST, the row's `...` button at the far right
+  > Delete > "Are you sure?" Confirm. The record form has only Save and the list's Actions menu has only Export and
+  Print, so the control is easy to miss. Proven on two records with 0 items, each read back absent after a full reload.
+  NOT tested on a record with items bound to it - list the membership first and re-bind before deleting. The app's
+  endpoint constant is `DELETE_STRAIN = api/strain/update-strains-deleted` (body not captured).
 
 ### Clearing an attribute through the grid
 
