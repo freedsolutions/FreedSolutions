@@ -282,7 +282,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 
 After ANY edit here run both, and both must pass:
-- `python scripts/selftest_all.py` - every script's `--selftest`, then 65 fixture checks on
+- `python scripts/selftest_all.py` - every script's `--selftest`, then 68 fixture checks on
   `fixtures/`, each proven to FAIL on a named breaker (a check that stays green on its breaker is
   reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.
