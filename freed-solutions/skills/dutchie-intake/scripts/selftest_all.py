@@ -309,6 +309,16 @@ def new_line_created(rows):
     return rows
 
 
+def new_lines_created(rows, approved="Y"):
+    """Every NEW_PL / NEW_BRAND row approved and created (final name + read-back ids); approved="N" leaves the
+    rows in the file un-created, which is what the notice's new-line paragraph must never name."""
+    for i, r in enumerate(rows):
+        if r["verdict"] in ("NEW_PL", "NEW_BRAND"):
+            r.update(approved=approved, create_name_FINAL=r.get("create_name_FINAL") or f"Brand {i} | Cart | Body {i} | 1g",
+                     new_sku=f"20{i:02d}" if approved == "Y" else "", new_productid=f"60{i:02d}" if approved == "Y" else "")
+    return rows
+
+
 BIRCH_1G = dict(BASE["active"][3], SKU="2101", ProductId="611", Product="Birch Labs | Distillate Cart | Blue Dream | 1g",
                 Strain="Blue Dream", Tags="ITM - Discontinue", **{"Product grams": "1g", "Image URL": "img-birch.jpg"})
 BIRCH_1G_B = dict(BIRCH_1G, SKU="2102", ProductId="612", Product="Birch Labs | Distillate Cart | OG Kush | 1g", Strain="OG Kush",
@@ -636,9 +646,26 @@ CHECKS = [
      ["1002"], ["2001"], "declare the wrong row"),
     ("notice lists the created SKU", lambda rows: "- Acme Farms | Pre-Roll | Gelato | 1g - SKU 1004" in notice_text(rows)[0],
      approved_intake(ctx()), [dict(r, new_sku="") for r in approved_intake(ctx())], "blank the read-back SKU"),
-    ("notice: NEW_PL + NEW_BRAND keep the new-line bullet", lambda rows: len(notice_text(rows)[2]) == 2,
-     approved_intake(ctx()), [r for r in approved_intake(ctx()) if r["verdict"] not in ("NEW_PL", "NEW_BRAND")],
-     "drop the new-line rows"),
+    ("notice: created NEW_PL + NEW_BRAND items keep the new-line bullet", lambda rows: len(notice_text(rows)[2]) == 2,
+     new_lines_created(approved_intake(ctx())), new_lines_created(approved_intake(ctx()), approved="N"),
+     "set approved = N on the new-line rows (not created)"),
+    ("notice: the new-line paragraph names a created item by its final name, never an invoice line (2026-10-08)",
+     lambda rows: (lambda tx: "New line: " in tx
+                   and all(r["create_name_FINAL"] in tx for r in rows if r["verdict"] in ("NEW_PL", "NEW_BRAND"))
+                   and not any(r["invoice_line"] in tx for r in rows if r["verdict"] in ("NEW_PL", "NEW_BRAND")))(notice_text(rows)[0]),
+     new_lines_created(approved_intake(ctx())), new_lines_created(approved_intake(ctx()), approved="N"),
+     "set approved = N on the new-line rows (an un-created row is not a new line)"),
+    ("notice: a created item with no image needs a hand (2026-10-08)",
+     lambda rows: "Product image:" in notice_text(rows)[0] and "- Nothing." not in notice_text(rows)[0],
+     [dict(r, image_state="deleted (source art)") for r in approved_intake(ctx())],
+     [dict(r, image_state="deleted (source art)", image_source="https://example.test/art.jpg") for r in approved_intake(ctx())],
+     "record a sourced image (image_source = the page URL)"),
+    ("notice: image_source `not found:` prints where the lane looked",
+     lambda rows: "We looked at the brand site and two Dutchie menus and found none" in notice_text(rows)[0],
+     [dict(r, image_state="deleted (source art)", image_source="not found: the brand site and two Dutchie menus")
+      for r in approved_intake(ctx())],
+     [dict(r, image_state="deleted (source art)", image_source="not attempted: no browser") for r in approved_intake(ctx())],
+     "sourcing not attempted (the item fires with that reason instead)"),
     ("receive with no mode exits 2", lambda a: quiet(RC.main, a) == 2, [], ["--selftest"], "call the selftest path instead"),
     ("EXISTS + FORM_UNREAD: the line omits the form word the catalog carries (edition in a later segment)",
      form_unread_exists, fu_ctx(), fu_ctx(second=True), "add a second brand + body + grams candidate"),
@@ -830,11 +857,12 @@ def cli_chain():
         v1 = next(os.path.join(t, n) for n in os.listdir(t) if n.endswith("-v1.csv"))
         with open(v1, encoding="utf-8") as f:
             hdr = next(csv.reader(f))
-        if hdr != IM.INTAKE_COLS or len(hdr) != 55 or hdr[-3:] != ["parse_source", "package_id", "unretire_set"] or hdr[:54] != IM.V3_COLS:
-            bad.append("v4 header")
-            print(f"  FAIL  intake CSV header is not the 55-column v4 ({len(hdr)} columns)")
+        if (hdr != IM.INTAKE_COLS or len(hdr) != 56 or hdr[-4:] != ["parse_source", "package_id", "unretire_set", "image_source"]
+                or hdr[:54] != IM.V3_COLS):
+            bad.append("v5 header")
+            print(f"  FAIL  intake CSV header is not the 56-column v5 ({len(hdr)} columns)")
         else:
-            print("  PASS  intake CSV header is the 55-column v4 (the 54 v3 columns in place + unretire_set)")
+            print("  PASS  intake CSV header is the 56-column v5 (the 54 v3 columns in place + unretire_set + image_source)")
         with open(lines, encoding="utf-8") as f:
             lhdr = next(csv.reader(f))
         ok = lhdr == IP.OUT_COLS and "package_id" in lhdr

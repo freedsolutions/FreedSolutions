@@ -23,7 +23,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
           row, intake_ui_rows.js in the page; record -> progress + keyMap) ──▶ -plan-vN-progress-<ts>.jsonl
               │   order = MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK
               ├──post pull (Active + Retired) ──intake_certify --plan ──▶ -certify-<ts>.md (ONE certify, A / B / C)
-              └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command on NEW_PL / NEW_CATEGORY / NEW_BRAND)
+              └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command when a NEW_PL / NEW_BRAND item was created)
                                                      receive --prep ──▶ <slug>-receipt-prep-<date>-vN.csv + -questions.md (one row per Metrc package)
 ```
 
@@ -79,7 +79,8 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
   copies the brand's nearest item in the Master category, else the CLOSEST item by subcategory, any brand
   (`CROSS_BRAND_COPY`, residue proven gone by certify); `NEW_BRAND` is a create (the Brand record first);
   `NEW_CATEGORY` fires only when the Category is absent from the Categories export. Directions: `--line-brand`,
-  `--line-category`, `--strain-type <line_no>=<Type>@<source>`. The intake CSV is v4 (55 columns).
+  `--line-category`, `--strain-type <line_no>=<Type>@<source>`. The intake CSV is v5 (56 columns; v5 adds
+  `image_source`, the create step's image-sourcing record that the notice reads).
 
 ## Plug in a tenant
 
