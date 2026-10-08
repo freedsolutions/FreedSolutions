@@ -33,8 +33,11 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     `tier <n>` -> `PKG - Tier <n>` (R84, R72). An unmarked price <= SAMPLE_MAX, or an unmarked price below catalog Cost,
     is a STOP question; its proposed default is the deal tag on a tiered master category (flower / pre-roll), else a
     catalog cost change (no tag). A price above catalog Cost is a STOP: the catalog keeps the highest cost.
-  * strip (R47): every `ITM - ` tag the item carries, except the new-line tag; a new-line item flips to the active tag
-    after the receipt (R126, a note, never a write here).
+  * strip (R47): every `ITM - ` tag the item carries, except the new-line tag on a SELLABLE package. A sample or display
+    package (the sample / display tag) strips the new-line tag too: it never carries it (R47, R83).
+  * flip (R83, R126): a new-line item flips to the active tag after the receipt only when the receipt holds at least one
+    SELLABLE package of that item; a sample-only receipt flips nothing and the sheet says "no flip - sample-only
+    receipt" (a note, never a write here).
   * credit (R126): entered once in the receipt header; Dutchie blends it EQUALLY across the receipt's packages. The
     sheet prints that blend per package (and the R103 extended-cost landed unit for reference).
   * manifest (R126): per line, sum of ship $ == invoice ext, else DEFECT; sum of qty == invoice qty, else STOP unless
@@ -96,7 +99,8 @@ PREP_COLS = ["row", "line", "invoice_item", "dutchie_productid", "dutchie_sku", 
              "unit_cost_invoice", "ext_cost", "landed_unit_cost", "blended_unit_cost", "catalog_cost",
              "on_hand_pkg_costs", "physical_count", "qty_match", "metrc_package_id", "metrc_item", "manifest_qty",
              "manifest_ship_cost", "map_basis", "expiry", "receive_room", "pkg_tags_to_apply", "tag_rule",
-             "itm_tags_to_strip", "item_tag_flip", "on_hand_snapshot", "vendor_batch", "flags"]
+             "itm_tags_to_strip", "new_line_tag_on_package", "item_tag_flip", "on_hand_snapshot", "vendor_batch",
+             "flags"]
 STOPWORDS = {"mg", "g", "ct", "10ct", "100mg", "gummies", "gummy", "the", "and", "pk", "pack", "x", "1g", "thc", "cbd"}
 
 
@@ -215,6 +219,7 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     base = sum(num(ln.get("ext_cost")) or 0 for ln in prod)
 
     rows = []
+    new_line_items = {}   # item key -> True once a SELLABLE package of a new-line item is on this receipt (R83 R126)
     for ln in sorted(prod, key=lambda x: sort_key(x["line_no"])):
         no, desc = ln["line_no"], ln.get("description", "")
         units, unit, ext = num(ln.get("units_total")) or 0, num(ln.get("unit_cost")), num(ln.get("ext_cost")) or 0
@@ -271,8 +276,13 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             lflag("CATALOG_COST_RAISE", f"unit {unit:.2f} > catalog Cost {cost:g}: the catalog keeps the highest cost")
         if not pid:
             lflag("ITEM_PENDING", "no Dutchie ProductId for this line (create first, or --item)")
-        strip = sorted(t for t in tags if t.startswith(ITEM_PREFIX) and t != new_line_tag)
-        flip = f"{new_line_tag} -> {active_tag} after the receipt (R126)" if new_line_tag in tags else ""
+        sample_pkg = pkg_tag in (sample_tag, display_tag)   # a sample or display package is never sellable stock
+        strip = sorted(t for t in tags if t.startswith(ITEM_PREFIX) and (t != new_line_tag or sample_pkg))
+        new_line = new_line_tag in tags
+        item_key = pid or f"line {no}"
+        if new_line:
+            new_line_items[item_key] = new_line_items.get(item_key, False) or not sample_pkg
+        on_pkg = "" if not new_line else (f"no - {pkg_tag} package (R47)" if sample_pkg else "yes (R47 R83)")
         snap, pk_costs = on_hand(inventory, cat.get("SKU", ""))
         if not pid:
             snap = "new item"
@@ -281,8 +291,8 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                   "unit_cost_invoice": fmt_money(unit), "catalog_cost": "" if cost is None else f"{cost:g}",
                   "landed_unit_cost": "" if landed_r103 is None else f"{landed_r103:.4f}", "on_hand_pkg_costs": pk_costs,
                   "receive_room": RECEIVE_ROOM, "pkg_tags_to_apply": pkg_tag or "none", "tag_rule": rule,
-                  "itm_tags_to_strip": "; ".join(strip) or "none", "item_tag_flip": flip, "on_hand_snapshot": snap,
-                  "expiry": ln.get("expiry_date", "")}
+                  "itm_tags_to_strip": "; ".join(strip) or "none", "new_line_tag_on_package": on_pkg,
+                  "on_hand_snapshot": snap, "expiry": ln.get("expiry_date", ""), "_item": item_key if new_line else ""}
 
         # manifest tie (R126)
         pks = pk_by_line.get(no, [])
@@ -351,6 +361,13 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                     add("CREDIT_TRIPS_R62", rid, no, f"blended unit {blend:.4f} <= {R62_RATIO:.2f} x catalog Cost {cost:g} and no `{PKG_PREFIX}` tag")
             r["flags"] = ";".join(dict.fromkeys(rflags))
             rows.append(r)
+    # the flip (R83 R126) is per ITEM and needs the whole receipt: one sellable package of the item flips it
+    flips = {}
+    for k, sellable in new_line_items.items():
+        flips[k] = (f"{new_line_tag} -> {active_tag} after the receipt (R126)" if sellable
+                    else f"no flip - sample-only receipt; the item stays {new_line_tag} (R83 R126)")
+    for r in rows:
+        r["item_tag_flip"] = flips.get(r.pop("_item"), "")
     for ln in order:
         rows.append({"row": ln["line_no"], "line": ln["line_no"], "invoice_item": ln.get("description", ""),
                      "ext_cost": fmt_money(num(ln.get("ext_cost"))), "receive_room": "",
@@ -359,7 +376,9 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     if base <= 0 and abs(o_all) >= 0.005:
         add("LANDED_UNRECONCILED", "", "", f"order-level lines total {o_all:+.2f} but no product line carries ext_cost")
     summary = {"packages": len(mapped), "product_lines": len(prod), "order_level": o_all, "share": share,
-               "manifest": manifest is not None, "product_ext": base}
+               "manifest": manifest is not None, "product_ext": base, "new_line_tag": new_line_tag,
+               "new_line_packages": sum(1 for r in rows if r.get("new_line_tag_on_package", "").startswith("yes")),
+               "flips": dict(sorted(flips.items()))}
     return rows, exc, summary
 
 
@@ -370,6 +389,10 @@ def questions(exc, summary, stem):
            + ("" if summary["manifest"] else " (no Metrc manifest yet: package ids blank; re-run when it is read)")
            + f" · order-level {summary['order_level']:+.2f}", "",
            "Nothing is entered in Dutchie until every row below is settled. A DEFECT means the receipt is not entered.", ""]
+    if summary.get("flips"):
+        out += [f"New-line items (R83 R126): packages carrying `{summary['new_line_tag']}` "
+                f"{summary['new_line_packages']} (sellable packages only; R47)."]
+        out += [f"- item {k}: {v}" for k, v in summary["flips"].items()] + [""]
     if not stops:
         return "\n".join(out + ["No STOP and no DEFECT. The sheet is ready for the receiver's physical count.", ""])
     out += ["| # | Flag | Class | Rule | Row / line | Detail | Question |", "|---|---|---|---|---|---|---|"]
@@ -603,6 +626,48 @@ def selftest():
         l[3]["ext_cost"], m[4]["ship_cost"], l[3]["unit_cost"] = "100.00", "100.00", "20.00"
         l[3]["description"] = "Acme Mint Vape 1g"
     fires("CREDIT_TRIPS_R62", "2", credit_r62, "a credit pushing an untagged package to <= 0.90 x Cost")
+
+    # R47 R83 R126: `ITM - New PL` rides only SELLABLE packages; the item flips only on a sellable package of it
+    def nl(res, row):
+        return next(x for x in res[0] if x["row"] == row)
+
+    def pair(label, pred, good, broken, how):
+        g, b = pred(_run(*good[:5], programs=good[5])), pred(_run(*broken[:5], programs=broken[5]))
+        t.check(f"{label} [breaker: {how}]", g and not b, f"clean={g} broken={b}")
+
+    def ctx(drop_lines=(), drop_pkgs=(), programs=None):
+        c, i, l, m, it = copy.deepcopy((cat, inv, lines, man, items))
+        return (c, i, [x for x in l if x["line_no"] not in drop_lines], [p for p in m if p["package_id"] not in drop_pkgs],
+                it, programs)
+
+    def mixed_ok(res):
+        r3, r4 = nl(res, "3"), nl(res, "4")
+        return ("ITM - Active after the receipt" in r3["item_tag_flip"] and r4["item_tag_flip"] == r3["item_tag_flip"]
+                and r3["new_line_tag_on_package"].startswith("yes") and r4["new_line_tag_on_package"].startswith("no")
+                and "ITM - New PL" in r4["itm_tags_to_strip"] and "ITM - New PL" not in r3["itm_tags_to_strip"]
+                and res[2]["new_line_packages"] == 1)
+    pair("MIXED receipt: the item flips; the sample package strips `ITM - New PL`, the sellable package keeps it",
+         mixed_ok, ctx(), ctx(programs={"3": "sample"}), "the paid package is stated a sample too")
+
+    def sample_only_ok(res):
+        r4 = nl(res, "4")
+        return (r4["item_tag_flip"].startswith("no flip - sample-only receipt") and res[2]["new_line_packages"] == 0
+                and "ITM - New PL" in r4["itm_tags_to_strip"] and r4["new_line_tag_on_package"].startswith("no")
+                and res[2]["flips"] == {"13": r4["item_tag_flip"]})
+    pair("SAMPLE-ONLY new line: no flip, 0 packages carry `ITM - New PL`", sample_only_ok,
+         ctx(("3",), ("PKG-D",)), ctx(("3",), ("PKG-D",), {"4": "none"}), "the sample line is stated sellable (`none`)")
+    pair("DISPLAY-ONLY new line: no flip, 0 packages carry `ITM - New PL`", sample_only_ok,
+         ctx(("3",), ("PKG-D",), {"4": "display"}), ctx(("3",), ("PKG-D",), {"4": "deal"}), "the line is stated a deal")
+
+    def sellable_only_ok(res):
+        r3 = nl(res, "3")
+        return ("ITM - Active after the receipt" in r3["item_tag_flip"] and r3["itm_tags_to_strip"] == "ITM - Protect"
+                and res[2]["new_line_packages"] == 1)
+    pair("SELLABLE-ONLY receipt: flips as before; the package keeps `ITM - New PL`", sellable_only_ok,
+         ctx(("4",), ("PKG-E",)), ctx(("4",), ("PKG-E",), {"3": "sample"}), "the only package is stated a sample")
+    qtext = questions(base[1], base[2], "x")
+    t.check("the questions file prints the new-line flip and the package count",
+            "packages carrying `ITM - New PL` 1" in qtext and "item 13: ITM - New PL -> ITM - Active" in qtext)
 
     t.check("stub paths still refuse with exit 2",
             all(main([m]) == EXIT_ABORT for m in ("--enter", "--check", "--vendor")) and main([]) == EXIT_ABORT)

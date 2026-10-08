@@ -710,7 +710,8 @@ RC_ITEMS = {"1": "11", "2": "12", "3": "13", "4": "13"}
 
 def rc_prep(c):
     """receive --prep on a receive fixture context -> (rows by row id, [(flag, class, line)])."""
-    rows, exc, _ = RC.prep(c["lines"], c["catalog"], c["inventory"], None, c["manifest"], RC_ITEMS, None, "PKG - Vendor Deal")
+    rows, exc, _ = RC.prep(c["lines"], c["catalog"], c["inventory"], None, c["manifest"], RC_ITEMS, c.get("programs"),
+                           "PKG - Vendor Deal")
     return {r["row"]: r for r in rows}, [(e["flag"], e["class"], e["line"]) for e in exc]
 
 
@@ -726,6 +727,21 @@ def rc_drop(kind, pred):
     c = copy.deepcopy(RCX)
     c[kind] = [r for r in c[kind] if not pred(r)]
     return c
+
+
+def rc_only(line, pkg, programs=None):
+    """The fixture receipt with one new-line row and its package removed (+ stated dispositions)."""
+    c = copy.deepcopy(RCX)
+    c["lines"] = [r for r in c["lines"] if r["line_no"] != line]
+    c["manifest"] = [r for r in c["manifest"] if r["package_id"] != pkg]
+    c["programs"] = programs
+    return c
+
+
+def rc_new_pl(rw):
+    """(rows keeping `ITM - New PL`, the flip text of item 13's rows) - R47 R83 R126."""
+    nl = [r for r in rw.values() if r.get("new_line_tag_on_package", "").startswith("yes")]
+    return len(nl), {r["item_tag_flip"] for r in rw.values() if r.get("dutchie_productid") == "13"}
 
 
 RECEIVE_CHECKS = [
@@ -749,6 +765,19 @@ RECEIVE_CHECKS = [
      lambda c: (lambda rw: rw.get("90", {}).get("flags", "").startswith("ORDER-LEVEL CREDIT")
                 and rw["2"]["blended_unit_cost"] == f"{(500 - 10 / 5) / 100:.4f}")(rc_prep(c)[0]),
      RCX, rc_drop("lines", lambda r: r["line_no"] == "90"), "drop the credit line"),
+    ("receive --prep: SAMPLE-ONLY new line - no flip, 0 packages carry `ITM - New PL` (R47 R83 R126)",
+     lambda c: (lambda n, f: n == 0 and len(f) == 1 and next(iter(f)).startswith("no flip - sample-only receipt"))(
+         *rc_new_pl(rc_prep(c)[0])),
+     rc_only("3", "PKG-D"), rc_only("3", "PKG-D", {"4": "none"}), "the sample line is stated sellable"),
+    ("receive --prep: MIXED receipt - the item flips; only the sellable package keeps `ITM - New PL` (R47 R83 R126)",
+     lambda c: (lambda rw: rc_new_pl(rw)[0] == 1 and rw["3"]["new_line_tag_on_package"].startswith("yes")
+                and "ITM - New PL" in rw["4"]["itm_tags_to_strip"]
+                and rc_new_pl(rw)[1] == {"ITM - New PL -> ITM - Active after the receipt (R126)"})(rc_prep(c)[0]),
+     RCX, dict(copy.deepcopy(RCX), programs={"3": "sample"}), "the paid package is stated a sample too"),
+    ("receive --prep: SELLABLE-ONLY receipt - flips as before; the package keeps `ITM - New PL` (R83 R126)",
+     lambda c: (lambda n, f: n == 1 and f == {"ITM - New PL -> ITM - Active after the receipt (R126)"})(
+         *rc_new_pl(rc_prep(c)[0])),
+     rc_only("4", "PKG-E"), rc_only("4", "PKG-E", {"3": "display"}), "the only package is stated a display"),
 ]
 
 

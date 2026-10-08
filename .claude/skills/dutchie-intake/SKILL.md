@@ -319,7 +319,11 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      sample inside its paid package is `SAMPLE_MERGED` (STOP).
 4. Send the `-questions.md` it writes to the Operator BEFORE the delivery is received; every STOP is a question there.
    The receiver types `physical_count`, `qty_match` and `expiry_typed` on the sheet. After the receipt, a new line's
-   items flip from the new-line tag to the active tag in one bulk update (the `item_tag_flip` column; R126).
+   items flip from the new-line tag to the active tag in one bulk update (the `item_tag_flip` column; R126) - but
+   only an item with at least one SELLABLE package on this receipt. A sample or display package (the sample /
+   display tag) never carries the new-line tag: it strips with every other `ITM - ` tag (R47), so the
+   `new_line_tag_on_package` column reads `no`. A sample-only receipt flips nothing; the column reads
+   `no flip - sample-only receipt` and the item keeps the new-line tag until sellable stock arrives (R83).
 The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt Detail package tag).
 
 ## The ONE human stop (pre-create)
@@ -410,7 +414,7 @@ The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_wr
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 88 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 91 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.
