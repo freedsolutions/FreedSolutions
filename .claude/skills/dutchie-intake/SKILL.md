@@ -17,7 +17,7 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 
 ```
 /dutchie-intake pull                                  mail label -> Drive + inbox/manifest.jsonl
-/dutchie-intake intake <invoice.pdf | lines.csv>      parse -> match -> exceptions -> the ONE STOP
+/dutchie-intake intake <invoice.pdf | lines.csv>      parse -> match -> exceptions -> MSRP read -> the ONE STOP
 /dutchie-intake create <intake-vN.csv>                freeze -> ONE plan file -> approval -> ONE paced batch (R124)
 /dutchie-intake certify --plan <plan.csv> <pre-active> <pre-retired> <post-active> <post-retired>
 /dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
@@ -59,6 +59,7 @@ the second is the `bi-change` block the tenant already has.
 - Watermark: <product_id>          - Notice template: <abs path>     - Floor sheet: <command>
 - Vendor deal tag: <PKG - tag>
 - Export QC / Inventory QC: (the BI Change Pointers lines)
+- Market center / Market radius mi / Own store (+ optional Market box, Market archive, MSRP anchor, MSRP floor x cost)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
@@ -71,7 +72,8 @@ The Operator's name comes from `Operator:`, never from this file.
 ```
 mail label --pull--> Drive <Client>/Invoices/<Vendor>/<YYYY>/ + <Intake dir>/inbox/ + manifest.jsonl
 invoice.pdf --intake_parse--> lines.csv --intake_match--> intake-v1.csv --intake_exceptions--> intake-v2.csv
-   + -exceptions-<ts>.csv + the STOP message  ==> Operator fills `approved`, resolves every STOP flag
+   + -exceptions-<ts>.csv --intake_msrp--> -msrp-<ts>.md (new lines only)
+   + the STOP message (MSRP pending business confirmation)  ==> Operator fills `approved`, resolves every STOP flag
    --lane pulls the pre-batch freeze (Active, Retired, Strains, Categories, Brands; export_refresh --apply)
    --intake_plan--> <stem>-plan-vN.csv + plan summary  ==> Operator approves the plan (the ONE STOP)
    --create (write channel, Operator's login): gridBatch + UI steps, paced--> -plan-vN-progress-<ts>.jsonl
@@ -181,7 +183,26 @@ through connector bodies only.
    program - PO `program` column or `--program <line>=<program>` - whether or not a discount line is
    printed; may co-fire with `COST_DRIFT`), `EXPIRY_NEAR`, `PO_MISMATCH`; the R62 INFO read
    `PKG_TAG_DUE`; R103 `landed_unit_cost`. Writes `-v2` + `-exceptions-<ts>.csv`, prints the STOP.
-4. Send the STOP message (below) and stop.
+4. **MSRP read (R125)** - a standard step whenever v2 carries a new line (NEW_PL, NEW_BRAND, NEW_CATEGORY, a
+   `NEW_LINE_FIELDS` or `CROSS_BRAND_COPY` row, or a STRAIN_MISSING row whose reason names a new line):
+   `intake_msrp.py --intake <v2> --tenant <CLAUDE.md> [--cost <line_no|*>=<catalog cost>]`. Read-only, no
+   login. One recommendation per product line (brand + form + size + process words), from two families of
+   evidence: the MARKET (the same product at every store that lists it, median within each store then across
+   stores; else the comparables - same form, size and process words, other brands - inside the tenant's
+   radius) and the OWN SHELF (the tenant's active lanes of the same form and size: the lanes at the line's
+   cost, else interpolated between the nearest cost groups). The tenant's `MSRP anchor:` says which family
+   sets the number; the other is printed beside it as the sanity check. `MSRP floor x cost:` is a floor
+   (2 = keystone). The nearest $5 price point, never under the floor. Cost: the catalog Cost the business will
+   set (`--cost`, when the invoice price is a case deal), else the landed unit cost - never `lane_Cost`, which
+   on a new line is the copy source's. Sources: the live public listing feed (cached per day under
+   `<Intake dir>/market/`) and the dated `Market archive:`; dutchie.com scripted reads hit a Cloudflare
+   challenge since 2026-09-23 - read the archive only, never work around the challenge. The tenant's own
+   store (`Own store:`) is dropped BEFORE matching and the report asserts zero own-store rows (else DEFECT).
+   Writes a NEW `<v2 stem>-msrp-<ts>.md` (per line: same-product table, comparables, own lanes, evidence
+   counts, flags) and prints the STOP block. It writes no Price: the Operator sets the confirmed number in the
+   lane cells at the stop (the confirmed number is the lane Price, R50). R125 states the rule; the $5 points,
+   the radius and the 20 % `MSRP_SPREAD` are this script's parameters.
+5. Send the STOP message (below), with the MSRP block, and stop.
 
 **`create`** - the only Dutchie write, run as ONE batch from ONE approved plan file (R124). Operator's login.
 Rows: `approved = Y` creates (`NEW_ITEM_WITH_SIBLING`, `NEW_PL`, `NEW_BRAND`) and un-retires (`RETIRED_MATCH`,
@@ -272,7 +293,8 @@ The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt D
 ## The ONE human stop (pre-create)
 
 Nothing is created before the Operator's reply. Everything that needs no ruling and no login runs
-first. The message, printed by `intake_exceptions.py`, has exactly three parts:
+first. The message has three parts printed by `intake_exceptions.py`, plus a fourth printed by
+`intake_msrp.py` whenever the intake carries a new line:
 
 1. **Verdict table** - `# | Invoice line | Verdict | Sibling / match | Final name | Landed unit |
    Flags | approved`, one row per product line, plus the verdict counts.
@@ -282,6 +304,12 @@ first. The message, printed by `intake_exceptions.py`, has exactly three parts:
    replies. What Y does per verdict is printed with it: NEW_ITEM_WITH_SIBLING, NEW_PL and NEW_BRAND + Y are
    created (a NEW_BRAND after its Brand record); RETIRED_MATCH + Y un-retires the whole line (R101);
    NEW_CATEGORY and STRAIN_MISSING are never created by this lane.
+4. **MSRP - pending business confirmation (R125)** - `# | Line | Rows | Unit cost | MSRP | Margin | Basis |
+   Evidence (same / comps / lanes) | Flags`, one row per new line, each number marked *pending business
+   confirmation*. The Operator confirms it with the business (or replaces it) and writes the confirmed Price
+   into the lane cells (`NEW_LINE_FIELDS`). The flags are INFO: `MSRP_THIN`, `MSRP_SPREAD` (the number is
+   more than 20 % from a market read that did not set it), `MSRP_FLOOR_RAISED`, `MSRP_MARGIN_LOW`,
+   `MSRP_ARCHIVE_ONLY`, `MSRP_NO_EVIDENCE` (price it by hand with the business).
 
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
 Under R124 the plan summary (`intake_plan.py`) rides this stop: the Operator's approval of the plan
@@ -320,7 +348,9 @@ are ruled) · `feedback_name_substring_match_is_not_evidence` · `feedback_batch
 · `feedback_handoff_expectations_go_stale` · the delivered-review-files memory (regenerate to new versions) ·
 `feedback_generator_out_paths_clobber` · `reference_dutchie_export_grams_string` ·
 `feedback_python_windows_cp1252_default` · `feedback_vendor_asks_surface_in_thread` ·
-`feedback_bi_change_gate_inert_check` · `feedback_no_client_info_in_skills`.
+`feedback_bi_change_gate_inert_check` · `feedback_no_client_info_in_skills` ·
+`reference_weedmaps_menu_feed_benchmark` · `reference_dutchie_public_menu_feed` ·
+`feedback_exclude_own_store_from_market_sweep`.
 KB: "Item creation by Copy item" (name set in the modal, ecom template, images, chaining copies).
 
 ## Lane contract
@@ -341,7 +371,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 ## Scripts and proofs
 
 `scripts/`: `intake_pointers.py` · `intake_parse.py` (+ `parsers/`) · `intake_match.py` ·
-`intake_exceptions.py` · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
+`intake_exceptions.py` · `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (stub) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_write.js`.
