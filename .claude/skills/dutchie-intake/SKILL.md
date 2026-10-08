@@ -113,7 +113,13 @@ through connector bodies only.
    When brand + body + grams hit exactly ONE active item and only the Form test fails (the line names
    no form word at all), the verdict is EXISTS with the STOP-class flag `FORM_UNREAD` (R101): the
    Operator confirms the match. Two or more candidates, or a line that names a form word, stays
-   NEW_PL (or NEW_CATEGORY). No vendor word goes into the generic form-synonym table. The intake CSV v3 has 54 columns;
+   NEW_PL (or NEW_CATEGORY). No vendor word goes into the generic form-synonym table.
+   **Flavor-led lines.** A line segment that leads with a strain-type letter, `(S|I|H) <Flavor> <Form>[ <ratio>]`,
+   is read by layout: it matches a body `<Flavor>[ <Effect word>] (<Strain type or ratio>)` on the same
+   flavor and, when the line prints a ratio, the same ratio with cannabinoid order unordered and case
+   ignored (`1:1 CBD:THC` == `1:1 THC:CBD`); with no ratio, the letter must name the body's type. The
+   unordered read is for MATCHING only: a create takes the brand's one Strain record with that ratio and
+   keeps the catalog's spelling (R26), never the invoice's order. The intake CSV v3 has 54 columns;
    the last two are `parse_source` and `package_id`.
    **Tags (R96, R83).** A sibling copy carries its lane's decision tag: the ONE item-namespace tag every
    active member carries; a mixed lane reads the Active tag; `--tag-override <line_no>=<tag>` (or `*=`) is

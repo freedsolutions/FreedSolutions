@@ -305,6 +305,54 @@ def gelato_is(c, **kv):
     return all(r.get(k) == v for k, v in kv.items())
 
 
+FL = {"active": rows_of("flavor-led-active.csv"), "lines": rows_of("flavor-led-lines.csv"),
+      "strains": IM.load_strains(fx("flavor-led-strains.csv"))}
+FL_EXISTS = {"1": "4001", "2": "4002", "3": "4004", "4": "4005", "5": "4006", "6": "4007"}
+FL_CREATE = "Acme Farms | Gummies | Mango Restore (1:1 THC:CBD) | 10mg x 10pk"
+
+
+def fl_ctx(reader=True, **over):
+    """Flavor-led fixture: lines `<Brand> | (<S|I|H>) <Flavor> <Form>[ <ratio>] | ...` against bodies
+    `<Flavor>[ <Effect>] (<Strain type or ratio>)`. reader=False runs the matcher without the layout
+    reader (the pre-fix matcher)."""
+    c = copy.deepcopy(FL)
+    c.update(reader=reader, **over)
+    return c
+
+
+def fl_rows(c):
+    real = IM.flavor_led
+    if not c["reader"]:
+        IM.flavor_led = lambda *a: None
+    try:
+        rows = IM.match(c["lines"], BASE["active"] + c["active"], [], c["strains"], drop_tags=DROP)[0]
+    finally:
+        IM.flavor_led = real
+    return {ln["line_no"]: r for ln, r in zip(c["lines"], rows)}
+
+
+def fl_body(c, sku, body):
+    r = next(x for x in c["active"] if x["SKU"] == sku)
+    r["Product"] = " | ".join(C.segs(r["Product"])[:2] + [body] + C.segs(r["Product"])[3:])
+    return c
+
+
+def fl_line(c, no, desc):
+    next(x for x in c["lines"] if x["line_no"] == no)["description"] = desc
+    return c
+
+
+def fl_exists(c, nos=tuple(FL_EXISTS)):
+    rows = fl_rows(c)
+    return all(rows[n]["verdict"] == "EXISTS" and rows[n]["copy_source_sku"] == FL_EXISTS[n] for n in nos)
+
+
+def fl_create_keeps_canon(c):
+    r = fl_rows(c)["7"]
+    return (r["verdict"] == "NEW_ITEM_WITH_SIBLING" and r["create_name_FINAL"] == FL_CREATE
+            and r["strain"] == "Restore (1:1 THC:CBD)" and "CBD:THC" not in r["create_name_FINAL"] + r["online_title"])
+
+
 # (name, predicate(ctx-or-arg) , clean arg, broken arg, what the breaker does)
 CHECKS = [
     ("pointer contract complete", lambda t: PTR.validate(PTR.parse_text(t)) == [],
@@ -430,6 +478,19 @@ CHECKS = [
      fu_ctx(), fu_ctx(second=True), "add a second candidate (the row reads NEW_PL, flag absent)"),
     ("package_id rides parse -> lines -> intake row (tiered layout)", package_id_rides,
      tiered_lines(), tiered_lines(drop_pkg=True), "drop package_id from the lines (a pre-column lines CSV)"),
+    ("flavor-led: every `(S|I|H) <Flavor> <Form> [ratio]` reorder EXISTS on its one item (strain letter, flavor, ratio read by layout)",
+     lambda c: fl_exists(c) and fl_rows(c)["7"]["verdict"] != "EXISTS",
+     fl_ctx(), fl_ctx(reader=False), "run the matcher without the flavor-led layout reader"),
+    ("flavor-led: ratio cannabinoid order is unordered (CBD:THC == THC:CBD, CBC:CBG == CBG:CBC, THCv == THCV)",
+     lambda c: fl_exists(c, ("3", "5", "6")),
+     fl_ctx(), fl_body(fl_ctx(), "4004", "Pomegranate Restore (2:1 THC:CBD)"), "the catalog item's ratio counts change"),
+    ("flavor-led: the strain letter must agree with a type-only body (Sour Cherry (Indica), never Cherry (Hybrid))",
+     lambda c: fl_exists(c, ("2",)),
+     fl_ctx(), fl_line(fl_ctx(), "2", FL["lines"][1]["description"].replace("(I)", "(H)")), "the line's letter becomes (H)"),
+    ("flavor-led create: the name takes the catalog's ratio spelling + Strain record, never the invoice's order (R26)",
+     fl_create_keeps_canon, fl_ctx(),
+     fl_ctx(strains={k: v for k, v in FL["strains"].items() if k != "Restore (1:1 THC:CBD)"}),
+     "delete the brand's Restore strain record"),
     ("receive --check join key is package_id, an intake CSV v3 column",
      lambda cols: RC.CHECK_JOIN_KEY == "package_id" and RC.CHECK_JOIN_KEY in cols,
      IM.V3_COLS, [c for c in IM.V3_COLS if c != "package_id"], "remove package_id from the v3 columns"),

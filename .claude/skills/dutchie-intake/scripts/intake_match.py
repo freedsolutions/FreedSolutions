@@ -26,7 +26,10 @@ Verdicts (one per product line; R101 = Copy-from-sibling is the create path; a n
 brand is created from the brand's nearest item; a new brand or category = STOP):
   EXISTS                  brand + body (name segment 3) + grams + form match ONE active item; or
                           brand + body + grams match ONE active item, the form test alone fails and
-                          the line names NO form word at all -> EXISTS + FORM_UNREAD
+                          the line names NO form word at all -> EXISTS + FORM_UNREAD.
+                          A flavor-led line `(S|I|H) <Flavor> <Form>[ <ratio>]` meets body
+                          `<Flavor>[ <Effect>] (<type or ratio>)` by layout (`flavor_led`); the ratio
+                          compares unordered (`ratio_key`), for matching only - never for a create name
   RETIRED_MATCH           the same match, on a retired item only - un-retire beats a duplicate (R101)
   NEW_ITEM_WITH_SIBLING   no match; the R50 lane (Brand + Category + grams + Form word) has an active
                           member, and the strain is a Strain record -> copy from the sibling
@@ -176,13 +179,93 @@ def pick_sibling(members):
     return sorted(members, key=lambda r: (0 if r.get("Image URL") else 1, -pid_num(r), r.get("SKU", "")))[0]
 
 
-def body_hits(rows, brand, desc_n, dtoks, g):
+STRAIN_LETTERS = {"s": "Sativa", "i": "Indica", "h": "Hybrid"}
+_LEAD_TYPE_RE = re.compile(r"(?:^|\|)\s*\((sativa|indica|hybrid|[sih])\)\s+([^|]+)", re.I)
+_RATIO_RE = re.compile(r"(?<![\w.:])(\d+(?:\.\d+)?(?:\s*:\s*\d+(?:\.\d+)?)+)\s+([a-z]+(?:\s*:\s*[a-z]+)+)"
+                       r"((?:\s*\+\s*[a-z]+)*)", re.I)
+_PAREN_BODY_RE = re.compile(r"^(.*\S)\s*\(([^()]+)\)$")
+
+
+def ratio_key(text):
+    """The first cannabinoid ratio in `text` as an UNORDERED, case-insensitive key: `1:1 CBD:THC` ==
+    `1:1 THC:CBD`, `THC:CBC:CBG` == `THC:CBG:CBC`, `THCv` == `THCV`; `+ <additive>` words ride the key.
+    None when no ratio is printed or its counts do not pair. MATCHING only: a create name keeps the
+    catalog's own spelling (R26), never the invoice's order."""
+    m = _RATIO_RE.search(text or "")
+    if not m:
+        return None
+    ns = [float(x) for x in re.split(r"\s*:\s*", m.group(1))]
+    cs = [x.lower() for x in re.split(r"\s*:\s*", m.group(2))]
+    if len(ns) != len(cs):
+        return None
+    return tuple(sorted(zip(cs, ns))), tuple(sorted(norm(x) for x in m.group(3).split("+") if x.strip()))
+
+
+def flavor_led(desc, vocab):
+    """A flavor-led line, read by layout: a segment that LEADS with a strain-type letter, `(S) <Flavor>
+    <Form>[ <ratio>]`. Returns (strain type, flavor as printed, ratio key or None); None when the line has
+    no such segment. The flavor = the words after the letter, minus the ratio and ONE trailing catalog
+    form word (the longest that fits)."""
+    m = _LEAD_TYPE_RE.search(desc or "")
+    if not m:
+        return None
+    rest = m.group(2)
+    rm = _RATIO_RE.search(rest)
+    rkey = ratio_key(rest)
+    if rm:
+        rest = rest[:rm.start()] + " " + rest[rm.end():]
+    words = rest.split()
+    for f in sorted({canon(v) for v in vocab if canon(v)}, key=lambda v: len(v.split()), reverse=True):
+        k = len(f.split())
+        if len(words) > k and canon(" ".join(words[-k:])) == f:
+            words = words[:-k]
+            break
+    flavor = " ".join(words)
+    return (STRAIN_LETTERS[m.group(1)[0].lower()], flavor, rkey) if norm(flavor) else None
+
+
+def flavor_led_hit(fl, body):
+    """True when a catalog body `<Flavor>[ <Effect word>] (<Strain type or ratio>)` is the flavor-led
+    line's item: the same flavor, and the parenthesis is the line's ratio (unordered) or, on a line that
+    prints no ratio, its strain type. One effect word may follow the flavor on a ratio body only."""
+    m = _PAREN_BODY_RE.match((body or "").strip())
+    if not fl or not m:
+        return False
+    stype, flavor, rkey = fl
+    head, paren, f = norm(m.group(1)), m.group(2), norm(flavor)
+    if rkey is None:
+        return head == f and norm(paren) == norm(stype)
+    return ratio_key(paren) == rkey and (head == f or " ".join(head.split()[:-1]) == f)
+
+
+def flavor_led_strain(fl, live, brand, strains):
+    """(Strain record, name body) for a flavor-led create, both in the CATALOG's spelling: a type-only line
+    takes the type record (`<Flavor> (Sativa)`); a ratio line takes the brand's ONE active Strain whose
+    ratio key is the line's (`<Flavor> Restore (1:1 THC:CBD)`), never the invoice's order (R26).
+    (None, None) when no Strain record, or two, fit."""
+    stype, flavor, rkey = fl
+    if rkey is None:
+        cands = [stype]
+    else:
+        cands = sorted({r.get("Strain") for r in live if norm(r.get("Brand")) == norm(brand)
+                        and r.get("Strain") and ratio_key(r.get("Strain")) == rkey})
+    if len(cands) != 1 or cands[0] not in strains:
+        return None, None
+    s = cands[0]
+    return s, (f"{flavor} {s}" if s.endswith(")") else f"{flavor} ({s})")
+
+
+def body_hit(desc_n, body, fl):
+    return has_phrase(desc_n, body) or flavor_led_hit(fl, body)
+
+
+def body_hits(rows, brand, desc_n, dtoks, g, fl=None):
     hits = []
     for r in rows:
         if norm(r.get("Brand")) != norm(brand):
             continue
         body = body_of(r.get("Product")) or r.get("Strain", "")
-        if not body or not has_phrase(desc_n, body):
+        if not body or not body_hit(desc_n, body, fl):
             continue
         if g is not None and not grams_eq(r.get("Product grams"), g):
             continue
@@ -200,7 +283,7 @@ def form_vocab(rows):
     return sorted({form_word(r.get("Product")) for r in rows if form_word(r.get("Product"))} | set(FORM_SYNONYMS))
 
 
-def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g):
+def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g, fl=None):
     """The ONE active item that brand + body + grams hit when the line names NO form word at all;
     None when the grams are unread, the line names any form word of the catalog vocabulary (a named
     form that fits no lane is a new line, not an unread one), or zero / two or more items hit."""
@@ -208,7 +291,7 @@ def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g):
         return None
     own = [r for r in rows if norm(r.get("Brand")) == norm(brand)]
     hits = [r for r in own if (body_of(r.get("Product")) or r.get("Strain", ""))
-            and has_phrase(desc_n, body_of(r.get("Product")) or r.get("Strain", ""))
+            and body_hit(desc_n, body_of(r.get("Product")) or r.get("Strain", ""), fl)
             and grams_eq(r.get("Product grams"), g)]
     return hits[0] if len(hits) == 1 else None
 
@@ -221,6 +304,14 @@ def find_strain(desc_wo_brand_n, strains):
     return best
 
 
+def line_strain(fl, live, brand, desc_n, strains):
+    """(Strain record, name body or None) a create carries. A flavor-led line reads its record from its
+    layout only (`flavor_led_strain`): a ratio or stray token is never taken for a strain name."""
+    if fl:
+        return flavor_led_strain(fl, live, brand, strains)
+    return find_strain(" ".join(desc_n.replace(norm(brand), " ").split()), strains), None
+
+
 def new_name(sib, strain):
     p = [x.strip() for x in (sib.get("Product") or "").split(" | ")]
     if len(p) < 4:
@@ -229,9 +320,10 @@ def new_name(sib, strain):
     return " | ".join(p)
 
 
-def new_ot(sib, strain):
+def new_ot(sib, strain, by_body=False):
+    """The sibling's Online title with its strain (or, `by_body`, its whole name body) swapped; "" = no fit."""
     ot = sib.get("Online title") or ""
-    for old in (sib.get("Strain") or "", body_of(sib.get("Product"))):
+    for old in ((body_of(sib.get("Product")),) if by_body else (sib.get("Strain") or "", body_of(sib.get("Product")))):
         if old and old in ot:
             return ot.replace(old, strain, 1)
     return ""
@@ -327,6 +419,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         desc = ln.get("description", "")
         desc_n, dtoks = norm(desc), set(canon(desc).split())
         g = dose_of(desc)
+        fl = flavor_led(desc, vocab)
         if g is None:
             flags.append("DOSE_UNREAD")
         vend = ln.get("vendor", "")
@@ -341,7 +434,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
-        hits = body_hits(live, brand, desc_n, dtoks, g)
+        hits = body_hits(live, brand, desc_n, dtoks, g, fl)
         if hits:
             if len(hits) > 1:
                 flags.append("AMBIGUOUS_MATCH")
@@ -356,7 +449,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
-        rhits = body_hits(old, brand, desc_n, dtoks, g)
+        rhits = body_hits(old, brand, desc_n, dtoks, g, fl)
         if rhits:
             if len(rhits) > 1:
                 flags.append("AMBIGUOUS_MATCH")
@@ -379,7 +472,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             if fs > 0:
                 lanes.setdefault(lane_key(r), {"fs": fs, "rows": []})["rows"].append(r)
         if not lanes:
-            m = form_unread_hit(live, vocab, brand, desc_n, dtoks, g)
+            m = form_unread_hit(live, vocab, brand, desc_n, dtoks, g, fl)
             if m is not None:
                 flags.append("FORM_UNREAD")
                 fill_from(row, m)
@@ -402,8 +495,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                 out.append(row)
                 continue
             fill_from(row, near)
-            desc_wo_brand = desc_n.replace(norm(brand), " ")
-            strain = find_strain(" ".join(desc_wo_brand.split()), strains)
+            strain, fbody = line_strain(fl, live, brand, desc_n, strains)
             reason = (f"new line under {brand!r}: no lane at {at} {form}; nearest active item in Master category "
                       f"{mc!r}: {near.get('SKU')} {near.get('Product')!r}")
             if near.get("Strain") and not strain:
@@ -424,7 +516,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                        sibling_reason=reason + "; set or confirm at the stop: name, Price, Flower equiv, "
                                                "Servings per Unit, Category / Type",
                        strain_record="LIVE" if s else "",
-                       create_name_FINAL=" | ".join([seg0, form, s, dose]) if s and dose else "",
+                       create_name_FINAL=" | ".join([seg0, form, fbody or s, dose]) if s and dose else "",
                        strain=s, strain_type=(strains.get(s) or {}).get("type", ""),
                        strain_id=(strains.get(s) or {}).get("id", ""), online_title="",
                        online_desc_chars=str(len(near.get("Online description") or "")),
@@ -453,8 +545,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         reason = (f"lane {' | '.join(top[0])}: {len(members)} active member(s), {with_img} with an image; "
                   f"chose {sib.get('SKU')} ({'image' if sib.get('Image URL') else 'no image'}, "
                   f"ProductId {sib.get('ProductId') or 'n/a'})")
-        desc_wo_brand = desc_n.replace(norm(brand), " ")
-        strain = find_strain(" ".join(desc_wo_brand.split()), strains)
+        strain, fbody = line_strain(fl, live, brand, desc_n, strains)
         strain_bearing = bool(sib.get("Strain"))
         if sib.get("Flavor"):
             flags.append("FLAVOR_TO_SET")
@@ -469,11 +560,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         decision, why = (direction, f"`{direction}` by the business's direction") if direction else \
             decision_tag(members, prefix, active_tag, new_line_tag)
         reason += f"; tag {why}"
-        ot = new_ot(sib, s) if s else ""
+        ot = new_ot(sib, fbody or s, by_body=bool(fbody)) if s else ""
         if s and not ot:
             flags.append("OT_TEMPLATE_MISS")
         row.update(verdict="NEW_ITEM_WITH_SIBLING", action="CREATE - copy item", sibling_reason=reason,
-                   strain_record="LIVE" if s else "", create_name_FINAL=new_name(sib, s) if s else "",
+                   strain_record="LIVE" if s else "", create_name_FINAL=new_name(sib, fbody or s) if s else "",
                    strain=s, strain_type=(strains.get(s) or {}).get("type", ""),
                    strain_id=(strains.get(s) or {}).get("id", ""), online_title=ot,
                    online_desc_chars=str(len(sib.get("Online description") or "")),
@@ -710,6 +801,14 @@ def selftest():
     t.check("QUIET: FORM_UNREAD off when the line names another form word (cart) -> a STOP (NEW_CATEGORY)",
             r["verdict"] == "NEW_CATEGORY" and "FORM_UNREAD" not in r["flags"], f"{r['verdict']} {r['flags']}")
     t.check("QUIET: FORM_UNREAD off on a full match", "FORM_UNREAD" not in run("Acme Blue Dream preroll 1g")["flags"])
+    t.check("ratio_key: cannabinoid order + case are unordered",
+            ratio_key("1:1 CBD:THC") == ratio_key("1:1 THC:CBD") and ratio_key("1:1:1 THC:CBC:CBG") == ratio_key("1:1:1 THC:CBG:CBC")
+            and ratio_key("1:1 THC:THCv") == ratio_key("1:1 THC:THCV"))
+    t.check("QUIET: ratio_key keeps the counts paired (2:1 CBD:THC != 2:1 THC:CBD)",
+            ratio_key("2:1 CBD:THC") != ratio_key("2:1 THC:CBD") and ratio_key("10mg x 10pk") is None)
+    fl = flavor_led("Acme | (I) Sour Cherry Gummies 1:1 CBD:THC | Edibles | 100mg", ["Gummies"])
+    t.check("flavor_led: letter -> type, flavor minus form word and ratio", fl == ("Indica", "Sour Cherry", ratio_key("1:1 THC:CBD")), str(fl))
+    t.check("QUIET: flavor_led off a line with no leading strain letter", flavor_led("Acme Sour Cherry Gummies (I)", ["Gummies"]) is None)
     return t.done()
 
 

@@ -45,6 +45,9 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
   join key.
 - A line that names no form word, where brand + body + grams hit exactly one active item, reads
   `EXISTS` + `FORM_UNREAD` (a STOP flag): the Operator confirms the match.
+- A flavor-led line, `(S|I|H) <Flavor> <Form>[ <ratio>]`, matches a body `<Flavor>[ <Effect>] (<type or
+  ratio>)` by layout. Ratio cannabinoid order is unordered for the match only; a create name keeps the
+  catalog's ratio spelling.
 
 ## Plug in a tenant
 
