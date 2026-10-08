@@ -107,19 +107,26 @@ Flag table (flags column; none fails the run):
   CATEGORY_DIRECTED     R33   STOP  the Category came from the operator's direction, not the line's words:
                                     confirm it against the vendor's own words
   CATEGORY_INFERRED     R33   STOP  the Category came from another brand's item and names a route word the
-                                    line does not print (resin / rosin / distillate ...): a vendor fact,
+                                    line does not print (rosin / distillate ..., or resin beside an added-terpene
+                                    mention): a vendor fact,
                                     confirmed through the R33 chain, never assumed. The feedstock word
                                     (live / cured) is not a route word: OIL_LIVE_DEFAULT decides it
+  ROUTE_RESIN_DEFAULT   R33   INFO  a cross-brand placement whose only unprinted Category word is `Resin`, on a
+                                    line that mentions no added terpenes (`terp`, `botanical`, `CDT`): Resin by
+                                    default (Adam 2026-10-08). A terpene mention keeps CATEGORY_INFERRED (STOP)
   OIL_LIVE_DEFAULT      R79   INFO  the Category sits on a Live / Cured pair the taxonomy carries and the line
                                     prints neither word: the Live Category by default (Adam 2026-10-08). A
                                     line that prints `Cured` takes the Cured Category, never a note. Applies
                                     to a NEW_PL placement and to a Live / Cured lane tie
   BRAND_NAME_UNREAD     R121  STOP  NEW_BRAND with no spelling: pass `--line-brand <line_no>=<Display name>`
                                     (the market's word, R121) and re-run; nothing is created as it stands
-  STRAIN_TYPE_CONFLICT  R26   STOP  the line's Strain Type differs from the named Strain record's: the row
-                                    lists the items on that record - a misalignment inside the brand is
-                                    fixed on them, a real difference is a NEW record `<Name> (<Type>)`:
-                                    Dutchie Strain names are unique (precedent `Gelato (Indica)`)
+  STRAIN_TYPE_CONFLICT  R128  STOP  the line's Strain Type does not agree with the named Strain record's (a
+                                    coarser `Hybrid` agrees with a leaner `Indica-Hybrid` / `Sativa-Hybrid`).
+                                    The row lists the record's items. Within the brand (the line's brand
+                                    carries the record, or nobody does) it is a vendor ask, never a new
+                                    record: our own text and public sources decide whether the doc or the
+                                    record is wrong. Only a record that OTHER brands alone carry offers a NEW
+                                    record `<Name> (<Type>)`: Strain names are unique (R26)
   STRAIN_TYPE_RESEARCHED R33  INFO  the Strain Type came from `--strain-type` with its source; it rides the
                                     STOP as a finding with a source, never as a fact the line printed
   BAD_LINE              R103  DEFECT a product line with no units or unit cost (exit 1)
@@ -157,8 +164,8 @@ FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), (
          ("DOSE_UNREAD", "R50", "STOP"), ("FLAVOR_TO_SET", "R101", "STOP"), ("OT_TEMPLATE_MISS", "R101", "INFO"),
          ("NEW_LINE_FIELDS", "R101", "STOP"), ("UNRETIRE_FIELDS", "R101", "STOP"), ("UNRETIRE_FIRST", "R101", "STOP"),
          ("CROSS_BRAND_COPY", "R101", "STOP"), ("CATEGORY_UNREAD", "R101", "STOP"), ("CATEGORY_DIRECTED", "R33", "STOP"),
-         ("CATEGORY_INFERRED", "R33", "STOP"), ("OIL_LIVE_DEFAULT", "R79", "INFO"), ("BRAND_NAME_UNREAD", "R121", "STOP"),
-         ("STRAIN_TYPE_CONFLICT", "R26", "STOP"), ("STRAIN_TYPE_RESEARCHED", "R33", "INFO"),
+         ("CATEGORY_INFERRED", "R33", "STOP"), ("OIL_LIVE_DEFAULT", "R79", "INFO"), ("ROUTE_RESIN_DEFAULT", "R33", "INFO"), ("BRAND_NAME_UNREAD", "R121", "STOP"),
+         ("STRAIN_TYPE_CONFLICT", "R128", "STOP"), ("STRAIN_TYPE_RESEARCHED", "R33", "INFO"),
          ("BAD_LINE", "R103", "DEFECT")]
 LANE_MAP = {"lane_Category": "Category", "lane_Type": "Type", "lane_IsCannabis": "Is cannabis",
             "lane_MasterCategory": "Master category", "lane_GlobalCategory": "Global Category",
@@ -427,16 +434,45 @@ def new_strain_name(strain, typ):
     return f"{(strain or '').strip()} ({(typ or '').strip()})"
 
 
-def strain_conflict(strain, strains, stated, everything):
-    """(record type, stated type, items on the record) when the line states a Strain Type that is not the
-    named record's (R26; Adam: check the record's items before minting - a misalignment inside the brand
-    is theirs to fix, a real difference is a new record). None when nothing conflicts or nothing is stated."""
+STRAIN_SOT_RULE = "R128"   # the Strain Type source-of-truth rule (minted 2026-10-08)
+LEANERS = ("indica-hybrid", "sativa-hybrid")
+
+
+def type_agrees(rec, stated):
+    """A stated Type agrees with the record's when equal, or when it is the coarser `Hybrid` against a
+    leaner (`Indica-Hybrid`, `Sativa-Hybrid`): the Global Catalog files leaners as Hybrid (STRAIN_SOT_RULE)."""
+    return norm(rec) == norm(stated) or (norm(stated) == "hybrid" and norm(rec) in {norm(x) for x in LEANERS})
+
+
+def strain_conflict(strain, strains, stated, everything, brand=None):
+    """(record type, stated type, items on the record, other brands only) when the line states a Strain
+    Type that does not agree with the named record's (R26 + STRAIN_SOT_RULE). `other brands only` = the
+    record carries items and none is the line's brand: only then is a new `<Name> (<Type>)` record on the
+    table; within a brand a name has ONE record, and a disagreeing doc is a vendor ask. None when nothing
+    conflicts or nothing is stated."""
     rec = ((strains.get(strain) or {}).get("type") or "").strip()
-    if not strain or not stated or not rec or norm(rec) == norm(stated):
+    if not strain or not stated or not rec or type_agrees(rec, stated):
         return None
-    on = [f"{r.get('Brand', '')} {r.get('SKU', '')} {r.get('Product', '')!r}".strip()
-          for r in everything if (r.get("Strain") or "") == strain]
-    return rec, stated, on
+    mine = [r for r in everything if (r.get("Strain") or "") == strain]
+    on = [f"{r.get('Brand', '')} {r.get('SKU', '')} {r.get('Product', '')!r}".strip() for r in mine]
+    others_only = bool(mine) and bool(brand) and all(norm(r.get("Brand")) != norm(brand) for r in mine)
+    return rec, stated, on, others_only
+
+
+def conflict_reason(strain, conflict):
+    """The STRAIN_TYPE_CONFLICT sentence: within the brand a vendor ask that our own text and public
+    sources decide; across brands, a real difference is a new record named `<Name> (<Type>)`."""
+    rec, said, on, others_only = conflict
+    head = (f"; the line says {said!r} but Strain record {strain!r} is {rec!r}; items on the record: "
+            f"{'; '.join(on) if on else 'none'} - ")
+    if others_only:
+        return head + (f"only other brands carry the record: a real Type difference is a NEW record named "
+                       f"{new_strain_name(strain, said)!r} (Strain names are unique), a misalignment is fixed on "
+                       f"their items ({STRAIN_SOT_RULE})")
+    return head + (f"one record per name within a brand: a vendor ask, never a new record - our own text and "
+                   f"public strain sources decide (agree with the record: the doc is the vendor's error; agree "
+                   f"with the doc: re-type the record in place; split: the vendor's answer decides; "
+                   f"{STRAIN_SOT_RULE})")
 
 
 def new_name(sib, strain):
@@ -477,6 +513,7 @@ def copy_tags(src, drop_tags, prefix, decision):
 
 
 FEEDSTOCK = ("live", "cured")
+_TERP_RE = re.compile(r"terp|botanical|\bcdt\b", re.I)   # an added-terpene mention: the Distillate class (R33)
 
 
 def feedstock_default(cat, dtoks, tax):
@@ -792,8 +829,12 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             if cross:
                 flags.append("CROSS_BRAND_COPY")
                 row.update(lane_Brand=brand or "", lane_Vendor=vend, lane_Price="")
-                if not cat_dir and not all(t in dtoks for t in canon(cat).split() if t not in FEEDSTOCK):
-                    flags.append("CATEGORY_INFERRED")
+                if not cat_dir:
+                    missing = [t for t in canon(cat).split() if t not in FEEDSTOCK and t not in dtoks]
+                    if missing == ["resin"] and not _TERP_RE.search(desc):
+                        flags.append("ROUTE_RESIN_DEFAULT")
+                    elif missing:
+                        flags.append("CATEGORY_INFERRED")
             fs_note = ""
             if not cat_dir:
                 was = row.get("lane_Category", "")
@@ -829,6 +870,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             elif cross and "CATEGORY_INFERRED" in flags:
                 reason += f"; Category {cat!r} is the source's, and the line does not print its route words - a vendor fact (R33)"
             reason += fs_note
+            if "ROUTE_RESIN_DEFAULT" in flags:
+                reason += "; the line names no route and no added terpenes: Resin by default (R33)"
             if brand and near.get("Strain") and not strain:
                 row.update(verdict="STRAIN_MISSING", action="STOP - mint the Strain record first (R101)",
                            strain_record="MISSING", strain_type=st_type.strip(),
@@ -843,16 +886,13 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                 row["flags"] = ";".join(flags)
                 out.append(row)
                 continue
-            conflict = strain_conflict(strain, strains, st_type.strip() or stated, everything) if brand else None
+            conflict = strain_conflict(strain, strains, st_type.strip() or stated, everything, brand) if brand else None
             if conflict:
-                rec, said, on = conflict
+                said = conflict[1]
                 flags.append("STRAIN_TYPE_CONFLICT")
-                row.update(verdict="STRAIN_MISSING", action="STOP - Strain Type conflict: check the record's items (R26)",
+                row.update(verdict="STRAIN_MISSING", action=f"STOP - Strain Type conflict: check the record's items (R26, {STRAIN_SOT_RULE})",
                            strain_record="CONFLICT", strain=strain, strain_type=said,
-                           sibling_reason=reason + f"; the line says {said!r} but Strain record {strain!r} is {rec!r}; "
-                                                   f"items on the record: {'; '.join(on) if on else 'none'} - a misalignment "
-                                                   f"inside the brand is fixed on them, a real difference is a NEW record "
-                                                   f"named {new_strain_name(strain, said)!r} (Strain names are unique)")
+                           sibling_reason=reason + conflict_reason(strain, conflict))
                 row["flags"] = ";".join(flags)
                 out.append(row)
                 continue
@@ -943,16 +983,13 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
-        conflict = strain_conflict(strain, strains, st_type.strip() or stated, everything) if strain_bearing else None
+        conflict = strain_conflict(strain, strains, st_type.strip() or stated, everything, brand) if strain_bearing else None
         if conflict:
-            rec, said, on = conflict
+            said = conflict[1]
             flags.append("STRAIN_TYPE_CONFLICT")
-            row.update(verdict="STRAIN_MISSING", action="STOP - Strain Type conflict: check the record's items (R26)",
+            row.update(verdict="STRAIN_MISSING", action=f"STOP - Strain Type conflict: check the record's items (R26, {STRAIN_SOT_RULE})",
                        strain_record="CONFLICT", strain=strain, strain_type=said,
-                       sibling_reason=reason + f"; the line says {said!r} but Strain record {strain!r} is {rec!r}; "
-                                               f"items on the record: {'; '.join(on) if on else 'none'} - a misalignment "
-                                               f"inside the brand is fixed on them, a real difference is a NEW record "
-                                               f"named {new_strain_name(strain, said)!r} (Strain names are unique)")
+                       sibling_reason=reason + conflict_reason(strain, conflict))
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
@@ -1224,11 +1261,24 @@ def selftest():
             r["verdict"] == "STRAIN_MISSING" and "STRAIN_TYPE_CONFLICT" in r["flags"].split(";")
             and r["strain_record"] == "CONFLICT" and r["strain_type"] == "Sativa" and "none" in r["sibling_reason"],
             f"{r['verdict']} {r['flags']} {r['strain_type']}")
-    t.check("STRAIN_TYPE_CONFLICT names the new record in the unique-name form `<Name> (<Type>)` (R26)",
-            "a NEW record named 'Gelato (Sativa)'" in r["sibling_reason"] and "same name" not in r["sibling_reason"],
+    t.check("STRAIN_TYPE_CONFLICT on a record no other brand carries: a vendor ask, one record per name, no new record",
+            "a vendor ask, never a new record" in r["sibling_reason"] and "a NEW record named" not in r["sibling_reason"],
             r["sibling_reason"])
+    other = active + [_item("4", "Bolt | Pre-Roll | Gelato | 0.5g", pid="14", Brand="Bolt", vendor="Bolt Wholesale")]
+    r = run("Acme Gelato preroll 1g Sativa", act=other)
+    t.check("STRAIN_TYPE_CONFLICT on a record only OTHER brands carry names the new record `<Name> (<Type>)` (R26)",
+            "a NEW record named 'Gelato (Sativa)'" in r["sibling_reason"] and "vendor ask" not in r["sibling_reason"],
+            r["sibling_reason"])
+    mixed_rec = other + [_item("5", "Acme | Pre-Roll | Gelato | 0.5g", pid="15")]
+    t.check("QUIET: once the line's own brand carries the record, no new record is offered (one record within a brand)",
+            "a NEW record named" not in run("Acme Gelato preroll 1g Sativa", act=mixed_rec)["sibling_reason"])
     t.check("QUIET: a row with no conflict names no new record",
             "a NEW record named" not in run("Acme Gelato preroll 1g Hybrid")["sibling_reason"])
+    lean = dict(strains, Gelato={"type": "Indica-Hybrid", "id": ""})
+    t.check("a coarser `Hybrid` agrees with a leaner record (`Indica-Hybrid`): no conflict",
+            "STRAIN_TYPE_CONFLICT" not in run("Acme Gelato preroll 1g Hybrid", st=lean)["flags"])
+    t.check("FIRES: `Sativa` against an `Indica-Hybrid` record is still a conflict",
+            "STRAIN_TYPE_CONFLICT" in run("Acme Gelato preroll 1g Sativa", st=lean)["flags"].split(";"))
     with_gelato =active + [_item("4", "Acme | Pre-Roll | Gelato | 0.5g", pid="14")]
     r = run("Acme Gelato preroll 1g (S)", act=with_gelato)
     t.check("STRAIN_TYPE_CONFLICT lists the items on the record", "Acme 4 'Acme | Pre-Roll | Gelato | 0.5g'" in r["sibling_reason"],
@@ -1301,9 +1351,23 @@ def selftest():
             "CATEGORY_INFERRED" not in r["flags"])
     cured = vape + [_item("6", "Bolt | Cured Resin Cart | Mango | 0.5g", pid="16", cat="Cured Resin Cart", vendor="Bolt Wholesale",
                           **{"Master category": "Vape", "Global SubCategory": "cured-resin-cartridge", "Brand": "Bolt"})]
+    r = run("Zed Mango 510 cart 0.5g botanical terpenes", act=cured, line_brands={"1": "Zed"})
+    t.check("CATEGORY_INFERRED: a cross-brand source whose route word (resin) the line does not print, beside an added-terpene mention",
+            "CATEGORY_INFERRED" in r["flags"].split(";") and "ROUTE_RESIN_DEFAULT" not in r["flags"] and r["copy_source_sku"] == "6",
+            f"{r['flags']} {r['copy_source_sku']}")
+    t.check("the feedstock word leaves the CATEGORY_INFERRED reason: the route word still names it",
+            "route words" in r["sibling_reason"])
     r = run("Zed Mango 510 cart 0.5g", act=cured, line_brands={"1": "Zed"})
-    t.check("CATEGORY_INFERRED: a cross-brand source whose Category words (cured resin) the line does not print",
-            "CATEGORY_INFERRED" in r["flags"].split(";") and r["copy_source_sku"] == "6", f"{r['flags']} {r['copy_source_sku']}")
+    t.check("ROUTE_RESIN_DEFAULT: no route word and no added terpenes -> Resin by default, an INFO note, no STOP (R33)",
+            "ROUTE_RESIN_DEFAULT" in r["flags"].split(";") and "CATEGORY_INFERRED" not in r["flags"]
+            and "Resin by default" in r["sibling_reason"], f"{r['flags']}")
+    t.check("ROUTE_RESIN_DEFAULT is INFO, never a STOP", ("ROUTE_RESIN_DEFAULT", "R33", "INFO") in FLAGS)
+    rosin_src = vape + [_item("6", "Bolt | Rosin Cart | Mango | 0.5g", pid="16", cat="Rosin Cart", vendor="Bolt Wholesale",
+                              **{"Master category": "Vape", "Global SubCategory": "live-rosin-cartridge", "Brand": "Bolt"})]
+    r = run("Zed Mango 510 cart 0.5g", act=rosin_src, line_brands={"1": "Zed"})
+    t.check("QUIET: an unprinted route word other than resin (rosin) keeps CATEGORY_INFERRED, no Resin default",
+            "CATEGORY_INFERRED" in r["flags"].split(";") and "ROUTE_RESIN_DEFAULT" not in r["flags"], f"{r['flags']} {r['copy_source_sku']}")
+    r = run("Zed Mango 510 cart 0.5g", act=cured, line_brands={"1": "Zed"})
     t.check("'510' reads as a cart (industry word)", "cart" in canon("Vape Product 1g (510, Liquid Diamond)").split())
     # --- OIL_LIVE_DEFAULT (R79, Adam 2026-10-08): Live unless the line prints Cured ---
     t.check("OIL_LIVE_DEFAULT: a Cured source on a line printing neither word -> the Live Category, an INFO note",
@@ -1311,8 +1375,6 @@ def selftest():
             and r["lane_GlobalSubCategory"] == "live-resin-cartridge" and "Live Category by default" in r["sibling_reason"],
             f"{r['lane_Category']} {r['flags']} {r['lane_GlobalSubCategory']}")
     t.check("OIL_LIVE_DEFAULT is INFO, never a STOP", ("OIL_LIVE_DEFAULT", "R79", "INFO") in FLAGS)
-    t.check("the feedstock word leaves the CATEGORY_INFERRED reason: the route word still names it",
-            "route words" in r["sibling_reason"])
     r = run("Zed Mango resin 510 cart 0.5g", act=cured, line_brands={"1": "Zed"})
     t.check("QUIET: a line printing the route word (resin) is not CATEGORY_INFERRED; the feedstock defaults Live",
             "CATEGORY_INFERRED" not in r["flags"] and "OIL_LIVE_DEFAULT" in r["flags"].split(";")
