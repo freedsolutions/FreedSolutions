@@ -66,6 +66,7 @@ BASE = {
     "active": rows_of("catalog-active.csv"), "retired": rows_of("catalog-retired.csv"),
     "strains": IM.load_strains(fx("strains.csv")), "lines": rows_of("invoice-lines.csv"), "po": rows_of("po.csv"),
     "post": rows_of("certify-post.csv"), "hdr": hdr_of("catalog-active.csv"),
+    "categories": rows_of("categories.csv"), "brands": rows_of("brands.csv"),
     "notice": open(os.path.join(os.path.dirname(HERE), "templates", "notice.md"), encoding="utf-8").read(),
 }
 
@@ -91,7 +92,9 @@ def ctx(**over):
 
 
 def matched(c):
-    return IM.match(c["lines"], c["active"], c["retired"], c["strains"], drop_tags=DROP)[0]
+    return IM.match(c["lines"], c["active"], c["retired"], c["strains"], drop_tags=DROP,
+                    categories=c.get("categories"), brands=c.get("brands"), line_brands=c.get("line_brands"),
+                    line_categories=c.get("line_categories"), strain_types=c.get("strain_types"))[0]
 
 
 def verdict_count(c, v):
@@ -300,6 +303,43 @@ def new_line_created(rows):
     return rows
 
 
+BIRCH_1G = dict(BASE["active"][3], SKU="2101", ProductId="611", Product="Birch Labs | Distillate Cart | Blue Dream | 1g",
+                Strain="Blue Dream", Tags="ITM - Discontinue", **{"Product grams": "1g", "Image URL": "img-birch.jpg"})
+BIRCH_1G_B = dict(BIRCH_1G, SKU="2102", ProductId="612", Product="Birch Labs | Distillate Cart | OG Kush | 1g", Strain="OG Kush",
+                  **{"Image URL": ""})
+BIRCH_HALF = dict(BIRCH_1G, SKU="2103", ProductId="613", Product="Birch Labs | Distillate Cart | OG Kush | 0.5g", Strain="OG Kush",
+                  **{"Product grams": "0.5g", "Image URL": ""})
+
+
+def unretire_ctx(active_lane=False):
+    """Line 8: a Birch 1g distillate cart. Birch carries 1g carts only RETIRED (two of them, plus a 0.5g in another
+    lane), so the line we carried before comes back whole. active_lane=True un-retires one 1g cart up front."""
+    line = dict(BASE["lines"][0], line_no="8", description="Birch Labs Gelato distillate cart 1g", cases="1", units_total="12",
+                case_cost="180.00", unit_cost="15.00", ext_cost="180.00", expiry_date="", coa_url="")
+    ret = BASE["retired"] + [BIRCH_1G, BIRCH_1G_B, BIRCH_HALF]
+    act = BASE["active"] + ([dict(BIRCH_1G, Tags="ITM - Active")] if active_lane else [])
+    if active_lane:
+        ret = [r for r in ret if r["SKU"] != "2101"]
+    return ctx(active=act, retired=ret, lines=BASE["lines"] + [line])
+
+
+def unretire_row(c):
+    return row_for(c, "Birch Labs Gelato")
+
+
+def retired_match_row(c):
+    return row_for(c, "Acme Farms Sour Diesel")
+
+
+def line5(desc, **over):
+    """The base fixture with line 5 (the Acme cart) re-described."""
+    return ctx(lines=[dict(r, description=desc) if r["line_no"] == "5" and not r["order_level_kind"] else r for r in BASE["lines"]], **over)
+
+
+def line3(desc, **over):
+    return ctx(lines=[dict(r, description=desc) if r["line_no"] == "3" and not r["order_level_kind"] else r for r in BASE["lines"]], **over)
+
+
 def gelato_is(c, **kv):
     r = row_for(c, "Acme Farms Gelato")
     return all(r.get(k) == v for k, v in kv.items())
@@ -311,12 +351,15 @@ FL_EXISTS = {"1": "4001", "2": "4002", "3": "4004", "4": "4005", "5": "4006", "6
 FL_CREATE = "Acme Farms | Gummies | Mango Restore (1:1 THC:CBD) | 10mg x 10pk"
 
 
-def fl_ctx(reader=True, **over):
+def fl_ctx(reader=True, flavor_cells=True, **over):
     """Flavor-led fixture: lines `<Brand> | (<S|I|H>) <Flavor> <Form>[ <ratio>] | ...` against bodies
     `<Flavor>[ <Effect>] (<Strain type or ratio>)`. reader=False runs the matcher without the layout
-    reader (the pre-fix matcher)."""
+    reader (the pre-fix matcher); flavor_cells=False blanks every Flavor cell (the second read a flavored item has)."""
     c = copy.deepcopy(FL)
     c.update(reader=reader, **over)
+    if not flavor_cells:
+        for r in c["active"]:
+            r["Flavor"] = ""
     return c
 
 
@@ -353,6 +396,11 @@ def fl_create_keeps_canon(c):
             and r["strain"] == "Restore (1:1 THC:CBD)" and "CBD:THC" not in r["create_name_FINAL"] + r["online_title"])
 
 
+GUMMY_SRC = dict(BASE["active"][3], SKU="3101", ProductId="711", Brand="Birch Labs", Strain="", Flavor="Lime",
+                 Product="Birch Labs | Gummies | Lime | 100mg", Category="Gummies", Tags="Status - Live",
+                 **{"Master category": "Edible", "Global SubCategory": "gummies", "Product grams": "0.1g",
+                    "Online title": "Lime Gummies 100mg", "Online description": "Birch's lime gummies."})
+
 # (name, predicate(ctx-or-arg) , clean arg, broken arg, what the breaker does)
 CHECKS = [
     ("pointer contract complete", lambda t: PTR.validate(PTR.parse_text(t)) == [],
@@ -386,13 +434,62 @@ CHECKS = [
      "rename the matched item's body"),
     ("RETIRED_MATCH fires once", lambda c: verdict_count(c, "RETIRED_MATCH") == 1,
      ctx(), ctx(retired=[]), "drop the retired export rows"),
+    ("RETIRED_MATCH is the un-retire path: UNRETIRE action, the whole retired lane in unretire_set, Cost from the invoice, Active tag (R101)",
+     lambda c: retired_match_row(c)["action"].startswith("UNRETIRE") and retired_match_row(c)["unretire_set"] == "401;402"
+     and retired_match_row(c)["lane_Cost"] == "4.50" and retired_match_row(c)["tags"] == C.DEFAULT_ACTIVE_TAG
+     and "UNRETIRE_FIELDS" in retired_match_row(c)["flags"].split(";"),
+     ctx(retired=BASE["retired"] + [dict(BASE["retired"][0], SKU="9002", ProductId="402", Product="Acme Farms | Pre-Roll | Gelato | 1g", Strain="Gelato")]),
+     ctx(retired=BASE["retired"] + [dict(BASE["retired"][0], SKU="9002", ProductId="402", Product="Acme Farms | Pre-Roll | Gelato | 0.5g",
+                                         Strain="Gelato", **{"Product grams": "0.5g"})]),
+     "the second retired item sits in another lane (0.5g): the set shrinks to one"),
+    ("UNRETIRE_FIRST: a line fitting only a RETIRED lane copies the retired sibling after the whole lane comes back (R101)",
+     lambda c: unretire_row(c)["verdict"] == "NEW_ITEM_WITH_SIBLING" and "UNRETIRE_FIRST" in unretire_row(c)["flags"].split(";")
+     and unretire_row(c)["copy_source_sku"] == "2101" and unretire_row(c)["unretire_set"] == "611;612"
+     and unretire_row(c)["tags"] == C.DEFAULT_ACTIVE_TAG and unretire_row(c)["action"].endswith("after the un-retire (R101)"),
+     unretire_ctx(), unretire_ctx(active_lane=True), "one 1g cart is already active: an ordinary sibling copy, no un-retire"),
     ("NEW_ITEM_WITH_SIBLING fires once", lambda c: verdict_count(c, "NEW_ITEM_WITH_SIBLING") == 1,
      ctx(), ctx(strains={k: v for k, v in BASE["strains"].items() if k != "Gelato"}), "delete the Gelato strain record"),
     ("STRAIN_MISSING fires once", lambda c: verdict_count(c, "STRAIN_MISSING") == 1,
      ctx(), ctx(strains=dict(BASE["strains"], **{"Mystery Haze": {"type": "Sativa", "id": ""}})),
      "mint the Mystery Haze strain record"),
-    ("NEW_CATEGORY fires once: the cart line places in Vape, where Acme carries nothing",
-     lambda c: verdict_count(c, "NEW_CATEGORY") == 1, ctx(), new_line_ctx(), "give Acme a 1g cart in Vape"),
+    ("NEW_CATEGORY is a taxonomy gap only: a directed Category absent from the categories export (R101)",
+     lambda c: verdict_count(c, "NEW_CATEGORY") == 1 and new_line_row(c)["verdict"] == "NEW_CATEGORY",
+     ctx(line_categories={"5": "Moon Cart"}),
+     ctx(line_categories={"5": "Moon Cart"}, categories=BASE["categories"] + [{"Master category": "Vape", "Category": "Moon Cart",
+                                                                                 "Global Subcategories": "cartridges"}]),
+     "add Moon Cart to the taxonomy"),
+    ("a brand's first item in an existing Category is NOT a stop: line 5 (Acme cart, Acme has no Vape item) is NEW_PL from the CLOSEST item by subcategory, any brand",
+     lambda c: verdict_count(c, "NEW_CATEGORY") == 0 and new_line_row(c)["verdict"] == "NEW_PL"
+     and new_line_row(c)["copy_source_sku"] == "2001" and "CROSS_BRAND_COPY" in new_line_row(c)["flags"].split(";")
+     and new_line_row(c)["lane_Brand"] == "Acme Farms" and new_line_row(c)["lane_Vendor"] == "Northwind Distribution"
+     and new_line_row(c)["lane_Price"] == "" and new_line_row(c)["online_title"] == "",
+     ctx(), new_line_ctx(), "give Acme a 1g cart in Vape (a same-brand source: no cross-brand copy)"),
+    ("CATEGORY_INFERRED (R33): the cross-brand source's Category word (distillate) is not in the line - a vendor fact to confirm",
+     lambda c: "CATEGORY_INFERRED" in new_line_row(c)["flags"].split(";"),
+     ctx(active=[dict(r, Category="Distillate Cart") if r["SKU"] == "2001" else r for r in BASE["active"]]),
+     line5("Acme Farms Northern Lights Distillate Cart 0.5g", active=[dict(r, Category="Distillate Cart") if r["SKU"] == "2001" else r for r in BASE["active"]]),
+     "the line prints the Category's own word (Distillate Cart)"),
+    ("CATEGORY_UNREAD: a line naming no catalog form word has no copy source and asks for --line-category",
+     lambda c: (lambda r: r["verdict"] == "NEW_PL" and "CATEGORY_UNREAD" in r["flags"].split(";") and r["copy_source_sku"] == ""
+                and "--line-category 5=" in r["sibling_reason"])(new_line_row(c)),
+     line5("Acme Farms Northern Lights Vape Product 0.5g"),
+     line5("Acme Farms Northern Lights Vape Product 0.5g", line_categories={"5": "Cartridge"}),
+     "the operator names the Category (Cartridge): placed, copied cross-brand, CATEGORY_DIRECTED"),
+    ("CATEGORY_DIRECTED (R33): a directed Category in the taxonomy places the line and is flagged for the vendor's confirmation",
+     lambda c: (lambda r: r["verdict"] == "NEW_PL" and "CATEGORY_DIRECTED" in r["flags"].split(";") and r["copy_source_sku"] == "2001"
+                and r["lane_Category"] == "Cartridge")(new_line_row(c)),
+     line5("Acme Farms Northern Lights Vape Product 0.5g", line_categories={"5": "Cartridge"}),
+     line5("Acme Farms Northern Lights Vape Product 0.5g"), "no direction: the Category stays unread"),
+    ("STRAIN_TYPE_CONFLICT (R26): a line stating a Type the Strain record does not carry is STRAIN_MISSING and lists the record's items",
+     lambda c: (lambda r: r["verdict"] == "STRAIN_MISSING" and "STRAIN_TYPE_CONFLICT" in r["flags"].split(";")
+                and r["strain_type"] == "Sativa" and "1001 'Acme Farms | Pre-Roll | Blue Dream | 1g'" in r["sibling_reason"])(row_for(c, "Acme Farms Gelato")),
+     line3("Acme Farms Gelato preroll 1g - 100/case Sativa", active=[dict(r, Strain="Gelato") if r["SKU"] == "1001" else r for r in BASE["active"]]),
+     line3("Acme Farms Gelato preroll 1g - 100/case Hybrid", active=[dict(r, Strain="Gelato") if r["SKU"] == "1001" else r for r in BASE["active"]]),
+     "the line states the record's own Type (Hybrid)"),
+    ("STRAIN_TYPE_RESEARCHED (R33): a researched Type rides the STRAIN_MISSING row with its source, never typed as a fact",
+     lambda c: (lambda r: r["strain_type"] == "Sativa" and "per vendor sheet" in r["sibling_reason"]
+                and "STRAIN_TYPE_RESEARCHED" in r["flags"].split(";"))(row_for(c, "Acme Farms Mystery Haze")),
+     ctx(strain_types={"4": "Sativa@vendor sheet"}), ctx(), "no direction: the row asks for the research and types nothing"),
     ("NEW_PL fires once: a new line under a known brand, created from its nearest Vape item (R101)",
      lambda c: verdict_count(c, "NEW_PL") == 1 and new_line_row(c)["copy_source_sku"] == "1008"
      and new_line_row(c)["action"].startswith("CREATE"),
@@ -410,6 +507,25 @@ CHECKS = [
      ctx(), ctx(active=BASE["active"] + [dict(BASE["active"][3], SKU="3001", ProductId="701", Brand="Cedar Co",
                                                   Product="Cedar Co | Gummy | Lime | 0.1g", **{"Product grams": "0.1g"})]),
      "add a Cedar Co item"),
+    ("NEW_BRAND is a CREATE once spelled (--line-brand, R121): Brand record first (R30), then a cross-brand copy under the new brand",
+     lambda c: (lambda r: r["verdict"] == "NEW_BRAND" and r["action"].startswith("CREATE") and "BRAND_NAME_UNREAD" not in r["flags"]
+                and "CROSS_BRAND_COPY" in r["flags"].split(";") and r["lane_Brand"] == "Cedar Co" and r["copy_source_sku"] == "3101"
+                and r["tags"] == C.DEFAULT_NEW_LINE_TAG and "Brand record first" in r["sibling_reason"])(row_for(c, "Cedar Co")),
+     ctx(active=BASE["active"] + [GUMMY_SRC], line_brands={"6": "Cedar Co"}),
+     ctx(active=BASE["active"] + [GUMMY_SRC]), "no spelling: BRAND_NAME_UNREAD, no brand on the row"),
+    ("BRAND_NAME_UNREAD: an unspelled new brand keeps its copy source but no brand, and is flagged (R121)",
+     lambda c: (lambda r: r["verdict"] == "NEW_BRAND" and "BRAND_NAME_UNREAD" in r["flags"].split(";") and r["lane_Brand"] == ""
+                and r["copy_source_sku"] == "3101")(row_for(c, "Cedar Co")),
+     ctx(active=BASE["active"] + [GUMMY_SRC]), ctx(active=BASE["active"] + [GUMMY_SRC], line_brands={"6": "Cedar Co"}), "spell the brand"),
+    ("a Brand record with no item (brands export) is a NEW_PL cross-brand copy, not a new brand",
+     lambda c: (lambda r: r["verdict"] == "NEW_PL" and r["lane_Brand"] == "Dune Co" and "CROSS_BRAND_COPY" in r["flags"].split(";"))(row_for(c, "Cedar Co")),
+     ctx(active=BASE["active"] + [GUMMY_SRC], line_brands={"6": "Dune Co"}),
+     ctx(active=BASE["active"] + [GUMMY_SRC], line_brands={"6": "Dune Co"}, brands=[b for b in BASE["brands"] if b["Display name"] != "Dune Co"]),
+     "drop Dune Co from the brands export: a new brand again"),
+    ("--line-brand naming a catalog brand matches the line under it (a spelling the invoice got wrong)",
+     lambda c: row_for(c, "AcmeFarms Gelato")["verdict"] == "NEW_ITEM_WITH_SIBLING" and row_for(c, "AcmeFarms Gelato")["copy_source_sku"] == "1001",
+     line3("AcmeFarms Gelato preroll 1g", line_brands={"3": "Acme Farms"}), line3("AcmeFarms Gelato preroll 1g"),
+     "no direction: the misspelt brand is nobody's"),
     ("sibling = the lane member WITH an image", lambda c: row_for(c, "Acme Farms Gelato")["copy_source_sku"] == "1001",
      ctx(), mut(ctx(), "active", lambda r: r["SKU"] == "1001", **{"Image URL": ""}), "clear the imaged sibling's image"),
     ("a dead record (R81) is never the sibling", lambda c: row_for(c, "Acme Farms Gelato")["copy_source_sku"] != "1003",
@@ -480,7 +596,16 @@ CHECKS = [
      tiered_lines(), tiered_lines(drop_pkg=True), "drop package_id from the lines (a pre-column lines CSV)"),
     ("flavor-led: every `(S|I|H) <Flavor> <Form> [ratio]` reorder EXISTS on its one item (strain letter, flavor, ratio read by layout)",
      lambda c: fl_exists(c) and fl_rows(c)["7"]["verdict"] != "EXISTS",
-     fl_ctx(), fl_ctx(reader=False), "run the matcher without the flavor-led layout reader"),
+     fl_ctx(), fl_ctx(reader=False, flavor_cells=False),
+     "run the matcher without the flavor-led layout reader AND with no Flavor cells (the two reads a flavored item has)"),
+    ("flavor-led: the layout reader alone carries the match when the items have no Flavor cell",
+     lambda c: fl_exists(c), fl_ctx(flavor_cells=False), fl_ctx(reader=False, flavor_cells=False),
+     "no Flavor cells and no layout reader"),
+    ("a flavored item is also matched on its Flavor cell when the line is not in the flavor-led layout",
+     lambda c: fl_rows(c)["1"]["verdict"] == "EXISTS" and fl_rows(c)["1"]["copy_source_sku"] == "4001",
+     fl_line(fl_ctx(), "1", "Acme Farms | Raspberry Gummies Sativa | Edibles & Drinks · Gummies | 100mg per unit (10mg x 10pk)"),
+     fl_line(fl_ctx(flavor_cells=False), "1", "Acme Farms | Raspberry Gummies Sativa | Edibles & Drinks · Gummies | 100mg per unit (10mg x 10pk)"),
+     "blank the Flavor cells: a line outside the layout has nothing to match on"),
     ("flavor-led: ratio cannabinoid order is unordered (CBD:THC == THC:CBD, CBC:CBG == CBG:CBC, THCv == THCV)",
      lambda c: fl_exists(c, ("3", "5", "6")),
      fl_ctx(), fl_body(fl_ctx(), "4004", "Pomegranate Restore (2:1 THC:CBD)"), "the catalog item's ratio counts change"),
@@ -491,9 +616,9 @@ CHECKS = [
      fl_create_keeps_canon, fl_ctx(),
      fl_ctx(strains={k: v for k, v in FL["strains"].items() if k != "Restore (1:1 THC:CBD)"}),
      "delete the brand's Restore strain record"),
-    ("receive --check join key is package_id, an intake CSV v3 column",
+    ("receive --check join key is package_id, an intake CSV column",
      lambda cols: RC.CHECK_JOIN_KEY == "package_id" and RC.CHECK_JOIN_KEY in cols,
-     IM.V3_COLS, [c for c in IM.V3_COLS if c != "package_id"], "remove package_id from the v3 columns"),
+     IM.INTAKE_COLS, [c for c in IM.INTAKE_COLS if c != "package_id"], "remove package_id from the columns"),
 ]
 
 
@@ -541,23 +666,23 @@ def cli_chain():
                                                          fx("apex-invoice.md"), "--out-dir", t], 0)
         lines = next(os.path.join(t, n) for n in os.listdir(t) if "-lines-" in n)
         step("match", ["intake_match.py", "--lines", lines, "--active", fx("catalog-active.csv"), "--retired",
-                       fx("catalog-retired.csv"), "--strains", fx("strains.csv"), "--out-dir", t, "--slug", "example",
-                       "--drop-tag", DROP[0]], 0)
+                       fx("catalog-retired.csv"), "--strains", fx("strains.csv"), "--categories", fx("categories.csv"),
+                       "--brands", fx("brands.csv"), "--out-dir", t, "--slug", "example", "--drop-tag", DROP[0]], 0)
         v1 = next(os.path.join(t, n) for n in os.listdir(t) if n.endswith("-v1.csv"))
         with open(v1, encoding="utf-8") as f:
             hdr = next(csv.reader(f))
-        if hdr != IM.V3_COLS or len(hdr) != 54 or hdr[-2:] != ["parse_source", "package_id"]:
-            bad.append("v3 header")
-            print(f"  FAIL  intake CSV header is not the 54-column v3 ({len(hdr)} columns)")
+        if hdr != IM.INTAKE_COLS or len(hdr) != 55 or hdr[-3:] != ["parse_source", "package_id", "unretire_set"] or hdr[:54] != IM.V3_COLS:
+            bad.append("v4 header")
+            print(f"  FAIL  intake CSV header is not the 55-column v4 ({len(hdr)} columns)")
         else:
-            print("  PASS  intake CSV header is the 54-column v3 (45 v2 + 7 + parse_source + package_id)")
+            print("  PASS  intake CSV header is the 55-column v4 (the 54 v3 columns in place + unretire_set)")
         with open(lines, encoding="utf-8") as f:
             lhdr = next(csv.reader(f))
         ok = lhdr == IP.OUT_COLS and "package_id" in lhdr
         print(f"  {'PASS' if ok else 'FAIL'}  lines CSV header carries package_id ({len(lhdr)} columns)")
         if not ok:
             bad.append("lines header package_id")
-        srcs = {r["parse_source"] for r in C.read_csv(v1, IM.V3_COLS)[1]}
+        srcs = {r["parse_source"] for r in C.read_csv(v1, IM.INTAKE_COLS)[1]}
         ok = srcs == {"text:apex-invoice.md"}
         print(f"  {'PASS' if ok else 'FAIL'}  intake rows carry parse_source {sorted(srcs)}")
         if not ok:
@@ -568,12 +693,12 @@ def cli_chain():
             bad.append("STOP message")
             print("  FAIL  the STOP message was not printed")
         v2 = next(os.path.join(t, n) for n in os.listdir(t) if n.endswith("-v2.csv"))
-        _, rows = C.read_csv(v2, IM.V3_COLS)
+        _, rows = C.read_csv(v2, IM.INTAKE_COLS)
         for r in rows:
             if r["verdict"] == "NEW_ITEM_WITH_SIBLING":
                 r.update(approved="Y", new_sku="1004", new_productid="504")
         v3 = C.next_version(t, C.version_stem(v2)[1])
-        C.write_csv(v3, IM.V3_COLS, rows)
+        C.write_csv(v3, IM.INTAKE_COLS, rows)
         step("certify (RED on the one foreign cell)", ["intake_certify.py", "--pre", fx("catalog-active.csv"), "--post",
                                                        fx("certify-post.csv"), "--intake", v3], 1)
         step("notice", ["intake_notice.py", "--intake", v3, "--tenant", fx("tenant-CLAUDE.md")], 0)

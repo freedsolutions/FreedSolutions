@@ -35,6 +35,9 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 - **Invoice** (required for `intake`): the PDF as filed by `pull`, a text dump, or a hand-typed lines CSV.
 - **Exports** (required): Catalog Active + Retired and Strains, the Operator's clicks, never a browser
   download (the pane swallows downloads). Explicit paths, or the freshest in `Exports dir` under a row floor.
+  Optional, picked from the same folder when present: the **Categories** export (the taxonomy `NEW_CATEGORY`
+  reads) and the **Brands** export (a Brand record may exist with no item). Without them the catalog's own
+  values stand in and the run says so.
 - **PO** (optional): CSV `po_no, po_line, sku, description, units, unit_cost[, program]`.
 
 ## The tenant contract
@@ -104,10 +107,27 @@ through connector bodies only.
    `package_id` on each product line (the printed package tag(s), `;`-joined; blank when the layout
    has none). `TOTAL_MISMATCH` (R103) is a DEFECT.
 2. `intake_match.py --lines <lines.csv> --tenant <CLAUDE.md> --min-rows <n>` (or explicit
-   `--active --retired --strains`). One verdict per product line: EXISTS, RETIRED_MATCH,
+   `--active --retired --strains [--categories --brands]`). One verdict per product line: EXISTS, RETIRED_MATCH,
    NEW_ITEM_WITH_SIBLING, STRAIN_MISSING, NEW_PL, NEW_CATEGORY, NEW_BRAND. The sibling is the active member of the
    R50 lane (Brand + Category + grams + Form word, name segment 2) with an image, else the newest.
    Dead records (R81) are never matched or copied. Lane fields are the sibling's own values.
+   **The create path (R101, as the tenant's Dictionary states it):** a product line we carried before comes
+   back by UN-RETIRING it, whole; any other new line duplicates the closest item by subcategory, any brand; the
+   lane creates a new brand; the operator STOP is a Category or Master category the taxonomy lacks.
+   **RETIRED_MATCH** is the un-retire path, never a copy: the matched item's whole R50 lane (every retired
+   member - the brand's OTHER retired lines stay retired) is listed in `unretire_set`; Cost comes from the
+   invoice, Price is confirmed current, the tag becomes the Active tag (`UNRETIRE_FIELDS`, STOP). A line that
+   fits only a RETIRED lane is a sibling copy of the retired member, flagged `UNRETIRE_FIRST`: the lane comes
+   back whole and is read back BEFORE the copy, which reads the Active tag. Directions the Operator can give:
+   `--line-brand <line_no>=<Brand>` (a catalog brand matches under it; a Brand record with no item is a NEW_PL
+   copy; a name no record carries is a NEW_BRAND create, spelled per R121), `--line-category <line_no>=<Category>`
+   (a line whose words name no catalog form word: `CATEGORY_UNREAD` until given; checked against the taxonomy),
+   `--strain-type <line_no>=<Type>@<source>` (a Type the lane researched; it rides the STOP with its source).
+   A bare Strain Type word in a line (`Indica`) is never read as the Strain; on a flavored lane the type record
+   is the Strain and the body `<Flavor> (<Type>)` is the Operator's to complete. A ratio line takes the ONE
+   record with that ratio key, never a cannabinoid word out of it. A Type the line states that differs from the
+   named record's is `STRAIN_TYPE_CONFLICT` (R26): the row lists the record's items - a misalignment inside the
+   brand is fixed on them, a real difference is a NEW record (same name, the line's Type).
    When brand + body + grams hit exactly ONE active item and only the Form test fails (the line names
    no form word at all), the verdict is EXISTS with the STOP-class flag `FORM_UNREAD` (R101): the
    Operator confirms the match. Two or more candidates, or a line that names a form word, stays
@@ -121,15 +141,23 @@ through connector bodies only.
    the last two are `parse_source` and `package_id`.
    **Tags (R96, R83).** A sibling copy carries its lane's decision tag: the ONE item-namespace tag every
    active member carries; a mixed lane reads the Active tag; `--tag-override <line_no>=<tag>` (or `*=`) is
-   the business's direction and beats both. **NEW_PL** - a line that fits no lane under a brand we carry,
-   whose form word places it in a Master category the brand carries - is a CREATE from the brand's nearest
-   active item there (same form word first, then the closest grams), tagged with the new-line tag and
-   flagged `NEW_LINE_FIELDS` (STOP): the copy inherits a different lane, so the Operator sets or confirms
-   name, Price, Flower equiv, Servings per Unit and Category / Type in the lane cells at the one stop.
-   Grams come from the line, Cost from the invoice. **NEW_CATEGORY** (the brand has no item in that Master
-   category, or the line cannot be placed) and **NEW_BRAND** stay STOPs (R101). Tag names: the tenant's
-   optional `New line tag:` / `Active tag:` pointers, else `--new-line-tag` / `--active-tag`, else the
-   generic defaults in `intake_common.py`.
+   the business's direction and beats both. **NEW_PL** - a line that fits no lane under a brand we carry
+   (an item or a Brand record) - is a CREATE from the brand's nearest active item in the Master category its
+   form word places it in (same form word first, then the closest grams) or, when the brand has none there,
+   from the CLOSEST active item by subcategory in the whole catalog (same Global SubCategory, then Category,
+   then Master category), any brand (`CROSS_BRAND_COPY`: the copy gives up the source's Brand, Vendor, Price,
+   Online title / description and image, and certify proves none of it survived). Tagged with the new-line tag
+   and flagged `NEW_LINE_FIELDS` (STOP): the copy inherits a different lane, so the Operator sets or confirms
+   name, Price, Flower equiv, Servings per Unit and Category / Type in the lane cells at the one stop. Grams
+   come from the line, Cost from the invoice. A Category not read from the line's own words is flagged for the
+   vendor's confirmation (`CATEGORY_DIRECTED` by direction, `CATEGORY_INFERRED` from another brand's item whose
+   Category names a process word the line does not print - live, cured, distillate; R33). **NEW_CATEGORY** is
+   the one STOP: the line's Category or Master category is absent from the taxonomy (a configuration decision).
+   **NEW_BRAND** is a CREATE: the Brand record first (a live Global Brand read, R30; the display name as the
+   Operator spells it, R121), then the line as a NEW_PL cross-brand copy; with no spelling (`BRAND_NAME_UNREAD`)
+   nothing is created as it stands. Tag names: the tenant's optional `New line tag:` / `Active tag:` pointers,
+   else `--new-line-tag` / `--active-tag`, else the generic defaults in `intake_common.py`. The intake CSV is
+   v4: 55 columns, the 54 v3 columns in place plus `unretire_set`.
 3. `intake_exceptions.py --intake <v1> --lines <lines.csv> [--po <po.csv>] --tenant <CLAUDE.md>`:
    R102 `COST_DRIFT` (list unit vs lane Cost, quiet when a discount or credit explains it),
    `DEAL_UNDECIDED` (landed unit <= 0.90 x lane Cost, R62, and no ruled Vendor Deal, Tier or margin
@@ -139,14 +167,28 @@ through connector bodies only.
 4. Send the STOP message (below) and stop.
 
 **`create`** - the only Dutchie write. Operator's login. Only rows with `verdict =
-NEW_ITEM_WITH_SIBLING` or `NEW_PL`, and `approved = Y`, in a version written AFTER the Operator's reply.
+NEW_ITEM_WITH_SIBLING`, `NEW_PL` or `NEW_BRAND`, and `approved = Y`, in a version written AFTER the Operator's
+reply. A row with no `copy_source_productid` or no `lane_Brand` is never created as it stands (re-run `intake`
+with the direction it asks for). `RETIRED_MATCH` rows are un-retires, never creates.
 1. Freeze the baseline first: the Operator exports Active; an export that replaces a file in place is
    copied aside before any write.
-2. Login stop (below). Then per row, ONE write-channel call: open the sibling by ProductId ->
-   Actions > Copy -> in `Confirm copy product` replace the whole name with `create_name_FINAL` ->
-   Confirm -> Strain (modal picker: type, take the exact option, check the type shown under it) and
-   Flavor when flagged `FLAVOR_TO_SET` -> Online title and description (replace the strain paragraph
-   only) -> images per the KB -> Save.
+2. Login stop (below). **Un-retires first** (R101): for every `RETIRED_MATCH` row and every row flagged
+   `UNRETIRE_FIRST`, open each ProductId in `unretire_set` -> Actions > Unretire -> on the form set Cost
+   (`lane_Cost`, the invoice), confirm Price current, set the Active tag (remove the old decision tag) -> Save ->
+   reload and read back; the whole line comes back, the brand's other retired lines stay retired. **A new brand
+   next** (`NEW_BRAND`): a live Global Brand read (R30); the Brand record created, linked to the Global Brand
+   when it exists, display name = `lane_Brand` (R121). Then per create row, ONE write-channel call: open the
+   source by ProductId -> Actions > Copy -> in `Confirm copy product` replace the whole name with
+   `create_name_FINAL` (a blank name means the Operator writes it at the stop; never save a `(Copy)` name) ->
+   the online-details copy control, when the dialog offers one, per copy kind: a same-line sibling copy KEEPS
+   the online details (the description is the line's template); a cross-brand copy (`CROSS_BRAND_COPY`) does
+   NOT copy them - the source brand's Online title, description and image are residue, not a template ->
+   Confirm -> Brand and Vendor on a cross-brand copy (`lane_Brand`, `lane_Vendor`) -> Strain (modal picker:
+   type, take the exact option, check the type shown under it) and Flavor when flagged `FLAVOR_TO_SET` ->
+   Online title and description (a sibling copy: replace the strain paragraph only; a cross-brand copy: write
+   the new brand's own, none of the source's words survive) -> images per the KB (a cross-brand copy carries
+   none of the source's) -> Save. Read the control's exact label and default on the live form before relying
+   on it; the platform KB records it once a logged-in lane has probed it.
 3. Read back after a reload: ProductId, SKU, name, Strain, Tags. The copy inherits its source's tags: set
    the ONE decision tag the intake row's `tags` cell names (the lane's tag, or the new-line tag on a NEW_PL)
    and remove the source's; it is READ BACK, never assumed (certify fails `TAG_NOT_READ_BACK` / `TAG_EXTRA`). Check for an inherited location-override row.
@@ -157,7 +199,9 @@ Platform mechanics: `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Item
 **`certify`** - `intake_certify.py --pre <frozen> --post <after> --intake <vN>` (`--key ProductId` on
 the Product export). Every changed cell lands in A (the created rows, each field equal to its target),
 B (`Available`, down only) or C (foreign, reported, never waived). Siblings must be inert. Exit 1 on
-any C cell or A mismatch. `--no-create --allow "<col>" [--rows ...]` certifies hand-made writes on
+any C cell or A mismatch. A `CROSS_BRAND_COPY` row is also diffed against its SOURCE: an Image URL, Online
+description, global link or Online title still equal to the source brand's is `CROSS_BRAND_RESIDUE` (exit 1).
+Un-retires are certified with `--no-create --allow` on the un-retired rows (`unretire_set`). `--no-create --allow "<col>" [--rows ...]` certifies hand-made writes on
 existing items instead. The certify report goes to the kickoff's Status; C cells go to the plan lane.
 
 **`notice`** - `intake_notice.py --intake <vN> --tenant <CLAUDE.md>` fills the tenant's template
@@ -180,9 +224,9 @@ first. The message, printed by `intake_exceptions.py`, has exactly three parts:
 2. **Exceptions table** - `# | Flag | Rule | Row | Detail`, every R102 flag and the R62 read, each
    with its R number. `PO_MISMATCH` reads `n/a` when no PO was given, never zero.
 3. **The approve column** - the Operator fills `approved` (Y / N) in the named intake CSV version and
-   replies. What Y does per verdict is printed with it: only NEW_ITEM_WITH_SIBLING + Y and NEW_PL + Y are
-   created; RETIRED_MATCH is an un-retire by hand (R101); NEW_CATEGORY / NEW_BRAND / STRAIN_MISSING are never
-   created by this lane.
+   replies. What Y does per verdict is printed with it: NEW_ITEM_WITH_SIBLING, NEW_PL and NEW_BRAND + Y are
+   created (a NEW_BRAND after its Brand record); RETIRED_MATCH + Y un-retires the whole line (R101);
+   NEW_CATEGORY and STRAIN_MISSING are never created by this lane.
 
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
 
@@ -238,7 +282,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 
 After ANY edit here run both, and both must pass:
-- `python scripts/selftest_all.py` - every script's `--selftest`, then 44 fixture checks on
+- `python scripts/selftest_all.py` - every script's `--selftest`, then 65 fixture checks on
   `fixtures/`, each proven to FAIL on a named breaker (a check that stays green on its breaker is
   reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

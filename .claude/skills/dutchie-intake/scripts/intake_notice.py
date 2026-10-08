@@ -50,7 +50,8 @@ def fill(template, rows, operator, new_line_tag=DEFAULT_NEW_LINE_TAG):
         s = ln.strip()
         if s == "[[items]]":
             out += [f"- {r.get('create_name_FINAL')} - SKU {r.get('new_sku')}"
-                    + (f" - NEW LINE, tagged `{new_line_tag}`: please review" if r.get("verdict") == "NEW_PL" else "")
+                    + (f" - NEW LINE, tagged `{new_line_tag}`: please review" if r.get("verdict") == "NEW_PL" else
+                       f" - NEW BRAND and NEW LINE, tagged `{new_line_tag}`: please review" if r.get("verdict") == "NEW_BRAND" else "")
                     for r in created]
         elif s == "[[needs-hand]]":
             out += hand or ["- Nothing."]
@@ -132,6 +133,11 @@ def selftest():
     rows2 = rows + [{"verdict": "NEW_PL", "invoice_line": "A Haze cart 0.5g", "lane_Brand": "A"}]
     text2, _, newl2, _ = fill(tpl, rows2, "Pat Example")
     t.check("FIRES: new-line bullet kept with a NEW_PL row", "New line: A A Haze cart 0.5g" in text2 and len(newl2) == 1)
+    rows3 = rows + [{"verdict": "NEW_BRAND", "invoice_line": "Zed Haze cart 0.5g", "lane_Brand": "Zed", "new_sku": "77",
+                     "create_name_FINAL": "Zed | Cart | Haze | 0.5g", "approved": "Y"}]
+    text3, created3, _, _ = fill(tpl, rows3, "Pat")
+    t.check("a created NEW_BRAND item is marked NEW BRAND and NEW LINE for the business's review",
+            "- Zed | Cart | Haze | 0.5g - SKU 77 - NEW BRAND and NEW LINE" in text3 and len(created3) == 2, text3[:200])
     bad = [dict(rows[0], new_sku="")]
     t.check("FIRES: NOT_READ_BACK on an approved row with no SKU", len(fill(tpl, bad, "x")[3]) == 1)
     return t.done()

@@ -50,6 +50,9 @@ FIELD_MAP = {
 GRAMS = {"Flower equiv": "lane_FlowerEquiv", "Product grams": "lane_ProductGrams"}
 AVAILABLE = "Available"
 NEWKEY = {"SKU": ("new_sku", "copy_source_sku"), "ProductId": ("new_productid", "copy_source_productid")}
+# R101 cross-brand copy: a cell the new item may NOT share with its source brand's item. Brand and Vendor are
+# already A-set targets; these are the carried payload the intake row cannot express as a target value.
+RESIDUE_COLS = ("Image URL", "Online description", "Brand catalog product", "Online title")
 
 
 def load(path, key, required, label):
@@ -131,6 +134,14 @@ def certify(pre_hdr, pre, post_hdr, post, key, intake=None, no_create=False, all
                     fails.append(f"TAG_NOT_READ_BACK: {k} lacks `{x}` (R96 / R83)")
                 for x in sorted(got_t - want_t):
                     fails.append(f"TAG_EXTRA: {k} carries `{x}`, which the intake row does not name (R96: exactly one)")
+            if "CROSS_BRAND_COPY" in (tgt.get("flags") or "").split(";"):
+                src = pre.get((tgt.get(srccol) or "").strip())
+                if src is None:
+                    fails.append(f"RESIDUE_UNCHECKED: {k} is a cross-brand copy but its source {tgt.get(srccol)!r} is not in the pre export")
+                for col in RESIDUE_COLS:
+                    if src is not None and col in post_hdr and (src.get(col) or "").strip() \
+                            and (row.get(col) or "").strip() == (src.get(col) or "").strip():
+                        fails.append(f"CROSS_BRAND_RESIDUE: {k} {col} still equals its source brand's ({tgt.get(srccol)}) - R101")
             counts["A"] += 1
             counts["A_mismatch"] += len(probs)
             rep.append(f"- {k} {row.get('Product')!r}: {len(FIELD_MAP) + len(GRAMS)} fields checked, "
@@ -290,6 +301,28 @@ def selftest():
     t.check("GREEN: an approved NEW_PL row is a create row with the new-line tag (R83)", f9 == [] and c9["A"] == 1, str(f9))
     t.check("FIRES: a NEW_PL row read back without the new-line tag",
             any("TAG_NOT_READ_BACK" in f for f in certify(hdr, pre, hdr, post, "SKU", nl)[1]))
+    hdr_x = hdr + ["Image URL", "Brand"]
+
+    def exx(rows):
+        return {r["SKU"]: dict(zip(hdr_x, [r.get(c, "") for c in hdr_x])) for r in rows}
+    src = {"SKU": "3", "Available": "3", "Product": "B | P | Z | 1g", "Price": "30", "Image URL": "b-brand.jpg", "Brand": "B",
+           "Online title": "Z 1g"}
+    xb = [dict(base[0], Brand="A"), dict(base[1], Brand="A"), src]
+    newx = dict(new, Brand="A", **{"Image URL": "b-brand.jpg", "Online title": "Z 1g"})
+    ix = [dict(intake[0], copy_source_sku="3", lane_Brand="A", flags="NEW_LINE_FIELDS;CROSS_BRAND_COPY", online_title="")]
+    px = exx(copy.deepcopy(xb) + [newx])
+    _, fx_, _ = certify(hdr_x, exx(xb), hdr_x, px, "SKU", ix)
+    t.check("FIRES: a cross-brand copy still carrying the source brand's image is CROSS_BRAND_RESIDUE (R101)",
+            any("CROSS_BRAND_RESIDUE" in f and "Image URL" in f for f in fx_), str(fx_))
+    t.check("FIRES: the source's Online title on the copy is both an A mismatch (target blank) and residue",
+            any("CROSS_BRAND_RESIDUE" in f and "Online title" in f for f in fx_) and any("A_MISMATCH" in f for f in fx_))
+    px2 = copy.deepcopy(px)
+    px2["4"]["Image URL"], px2["4"]["Online title"] = "a-brand.jpg", ""
+    _, fx2, _ = certify(hdr_x, exx(xb), hdr_x, px2, "SKU", ix)
+    t.check("QUIET: residue clears once the image and title moved off the source's values", not any("RESIDUE" in f or "A_MISMATCH" in f for f in fx2), str(fx2))
+    ix3 = [dict(ix[0], flags="NEW_LINE_FIELDS")]
+    t.check("QUIET: a same-brand copy keeping its sibling's image is not residue",
+            not any("RESIDUE" in f for f in certify(hdr_x, exx(xb), hdr_x, px, "SKU", ix3)[1]))
     un = [dict(intake[0], new_sku="")]
     t.check("FIRES: an approved row with no new key", any("NOT_READ_BACK" in f for f in certify(hdr, pre, hdr, post, "SKU", un)[1]))
     nc = copy.deepcopy(pre)

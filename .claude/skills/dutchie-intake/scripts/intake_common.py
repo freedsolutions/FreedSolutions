@@ -31,6 +31,8 @@ CATALOG_COLS = [
 # What intake_match reads. `ProductId` is optional: the 26-column shape has none.
 CATALOG_REQUIRED = [c for c in CATALOG_COLS if c not in ("ProductId", "Available")]
 STRAINS_REQUIRED = ["Strain name", "Type"]
+CATEGORIES_REQUIRED = ["Master category", "Category"]   # the categories export = the taxonomy NEW_CATEGORY reads
+BRANDS_REQUIRED = ["Display name"]                      # the brands export = the Brand records (a record may have no item)
 COL_RETIRED = "Is retired"
 
 ITEM_PREFIX = "ITM - "                  # R47: the item decision-tag namespace
@@ -38,7 +40,9 @@ DEFAULT_NEW_LINE_TAG = "ITM - New PL"   # R83: rides a NEW-LINE create (verdict 
 DEFAULT_ACTIVE_TAG = "ITM - Active"     # R96: the standard state; a sibling copy of a mixed line reads it
 DEFAULT_DEAD_TAG = "ITM - Do Not Use"    # R81: a dead record is never a sibling
 PKG_PREFIX = "PKG - "                    # R62 / R72 tag family
-CREATE_VERDICTS = ("NEW_ITEM_WITH_SIBLING", "NEW_PL")   # R101: the only verdicts `create` writes, on approved = Y
+# R101: the only verdicts `create` writes, on approved = Y. NEW_BRAND creates the Brand record first (R30, R121).
+# A RETIRED_MATCH is an un-retire, never a create; a row with no copy source or no brand is never created as it stands.
+CREATE_VERDICTS = ("NEW_ITEM_WITH_SIBLING", "NEW_PL", "NEW_BRAND")
 
 
 def abort(msg):

@@ -18,6 +18,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
               │
               ├──intake_certify (pre / post exports) ──▶ -certify-<ts>.md   (A / B / C, exit 1 on C)
               └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command on NEW_PL / NEW_CATEGORY / NEW_BRAND)
+          un-retires (RETIRED_MATCH, UNRETIRE_FIRST) run BEFORE the copies; a NEW_BRAND's Brand record before its copy
                                                      receive ──▶ phase 2 stub (exit 2)
 ```
 
@@ -46,6 +47,12 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 - A flavor-led line, `(S|I|H) <Flavor> <Form>[ <ratio>]`, matches a body `<Flavor>[ <Effect>] (<type or
   ratio>)` by layout. Ratio cannabinoid order is unordered for the match only; a create name keeps the
   catalog's ratio spelling.
+- The create path (R101): a product line carried before comes back by UN-RETIRING it whole (`RETIRED_MATCH`,
+  or a sibling copy flagged `UNRETIRE_FIRST`; the set rides the v4 column `unretire_set`); any other new line
+  copies the brand's nearest item in the Master category, else the CLOSEST item by subcategory, any brand
+  (`CROSS_BRAND_COPY`, residue proven gone by certify); `NEW_BRAND` is a create (the Brand record first);
+  `NEW_CATEGORY` fires only when the Category is absent from the Categories export. Directions: `--line-brand`,
+  `--line-category`, `--strain-type <line_no>=<Type>@<source>`. The intake CSV is v4 (55 columns).
 
 ## Plug in a tenant
 

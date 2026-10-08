@@ -45,7 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from intake_common import (EXIT_ABORT, EXIT_DEFECT, EXIT_OK, PKG_PREFIX, Selftest, abort, get_all, get_flag,  # noqa: E402
                            has_phrase, new_path, next_version, norm, num, read_csv, stamp, version_stem,
                            write_csv)
-from intake_match import LINES_REQUIRED, V3_COLS  # noqa: E402
+from intake_match import INTAKE_COLS, LINES_REQUIRED, V3_COLS  # noqa: E402
 
 R62_RATIO = 0.90          # R62: package cost <= 0.90 x catalog cost, boundary inclusive (ruled, not tuned)
 PO_REQUIRED = ["po_no", "po_line", "sku", "description", "units", "unit_cost"]
@@ -209,8 +209,9 @@ def stop_message(rows, exc, summary, operator, intake_path):
     out = [f"## STOP - pre-create review - {first.get('lane_Vendor') or 'vendor'} invoice {first.get('invoice_no', '')} "
            f"({first.get('invoice_date', '')})", "",
            f"{operator}: fill the `approved` column (Y or N) in `{os.path.basename(intake_path)}`, then reply `approved`.",
-           "Nothing is created before that reply. Only rows with verdict NEW_ITEM_WITH_SIBLING or NEW_PL and "
-           "approved = Y are created, one Copy item each (R101).", "",
+           "Nothing is created before that reply. Only rows with verdict NEW_ITEM_WITH_SIBLING, NEW_PL or NEW_BRAND and "
+           "approved = Y are created, one Copy item each (R101); a row with no copy source or no brand is never created "
+           "as it stands.", "",
            "### Verdicts", "",
            "| # | Invoice line | Verdict | Sibling / match | Final name | Landed unit | Flags | approved |",
            "|---|---|---|---|---|---|---|---|"]
@@ -237,13 +238,28 @@ def stop_message(rows, exc, summary, operator, intake_path):
             "- EXISTS: nothing to create; the line is received against the matched item.",
             "- EXISTS + FORM_UNREAD (R101, STOP): matched on brand + body + grams only - the line names no form "
             "word. Confirm the matched item in the Sibling / match column before receiving.",
-            "- RETIRED_MATCH: un-retire beats a duplicate (R101). Y = un-retire by hand; never a copy.",
-            "- STRAIN_MISSING: mint the Strain record first, re-run `intake`, then approve.",
-            "- NEW_PL + Y: a new line under a brand we carry (R101). Created by Copy item from the brand's nearest "
-            "item in the same Master category, tagged with the new-line tag (R83), then handed to the business for QC. "
-            "NEW_LINE_FIELDS (STOP): set or confirm the name, Price, Flower equiv, Servings per Unit and Category / Type "
-            "in the lane cells of this CSV before you reply; certify checks the item against them.",
-            "- NEW_CATEGORY / NEW_BRAND: never created by this lane (R101). Rule them outside the run.",
+            "- RETIRED_MATCH + Y: the product line comes back WHOLE (R101): every item in `unretire_set` is un-retired, "
+            "Cost set from the invoice, Price confirmed current, tag set to the Active tag (UNRETIRE_FIELDS). The brand's "
+            "other retired lines stay retired. Never a copy.",
+            "- NEW_ITEM_WITH_SIBLING + UNRETIRE_FIRST + Y: the copy source is retired - the lane un-retires the whole line "
+            "(`unretire_set`) and reads it back BEFORE the copy; the copy reads the Active tag.",
+            "- STRAIN_MISSING: mint the Strain record first, re-run `intake`, then approve. STRAIN_TYPE_CONFLICT (R26): the "
+            "line's Type differs from the record's - the row lists the record's items; fix them if the brand is misaligned, "
+            "else mint a NEW record (same name, the line's Type). A Type the lane researched rides the row with its source "
+            "(STRAIN_TYPE_RESEARCHED), never as a fact the line printed.",
+            "- NEW_PL + Y: a new line under a brand we carry (R101). Created by Copy item from the brand's nearest item in "
+            "the same Master category or, when the brand has none there, the CLOSEST item by subcategory in the catalog, any "
+            "brand (CROSS_BRAND_COPY: Brand, Vendor, name, Strain / Flavor, dose, Cost, Price, Online title / description "
+            "and image are all rewritten; certify proves no residue). Tagged with the new-line tag (R83), then handed to "
+            "the business for QC. NEW_LINE_FIELDS (STOP): set or confirm the name, Price, Flower equiv, Servings per Unit "
+            "and Category / Type in the lane cells of this CSV before you reply; certify checks the item against them. "
+            "CATEGORY_UNREAD: no copy source yet - re-run with --line-category <line_no>=<Category>. CATEGORY_DIRECTED / "
+            "CATEGORY_INFERRED (R33): the Category is not read from the line's own words - confirm it with the vendor.",
+            "- NEW_BRAND + Y: the lane creates the Brand record first (a live Global Brand read, R30; display name per R121, "
+            "as spelled by --line-brand), then the item as a NEW_PL cross-brand copy. BRAND_NAME_UNREAD: no spelling yet - "
+            "re-run with --line-brand <line_no>=<Display name>; nothing is created as it stands.",
+            "- NEW_CATEGORY: the Category or Master category is not in the taxonomy (R101). A new category is a "
+            "configuration decision - rule it outside the run, then re-run.",
             "- Any row + N: skipped. A STOP flag stays on the row for the notice and the vendor thread."]
     return "\n".join(out)
 
@@ -282,7 +298,7 @@ def main(argv):
     d_, stem = version_stem(ip)
     out_dir = get_flag(argv, "--out-dir") or d_
     out_intake = next_version(out_dir, stem)
-    write_csv(out_intake, V3_COLS, rows)
+    write_csv(out_intake, INTAKE_COLS, rows)   # a v3 input comes out v4 (blank unretire_set)
     out_exc = new_path(out_dir, f"{stem}-exceptions-{stamp()}", ".csv")
     write_csv(out_exc, EXC_COLS, exc)
     print(f"{'flag':20} {'rule':24} {'class':7} count")
