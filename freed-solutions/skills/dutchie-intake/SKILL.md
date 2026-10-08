@@ -175,7 +175,7 @@ through connector bodies only.
    Operator spells it, R121), then the line as a NEW_PL cross-brand copy; with no spelling (`BRAND_NAME_UNREAD`)
    nothing is created as it stands. Tag names: the tenant's optional `New line tag:` / `Active tag:` pointers,
    else `--new-line-tag` / `--active-tag`, else the generic defaults in `intake_common.py`. The intake CSV is
-   v4: 55 columns, the 54 v3 columns in place plus `unretire_set`.
+   v5: 56 columns, the 54 v3 columns in place plus `unretire_set` and `image_source` (blank until create step 5).
 3. `intake_exceptions.py --intake <v1> --lines <lines.csv> [--po <po.csv>] --tenant <CLAUDE.md>`:
    R102 `COST_DRIFT` (list unit vs lane Cost, quiet when a discount or credit explains it),
    `DEAL_UNDECIDED` (landed unit <= 0.90 x lane Cost, R62, and no ruled Vendor Deal, Tier or margin
@@ -256,11 +256,27 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    sets the ONE decision tag the intake row's `tags` cell names and removes the source's - a grid `Tags` row whose
    target is the item's WHOLE tag set (grid Tags REPLACE, KB [PROBE 2026-10-08]), sent as TagIds from the live
    `get-tags` read the runtime passes in `ids.Tags`.
-5. **Progress to disk** after every call: `<stem>-plan-vN-progress-<ts>.jsonl` (seq, status, live before,
-   time). A resume reads the live rows and that log, never a page-side done-list. A STOP (`GUARD_MISMATCH`, a
-   refusal, a 401) ends the batch: record it, fall down the ladder, never retry blind.
-6. **Post pull + ONE certify** (below). Then write `new_sku`, `new_productid`, `verified`, `action = CREATED`
-   from the certify's create map into a NEW intake version for the notice.
+5. **Image sourcing**, after each created item's last Save, for every created item with no image (`image_state`
+   blank, `NO_ECOM_IMAGE`, `deleted ...`, or its IMAGE_REMOVE row ran). Ruled by Adam 2026-10-08: *"We should
+   always try to add an image from the Brand's site or other Dutchie menus (otherwise, the business will pick it
+   up via the QC error)."* Look for the product's own image on the brand's own site first, then on other
+   Dutchie menus that list the same product (platform KB "Ecom menu cards"; memory
+   `reference_dutchie_public_menu_feed` - a menu page in a real browser tab; no scripted feed read while the
+   Cloudflare block holds). Take that product's art only: another product's label art is a defect, generic
+   brand art is fine (KB "Images"). Add it through the item form's Online details > **Add image** file input -
+   the app resizes and re-encodes in the browser (KB [PROBE 2026-09-26]; memory
+   `reference_dutchie_add_product_image_client_resize`); never an API replay of `add-product-image`. Write the
+   outcome per item into the run record (the progress JSONL line) and into the intake CSV's `image_source`
+   cell for the notice: `sourced: <url>` (the page the image came from) · `not found: <where the lane looked>`
+   · `not attempted: <why>` (a lane with no browser writes this; a blank cell reads the same). This is a
+   look in two places per item, not a scraper; a miss is the honest state and the business picks it up via the
+   QC error (R35 keeps `NO_ECOM_IMAGE` a defect on a new item).
+6. **Progress to disk** after every call: `<stem>-plan-vN-progress-<ts>.jsonl` (seq, status, live before,
+   time; the step-5 `image_source` per created item). A resume reads the live rows and that log, never a
+   page-side done-list. A STOP (`GUARD_MISMATCH`, a refusal, a 401) ends the batch: record it, fall down the
+   ladder, never retry blind.
+7. **Post pull + ONE certify** (below). Then write `new_sku`, `new_productid`, `verified`, `action = CREATED`
+   and `image_source` from the certify's create map and the run record into a NEW intake version for the notice.
 Platform mechanics: `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Item creation by Copy item".
 
 **`certify`** - ONE certify per batch, at the end (R124). After the last write the lane pulls Catalog Active
@@ -280,10 +296,17 @@ result: pull again later. The single-pair mode (`--pre --post --intake`, `--no-c
 the plan lane.
 
 **`notice`** - `intake_notice.py --intake <vN> --tenant <CLAUDE.md>` fills the tenant's template
-(a copy of `templates/notice.md`). It refuses (DEFECT) while an approved row lacks its read-back
-SKU. A created NEW_PL item is marked on its line for the business's review. A NEW_PL / NEW_CATEGORY /
-NEW_BRAND row prints the `Floor sheet:` command; review it, then run it. The Operator
-adds recipients and sends; this skill sends nothing.
+(a copy of `templates/notice.md`). It refuses (DEFECT) while an approved create row lacks its read-back
+SKU. Created items = approved create rows (verdict NEW_ITEM_WITH_SIBLING / NEW_PL / NEW_BRAND, `approved = Y`),
+each printed once by its final name (`create_name_FINAL`); the SKU / ProductId print only when the row carries
+them (the id write-back is a manual step; a blank id never drops the item). The "New line:" paragraph names
+only CREATED new-line items (NEW_PL / NEW_BRAND, approved = Y) by final name - never an `approved = N` row and
+never an invoice line (fixed 2026-10-08) - and the same set prints the `Floor sheet:` command; review it, then
+run it. "What still needs a hand" lists every created item with no image unless `image_source` records a
+sourced image (create step 5): `not found:` prints where the lane looked, `not attempted:` or a blank cell
+says sourcing was not attempted (fixed 2026-10-08: five created rows with `image_state = deleted ...` read
+"Nothing."). A created NEW_PL item is marked on its line for the business's review. The Operator adds
+recipients and sends; this skill sends nothing.
 
 **`receive`** - phase 2. `--prep` is built; `--enter`, `--check` and `--vendor` are stubs (exit 2). No login and
 no write: `--prep` reads files and writes a NEW sheet. The tenant's rules: one row per Metrc package, received into
@@ -385,7 +408,9 @@ are ruled) · `feedback_name_substring_match_is_not_evidence` · `feedback_batch
 `feedback_bi_change_gate_inert_check` · `feedback_no_client_info_in_skills` ·
 `reference_weedmaps_menu_feed_benchmark` · `reference_dutchie_public_menu_feed` ·
 `feedback_exclude_own_store_from_market_sweep`.
-KB: "Item creation by Copy item" (name set in the modal, ecom template, images, chaining copies).
+KB: "Item creation by Copy item" (name set in the modal, ecom template, images, chaining copies); "Images"
+and the add-product-image probe [PROBE 2026-09-26] (the file input is the only image write path; the app
+resizes in-browser) · "Ecom menu cards" (reading another store's menu page in a real tab) - create step 5.
 
 ## Lane contract
 
@@ -412,7 +437,7 @@ The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_wr
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 91 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 94 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

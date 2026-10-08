@@ -1,8 +1,14 @@
 <!-- dutchie-intake new-items notice template. Copy it into the tenant and point `Notice template:` at the copy.
   Filled by scripts/intake_notice.py from the intake CSV. Markers (a marker line is replaced or dropped):
-    [[items]]       one line per created item: "- <final name> - SKU <sku>"
-    [[needs-hand]]  one bullet per open attribute (image, online title); "- Nothing." when none
-    [[new-line]]    the line is kept only when the CSV carries a NEW_PL, NEW_CATEGORY or NEW_BRAND row
+    [[items]]       one line per created item (verdict NEW_ITEM_WITH_SIBLING / NEW_PL / NEW_BRAND, approved = Y):
+                    "- <final name> - SKU <sku>"; the SKU segment is left out while the row has no read-back SKU
+    [[needs-hand]]  one bullet per open attribute; "- Nothing." when none. An image bullet fires for every
+                    created item with no image unless `image_source` records a sourced image (`sourced: <url>`);
+                    `not found: <where>` prints where the lane looked, `not attempted` / blank says so.
+                    An online-title bullet fires for a created item with no `online_title`.
+    [[new-line]]    the line is kept only when a NEW_PL / NEW_BRAND row was created (approved = Y); <new lines>
+                    names those items by final name with SKU / ProductId when the row has them, never an
+                    approved = N row and never an invoice line
   A created NEW_PL item's [[items]] line is marked "NEW LINE, tagged `<new line tag>`: please review".
   Angle-bracket fields filled by the script: <Brand> <n> <invoice number> <invoice date> <new line tag>
   <Operator> <new lines>. Anything still written <like this> after the fill is for the Operator.

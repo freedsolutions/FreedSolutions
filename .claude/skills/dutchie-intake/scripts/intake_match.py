@@ -1,10 +1,12 @@
 """intake_match.py - invoice lines vs the catalog: one verdict per product line, the sibling to copy
-from, and the intake CSV v4: 55 columns = the 45 v2 columns + verdict, sibling_reason, flags,
+from, and the intake CSV v5: 56 columns = the 45 v2 columns + verdict, sibling_reason, flags,
 landed_unit_cost, po_line_ref, expiry_date, approved + parse_source (which source intake_parse read:
 pypdf / pdftotext / text / lines, so a certify reader knows the provenance) + package_id (the
 package tag(s) printed on the invoice line, `;`-joined; blank when the layout prints none)
 + unretire_set (v4: the retired items of a product line that comes back WHOLE, `;`-joined ProductIds,
-SKU where the export has none; blank unless the row un-retires a line - R101).
+SKU where the export has none; blank unless the row un-retires a line - R101)
++ image_source (v5: the create step's image-sourcing record, read by the notice - `sourced: <url>` /
+`not found: <where the lane looked>` / `not attempted: <why>`; blank here, written at the create step).
 `package_id` is optional on the lines CSV: a lines file written before the column reads blank.
 
   python intake_match.py --lines <lines.csv> --active <catalog-active.csv> --retired <catalog-retired.csv>
@@ -158,7 +160,9 @@ V3_NEW = ["verdict", "sibling_reason", "flags", "landed_unit_cost", "po_line_ref
 V3_COLS = V2_COLS + V3_NEW + ["parse_source", "package_id"]
 V4_NEW = ["unretire_set"]
 V4_COLS = V3_COLS + V4_NEW
-INTAKE_COLS = V4_COLS   # what this script writes; every reader requires V3_COLS, so a v3 file still reads
+V5_NEW = ["image_source"]   # the create step's image-sourcing record (ruled 2026-10-08); the notice reads it
+V5_COLS = V4_COLS + V5_NEW
+INTAKE_COLS = V5_COLS   # what this script writes; every reader requires V3_COLS, so a v3 or v4 file still reads
 VERDICTS = ["EXISTS", "RETIRED_MATCH", "NEW_ITEM_WITH_SIBLING", "STRAIN_MISSING", "NEW_PL", "NEW_CATEGORY", "NEW_BRAND"]
 FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), ("LANE_AMBIGUOUS", "R50", "STOP"),
          ("DOSE_UNREAD", "R50", "STOP"), ("FLAVOR_TO_SET", "R101", "STOP"), ("OT_TEMPLATE_MISS", "R101", "INFO"),
@@ -1465,9 +1469,11 @@ def selftest():
     _, d = match([{"description": "Acme Blue Dream preroll 1g", "vendor": "x", "units_total": "", "unit_cost": "4.5"}],
                  active, retired, strains)
     t.check("FIRES: BAD_LINE on a line with no units", len(d) == 1)
-    t.check("v4 has 55 columns (45 + 7 + parse_source + package_id + unretire_set); every v3 column keeps its place",
-            len(INTAKE_COLS) == 55 and len(V2_COLS) == 45 and INTAKE_COLS[:54] == V3_COLS
-            and INTAKE_COLS[-3:] == ["parse_source", "package_id", "unretire_set"], str(len(INTAKE_COLS)))
+    t.check("v5 has 56 columns (45 + 7 + parse_source + package_id + unretire_set + image_source); every v3 column keeps its place",
+            len(INTAKE_COLS) == 56 and len(V2_COLS) == 45 and INTAKE_COLS[:54] == V3_COLS
+            and INTAKE_COLS[-4:] == ["parse_source", "package_id", "unretire_set", "image_source"], str(len(INTAKE_COLS)))
+    t.check("image_source is blank on every verdict here (the create step writes it)",
+            run("Acme Blue Dream preroll 1g")["image_source"] == "" and "image_source" in run("Acme Blue Dream preroll 1g"))
     r = match([{"description": "Acme Blue Dream preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",
                 "parse_source": "text:x.md"}], active, retired, strains)[0][0]
     t.check("parse_source carried from the line", r["parse_source"] == "text:x.md", r["parse_source"])

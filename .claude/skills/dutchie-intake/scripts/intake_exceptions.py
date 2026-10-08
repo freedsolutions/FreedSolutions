@@ -302,7 +302,7 @@ def main(argv):
     d_, stem = version_stem(ip)
     out_dir = get_flag(argv, "--out-dir") or d_
     out_intake = next_version(out_dir, stem)
-    write_csv(out_intake, INTAKE_COLS, rows)   # a v3 input comes out v4 (blank unretire_set)
+    write_csv(out_intake, INTAKE_COLS, rows)   # a v3 / v4 input comes out v5 (blank unretire_set, image_source)
     out_exc = new_path(out_dir, f"{stem}-exceptions-{stamp()}", ".csv")
     write_csv(out_exc, EXC_COLS, exc)
     print(f"{'flag':20} {'rule':24} {'class':7} count")
