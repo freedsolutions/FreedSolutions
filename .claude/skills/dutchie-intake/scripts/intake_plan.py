@@ -75,8 +75,13 @@ CHANNELS = {
     "ui_brand_link": (UNPROVEN, "P5", "§2A row 3: KB trap 18 is a READ of the association"),
     "ui_copy": (PROVEN, "", "§2A row 4: UI Actions > Copy > Confirm copy product - KB 'Item creation by Copy item' "
                             "[PROBE 2026-09-13]; its request UNPROVEN (P1): certify maps the new row by its planned name"),
-    "ui_unretire": (PROVEN, "", "§2A row 7: UI item page Actions > Unretire (10/8 run record); its request UNPROVEN (P2)"),
-    "grid_bulk_unretire": (UNPROVEN, "P3", "§2A row 8: KB grid trap 2 shows the entry exists"),
+    "ui_unretire": (PROVEN, "", "§2A row 7: UI item page Actions > Unretire (10/8 run record); its request is "
+                                "unretire-product with the whole 220-key form state (KB [PROBE 2026-10-08], P2) - a "
+                                "UI fallback, never replayed"),
+    "grid_bulk_unretire": (PROVEN, "", "§2A row 8: the grid's Bulk unretire = ONE GraphQL mutation "
+                                       "UpdateProductRetiredStatus {lspId, productRetiredUpdates:[{productId, isRetired}]}, "
+                                       "full-row read-back moved exactly IsRetired (KB [PROBE 2026-10-08], P3); "
+                                       "gridBatch sends it after the guard read"),
     "grid": (PROVEN, "", "update-products-multiple - KB 'Path A′'; per field below"),
     "item_form": (PROVEN, "", "the item form, full navigation per item; per field below"),
     "image_remove": (PROVEN, "", "§2A row 20: remove-product-image replay - KB [PROBE 2026-09-26]; memory "
@@ -93,12 +98,15 @@ GRID_FIELDS = {
     "Flavor": (PROVEN, "", "§2A row 12: KB Path A′ [PROBE 2026-09-19]; empty-value clear proven"),
     "BrandId": (PROVEN, "", "§2A row 13: helper allowlist provenance (UI save 2026-09-22)"),
     "ProductCategoryId": (PROVEN, "", "§2A row 14: KB Path A′ [PROBE 2026-09-28], inside one Master category"),
-    "VendorId": (UNPROVEN, "P7", "§2A row 15: KB Path A lists it as settable; no direct-call proof"),
-    "Grams": (UNPROVEN, "P7", "§2A row 16: settable in the modal; no direct-call proof"),
-    "ServingSizePerUnit": (UNPROVEN, "P7", "§2A row 16: settable in the modal; no direct-call proof"),
-    "CBDContent": (UNPROVEN, "P7", "§2A row 16: settable in the modal; no direct-call proof"),
-    "IsOnlineProduct": (UNPROVEN, "P7", "§2A row 16: settable in the modal; no direct-call proof"),
-    "Tags": (UNPROVEN, "P4", "§2A row 17b: replace-or-append unknown; the helper excludes it"),
+    "VendorId": (PROVEN, "", "§2A row 15: KB Path A′ [PROBE 2026-10-08] (P7), retired item, derives Vendor; helper allowlist"),
+    "Grams": (PROVEN, "", "§2A row 16: KB Path A′ [PROBE 2026-10-08] (P7), retired item; helper allowlist"),
+    "ServingSizePerUnit": (PROVEN, "", "§2A row 16: KB Path A′ [PROBE 2026-10-08] (P7), retired item; helper allowlist"),
+    "CBDContent": (UNPROVEN, "P7", "§2A row 16: REFUSED 2026-10-08 - no retired item carries a value, so a probe "
+                                   "could only be restored by an unproven clear; set it by the item form"),
+    "IsOnlineProduct": (PROVEN, "", "§2A row 16: KB Path A′ [PROBE 2026-10-08] (P7): the modal posts \"Yes\" / \"No\"; "
+                                    "helper allowlist"),
+    "Tags": (PROVEN, "", "§2A row 17b: KB Path A′ [PROBE 2026-10-08] (P4): REPLACE - the target is the item's WHOLE tag "
+                         "set, posted as TagIds; helper allowlist (gridBatch only)"),
 }
 FORM_FIELDS = {
     "Tags": (PROVEN, "", "§2A row 17: item form, real clicks - KB 'Retired products' [PROBE 2026-09-26]; "
@@ -108,12 +116,14 @@ FORM_FIELDS = {
     "Online description": (PROVEN, "", "§2A row 18: native setter + input/change - KB 'Online description on the "
                                        "product form' [PROBE 2026-09-15]"),
 }
-CROSS_MC = (UNPROVEN, "P6", "§2A row 14: a cross-MC ProductCategoryId move is unproven")
+CROSS_MC = (PROVEN, "", "§2A row 14: a cross-MC ProductCategoryId move re-derives Master category (KB [PROBE "
+                        "2026-10-08], P6); Ecom category and tax categories did not move")
 # The per-write guard read (§2A row 22). A write on an item whose guard is not proven is refused.
 GUARD = {
     "active": (PROVEN, "", "§2A row 22: get-product-details-v2 {ctx, ProductId} - memory "
                            "reference_dutchie_item_form_save_drops_location_override (2026-09-25)"),
-    "retired": (UNPROVEN, "P2", "§2A row 22: get-product-details-v2 on a RETIRED item is unread"),
+    "retired": (PROVEN, "", "§2A row 22: get-product-details-v2 on a RETIRED item returns the same 157-key record, "
+                            "IsRetired true (KB [PROBE 2026-10-08], P2)"),
     "record": (PROVEN, "", "a record mint is guarded by the live list read (KB Path A′ get-strains)"),
 }
 
@@ -126,13 +136,14 @@ ROUTES = [("Cost", "Cost", "grid", "lane_Cost"), ("Price", "Price", "grid", "lan
           ("Servings per Unit", "ServingSizePerUnit", "grid", "lane_ServingsPerUnit"),
           ("CBD content", "CBDContent", "grid", "lane_CBDContent"),
           ("Is available online", "IsOnlineProduct", "grid", "lane_OnlineAvailable"),
-          ("Tags", "Tags", "item_form", "tags")]
+          ("Tags", "Tags", "grid", "tags")]
 # field -> the export column the certify reads it on (shared with intake_certify.py)
 FIELD_COL = {f: c for c, f, _, _ in ROUTES}
 FIELD_COL.update({"Name": "Product", "Online title": "Online title", "Online description": "Online description",
                   "_state": "_state", "_copy": "Product", "_images": "Image URL", "_global_link": "Brand catalog product"})
 # a planned field whose write moves another export cell by itself: declared, never a defect (R124)
-DERIVES = {"StrainId": ["Strain Type"], "_state": ["Brand catalog product"]}
+DERIVES = {"StrainId": ["Strain Type"], "_state": ["Brand catalog product"],
+           "ProductCategoryId": ["Master category"]}   # moves only on a cross-MC target (P6)
 ID_FIELDS = {"StrainId", "BrandId", "ProductCategoryId", "VendorId"}
 MONEY = {"Cost", "Price"}
 GRAMS = {"FlowerEquivalent", "Grams"}
@@ -321,11 +332,11 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                 seqs.append(emit("UNRETIRE_ALIGN", n, pid, field, bef, tgt, "grid", [], "retired"))
         if tag and not same("Tags", m.get("Tags"), tag_target(m.get("Tags"), tag, prefix)):
             seqs.append(emit("UNRETIRE_ALIGN", n, pid, "Tags", m.get("Tags", ""), tag_target(m.get("Tags"), tag, prefix),
-                             "item_form", [], "retired"))
+                             "grid", [], "retired"))
         align_seqs[pid] = (n, seqs)
     # every UNRETIRE_ALIGN row runs before the first UNRETIRE: the step order IS the dependency order
     for pid, (n, seqs) in list(align_seqs.items()):
-        align_seqs[pid] = emit("UNRETIRE", n, pid, "_state", "retired", "active", "ui_unretire", seqs, "retired")
+        align_seqs[pid] = emit("UNRETIRE", n, pid, "_state", "retired", "active", "grid_bulk_unretire", seqs, "retired")
     # 5 COPY -------------------------------------------------------------------------------------------------
     copies, planned_names = {}, {}
     active_names = {(r.get("Product") or "").strip() for r in active}
@@ -411,7 +422,7 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                 bc, tc = bef[len("name:"):], tgt[len("name:"):]
                 if norm(tc) not in mc_of:
                     refuse("CATEGORY_UNKNOWN", "ALIGN", n, key, field, channel, "", f"{tc!r} is not in the Categories freeze (NEW_CATEGORY is a STOP)")
-                elif mc_of.get(norm(bc)) != mc_of.get(norm(tc)):
+                elif mc_of.get(norm(bc)) != mc_of.get(norm(tc)) and CROSS_MC[0] != PROVEN:
                     refuse("CHANNEL_UNPROVEN", "ALIGN", n, key, field, channel, CROSS_MC[1],
                            f"{CROSS_MC[2]}: {mc_of.get(norm(bc))!r} -> {mc_of.get(norm(tc))!r}")
             emit("ALIGN", n, key, field, bef, tgt, channel, deps, "active")
@@ -573,9 +584,14 @@ def _fixture():
 
 
 def _probed():
-    """The channel maps as they would read AFTER probe P2 proves the retired guard read (a simulation only)."""
+    """The module's own guard map: probe P2 proved the retired guard read 2026-10-08."""
+    return dict(GUARD)
+
+
+def _unproven_retired():
+    """The breaker: the guard map as it read BEFORE probe P2 (a simulation only)."""
     g = dict(GUARD)
-    g["retired"] = (PROVEN, "", "SIMULATED P2 (selftest only)")
+    g["retired"] = (UNPROVEN, "P2", "SIMULATED pre-P2 (selftest only)")
     return g
 
 
@@ -624,20 +640,37 @@ def selftest():
     t.check("row_sha1 = sha1 of the ten cells joined by U+001F (the vector gridBatch's selftest also checks)",
             got == hashlib.sha1(SEP.join(v[c] for c in HASH_COLS).encode("utf-8")).hexdigest() and got == h, got)
     # --- refusals: each must FIRE on its breaker -------------------------------------------------------------
-    _, ref0, _ = _build()
-    t.check("FIRES: with the module's own map, every write on a RETIRED item is refused (guard read UNPROVEN, P2)",
+    _, refm, _ = _build()
+    t.check("GREEN: the module's OWN map plans the fixture with 0 refusals (P2 proved the retired guard 2026-10-08)",
+            refm == [], str(refm[:2]))
+    t.check("un-retire runs on the bulk-unretire mutation (P3) and the tag on the grid (P4, REPLACE), not the form",
+            u["channel"] == "grid_bulk_unretire" and by[("402", "Tags")]["channel"] == "grid"
+            and by[("402", "Tags")]["before"] == "ITM - Discontinue, PKG - Deal", str((u["channel"], by[("402", "Tags")])))
+    _, ref0, _ = _build(guard=_unproven_retired())
+    t.check("FIRES: with the retired guard UNPROVEN (pre-P2 breaker), every write on a RETIRED item is refused",
             ref0 and all(f["reason"] == "GUARD_UNPROVEN" and f["probe"] == "P2" for f in ref0)
             and {f["step"] for f in ref0} == {"UNRETIRE_ALIGN", "UNRETIRE"}, str(ref0[:2]))
     f1 = _fixture()
     f1["intake"][2]["lane_Vendor"] = "Vendor Other"
-    _, r1, _ = _build(f1, guard=_probed())
-    t.check("FIRES: a VendorId write is refused (CHANNEL_UNPROVEN, probe P7)",
-            any(f["reason"] == "CHANNEL_UNPROVEN" and f["field"] == "VendorId" and f["probe"] == "P7" for f in r1), str(r1))
+    rows1, r1, _ = _build(f1, guard=_probed())
+    t.check("QUIET: a VendorId write plans by NAME (P7 proved it 2026-10-08)",
+            r1 == [] and any(r["field"] == "VendorId" and r["target"] == "name:Vendor Other" for r in rows1), str(r1))
+    f1b = _fixture()
+    f1b["intake"][2]["lane_CBDContent"] = "5"
+    _, r1b, _ = _build(f1b, guard=_probed())
+    t.check("FIRES: a CBDContent write is refused (CHANNEL_UNPROVEN: P7 REFUSED, no restorable target)",
+            any(f["reason"] == "CHANNEL_UNPROVEN" and f["field"] == "CBDContent" and f["probe"] == "P7" for f in r1b), str(r1b))
     f2 = _fixture()
     f2["intake"][2]["lane_Category"] = "Cart"
-    _, r2, _ = _build(f2, guard=_probed())
-    t.check("FIRES: a cross-MC ProductCategoryId move is refused (P6); inside one MC it plans",
-            any(f["field"] == "ProductCategoryId" and f["probe"] == "P6" for f in r2), str(r2))
+    rows2, r2, _ = _build(f2, guard=_probed())
+    t.check("a cross-MC ProductCategoryId move plans (P6) and the certify declares Master category derived",
+            r2 == [] and any(r["field"] == "ProductCategoryId" and r["target"] == "name:Cart" for r in rows2)
+            and "Master category" in DERIVES.get("ProductCategoryId", []), str(r2))
+    f2c = _fixture()
+    f2c["intake"][2]["lane_Category"] = "Tincture Drops"
+    _, r2c, _ = _build(f2c, guard=_probed())
+    t.check("FIRES: a Category absent from the taxonomy is refused (NEW_CATEGORY is a STOP)",
+            any(f["reason"] == "CATEGORY_UNKNOWN" for f in r2c), str(r2c))
     f2b = _fixture()
     f2b["intake"][2]["lane_Category"] = "Chocolates"
     rows2b, r2b, _ = _build(f2b, guard=_probed())

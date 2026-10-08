@@ -38,7 +38,7 @@ import intake_pointers as PTR  # noqa: E402
 import receive as RC  # noqa: E402
 
 SCRIPTS = ["intake_pointers.py", "intake_parse.py", "intake_match.py", "intake_exceptions.py",
-           "intake_plan.py", "intake_certify.py", "intake_notice.py", "receive.py"]
+           "intake_plan.py", "intake_certify.py", "intake_notice.py", "intake_ui_run.py", "receive.py"]
 # The batch runner lives in the sibling skill (one allowlist, one refusal set for every lane): its batch
 # cases run here too, so the whole R124 chain - plan, gridBatch, certify - is proven by one command.
 GRID_SELFTEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "dutchie-bi-looker", "scripts",
@@ -412,13 +412,14 @@ PFX = IC.plan_fixture()
 
 
 def plan_of(guard_probed=True, intake_edit=None, copy_source=None):
-    """build_plan on the plan fixtures; `guard_probed` SIMULATES probe P2 (the CLI cannot)."""
+    """build_plan on the plan fixtures; `guard_probed=False` SIMULATES the pre-P2 map (the breaker; P2 proved
+    the retired guard read 2026-10-08, so the module's own map is the probed one)."""
     intake = copy.deepcopy(rows_of("plan-intake.csv"))
     if intake_edit:
         intake_edit(intake)
     if copy_source:
         intake[1]["copy_source_productid"] = copy_source
-    kw = {"guard": PL._probed()} if guard_probed else {}
+    kw = {"guard": PL._probed() if guard_probed else PL._unproven_retired()}
     return PL.build_plan(intake, rows_of("plan-pre-active.csv"), rows_of("plan-pre-retired.csv"),
                          rows_of("plan-strains.csv"), rows_of("plan-categories.csv"), rows_of("plan-brands.csv"), **kw)
 
@@ -671,14 +672,14 @@ CHECKS = [
     ("receive --check join key is package_id, an intake CSV column",
      lambda cols: RC.CHECK_JOIN_KEY == "package_id" and RC.CHECK_JOIN_KEY in cols,
      IM.INTAKE_COLS, [c for c in IM.INTAKE_COLS if c != "package_id"], "remove package_id from the columns"),
-    ("plan (R124): the synthetic batch plans 20 writes in step order with 0 refusals once P2 is proven",
+    ("plan (R124): the synthetic batch plans 20 writes in step order with 0 refusals (P2 proven 2026-10-08)",
      lambda pr: len(pr[0]) == 20 and pr[1] == []
      and [PL.STEPS.index(r["step"]) for r in pr[0]] == sorted(PL.STEPS.index(r["step"]) for r in pr[0]),
-     plan_of(), plan_of(intake_edit=lambda i: i[2].update(lane_Vendor="Vendor Other")),
-     "a cross-brand copy that changes Vendor (VendorId UNPROVEN, P7)"),
-    ("plan: with today's write-path map every retired-item write refuses on probe P2 (6), nothing else",
+     plan_of(), plan_of(intake_edit=lambda i: i[2].update(lane_CBDContent="5")),
+     "a cross-brand copy that sets CBD content (CBDContent REFUSED, P7)"),
+    ("plan: with the pre-P2 guard map every retired-item write refuses on probe P2 (6), nothing else",
      lambda pr: len(pr[1]) == 6 and {f["probe"] for f in pr[1]} == {"P2"}, plan_of(False), plan_of(True),
-     "simulate the P2 probe as proven"),
+     "the module's own (probed) guard map"),
     ("plan: a dead R81 record is never a copy source", lambda pr: not any(f["reason"] == "DEAD_SOURCE" for f in pr[1]),
      plan_of(), plan_of(copy_source="404"), "point the sibling copy at the dead record"),
     ("plan: every row_sha1 verifies (an edited row is caught before any write)",
@@ -786,13 +787,29 @@ def cli_chain():
         shutil.copy(fx("plan-intake.csv"), pin)
         pargs = ["--intake", pin, "--active", fx("plan-pre-active.csv"), "--retired", fx("plan-pre-retired.csv"),
                  "--strains", fx("plan-strains.csv"), "--categories", fx("plan-categories.csv"), "--brands", fx("plan-brands.csv")]
-        out = step("plan (REFUSED: the retired guard read is probe P2)", ["intake_plan.py"] + pargs, 2)
-        if "P2" not in out or any(n.endswith("-plan-v1.csv") for n in os.listdir(t)) \
-                or not any("-plan-refusals-" in n for n in os.listdir(t)):
-            bad.append("plan refusal")
-            print("  FAIL  the refused plan must name P2, write no plan file and write a refusals CSV")
+        step("plan (GREEN: P2 proved the retired guard read; the CLI writes the plan file)", ["intake_plan.py"] + pargs, 0)
+        if not any(n.endswith("-plan-v1.csv") for n in os.listdir(t)):
+            bad.append("plan written")
+            print("  FAIL  the GREEN plan must write <stem>-plan-v1.csv")
         else:
-            print("  PASS  the refused plan names P2, wrote no plan file, wrote a refusals CSV")
+            print("  PASS  the GREEN plan wrote <stem>-plan-v1.csv")
+        irows = copy.deepcopy(rows_of("plan-intake.csv"))
+        irows[2]["lane_CBDContent"] = "5"
+        rd = os.path.join(t, "refuse")
+        os.makedirs(rd)
+        pin2 = os.path.join(rd, "plan-intake-v1.csv")
+        with open(pin2, "w", encoding="utf-8", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(irows[0].keys()))
+            w.writeheader()
+            w.writerows(irows)
+        out = step("plan (REFUSED: a CBDContent write, probe P7 REFUSED)",
+                   ["intake_plan.py"] + [pin2 if a == pin else a for a in pargs], 2)
+        if "P7" not in out or any(n.endswith("-plan-v1.csv") for n in os.listdir(rd)) \
+                or not any("-plan-refusals-" in n for n in os.listdir(rd)):
+            bad.append("plan refusal")
+            print("  FAIL  the refused plan must name P7, write no plan file and write a refusals CSV")
+        else:
+            print("  PASS  the refused plan names P7, wrote no plan file, wrote a refusals CSV")
         rows, _, _ = plan_of()
         planf = os.path.join(t, "plan-intake-plan-v1.csv")
         C.write_csv(planf, PL.PLAN_COLS, rows)

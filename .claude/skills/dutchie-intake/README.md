@@ -21,7 +21,8 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
           intake_plan ──▶ <stem>-plan-vN.csv + summary   ══ STOP: the Operator approves the plan (R124) ══
                                                                                │
           create (write channel, Operator's login): ONE paced batch - gridBatch (grid rows, a guard read per
-          write, no read-back) + the UI rows (one item per call) ──▶ -plan-vN-progress-<ts>.jsonl
+          write, no read-back; the un-retire mutation) + the UI rows (intake_ui_run emit -> one neo `run` per
+          row, intake_ui_rows.js in the page; record -> progress + keyMap) ──▶ -plan-vN-progress-<ts>.jsonl
               │   order = MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK
               ├──post pull (Active + Retired) ──intake_certify --plan ──▶ -certify-<ts>.md (ONE certify, A / B / C)
               └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command on NEW_PL / NEW_CATEGORY / NEW_BRAND)
@@ -34,7 +35,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 |---|---|---|---|
 | `pull` | session procedure (Gmail + Drive connectors) | connector only | Drive copy, inbox mirror, `manifest.jsonl` |
 | `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` | none | lines CSV, intake v1 + v2, exceptions CSV, STOP message |
-| `create` | `intake_plan.py`, then `gridBatch` + the UI rows in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL |
+| `create` | `intake_plan.py`, then `gridBatch` + `intake_ui_run.py` (UI rows) in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL, the keyMap |
 | `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
 | `notice` | `intake_notice.py` | none | `-notice-<ts>.md` (a draft; the Operator sends) |
 | `receive` | `receive.py` | - | stub, exit 2 |

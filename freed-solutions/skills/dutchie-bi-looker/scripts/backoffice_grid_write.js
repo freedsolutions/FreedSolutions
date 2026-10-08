@@ -61,9 +61,10 @@
   // every plan so an operator approving a live write sees how strong the proof is. Being settable
   // in the modal is NOT proof that the same field rides this payload the same way.
   //
-  // `Tags` is deliberately absent: its direct-call semantics (replace or append?) are unproven, and
-  // a guess there silently rewrites governance. Note that the ENVELOPE also carries a `Tags: []`
-  // key — that is part of the captured body, not the Tags field, and the two never mix.
+  // `Tags` was absent until probe P4 (2026-10-08) proved REPLACE: the field's value rides the
+  // ENVELOPE `Tags: [<TagId>...]` key with an empty FieldList value, so it is gridBatch-only (below).
+  // Every other write keeps the envelope `Tags: []`, which leaves an item's tags alone (proven by every
+  // earlier probe's full-row read-back).
   var ALLOWED = {
     BrandId: {
       cast: 'number',
@@ -129,7 +130,58 @@
         'cross-MC move is UNPROVEN (platform KB, Path A′, PROBE 2026-09-28)',
       derives: 'Category',              // the read-back label follows the record; declare it
     },
+    // Proven 2026-10-08 by one-item probes on retired items (kickoff intake-automation-v2 §2 A, probes P6 and
+    // P7): each a direct call with a full 157-key read-back of get-product-details-v2, then restored by the same
+    // call and read back with 0 cells moved. No empty-box clear was probed on any of them.
+    VendorId: {
+      cast: 'number',
+      clearProven: false,
+      provenance: 'proven 2026-10-08 (P7) on a retired item: direct call FieldList:[{VendorId: <id>}] moved ' +
+        'exactly VendorId and the derived Vendor name; restored the same way (platform KB, Path A′, PROBE 2026-10-08)',
+      derives: 'Vendor',
+    },
+    Grams: {
+      cast: 'number',
+      clearProven: false,
+      provenance: 'proven 2026-10-08 (P7) on a retired item: direct call FieldList:[{Grams: <number>}] moved ' +
+        'exactly Grams (FlowerEquivalent did not follow); restored the same way (platform KB, Path A′, PROBE 2026-10-08)',
+    },
+    ServingSizePerUnit: {
+      cast: 'number',
+      clearProven: false,
+      provenance: 'proven 2026-10-08 (P7) on a retired item: direct call FieldList:[{ServingSizePerUnit: <number>}] ' +
+        'moved exactly that field; restored the same way (platform KB, Path A′, PROBE 2026-10-08)',
+    },
+    // The modal's own Save posted the STRING "No" (captured 2026-10-08); the restore posted "Yes" directly.
+    IsOnlineProduct: {
+      cast: 'enum',
+      values: ['Yes', 'No'],
+      clearProven: false,
+      provenance: 'proven 2026-10-08 (P7) on a retired item: a real modal Save posted FieldList:[{IsOnlineProduct: ' +
+        '"No"}] and moved exactly that field; a direct call with "Yes" restored it (platform KB, Path A′, PROBE 2026-10-08)',
+    },
+    // REPLACE semantics, proven 2026-10-08 (P4) on a retired item carrying one tag: a real modal Save posted
+    // FieldList:[{"Tags": ""}] with the tag IDS in the envelope's top-level `Tags: [<TagId>, ...]`, and the item's
+    // whole tag set became exactly those tags (the old tag was dropped). A direct call of the same body with the
+    // old tag's id restored the row (0 cells). So the target is ALWAYS the item's whole tag set, never a delta.
+    // The record read names the field `ProductTags` (a comma-joined string). gridBatch only: the ids come from
+    // the live `get-tags` read the runtime passes in opts.ids.Tags.
+    Tags: {
+      cast: 'tags',
+      batchOnly: true,
+      guardKey: 'ProductTags',
+      clearProven: false,
+      provenance: 'proven 2026-10-08 (P4) on a retired item: FieldList:[{Tags:""}] + envelope Tags:[<TagId>...] ' +
+        'REPLACES the whole tag set; a direct call restored it (platform KB, Path A′, PROBE 2026-10-08)',
+    },
   };
+
+  // The grid's `Bulk unretire products` sends ONE GraphQL mutation (captured from a real bulk unretire on a
+  // selection of one, 2026-10-08, probe P3; full-row read-back moved exactly IsRetired). Documented in full in
+  // the platform KB, so gridBatch may send it for a `grid_bulk_unretire` row with the guard read first.
+  var UNRETIRE_PATH = '/api/graphql';
+  var UNRETIRE_QUERY = 'mutation UpdateProductRetiredStatus($input: UpdateProductRetiredStatusInput!) {\n' +
+    '  updateProductRetiredStatus(input: $input) {\n    result\n    message\n  }\n}';
 
   var WRITE_PATH = '/api/product-master/update-products-multiple';   // documented in full
   var STRAINS_PATH = '/api/strain/get-strains';                      // documented in full
@@ -145,8 +197,8 @@
   // The per-item record read gridBatch guards each write with. Documented by NAME with its body shape
   // `{...ctx, ProductId}` (it returns the same record the grid read does): memory
   // reference_dutchie_item_form_save_drops_location_override (2026-09-25), KB §3 (the item form fires it).
-  // Proven on ACTIVE items; on a retired item it is unread (kickoff 2026-10-08 probe P2), so the plan
-  // builder refuses a retired-item row until that probe lands.
+  // Proven on ACTIVE items, and on RETIRED items 2026-10-08 (probe P2): the page fires it on a retired item's
+  // form and a replay returns the same 157-key record, `IsRetired: true` included.
   var DETAILS_NAME = 'get-product-details-v2';
   var WATCH = [WRITE_NAME, READ_NAME.retired, READ_NAME.active, STRAINS_NAME, DETAILS_NAME];
 
@@ -381,6 +433,18 @@
         'not the label. Got ' + JSON.stringify(value) + '.'));
     }
 
+    if (allow.cast === 'enum' && !clear && allow.values.indexOf(String(value)) < 0) {
+      return (refuse('VALUE_NOT_IN_ENUM',
+        field + ' takes exactly one of ' + JSON.stringify(allow.values) + ' (the strings the modal posts). ' +
+        'Got ' + JSON.stringify(value) + '.'));
+    }
+    if (allow.cast === 'tags' && !clear && (!Array.isArray(value) || !value.length ||
+        !value.every(function (v) { return typeof v === 'number' && isFinite(v); }))) {
+      return (refuse('TAG_IDS_NOT_NUMERIC',
+        'Tags binds by TagId: the write posts the WHOLE tag set as numeric ids from the live get-tags read. ' +
+        'Got ' + JSON.stringify(value) + '.'));
+    }
+
     // Any other number field (Cost, Price, FlowerEquivalent, ...): a non-numeric value casts to NaN,
     // which serialises as null — a silent CLEAR of the field, not an error. Refuse before the network.
     if (allow.cast === 'number' && !clear &&
@@ -418,6 +482,11 @@
     var fr = fieldRefusal(field, o.value, clear);
     if (fr) return Promise.resolve(fr);
     var allow = ALLOWED[field];
+    if (allow.batchOnly) {
+      return Promise.resolve(refuse('FIELD_BATCH_ONLY',
+        '`' + field + '` is proven only in the gridBatch body shape (its value rides the envelope, not ' +
+        'FieldList). Run it from a plan with gridBatch.'));
+    }
     if (clear && ids.length > 1 && o.expectCount !== ids.length) {
       return Promise.resolve(refuse('CLEAR_MULTI_COUNT_UNCONFIRMED',
         'a clear across ' + ids.length + ' items requires expectCount to state that number ' +
@@ -712,6 +781,8 @@
   var MIN_ROW_MS = 2000;
   var BACKOFF_FIRST_MS = 5000, BACKOFF_MAX_MS = 60000;
   var ID_FIELDS = { StrainId: 1, BrandId: 1, ProductCategoryId: 1, VendorId: 1 };
+  // the rows gridBatch sends itself; every other channel is a HANDOFF to the runtime's UI driver
+  var API_CHANNELS = { grid: 1, grid_bulk_unretire: 1 };
   var MONEY = { Cost: 1, Price: 1 };
 
   // SHA-1 over the UTF-8 bytes, so the page recomputes exactly what intake_plan.py wrote.
@@ -759,9 +830,25 @@
 
   // The plan's spelling of a value -> what the write posts. `name:<label>` resolves to ONE record id
   // or stays a string (which castRefusal then refuses: an id field never posts a name).
+  function tagNames(s) {
+    return String(s || '').split(',').map(function (t) { return t.trim(); })
+      .filter(Boolean).sort();
+  }
+
   function planValue(field, raw, ids) {
     var s = raw === undefined || raw === null ? '' : String(raw).trim();
     if (s === '') return { value: '', clear: true, blank: true };
+    // Tags: the plan spells the WHOLE tag set by name ("A, B"); the write posts their TagIds (REPLACE, P4).
+    // `names` is what the guard compares; `unresolved` only matters for the target (the ids that get posted).
+    if (field === 'Tags') {
+      var names = tagNames(s), map = ids && ids.Tags, tagIds = [], miss = [];
+      names.forEach(function (n) {
+        if (map && Object.prototype.hasOwnProperty.call(map, n) && typeof map[n] === 'number') tagIds.push(map[n]);
+        else miss.push(n);
+      });
+      return { value: miss.length ? s : tagIds, names: names, clear: false, label: miss.join(', ') || s,
+        unresolved: miss.length > 0 };
+    }
     if (ID_FIELDS[field] && s.indexOf('name:') === 0) {
       var label = s.slice(5);
       var map = ids && ids[field];
@@ -781,7 +868,12 @@
     var liveBlank = live === undefined || live === null || String(live).trim() === '';
     if (pv.blank) return liveBlank;
     if (liveBlank) return false;
+    if (field === 'Tags') return tagNames(live).join('\u001f') === pv.names.join('\u001f');
     var allow = ALLOWED[field];
+    if (allow && allow.cast === 'enum') {
+      // the item FORM writes the flag lowercase ("no"); the grid writes "No" (KB, form-Save signature)
+      return String(live).trim().toLowerCase() === String(pv.value).trim().toLowerCase();
+    }
     if (allow && allow.cast === 'number') {
       var n = Number(live);
       if (!isFinite(n) || typeof pv.value !== 'number') return false;
@@ -847,7 +939,9 @@
       // A `name:` value resolves to a record id: from opts.ids (the runtime's live read), or - for
       // StrainId only - from the live Strains read at run time. Anything else is refused here.
       var bv = planValue(r.field, r.before, ids);
-      var open = [tv, bv].filter(function (v) { return v.unresolved && r.field !== 'StrainId'; });
+      // a Tags BEFORE is compared by name only, so only its target needs ids
+      var open = (r.field === 'Tags' ? [tv] : [tv, bv])
+        .filter(function (v) { return v.unresolved && r.field !== 'StrainId'; });
       if (open.length) {
         return refuse('NAME_UNRESOLVED', 'seq ' + r.seq + ': `' + r.field + '` value ' +
           JSON.stringify('name:' + open[0].label) + ' has no record id in opts.ids, and this helper resolves ' +
@@ -892,7 +986,7 @@
     var stop = staticCheck(rows, o.ids);
     if (stop) return P(stop);
 
-    var grid = rows.filter(function (r) { return r.channel === 'grid'; });
+    var grid = rows.filter(function (r) { return API_CHANNELS[r.channel]; });
     if (dryRun) {
       var per = {};
       rows.forEach(function (r) { per[r.channel] = (per[r.channel] || 0) + 1; });
@@ -917,7 +1011,7 @@
       return P({ ok: true, status: 'DONE', rows: rows.length,
         detail: 'every row is done per the progress log. Pull the Active + Retired exports and run the certify.' });
     }
-    if (row.channel !== 'grid') {
+    if (!API_CHANNELS[row.channel]) {
       return P({ ok: true, status: 'HANDOFF', seq: row.seq, step: row.step, channel: row.channel,
         product_key: row.product_key, field: row.field,
         detail: 'a ' + row.channel + ' row: the runtime runs it (full navigation per form), logs it, and marks it done' });
@@ -985,7 +1079,9 @@
       if (g.rateLimited) return backoff(row, pid, now, 'guard read');
       var rec = findRecord(g.json, pid);
       if (!rec) return refuse('GUARD_READ_UNVERIFIED', 'the guard read for ' + pid + ' holds no record with that ProductId. STOPPED.');
-      if (!(field in rec)) return refuse('READBACK_FIELD_ABSENT', 'the guard record for ' + pid + ' has no `' + field + '`. STOPPED.');
+      if (row.channel === 'grid_bulk_unretire') return unretireRow(row, pid, rec, ctx, now);
+      var gkey = (allow && allow.guardKey) || field;
+      if (!(gkey in rec)) return refuse('READBACK_FIELD_ABSENT', 'the guard record for ' + pid + ' has no `' + gkey + '`. STOPPED.');
       if ((o.refuseTags || []).length) {
         var tagKey = keyOf(rec, /tag/i);
         if (!tagKey) return refuse('TAG_CHECK_UNAVAILABLE', 'refuseTags was supplied but the guard record has no tag field.');
@@ -993,13 +1089,13 @@
         var hit = o.refuseTags.filter(function (t) { return t && hay.indexOf(String(t).toLowerCase()) >= 0; });
         if (hit.length) return refuse('REFUSED_TAG', pid + ' carries a refused tag: ' + hit.join(', '));
       }
-      var live = rec[field];
+      var live = rec[gkey];
       if (liveEq(field, live, tv)) {
         BATCH.backoffMs = 0;
         return { ok: true, status: 'AT_TARGET', seq: row.seq, wrote: 0,
           log: batchLog({ seq: row.seq, status: 'AT_TARGET', product_id: pid, field: field, live_before: live }) };
       }
-      if (bv.unresolved || !liveEq(field, live, bv)) {
+      if ((bv.unresolved && field !== 'Tags') || !liveEq(field, live, bv)) {
         batchLog({ seq: row.seq, status: 'GUARD_MISMATCH', product_id: pid, field: field, live_before: live });
         return refuse('GUARD_MISMATCH', 'seq ' + row.seq + ': ' + pid + ' `' + field + '` is live ' +
           JSON.stringify(live) + ', which is neither the planned before (' + JSON.stringify(row.before) +
@@ -1011,6 +1107,8 @@
         CustomerTypes: [], TaxCategories: [], Tags: [],
         SessionId: ctx.SessionId, LspId: ctx.LspId, LocId: ctx.LocId, OrgId: ctx.OrgId, UserId: ctx.UserId,
       };
+      // Tags (P4): the modal posts an EMPTY FieldList value and the whole tag set as ids in the envelope
+      if (field === 'Tags') { wbody.FieldList = [{ Tags: '' }]; wbody.Tags = tv.value.slice(); }
       var capW = CAP.requests[WRITE_NAME];
       var url = capW ? capW.url : root.location.origin + WRITE_PATH;
       var headers = (capW && capW.headers) || cap.headers || null;
@@ -1031,6 +1129,42 @@
           if (allow && allow.derives) res.declares = allow.derives + ' is DERIVED from ' + field;
           return res;
         });
+      });
+    });
+  }
+
+  // A `grid_bulk_unretire` row (P3): the guard is the record's IsRetired; false is AT_TARGET (an idempotent
+  // re-run), true sends the documented mutation for this ONE id, anything else is a GUARD_MISMATCH.
+  function unretireRow(row, pid, rec, ctx, now) {
+    if (!('IsRetired' in rec)) return refuse('READBACK_FIELD_ABSENT', 'the guard record for ' + pid + ' has no `IsRetired`. STOPPED.');
+    var live = rec.IsRetired;
+    if (live === false) {
+      BATCH.backoffMs = 0;
+      return { ok: true, status: 'AT_TARGET', seq: row.seq, wrote: 0,
+        log: batchLog({ seq: row.seq, status: 'AT_TARGET', product_id: pid, field: '_state', live_before: 'active' }) };
+    }
+    if (live !== true || row.before !== 'retired' || row.target !== 'active') {
+      batchLog({ seq: row.seq, status: 'GUARD_MISMATCH', product_id: pid, field: '_state', live_before: live });
+      return refuse('GUARD_MISMATCH', 'seq ' + row.seq + ': ' + pid + ' IsRetired is live ' + JSON.stringify(live) +
+        ' against a planned ' + row.before + ' -> ' + row.target + '. STOPPED: no later row runs.');
+    }
+    var body = { query: UNRETIRE_QUERY, operationName: 'UpdateProductRetiredStatus',
+      variables: { input: { lspId: ctx.LspId, productRetiredUpdates: [{ productId: pid, isRetired: false }] } } };
+    return post(root.location.origin + UNRETIRE_PATH, { 'Content-Type': 'application/json' }, body).then(function (r) {
+      if (r && r.status === 429) return backoff(row, pid, now, 'unretire');
+      if (r && r.status === 401) return refuse('SESSION_LOST', 'the unretire returned 401. STOPPED; the row is NOT applied.');
+      if (!r || !r.ok) return refuse('WRITE_NOT_OK', 'the unretire returned HTTP ' + (r ? r.status : 'no response') + '. STOPPED.');
+      return r.json().then(function (j) {
+        var res = j && j.data && j.data.updateProductRetiredStatus;
+        if (!res || res.result !== true) {
+          return refuse('WRITE_NOT_OK', 'the documented success is data.updateProductRetiredStatus.result true; got ' +
+            JSON.stringify(j).slice(0, 120) + '. STOPPED.');
+        }
+        BATCH.backoffMs = 0;
+        return { ok: true, status: 'WROTE', seq: row.seq, wrote: 1,
+          log: batchLog({ seq: row.seq, status: 'WROTE', product_id: pid, field: '_state', live_before: 'retired',
+            target: 'active' }),
+          detail: 'un-retired; NOT read back (R124: the certify proves it)' };
       });
     });
   }

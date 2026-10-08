@@ -185,8 +185,10 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    dependency: MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK.
    A record-bound field (Strain, Brand, Category, Vendor) is planned by name and bound to ONE live record id
    at run time. A row whose channel or guard read is UNPROVEN in the write-path map is REFUSED: no plan file,
-   a refusals CSV, exit 2. An UNPROVEN row is a logged-in probe, never an assumption (until probe P2 lands,
-   every retired-item write refuses). A dead record (R81) is never a source and never un-retired.
+   a refusals CSV, exit 2. An UNPROVEN row is a logged-in probe, never an assumption (probes P2-P7 landed
+   2026-10-08: the retired guard read, the bulk-unretire mutation, grid Tags = REPLACE, the cross-MC Category
+   move, VendorId / Grams / Servings / Online-available; CBDContent stays refused). A dead record (R81) is
+   never a source and never un-retired.
 3. **The ONE STOP is the plan approval.** The plan summary (writes per step and per channel, the refusals,
    the notes) goes to the Operator with the verdict and exception tables. No write before the reply. An
    approval that changes a row means a rebuilt plan (`-plan-vN+1`), never an edited one: `gridBatch`
@@ -194,10 +196,16 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
 4. **Login stop** (below), then **the batch, paced** - no per-item read-back; the certify proves the result:
    grid rows by `gridBatch(plan, {dryRun: false, done, keyMap, ids})` (skill `dutchie-bi-looker`,
    `backoffice_grid_write.js`: one allowlist and one refusal set for every lane; a dry run first - N planned,
-   0 refusals, zero requests); UI rows (strain mint, un-retire, COPY, CONTENT, Tags by the form) by a neo `run`
-   script, one item per call, a FULL navigation per form. Write channel (below) holds the pacing rules.
+   0 refusals, zero requests) - it also sends each UNRETIRE row as the grid's bulk-unretire mutation, guarded on
+   the record's `IsRetired`; UI rows (strain mint, COPY, CONTENT, the `ui_unretire` fallback) by a neo `run` script
+   that `scripts/intake_ui_run.py emit --plan <plan> --seq <n> [--keymap <k>] [--live]` prints (it loads
+   `scripts/intake_ui_rows.js` into the page: a FULL navigation per row, `Copy online details` asserted CHECKED,
+   every form Save inspected BEFORE it leaves and blocked when a key the row does not touch would move). Run
+   `intake_ui_run.py harvest --product <id>` once per tab first; `intake_ui_run.py record` writes each result to
+   the progress JSONL and a COPY's new ProductId into the keyMap. Write channel (below) holds the pacing rules.
    **Un-retires first** (R101): per `unretire_set` member its UNRETIRE_ALIGN rows (Cost = `lane_Cost`, the
-   invoice; Price confirmed current; the ONE decision tag, old one removed), then Actions > Unretire; the whole
+   invoice; Price confirmed current; the ONE decision tag, old one removed), then the un-retire (the grid's
+   bulk-unretire mutation; Actions > Unretire is the UI fallback); the whole
    line comes back, the brand's other retired lines stay retired. **A new brand next** (`NEW_BRAND`): a live
    Global Brand read (R30); the Brand record created, linked to the Global Brand when it exists, display name =
    `lane_Brand` (R121). Then each COPY row is ONE write-channel call: open the
@@ -210,12 +218,14 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    -> Online title and description (a sibling copy: replace the strain paragraph only; a `CROSS_BRAND_COPY`:
    replace both with the new brand's own words, none of the source's survive) -> images per the KB (a
    `CROSS_BRAND_COPY`: delete the copied image before Save) -> Save. Global Category / Sub carry from the
-   source on every copy. In the batch the plan carries these as rows: Brand, Vendor (refused until probe P7), Strain and Flavor are
+   source on every copy. In the batch the plan carries these as rows: Brand, Vendor (proven P7), Strain and Flavor are
    ALIGN grid rows; the cross-brand title and description are CONTENT rows whose target is the new brand's
    words (`online_title`, and `online_description` added at the STOP; a blank one refuses `CONTENT_UNWRITTEN`);
    the copied image is an IMAGE_REMOVE row run after the item's last form Save. The new ProductId goes into
    `keyMap` (where probe P1 shows it, else the item page URL). The copy inherits its source's tags: the plan
-   sets the ONE decision tag the intake row's `tags` cell names and removes the source's.
+   sets the ONE decision tag the intake row's `tags` cell names and removes the source's - a grid `Tags` row whose
+   target is the item's WHOLE tag set (grid Tags REPLACE, KB [PROBE 2026-10-08]), sent as TagIds from the live
+   `get-tags` read the runtime passes in `ids.Tags`.
 5. **Progress to disk** after every call: `<stem>-plan-vN-progress-<ts>.jsonl` (seq, status, live before,
    time). A resume reads the live rows and that log, never a page-side done-list. A STOP (`GUARD_MISMATCH`, a
    refusal, a 401) ends the batch: record it, fall down the ladder, never retry blind.
@@ -322,7 +332,8 @@ output · exit 1 only on DEFECT · abort on a missing column.
 
 `scripts/`: `intake_pointers.py` · `intake_parse.py` (+ `parsers/`) · `intake_match.py` ·
 `intake_exceptions.py` · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
-`receive.py` (stub) · `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
+`intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (stub) ·
+`intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_write.js`.
 
 After ANY edit here run both, and both must pass:

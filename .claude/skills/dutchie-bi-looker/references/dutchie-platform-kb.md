@@ -513,6 +513,27 @@ The picker's own Save posts a flat body, captured from a real UI save:
   re-derives `MasterCategory` is UNPROVEN: read the full row on the first cross-MC item. Pass the numeric
   id, never the label; a label cast to a number serialises as `null`, and the helper refuses it as
   `CATEGORY_ID_NOT_NUMERIC`. On `backoffice_grid_write.js`'s allowlist with this provenance.
+- **[PROBE 2026-10-08] A cross-MC `ProductCategoryId` move re-derives `MasterCategory` too (probe P6).** One
+  retired item, one direct call to a Category in another Master Category, a full 157-key read of
+  `get-product-details-v2` before and after: exactly three cells moved, `ProductCategoryId`, `Category` and
+  `MasterCategory`. `EcomCategory`, `EcomSubcategory` and `TaxCategories` did NOT follow, so an ecom or tax
+  difference between the two categories is a separate write. Restored by the same call, read back: 0 cells. A
+  certify declares `Master category` derived from the Category write.
+- **[PROBE 2026-10-08] `VendorId`, `Grams`, `ServingSizePerUnit` and `IsOnlineProduct` ride the same body (probe
+  P7).** One retired item, one call per field, each read back in full and restored by the same call (0 cells):
+  `VendorId` (a record id from `get-vendors`, a NUMBER) moved itself and the derived `Vendor` name; `Grams` and
+  `ServingSizePerUnit` (NUMBERS) moved only themselves (a `Grams` change did not recompute `FlowerEquivalent`);
+  `IsOnlineProduct` takes the STRINGS the modal posts, captured from a real modal Save:
+  `FieldList:[{"IsOnlineProduct":"No"}]`; `"Yes"` restored it. `CBDContent` was NOT probed: no retired item
+  carries a value, so the only restore would be an unproven empty-box clear; it stays off the allowlist.
+- **[PROBE 2026-10-08] Grid `Tags` REPLACES the whole tag set, and its value rides the ENVELOPE (probe P4).** A real
+  modal Save of one tag on a retired item that carried a different one posted `FieldList:[{"Tags":""}]` with the
+  tag IDS in the top-level `Tags: [<TagId>]` (the key every other write sends as `[]`), and the item's
+  `ProductTags` became exactly that tag: the old one was dropped. A direct call of the same body with the old
+  tag's id restored the row (0 cells). So a Tags write names the item's WHOLE target set, never a delta, and the
+  ids come from `POST /api/posv3/maintenance/get-tags` (`TagId`, `TagName`, `IsSmartTag`, `IsMenuTag`; the bare
+  session envelope). The record read calls the field `ProductTags`, a comma-joined string. Every other grid
+  write keeps the envelope `Tags: []`, which leaves an item's tags alone (every probe's full-row read-back).
 - **A timed-out evaluate can still have landed.** A write whose in-page evaluate timed out on the tool
   side had already written. Read the row back before any retry; never re-send on a timeout alone.
 - **Repeated full reads exhaust RAM.** The retired read is ~8 MB. Re-parsing it in full after every write
@@ -676,9 +697,10 @@ than things to remember — a session read this section on 2026-09-18 and still 
   a write that returns the success pair while nothing moves. It never retries blind. Full per-item
   before/after and a resume done-list sit on `window.__gridWrite`, because the in-page JS channel
   truncates near 1 KB.
-- v1 allowlist is `StrainId`, `Flavor`, `Name` — what the direct-call entry above proves, each
-  carrying its provenance into the plan. `Tags` is deliberately excluded: replace-or-append is
-  unproven, and a guess there rewrites governance silently.
+- The allowlist is what the direct-call entries above prove, each carrying its provenance into the plan:
+  `StrainId`, `Flavor`, `Name`, `BrandId`, `Cost`, `Price`, `FlowerEquivalent`, `ProductCategoryId`, and since
+  2026-10-08 `VendorId`, `Grams`, `ServingSizePerUnit`, `IsOnlineProduct` and `Tags` (REPLACE, `gridBatch` only,
+  because its value rides the envelope). `CBDContent` and the rest of the 25 stay off until a probe proves them.
 - **[PROBE 2026-09-19] `get-strains` is the LIVE list, and that is how an archived strain is
   caught.** The records carry no archive/active field — observed as exactly `StrainId`,
   `StrainName`, `StrainDescription`, `Abbreviation`, `StrainAbbreviation`, `StrainType`,
@@ -1035,6 +1057,22 @@ from an already-tagged item inherits it.
   type, Strain, Tags were the causes seen 9/14 and 9/25), not the retired state; try the plain Save
   first and fall back to unretire → edit → retire only on a refusal. Certify full-row: the Save
   carries the form-Save signature (see *Online description on the product form*).
+- **[PROBE 2026-10-08] The per-item record read works on a RETIRED item, and the item page's Unretire / Retire
+  send the whole form (probe P2).** Opening a retired item's form fires `get-product-details-v2` with
+  `{ProductId, SessionId, LspId, LocId, OrgId, UserId}`; a replay returns the same 157-key record, `IsRetired:
+  true` included, so it serves as the write guard on retired items too. Actions > Unretire > `Confirm unretire`
+  posts `POST /api/product-master/unretire-product` with the form's whole 220-key state (the record plus UI keys);
+  Actions > Retire > `Confirm retire` posts `retire-product` with the same shape. Each moved exactly `IsRetired`
+  on a full 157-key read-back (the hidden-null signature and `LocationRecPrice` did not move), and retire put the
+  row back to its pre-read exactly. Because the body is the form state, it is a UI path, never a replay.
+- **[PROBE 2026-10-08] The grid's `Bulk unretire products` is ONE small GraphQL mutation (probe P3).** On a retired
+  selection of exactly one, guarded on `Bulk actions (1)` (the confirm dialog shows no count), Confirm posted
+  `POST /api/graphql`: `mutation UpdateProductRetiredStatus($input: UpdateProductRetiredStatusInput!) {
+  updateProductRetiredStatus(input: $input) { result message } }` with `variables.input = {lspId,
+  productRetiredUpdates: [{productId, isRetired: false}]}` and answered `{"data":{"updateProductRetiredStatus":
+  {"result":true,"message":"1 products updated"}}}`. A full read-back moved exactly `IsRetired`. It needs no form
+  load, so it is the batch's un-retire channel (`gridBatch`, a `grid_bulk_unretire` row, guarded on the record's
+  `IsRetired`). The Retired toggle did not survive a page reload on this run (trap 3), so it needed no turning off.
 - ⚠️ **The Catalog export cannot be used to read a retired item's link state.** `Brand catalog
   product` exports **blank on retired rows even when the link exists and the product card shows it** —
   measured across a full retired export at zero populated rows against hundreds of links written and

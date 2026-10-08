@@ -251,10 +251,12 @@ const CASES = [
   // 1. field is not settable / not on the v1 proven allowlist
   { reason: 'FIELD_NOT_SETTABLE', note: 'field absent from the KB 25',
     base: cleanWrite, brk: function (s) { s.args.field = 'NotARealField'; } },
-  { reason: 'FIELD_NOT_PROVEN', note: 'settable but no direct-call proof (Grams)',
-    base: cleanWrite, brk: function (s) { s.args.field = 'Grams'; } },
-  { reason: 'FIELD_NOT_PROVEN', note: 'Tags is settable but its direct-call semantics are unproven',
+  { reason: 'FIELD_NOT_PROVEN', note: 'settable but no direct-call proof (CBDContent: P7 had no restorable target)',
+    base: cleanWrite, brk: function (s) { s.args.field = 'CBDContent'; } },
+  { reason: 'FIELD_BATCH_ONLY', note: 'Tags is proven (P4, REPLACE) only in the gridBatch envelope shape',
     base: cleanWrite, brk: function (s) { s.args.field = 'Tags'; } },
+  { reason: 'VALUE_NOT_IN_ENUM', note: 'IsOnlineProduct takes the modal strings "Yes" / "No" only',
+    base: cleanWrite, brk: function (s) { s.args.field = 'IsOnlineProduct'; s.args.value = 'false'; } },
 
   // 2. an empty value is a CLEAR only behind the explicit flag
   { reason: 'EMPTY_VALUE_WITHOUT_CLEAR', note: 'the trap-1 write, refused',
@@ -523,7 +525,27 @@ const SHA_VECTOR = {
 
 function rec(id, over) {
   return Object.assign({ ProductId: id, ProductName: 'FIXTURE ' + id, StrainId: 101, Price: 20,
-    Flavor: 'Mango', BrandId: 5102, Cost: 9, Tags: 'FIXTURE-ACTIVE' }, over || {});
+    Flavor: 'Mango', BrandId: 5102, Cost: 9, Tags: 'FIXTURE-ACTIVE', ProductTags: 'TAG-OLD, TAG-KEEP',
+    IsRetired: false, IsOnlineProduct: 'Yes', VendorId: 6101 }, over || {});
+}
+const TAG_IDS = { 'TAG-OLD': 7001, 'TAG-NEW': 7002, 'TAG-KEEP': 7003 };
+const TAG_NAMES = { 7001: 'TAG-OLD', 7002: 'TAG-NEW', 7003: 'TAG-KEEP' };
+const BATCH2_IDS = { Tags: TAG_IDS, VendorId: { 'Vendor A': 6101, 'Vendor B': 6102 } };
+
+// The 2026-10-08 probe fields: a retired item's whole tag set REPLACED (P4) then the item un-retired by the
+// bulk-unretire mutation (P3); an IsOnlineProduct string (P7) and a VendorId record (P7) on active items.
+function batchPlan2(sha) {
+  const rows = [
+    ['UNRETIRE_ALIGN', '5', '9004', 'Tags', 'TAG-OLD, TAG-KEEP', 'TAG-KEEP, TAG-NEW', 'grid', ''],
+    ['UNRETIRE', '5', '9004', '_state', 'retired', 'active', 'grid_bulk_unretire', '1'],
+    ['ALIGN', '6', '9002', 'IsOnlineProduct', 'Yes', 'No', 'grid', ''],
+    ['ALIGN', '6', '9003', 'VendorId', 'name:Vendor A', 'name:Vendor B', 'grid', ''],
+  ].map(function (c, i) {
+    return { seq: String(i + 1), step: c[0], line_no: c[1], product_key: c[2], field: c[3], before: c[4],
+      target: c[5], channel: c[6], depends_on: c[7], provenance: 'synthetic' };
+  });
+  rows.forEach(function (r) { r.row_sha1 = sha(r); });
+  return rows;
 }
 
 function batchPlan(sha) {
@@ -553,7 +575,7 @@ function rehash(env, plan) {
 function batchEnv(opts) {
   const o = opts || {};
   const db = {};
-  [rec(9001), rec(9002), rec(9003)].forEach(function (r) { db[r.ProductId] = r; });
+  [rec(9001), rec(9002), rec(9003), rec(9004, { IsRetired: true })].forEach(function (r) { db[r.ProductId] = r; });
   Object.keys(o.over || {}).forEach(function (id) { Object.assign(db[id], o.over[id]); });
   const inj = { guard429: Object.assign({}, o.guard429 || {}), write429: Object.assign({}, o.write429 || {}) };
   const calls = [];
@@ -574,9 +596,20 @@ function batchEnv(opts) {
       if (inj.write429[id] > 0) { inj.write429[id]--; call.status = 429; return reply({ Message: 'Too many' }, 429); }
       if (o.writeFalse === id) return reply({ Result: false });
       const f = Object.keys(body.FieldList[0])[0];
-      db[id][f] = body.FieldList[0][f];
+      if (f === 'Tags') {   // REPLACE (P4): the envelope ids become the whole set; the FieldList value is ''
+        db[id].ProductTags = body.Tags.map(function (t) { return TAG_NAMES[t]; }).join(', ');
+      } else {
+        db[id][f] = body.FieldList[0][f];
+      }
       call.applied = true;
       return reply({ Result: true });
+    }
+    if (u.indexOf('/api/graphql') >= 0) {
+      const up = body.variables.input.productRetiredUpdates[0];
+      if (o.gqlFalse) return reply({ data: { updateProductRetiredStatus: { result: false, message: 'no' } } });
+      db[up.productId].IsRetired = up.isRetired;
+      call.applied = true;
+      return reply({ data: { updateProductRetiredStatus: { result: true, message: '1 products updated' } } });
     }
     if (u.indexOf('get-strains') >= 0) {
       return reply({ Data: { strains: [{ StrainId: 101, StrainName: 'Strain X' }, { StrainId: 103, StrainName: 'Strain Q' }] } });
@@ -713,8 +746,8 @@ function batchCases() {
     // refusals that fire BEFORE the first request
     const pre = [
       ['PLAN_SHA_MISMATCH', 'one edited row', function (p) { p[2].target = '17'; return p; }, false],
-      ['FIELD_NOT_PROVEN', 'a VendorId row (UNPROVEN, P7) — the shared refusal set', function (p) { p[5].field = 'VendorId'; return p; }, true],
-      ['FIELD_NOT_PROVEN', 'a Tags row on the grid (UNPROVEN, P4)', function (p) { p[3].field = 'Tags'; return p; }, true],
+      ['FIELD_NOT_PROVEN', 'a CBDContent row (REFUSED, P7) — the shared refusal set', function (p) { p[5].field = 'CBDContent'; return p; }, true],
+      ['NAME_UNRESOLVED', 'a Tags target with no live TagId in opts.ids', function (p) { p[3].field = 'Tags'; return p; }, true],
       ['VALUE_NOT_NUMERIC', 'a Cost target that will not cast', function (p) { p[5].target = '$8'; return p; }, true],
       ['CLEAR_UNPROVEN_FOR_FIELD', 'a blank Price target (a clear)', function (p) { p[2].target = ''; return p; }, true],
       ['NAME_UNRESOLVED', 'a BrandId name with no live id', function (p) { p[4].target = 'name:Brand Z'; return p; }, true],
@@ -761,6 +794,85 @@ function batchCases() {
         eq(st.stop && st.stop.reason, 'STRAIN_ID_UNRESOLVED', 'batch STOP STRAIN_ID_UNRESOLVED — a strain absent from the live read');
         eq(batchCalls(env, 'update-products-multiple').length, 0, 'batch STOP STRAIN_ID_UNRESOLVED — 0 writes');
       });
+    });
+  }).then(function () {
+    // The 2026-10-08 probe fields (P3, P4, P7): Tags REPLACE by ids, the bulk-unretire mutation, an enum, a vendor
+    let plan2;
+    return batchEnv().then(function (env) {
+      plan2 = batchPlan2(env.sandbox.window.gridPlanRowSha1);
+      return env.sandbox.window.gridBatch(plan2, { ids: BATCH2_IDS }).then(function (r) {
+        eq(r.ok, true, 'batch2 dry run — ok' + (r.ok ? '' : ' [' + r.reason + ': ' + r.detail + ']'));
+        eq(r.planned, 4, 'batch2 dry run — the unretire row is sent by gridBatch itself, not handed off');
+        eq(r.handoff, 0, 'batch2 dry run — 0 UI rows');
+      });
+    }).then(function () {
+      return batchEnv();
+    }).then(function (env) {
+      return drive(env, plan2, { ids: BATCH2_IDS }).then(function (st) {
+        eq(st.stop, null, 'batch2 live — runs to DONE' + (st.stop ? ' [' + st.stop.reason + ': ' + st.stop.detail + ']' : ''));
+        const w = batchCalls(env, 'update-products-multiple');
+        eq(w.length, 3, 'batch2 live — 3 grid writes');
+        eq(JSON.stringify(w[0].body.FieldList), '[{"Tags":""}]', 'batch2 Tags — FieldList value is empty, as the modal posts it');
+        eq(JSON.stringify(w[0].body.Tags), '[7003,7002]', 'batch2 Tags — the WHOLE target set as TagIds in the envelope');
+        eq(env.db[9004].ProductTags, 'TAG-KEEP, TAG-NEW', 'batch2 Tags — the mock applies REPLACE');
+        const g = batchCalls(env, '/api/graphql');
+        eq(g.length, 1, 'batch2 unretire — ONE mutation');
+        eq(JSON.stringify(g[0].body.variables.input.productRetiredUpdates), '[{"productId":9004,"isRetired":false}]',
+          'batch2 unretire — exactly this id, isRetired false');
+        const gotTenant = g[0].body.variables.input.lspId;
+        const sameTenant = gotTenant === ENVELOPE.LspId;
+        eq(sameTenant, true, 'batch2 unretire — the tenant key is the harvested envelope value');
+        eq(g[0].body.operationName, 'UpdateProductRetiredStatus', 'batch2 unretire — the captured operation');
+        eq(env.db[9004].IsRetired, false, 'batch2 unretire — applied');
+        eq(JSON.stringify(w[1].body.FieldList), '[{"IsOnlineProduct":"No"}]', 'batch2 IsOnlineProduct — the modal string');
+        eq(JSON.stringify(w[2].body.FieldList), '[{"VendorId":6102}]', 'batch2 VendorId — a record id NUMBER from opts.ids');
+        eq(JSON.stringify(w[1].body.Tags), '[]', 'batch2 — a non-Tags write keeps the envelope Tags empty');
+        return drive(env, plan2, { ids: BATCH2_IDS }).then(function (st2) {
+          eq(st2.statuses.filter(function (s) { return s === 'AT_TARGET'; }).length, 4, 'batch2 re-run — 4 AT_TARGET (unretire included)');
+          eq(batchCalls(env, 'update-products-multiple').length + batchCalls(env, '/api/graphql').length, 4,
+            'batch2 re-run — 0 further requests that write');
+        });
+      });
+    }).then(function () {
+      // breakers, one place each
+      const live2 = [
+        ['GUARD_MISMATCH', 'a third tag appeared on the item after the freeze', { over: { 9004: { ProductTags: 'TAG-OLD, TAG-KEEP, TAG-NEW' } } }],
+        ['GUARD_MISMATCH', 'the item to un-retire reads neither retired nor active', { over: { 9004: { IsRetired: null } } }],
+        ['WRITE_NOT_OK', 'the mutation answers result false', { gqlFalse: true }],
+      ];
+      return live2.reduce(function (ch, c) {
+        return ch.then(function () {
+          return batchEnv(c[2]).then(function (env) {
+            return drive(env, plan2, { ids: BATCH2_IDS }).then(function (st) {
+              eq(st.stop && st.stop.reason, c[0], 'batch2 STOP ' + c[0] + ' — ' + c[1]);
+            });
+          });
+        });
+      }, Promise.resolve());
+    }).then(function () {
+      // the tag order and spacing of the live record do not matter: a set already at target is AT_TARGET
+      return batchEnv({ over: { 9004: { ProductTags: 'TAG-NEW,TAG-KEEP' } } }).then(function (env) {
+        return drive(env, plan2, { ids: BATCH2_IDS }).then(function (st) {
+          eq(st.statuses[0], 'AT_TARGET', 'batch2 Tags — a live set equal to the target in another order is AT_TARGET');
+        });
+      });
+    }).then(function () {
+      const pre2 = [
+        ['VALUE_NOT_IN_ENUM', 'an IsOnlineProduct target that is not a modal string', function (p) { p[2].target = 'false'; return p; }],
+        ['NAME_UNRESOLVED', 'a VendorId name with no live id', function (p) { p[3].target = 'name:Vendor Z'; return p; }],
+        ['CLEAR_UNPROVEN_FOR_FIELD', 'a blank Tags target (strip every tag)', function (p) { p[0].target = ''; return p; }],
+      ];
+      return pre2.reduce(function (ch, c) {
+        return ch.then(function () {
+          return batchEnv().then(function (env) {
+            const p = rehash(env, c[2](JSON.parse(JSON.stringify(plan2))));
+            return env.sandbox.window.gridBatch(p, { dryRun: false, done: [], ids: BATCH2_IDS, now: 1 }).then(function (r) {
+              eq(r.reason, c[0], 'batch2 RED ' + c[0] + ' — ' + c[1]);
+              eq(env.calls.length - env.primeCalls, 0, 'batch2 RED ' + c[0] + ' — refused before any request');
+            });
+          });
+        });
+      }, Promise.resolve());
     });
   });
 }
