@@ -754,8 +754,11 @@ Type (a MUI Select) and External ID, then Save. House convention fills Name = Ab
   > Delete > "Are you sure?" Confirm. The record form has only Save and the list's Actions menu has only Export and
   Print, so the control is easy to miss. Proven on two records with 0 items, each read back absent after a full reload.
   Deleting a record that still has items bound is ALLOWED (Adam 2026-10-08: "It is possible to delete a Strain that is
-  associated to Items." - his statement, not a probe); the effect on the bound items is not probed, so list the
-  membership first and re-bind before deleting. The constant name suggests a soft delete. The app's
+  associated to Items."). It is a SOFT delete, observed by the operator 2026-10-08: the record leaves the Strain
+  picker, but every item, package and batch already bound to it keeps showing the deleted record - earlier received
+  batches included; nothing is re-bound or blanked. So a delete does NOT clean up its members: re-bind them BEFORE the
+  delete, because afterwards the picker can no longer select the record. Not probed: what a form Save on a still-bound
+  item does (keep, clear or reject). The app's
   endpoint constant is `DELETE_STRAIN = api/strain/update-strains-deleted` (body not captured).
 
 ### Clearing an attribute through the grid
