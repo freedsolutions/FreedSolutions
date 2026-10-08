@@ -18,8 +18,9 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 ```
 /dutchie-intake pull                                  mail label -> Drive + inbox/manifest.jsonl
 /dutchie-intake intake <invoice.pdf | lines.csv>      parse -> match -> exceptions -> the ONE STOP
-/dutchie-intake create <intake-vN.csv>                approved rows only, one Copy item per call
-/dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]
+/dutchie-intake create <intake-vN.csv>                freeze -> ONE plan file -> approval -> ONE paced batch (R124)
+/dutchie-intake certify --plan <plan.csv> <pre-active> <pre-retired> <post-active> <post-retired>
+/dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
 /dutchie-intake notice <intake-vN.csv>                draft the notice; print the floor-sheet command
 /dutchie-intake receive                               phase 2 stub - exits 2
 ```
@@ -35,8 +36,11 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 
 - **Tenant `CLAUDE.md`** (required): `## Intake Pointers` + `## BI Change Pointers` (below).
 - **Invoice** (required for `intake`): the PDF as filed by `pull`, a text dump, or a hand-typed lines CSV.
-- **Exports** (required): Catalog Active + Retired and Strains, the Operator's clicks, never a browser
-  download (the pane swallows downloads). Explicit paths, or the freshest in `Exports dir` under a row floor.
+- **Exports** (required): Catalog Active + Retired and Strains (plus Categories and Brands for a plan). The
+  LANE pulls them in the write channel - the pre-batch freeze and the post pull (R124) - by the KB recipe
+  "Export pull per kind" and the neo download workaround, then freezes them with the `Export refresh` pointer
+  (`export_refresh.py --apply`); never the Claude pane (it swallows downloads). The Operator's clicks are the
+  fallback. Explicit paths, or the freshest in `Exports dir` under a row floor.
   Optional, picked from the same folder when present: the **Categories** export (the taxonomy `NEW_CATEGORY`
   reads) and the **Brands** export (a Brand record may exist with no item). Without them the catalog's own
   values stand in and the run says so.
@@ -67,9 +71,12 @@ The Operator's name comes from `Operator:`, never from this file.
 ```
 mail label --pull--> Drive <Client>/Invoices/<Vendor>/<YYYY>/ + <Intake dir>/inbox/ + manifest.jsonl
 invoice.pdf --intake_parse--> lines.csv --intake_match--> intake-v1.csv --intake_exceptions--> intake-v2.csv
-   + -exceptions-<ts>.csv + the STOP message  ==> Operator fills `approved`, replies
-   --create (write channel, Operator's login)--> intake-v3.csv (read-back SKU / ProductId)
-   --intake_certify (pre / post exports)--> -certify-<ts>.md  --intake_notice--> -notice-<ts>.md
+   + -exceptions-<ts>.csv + the STOP message  ==> Operator fills `approved`, resolves every STOP flag
+   --lane pulls the pre-batch freeze (Active, Retired, Strains, Categories, Brands; export_refresh --apply)
+   --intake_plan--> <stem>-plan-vN.csv + plan summary  ==> Operator approves the plan (the ONE STOP)
+   --create (write channel, Operator's login): gridBatch + UI steps, paced--> -plan-vN-progress-<ts>.jsonl
+   --lane pulls Active + Retired--> intake_certify --plan (ONE certify, the union)--> -certify-<ts>.md
+   --intake_notice--> -notice-<ts>.md
 ```
 
 Every output is a NEW file (a new `-vN`, or a timestamp): delivered files are the Operator's, and a
@@ -168,18 +175,34 @@ through connector bodies only.
    `PKG_TAG_DUE`; R103 `landed_unit_cost`. Writes `-v2` + `-exceptions-<ts>.csv`, prints the STOP.
 4. Send the STOP message (below) and stop.
 
-**`create`** - the only Dutchie write. Operator's login. Only rows with `verdict =
-NEW_ITEM_WITH_SIBLING`, `NEW_PL` or `NEW_BRAND`, and `approved = Y`, in a version written AFTER the Operator's
-reply. A row with no `copy_source_productid` or no `lane_Brand` is never created as it stands (re-run `intake`
-with the direction it asks for). `RETIRED_MATCH` rows are un-retires, never creates.
-1. Freeze the baseline first: the Operator exports Active; an export that replaces a file in place is
-   copied aside before any write.
-2. Login stop (below). **Un-retires first** (R101): for every `RETIRED_MATCH` row and every row flagged
-   `UNRETIRE_FIRST`, open each ProductId in `unretire_set` -> Actions > Unretire -> on the form set Cost
-   (`lane_Cost`, the invoice), confirm Price current, set the Active tag (remove the old decision tag) -> Save ->
-   reload and read back; the whole line comes back, the brand's other retired lines stay retired. **A new brand
-   next** (`NEW_BRAND`): a live Global Brand read (R30); the Brand record created, linked to the Global Brand
-   when it exists, display name = `lane_Brand` (R121). Then per create row, ONE write-channel call: open the
+**`create`** - the only Dutchie write, run as ONE batch from ONE approved plan file (R124). Operator's login.
+Rows: `approved = Y` creates (`NEW_ITEM_WITH_SIBLING`, `NEW_PL`, `NEW_BRAND`) and un-retires (`RETIRED_MATCH`,
+and the lane of a row flagged `UNRETIRE_FIRST`), in a version written AFTER the Operator's reply. A row with
+no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `intake` with the direction).
+1. **Pre-batch freeze.** The lane pulls Catalog Active + Retired, Strains, Categories and Brands (Inputs) and
+   freezes them. The freeze predates the first write, or the certify has no baseline.
+2. **Plan.** `intake_plan.py --intake <vN> --active --retired --strains --categories --brands --tenant
+   <CLAUDE.md>` writes a NEW `<stem>-plan-vN.csv`, one row per write: `seq, step, line_no, product_key, field,
+   before, target, channel, depends_on, provenance, row_sha1`. Steps run in this order, which is the
+   dependency: MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK.
+   A record-bound field (Strain, Brand, Category, Vendor) is planned by name and bound to ONE live record id
+   at run time. A row whose channel or guard read is UNPROVEN in the write-path map is REFUSED: no plan file,
+   a refusals CSV, exit 2. An UNPROVEN row is a logged-in probe, never an assumption (until probe P2 lands,
+   every retired-item write refuses). A dead record (R81) is never a source and never un-retired.
+3. **The ONE STOP is the plan approval.** The plan summary (writes per step and per channel, the refusals,
+   the notes) goes to the Operator with the verdict and exception tables. No write before the reply. An
+   approval that changes a row means a rebuilt plan (`-plan-vN+1`), never an edited one: `gridBatch`
+   recomputes every `row_sha1` and refuses an edited row before the first request.
+4. **Login stop** (below), then **the batch, paced** - no per-item read-back; the certify proves the result:
+   grid rows by `gridBatch(plan, {dryRun: false, done, keyMap, ids})` (skill `dutchie-bi-looker`,
+   `backoffice_grid_write.js`: one allowlist and one refusal set for every lane; a dry run first - N planned,
+   0 refusals, zero requests); UI rows (strain mint, un-retire, COPY, CONTENT, Tags by the form) by a neo `run`
+   script, one item per call, a FULL navigation per form. Write channel (below) holds the pacing rules.
+   **Un-retires first** (R101): per `unretire_set` member its UNRETIRE_ALIGN rows (Cost = `lane_Cost`, the
+   invoice; Price confirmed current; the ONE decision tag, old one removed), then Actions > Unretire; the whole
+   line comes back, the brand's other retired lines stay retired. **A new brand next** (`NEW_BRAND`): a live
+   Global Brand read (R30); the Brand record created, linked to the Global Brand when it exists, display name =
+   `lane_Brand` (R121). Then each COPY row is ONE write-channel call: open the
    source by ProductId -> Actions > Copy -> in `Confirm copy product` replace the whole name with
    `create_name_FINAL` (a blank name means the Operator writes it at the stop; never save a `(Copy)` name) ->
    keep `Copy online details` CHECKED on EVERY copy, sibling or cross-brand (ruled 2026-10-08: unchecked, the
@@ -189,21 +212,34 @@ with the direction it asks for). `RETIRED_MATCH` rows are un-retires, never crea
    -> Online title and description (a sibling copy: replace the strain paragraph only; a `CROSS_BRAND_COPY`:
    replace both with the new brand's own words, none of the source's survive) -> images per the KB (a
    `CROSS_BRAND_COPY`: delete the copied image before Save) -> Save. Global Category / Sub carry from the
-   source on every copy.
-3. Read back after a reload: ProductId, SKU, name, Strain, Tags. The copy inherits its source's tags: set
-   the ONE decision tag the intake row's `tags` cell names (the lane's tag, or the new-line tag on a NEW_PL)
-   and remove the source's; it is READ BACK, never assumed (certify fails `TAG_NOT_READ_BACK` / `TAG_EXTRA`). Check for an inherited location-override row.
-4. Write `new_sku`, `new_productid`, `verified`, `action = CREATED` into a NEW intake version. One
-   Status line per item. A failure stops the run: fall down the ladder and record it; never retry blind.
+   source on every copy. In the batch the plan carries these as rows: Brand, Vendor (refused until probe P7), Strain and Flavor are
+   ALIGN grid rows; the cross-brand title and description are CONTENT rows whose target is the new brand's
+   words (`online_title`, and `online_description` added at the STOP; a blank one refuses `CONTENT_UNWRITTEN`);
+   the copied image is an IMAGE_REMOVE row run after the item's last form Save. The new ProductId goes into
+   `keyMap` (where probe P1 shows it, else the item page URL). The copy inherits its source's tags: the plan
+   sets the ONE decision tag the intake row's `tags` cell names and removes the source's.
+5. **Progress to disk** after every call: `<stem>-plan-vN-progress-<ts>.jsonl` (seq, status, live before,
+   time). A resume reads the live rows and that log, never a page-side done-list. A STOP (`GUARD_MISMATCH`, a
+   refusal, a 401) ends the batch: record it, fall down the ladder, never retry blind.
+6. **Post pull + ONE certify** (below). Then write `new_sku`, `new_productid`, `verified`, `action = CREATED`
+   from the certify's create map into a NEW intake version for the notice.
 Platform mechanics: `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Item creation by Copy item".
 
-**`certify`** - `intake_certify.py --pre <frozen> --post <after> --intake <vN>` (`--key ProductId` on
-the Product export). Every changed cell lands in A (the created rows, each field equal to its target),
-B (`Available`, down only) or C (foreign, reported, never waived). Siblings must be inert. Exit 1 on
-any C cell or A mismatch. A `CROSS_BRAND_COPY` row is also diffed against its SOURCE: an Image URL, Online
-description, global link or Online title still equal to the source brand's is `CROSS_BRAND_RESIDUE` (exit 1).
-Un-retires are certified with `--no-create --allow` on the un-retired rows (`unretire_set`). `--no-create --allow "<col>" [--rows ...]` certifies hand-made writes on
-existing items instead. The certify report goes to the kickoff's Status; C cells go to the plan lane.
+**`certify`** - ONE certify per batch, at the end (R124). After the last write the lane pulls Catalog Active
++ Retired (same recipe, frozen) and runs `intake_certify.py --plan <plan.csv> --pre-active <f> --pre-retired
+<f> --post-active <f> --post-retired <f>`. It keys the UNION of the two files on ProductId with a synthetic
+`_state` cell (`active` / `retired`), so an un-retire is ONE planned cell. A = every planned cell at its
+target, plus the declared derived cells (Strain Type from StrainId; an un-retired row's `Brand catalog
+product` moving blank -> link, because the Retired export prints that column blank - that direction only; a
+created row's global link). B = `Available`, down only. C = every other moved cell, reported, never waived:
+exit 1. A created row maps to its COPY row by the exact planned name (`DUP_CREATE` on two). Controls, each
+with a fixture breaker: `ROW_REMOVED`, `C_FOREIGN_CELL`, `PLAN_NOT_APPLIED`, `UNRETIRE_PARTIAL`,
+`UNRETIRE_FOREIGN`, `TAG_NOT_READ_BACK` / `TAG_EXTRA`, `CROSS_BRAND_RESIDUE` (whole cell) and
+`CROSS_BRAND_RESIDUE_WORD` (the source brand's name or a source-only name word in Product, Online title or
+Online description), `PLAN_SHA_MISMATCH`, `PLAN_BEFORE_MISMATCH`. An identical post pull is a cache, not a
+result: pull again later. The single-pair mode (`--pre --post --intake`, `--no-create --allow "<col>" [--rows
+...]`) stays for hand-made writes on existing items. The report goes to the kickoff's Status; C cells go to
+the plan lane.
 
 **`notice`** - `intake_notice.py --intake <vN> --tenant <CLAUDE.md>` fills the tenant's template
 (a copy of `templates/notice.md`). It refuses (DEFECT) while an approved row lacks its read-back
@@ -230,6 +266,8 @@ first. The message, printed by `intake_exceptions.py`, has exactly three parts:
    NEW_CATEGORY and STRAIN_MISSING are never created by this lane.
 
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
+Under R124 the plan summary (`intake_plan.py`) rides this stop: the Operator's approval of the plan
+file is the go-ahead for every write in the batch, and nothing else is (create mode, step 3).
 
 ## Login stop
 
@@ -242,12 +280,18 @@ the Operator's reply. Keep the stop cheap: every login-free step runs before it.
 
 The `Write channel` pointer is an ordered ladder (for example `neo` -> `playwright` -> `pane`); reads
 may use any channel. Rules the gate cannot see:
-- One Copy item per call. Never batch guarded writes; no timer polls in a hidden tab.
+- An intake write batch runs from ONE approved plan file (R124): a guard read of the one item before each
+  write (the field equals its planned before, else `GUARD_MISMATCH` STOPS the batch; equal to the target is
+  `AT_TARGET`, skipped), NO per-item read-back, one UI item per call with a full navigation per form. Pace and
+  back-off live in the neo runtime, never a page-side timer: at most 30 writes (60 requests) a minute; HTTP 429
+  = not applied (back off; the guard read re-runs); a timed-out write is done-unknown (the next guard read
+  decides); a 401 or a memory floor stops the batch.
 - MUI Autocomplete fields (Strain, Flavor) need real keystrokes, which do not arrive while the window
   is hidden: use a VISIBLE tab.
 - Plain text fields take the native value setter plus bubbling `input` and `change` events; use the
   on-page preview as proof before Save.
-- Read back before any Status line. The POS public API is not a create route (no internal-name field).
+- The one certify on the post pull is the read-back (R124); no item is read back one by one. The POS public
+  API is not a create route (no internal-name field).
 
 ## Traps (pointers, not restated)
 
@@ -279,12 +323,14 @@ output · exit 1 only on DEFECT · abort on a missing column.
 ## Scripts and proofs
 
 `scripts/`: `intake_pointers.py` · `intake_parse.py` (+ `parsers/`) · `intake_match.py` ·
-`intake_exceptions.py` · `intake_certify.py` · `intake_notice.py` · `receive.py` (stub) ·
-`intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
+`intake_exceptions.py` · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
+`receive.py` (stub) · `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
+The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_write.js`.
 
 After ANY edit here run both, and both must pass:
-- `python scripts/selftest_all.py` - every script's `--selftest`, then 68 fixture checks on
-  `fixtures/`, each proven to FAIL on a named breaker (a check that stays green on its breaker is
-  reported INERT), then the CLI chain in a temp folder.
+- `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
+  `backoffice_grid_write_selftest.js`, then 83 fixture checks on `fixtures/` (the R124 batch rides
+  `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
+  is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.
 Then re-sync the wrapper: `powershell -ExecutionPolicy Bypass -File ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.

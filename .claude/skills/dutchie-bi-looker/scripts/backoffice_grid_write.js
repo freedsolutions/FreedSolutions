@@ -19,6 +19,14 @@
  *   5. Read `window.__gridWrite` for the full per-item before/after; the in-page JS channel
  *      truncates near 1 KB, so the return value is a summary by design.
  *
+ * BATCH MODE (R124, an intake write batch): `await gridBatch(planRows, {...})` runs an approved plan
+ *   file from `intake_plan.py` ONE row per call: the same allowlist and refusals as gridWrite, every
+ *   row_sha1 recomputed before anything is sent, a guard read of that one item before its write
+ *   (`get-product-details-v2`), no per-item read-back, an idempotent AT_TARGET skip, HANDOFF on a UI
+ *   row, PACE / BACKOFF returned for the neo runtime to wait on (no page-side timer), a 429 resumed by
+ *   a fresh guard read. The runtime appends each call's `log` line to the progress JSONL on disk.
+ *   See the gridBatch block below for the contract; the proof is the selftest's batch cases.
+ *
  * WHAT IT WILL NOT DO
  *   It never invents an endpoint, a payload key or an id. Every value in the envelope is harvested
  *   from a request the PAGE made, every read is a replay of a request the page made, and anything
@@ -134,7 +142,13 @@
   };
   var WRITE_NAME = 'update-products-multiple';
   var STRAINS_NAME = 'get-strains';
-  var WATCH = [WRITE_NAME, READ_NAME.retired, READ_NAME.active, STRAINS_NAME];
+  // The per-item record read gridBatch guards each write with. Documented by NAME with its body shape
+  // `{...ctx, ProductId}` (it returns the same record the grid read does): memory
+  // reference_dutchie_item_form_save_drops_location_override (2026-09-25), KB §3 (the item form fires it).
+  // Proven on ACTIVE items; on a retired item it is unread (kickoff 2026-10-08 probe P2), so the plan
+  // builder refuses a retired-item row until that probe lands.
+  var DETAILS_NAME = 'get-product-details-v2';
+  var WATCH = [WRITE_NAME, READ_NAME.retired, READ_NAME.active, STRAINS_NAME, DETAILS_NAME];
 
   var CTX_KEYS = ['SessionId', 'LspId', 'LocId', 'OrgId', 'UserId'];
 
@@ -315,6 +329,71 @@
   }
 
   // ------------------------------------------------------------------------------------------
+  // The field and value refusals, shared by gridWrite and gridBatch: ONE allowlist, ONE refusal set.
+  // Each returns a refusal object, or null when the field/value pair may proceed.
+  // ------------------------------------------------------------------------------------------
+
+  function fieldRefusal(field, value, clear) {
+    if (SETTABLE.indexOf(field) < 0) {
+      return (refuse('FIELD_NOT_SETTABLE',
+        '`' + field + '` is not one of the 25 internal field names the bulk-edit modal exposes. ' +
+        'Assert the internal name in the modal, never the label.'));
+    }
+    var allow = ALLOWED[field];
+    if (!allow) {
+      return (refuse('FIELD_NOT_PROVEN',
+        '`' + field + '` is settable in the modal but is not on this helper’s v1 direct-call ' +
+        'allowlist (' + Object.keys(ALLOWED).join(', ') + '). Prove its payload on a real UI save ' +
+        'and add it with that provenance; do not widen the list on a guess.'));
+    }
+    if (clear && !isBlank(value)) {
+      return (refuse('CLEAR_WITH_VALUE',
+        'clear:true was passed with a value (' + JSON.stringify(value) + '). A clear is an ' +
+        'explicit flag AND an empty value, never one of the two.'));
+    }
+    if (!clear && isBlank(value)) {
+      return (refuse('EMPTY_VALUE_WITHOUT_CLEAR',
+        'the value is empty and clear is not true. Save is enabled with an empty box and blanks the ' +
+        'field across the whole selection — this is the trap that cleared a live field in a real run.'));
+    }
+    if (clear && !allow.clearProven) {
+      return (refuse('CLEAR_UNPROVEN_FOR_FIELD',
+        'the empty-value clear is proven on the fields marked clearProven, not on `' + field +
+        '`. Prove it on one item through the modal first.'));
+    }
+    return null;
+  }
+
+  function castRefusal(field, value, clear) {
+    var allow = ALLOWED[field];
+    if (field === 'StrainId' && !clear &&
+        (typeof value !== 'number' || !isFinite(value) || String(value).trim() === '')) {
+      return (refuse('STRAIN_ID_NOT_NUMERIC',
+        'StrainId binds by RECORD: pass the numeric id from the Strains read, not a name. ' +
+        'Got ' + JSON.stringify(value) + '. Resolving a name here is what a CSV load does, and ' +
+        'that is the path that can hit an archived namesake.'));
+    }
+    // A Category NAME cast to a number is NaN, which serialises as null: a silent blank, not an error.
+    if (field === 'ProductCategoryId' && !clear &&
+        (typeof value !== 'number' || !isFinite(value))) {
+      return (refuse('CATEGORY_ID_NOT_NUMERIC',
+        'ProductCategoryId binds by RECORD: pass the numeric category id from the categories read, ' +
+        'not the label. Got ' + JSON.stringify(value) + '.'));
+    }
+
+    // Any other number field (Cost, Price, FlowerEquivalent, ...): a non-numeric value casts to NaN,
+    // which serialises as null — a silent CLEAR of the field, not an error. Refuse before the network.
+    if (allow.cast === 'number' && !clear &&
+        (typeof value !== 'number' || !isFinite(value))) {
+      return (refuse('VALUE_NOT_NUMERIC',
+        field + ' is a number field: pass a finite number (a string like "3.5g" or "$12" posts as null). ' +
+        'Got ' + JSON.stringify(value) + '.'));
+    }
+
+    return null;
+  }
+
+  // ------------------------------------------------------------------------------------------
   // gridWrite
   // ------------------------------------------------------------------------------------------
 
@@ -336,33 +415,9 @@
         'scope must be "active" or "retired" — the active read never returns a retired item, ' +
         'so the scope decides which endpoint proves the row. Got: ' + JSON.stringify(scope)));
     }
-    if (SETTABLE.indexOf(field) < 0) {
-      return Promise.resolve(refuse('FIELD_NOT_SETTABLE',
-        '`' + field + '` is not one of the 25 internal field names the bulk-edit modal exposes. ' +
-        'Assert the internal name in the modal, never the label.'));
-    }
+    var fr = fieldRefusal(field, o.value, clear);
+    if (fr) return Promise.resolve(fr);
     var allow = ALLOWED[field];
-    if (!allow) {
-      return Promise.resolve(refuse('FIELD_NOT_PROVEN',
-        '`' + field + '` is settable in the modal but is not on this helper’s v1 direct-call ' +
-        'allowlist (' + Object.keys(ALLOWED).join(', ') + '). Prove its payload on a real UI save ' +
-        'and add it with that provenance; do not widen the list on a guess.'));
-    }
-    if (clear && !isBlank(o.value)) {
-      return Promise.resolve(refuse('CLEAR_WITH_VALUE',
-        'clear:true was passed with a value (' + JSON.stringify(o.value) + '). A clear is an ' +
-        'explicit flag AND an empty value, never one of the two.'));
-    }
-    if (!clear && isBlank(o.value)) {
-      return Promise.resolve(refuse('EMPTY_VALUE_WITHOUT_CLEAR',
-        'the value is empty and clear is not true. Save is enabled with an empty box and blanks the ' +
-        'field across the whole selection — this is the trap that cleared a live field in a real run.'));
-    }
-    if (clear && !allow.clearProven) {
-      return Promise.resolve(refuse('CLEAR_UNPROVEN_FOR_FIELD',
-        'the empty-value clear is proven on the fields marked clearProven, not on `' + field +
-        '`. Prove it on one item through the modal first.'));
-    }
     if (clear && ids.length > 1 && o.expectCount !== ids.length) {
       return Promise.resolve(refuse('CLEAR_MULTI_COUNT_UNCONFIRMED',
         'a clear across ' + ids.length + ' items requires expectCount to state that number ' +
@@ -382,29 +437,8 @@
       return Promise.resolve(refuse('DUPLICATE_ID',
         'id(s) appear more than once: ' + dupes.join(', ')));
     }
-    if (field === 'StrainId' && !clear &&
-        (typeof o.value !== 'number' || !isFinite(o.value) || String(o.value).trim() === '')) {
-      return Promise.resolve(refuse('STRAIN_ID_NOT_NUMERIC',
-        'StrainId binds by RECORD: pass the numeric id from the Strains read, not a name. ' +
-        'Got ' + JSON.stringify(o.value) + '. Resolving a name here is what a CSV load does, and ' +
-        'that is the path that can hit an archived namesake.'));
-    }
-    // A Category NAME cast to a number is NaN, which serialises as null: a silent blank, not an error.
-    if (field === 'ProductCategoryId' && !clear &&
-        (typeof o.value !== 'number' || !isFinite(o.value))) {
-      return Promise.resolve(refuse('CATEGORY_ID_NOT_NUMERIC',
-        'ProductCategoryId binds by RECORD: pass the numeric category id from the categories read, ' +
-        'not the label. Got ' + JSON.stringify(o.value) + '.'));
-    }
-
-    // Any other number field (Cost, Price, FlowerEquivalent, ...): a non-numeric value casts to NaN,
-    // which serialises as null — a silent CLEAR of the field, not an error. Refuse before the network.
-    if (allow.cast === 'number' && !clear &&
-        (typeof o.value !== 'number' || !isFinite(o.value))) {
-      return Promise.resolve(refuse('VALUE_NOT_NUMERIC',
-        field + ' is a number field: pass a finite number (a string like "3.5g" or "$12" posts as null). ' +
-        'Got ' + JSON.stringify(o.value) + '.'));
-    }
+    var cr = castRefusal(field, o.value, clear);
+    if (cr) return Promise.resolve(cr);
 
     // --- network: context, then the reads that back each remaining refusal -------------------
     var got = ensureContext(o.ctx);
@@ -641,6 +675,380 @@
   }
 
   // ------------------------------------------------------------------------------------------
+  // gridBatch — the R124 batch mode. One approved plan file, one row per call, a guard read per
+  // write, NO per-item read-back, NO page-side timer. The plan comes from `intake_plan.py`
+  // (dutchie-intake); the one certify at the end is `intake_certify.py --plan`.
+  //
+  //   gridBatch(plan, { dryRun, done, keyMap, ids, now, ctx, refuseTags })
+  //
+  //   plan     the plan rows as objects (every cell a string, as in the CSV), or { rows: [...] }.
+  //   dryRun   TRUE by default: integrity + every static refusal over the whole plan, zero requests.
+  //   done     seqs the ON-DISK progress log records as complete (WROTE, AT_TARGET, or a UI step).
+  //            A resume reads the live rows and that log, never a page-side done-list.
+  //   keyMap   { 'new:<line_no>': <ProductId> } for items the UI COPY step created.
+  //   ids      { StrainId|BrandId|ProductCategoryId: { '<label>': <record id> } } resolved by the
+  //            runtime from a live read; StrainId falls back to the live Strains read here.
+  //   now      ms clock (tests inject it; the runtime omits it).
+  //
+  // Each live call handles AT MOST ONE row and returns one status, for the neo `run` runtime to
+  // log to `<stem>-plan-vN-progress-<ts>.jsonl` and to pace on:
+  //   WROTE · AT_TARGET (the live value already equals target: an idempotent re-run) ·
+  //   HANDOFF (a UI-channel row: the runtime runs it, then marks its seq done) ·
+  //   PACE / BACKOFF (wait `waitMs` in the RUNTIME — a background tab throttles page timers) · DONE ·
+  //   a STOP (ok:false): GUARD_MISMATCH, SESSION_LOST (401), WRITE_NOT_OK, NEW_KEY_UNRESOLVED, ...
+  // Pace: a guard read and a write are two requests and the platform allows 60 per minute (KB
+  // 'Brand records'; memory reference_dutchie_discount_config_reads), so one row per 2 s at most.
+  // HTTP 429 = NOT applied: back off, and the next call re-runs the guard read and resumes. A call
+  // that timed out on the tool side is done-UNKNOWN: the next call's guard read decides (KB grid
+  // traps 11, 12) — the live value is the target (AT_TARGET) or the before (write), never a guess.
+  // ------------------------------------------------------------------------------------------
+
+  var BATCH = root.__gridBatch = root.__gridBatch || { lastRowAt: 0, backoffMs: 0, backoffUntil: 0,
+    log: [], strains: null };
+  var STEP_ORDER = ['MINT_STRAIN', 'CREATE_BRAND', 'UNRETIRE_ALIGN', 'UNRETIRE', 'COPY', 'ALIGN',
+    'CONTENT', 'IMAGE_REMOVE', 'LINK'];
+  var HASH_KEYS = ['seq', 'step', 'line_no', 'product_key', 'field', 'before', 'target', 'channel',
+    'depends_on', 'provenance'];
+  var MIN_ROW_MS = 2000;
+  var BACKOFF_FIRST_MS = 5000, BACKOFF_MAX_MS = 60000;
+  var ID_FIELDS = { StrainId: 1, BrandId: 1, ProductCategoryId: 1, VendorId: 1 };
+  var MONEY = { Cost: 1, Price: 1 };
+
+  // SHA-1 over the UTF-8 bytes, so the page recomputes exactly what intake_plan.py wrote.
+  function sha1Hex(str) {
+    var utf8 = unescape(encodeURIComponent(str));
+    var bytes = [], i;
+    for (i = 0; i < utf8.length; i++) bytes.push(utf8.charCodeAt(i));
+    var ml = bytes.length * 8;
+    bytes.push(0x80);
+    while (bytes.length % 64 !== 56) bytes.push(0);
+    for (i = 7; i >= 0; i--) bytes.push(i > 3 ? 0 : (ml >>> (i * 8)) & 0xff);
+    var h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476, h4 = 0xC3D2E1F0;
+    var w = new Array(80);
+    for (var off = 0; off < bytes.length; off += 64) {
+      for (i = 0; i < 16; i++) {
+        w[i] = (bytes[off + 4 * i] << 24) | (bytes[off + 4 * i + 1] << 16) |
+          (bytes[off + 4 * i + 2] << 8) | bytes[off + 4 * i + 3];
+      }
+      for (i = 16; i < 80; i++) {
+        var x = w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16];
+        w[i] = (x << 1) | (x >>> 31);
+      }
+      var a = h0, b = h1, c = h2, d = h3, e = h4;
+      for (i = 0; i < 80; i++) {
+        var f, k;
+        if (i < 20) { f = (b & c) | (~b & d); k = 0x5A827999; }
+        else if (i < 40) { f = b ^ c ^ d; k = 0x6ED9EBA1; }
+        else if (i < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8F1BBCDC; }
+        else { f = b ^ c ^ d; k = 0xCA62C1D6; }
+        var t = (((a << 5) | (a >>> 27)) + f + e + k + w[i]) | 0;
+        e = d; d = c; c = (b << 30) | (b >>> 2); b = a; a = t;
+      }
+      h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+    }
+    return [h0, h1, h2, h3, h4].map(function (v) {
+      return ('00000000' + (v >>> 0).toString(16)).slice(-8);
+    }).join('');
+  }
+
+  function planRowSha1(r) {
+    return sha1Hex(HASH_KEYS.map(function (k) {
+      return r[k] === undefined || r[k] === null ? '' : String(r[k]);
+    }).join('\u001f'));
+  }
+
+  // The plan's spelling of a value -> what the write posts. `name:<label>` resolves to ONE record id
+  // or stays a string (which castRefusal then refuses: an id field never posts a name).
+  function planValue(field, raw, ids) {
+    var s = raw === undefined || raw === null ? '' : String(raw).trim();
+    if (s === '') return { value: '', clear: true, blank: true };
+    if (ID_FIELDS[field] && s.indexOf('name:') === 0) {
+      var label = s.slice(5);
+      var map = ids && ids[field];
+      if (map && Object.prototype.hasOwnProperty.call(map, label)) {
+        return { value: Number(map[label]), clear: false, label: label };
+      }
+      return { value: s, clear: false, label: label, unresolved: true };
+    }
+    var allow = ALLOWED[field];
+    if (allow && allow.cast === 'number') {
+      return /^-?\d+(\.\d+)?$/.test(s) ? { value: Number(s), clear: false } : { value: s, clear: false };
+    }
+    return { value: s, clear: false };
+  }
+
+  function liveEq(field, live, pv) {
+    var liveBlank = live === undefined || live === null || String(live).trim() === '';
+    if (pv.blank) return liveBlank;
+    if (liveBlank) return false;
+    var allow = ALLOWED[field];
+    if (allow && allow.cast === 'number') {
+      var n = Number(live);
+      if (!isFinite(n) || typeof pv.value !== 'number') return false;
+      return MONEY[field] ? Math.abs(n - pv.value) < 0.005 : Math.abs(n - pv.value) < 1e-9;
+    }
+    return String(live).trim() === String(pv.value).trim();
+  }
+
+  function findRecord(json, id) {
+    var seen = 0;
+    function walk(node, depth) {
+      if (!node || typeof node !== 'object' || depth > 5 || seen > 400) return null;
+      seen++;
+      if (!Array.isArray(node)) {
+        var k = keyOf(node, /^productid$/i);
+        if (k && String(node[k]) === String(id)) return node;
+      }
+      var ks = Object.keys(node);
+      for (var i = 0; i < ks.length; i++) {
+        var hit = walk(node[ks[i]], depth + 1);
+        if (hit) return hit;
+      }
+      return null;
+    }
+    return walk(json, 0);
+  }
+
+  function batchLog(entry) {
+    entry.at = entry.at || new Date().toISOString();
+    BATCH.log.push(entry);
+    return entry;
+  }
+
+  function staticCheck(rows, ids) {
+    var bad = rows.filter(function (r) { return planRowSha1(r) !== String(r.row_sha1 || ''); });
+    if (bad.length) {
+      return refuse('PLAN_SHA_MISMATCH', bad.length + ' plan row(s) do not hash to their row_sha1 ' +
+        '(first: seq ' + bad[0].seq + '). The plan was edited after the Operator approved it; rebuild ' +
+        'it with intake_plan.py and approve it again. Nothing was written.');
+    }
+    var seqs = {};
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (String(r.seq) !== String(i + 1)) {
+        return refuse('PLAN_ORDER_INVALID', 'row ' + (i + 1) + ' carries seq ' + r.seq + '; seqs run 1..N in file order');
+      }
+      var si = STEP_ORDER.indexOf(r.step);
+      if (si < 0 || (i && si < STEP_ORDER.indexOf(rows[i - 1].step))) {
+        return refuse('PLAN_ORDER_INVALID', 'seq ' + r.seq + ' step ' + r.step + ' is out of the step order ' +
+          STEP_ORDER.join(' > '));
+      }
+      var deps = String(r.depends_on || '').split(';').filter(Boolean);
+      for (var j = 0; j < deps.length; j++) {
+        if (!seqs[deps[j]]) {
+          return refuse('PLAN_ORDER_INVALID', 'seq ' + r.seq + ' depends on ' + deps[j] + ', which is not an EARLIER row');
+        }
+      }
+      seqs[String(r.seq)] = true;
+      if (r.channel !== 'grid') continue;
+      var tv = planValue(r.field, r.target, ids);
+      var fr = fieldRefusal(r.field, tv.value, tv.clear);
+      if (fr) { fr.detail = 'seq ' + r.seq + ': ' + fr.detail; return fr; }
+      // A `name:` value resolves to a record id: from opts.ids (the runtime's live read), or - for
+      // StrainId only - from the live Strains read at run time. Anything else is refused here.
+      var bv = planValue(r.field, r.before, ids);
+      var open = [tv, bv].filter(function (v) { return v.unresolved && r.field !== 'StrainId'; });
+      if (open.length) {
+        return refuse('NAME_UNRESOLVED', 'seq ' + r.seq + ': `' + r.field + '` value ' +
+          JSON.stringify('name:' + open[0].label) + ' has no record id in opts.ids, and this helper resolves ' +
+          'only StrainId live. Read the ids from a live read and pass them; never type one.');
+      }
+      if (!tv.unresolved) {
+        var cr = castRefusal(r.field, tv.value, tv.clear);
+        if (cr) { cr.detail = 'seq ' + r.seq + ': ' + cr.detail; return cr; }
+      }
+    }
+    return null;
+  }
+
+  function liveStrainIds(ctx) {
+    if (BATCH.strains) return Promise.resolve({ map: BATCH.strains });
+    return apiRead(STRAINS_NAME, STRAINS_PATH, ctx, 'Open the Strains page').then(function (s) {
+      if (s.error) return { error: s.error };
+      var srows = findRows(s.json, /^strainid$/i, /strain/i);
+      if (!srows || !srows.length) {
+        return { error: refuse('READ_UNVERIFIED', 'the `' + STRAINS_NAME + '` response holds no StrainId records') };
+      }
+      var idK = keyOf(srows[0], /^strainid$/i), nameK = keyOf(srows[0], /^strainname$/i);
+      var map = {}, dup = {};
+      srows.forEach(function (x) {
+        var n = String(x[nameK]);
+        if (Object.prototype.hasOwnProperty.call(map, n)) dup[n] = true;
+        map[n] = Number(x[idK]);
+      });
+      Object.keys(dup).forEach(function (n) { map[n] = null; });   // ambiguous: never pick one
+      BATCH.strains = map;
+      return { map: map };
+    });
+  }
+
+  function gridBatch(plan, opts) {
+    var o = opts || {};
+    var dryRun = o.dryRun !== false;
+    var rows = Array.isArray(plan) ? plan : (plan && plan.rows);
+    var now = typeof o.now === 'number' ? o.now : Date.now();
+    var P = function (v) { return Promise.resolve(v); };
+    if (!Array.isArray(rows) || !rows.length) return P(refuse('PLAN_EMPTY', 'no plan rows were passed'));
+    var stop = staticCheck(rows, o.ids);
+    if (stop) return P(stop);
+
+    var grid = rows.filter(function (r) { return r.channel === 'grid'; });
+    if (dryRun) {
+      var per = {};
+      rows.forEach(function (r) { per[r.channel] = (per[r.channel] || 0) + 1; });
+      return P({ ok: true, dryRun: true, rows: rows.length, planned: grid.length,
+        handoff: rows.length - grid.length, refusals: 0, perChannel: per, wrote: 0,
+        detail: 'plan verified: every row_sha1 matches, the order holds, no grid row is refused. Nothing was sent.' });
+    }
+
+    if (BATCH.backoffUntil && now < BATCH.backoffUntil) {
+      return P({ ok: true, status: 'BACKOFF', waitMs: BATCH.backoffUntil - now,
+        detail: 'a 429 is cooling down; wait in the runtime, then call again (the guard read re-runs)' });
+    }
+    if (BATCH.lastRowAt && now - BATCH.lastRowAt < MIN_ROW_MS) {
+      return P({ ok: true, status: 'PACE', waitMs: MIN_ROW_MS - (now - BATCH.lastRowAt),
+        detail: 'under 60 requests a minute: wait in the runtime, never a page-side timer' });
+    }
+    var done = {};
+    (o.done || []).forEach(function (s) { done[String(s)] = true; });
+    var row = null;
+    for (var i = 0; i < rows.length; i++) if (!done[String(rows[i].seq)]) { row = rows[i]; break; }
+    if (!row) {
+      return P({ ok: true, status: 'DONE', rows: rows.length,
+        detail: 'every row is done per the progress log. Pull the Active + Retired exports and run the certify.' });
+    }
+    if (row.channel !== 'grid') {
+      return P({ ok: true, status: 'HANDOFF', seq: row.seq, step: row.step, channel: row.channel,
+        product_key: row.product_key, field: row.field,
+        detail: 'a ' + row.channel + ' row: the runtime runs it (full navigation per form), logs it, and marks it done' });
+    }
+    // No separate dependency stop: the row run is always the FIRST row the log does not show done, and
+    // staticCheck proved every depends_on names an EARLIER row - so a dependency is done by construction.
+    var pid = row.product_key;
+    if (/^new:/.test(pid)) pid = o.keyMap ? o.keyMap[row.product_key] : undefined;
+    if (pid === undefined || pid === null || !/^\d+$/.test(String(pid))) {
+      return P(refuse('NEW_KEY_UNRESOLVED', 'seq ' + row.seq + ' writes ' + row.product_key +
+        ', which no keyMap entry resolves to a ProductId. Read the new id where probe P1 shows it ' +
+        '(else the item page URL) and pass it.'));
+    }
+    pid = Number(pid);
+    var field = row.field, allow = ALLOWED[field];
+    var tv = planValue(field, row.target, o.ids), bv = planValue(field, row.before, o.ids);
+
+    var got = ensureContext(o.ctx);
+    if (got.error) return P(got.error);
+    var ctx = got.ctx;
+    var cap = CAP.requests[DETAILS_NAME];
+    if (!cap) {
+      return P(refuse('MISSING_READ_CAPTURE', 'no observed `' + DETAILS_NAME + '` request: open ONE item form ' +
+        'by a full navigation so the page issues it, then retry. Its path is documented by name only.'));
+    }
+    if (!cap.body || !Object.prototype.hasOwnProperty.call(cap.body, 'ProductId')) {
+      return P(refuse('READ_SHAPE_UNPROVEN', 'the captured `' + DETAILS_NAME + '` body has no ProductId key; ' +
+        'the documented body is {...ctx, ProductId}. Nothing is replayed on a guess.'));
+    }
+
+    var resolve = (tv.unresolved || bv.unresolved) && field === 'StrainId'
+      ? liveStrainIds(ctx) : P({ map: null });
+    return resolve.then(function (s) {
+      if (s.error) return s.error;
+      [tv, bv].forEach(function (v) {
+        if (v.unresolved && s.map && typeof s.map[v.label] === 'number') {
+          v.value = s.map[v.label]; v.unresolved = false;
+        }
+      });
+      if (tv.unresolved) {
+        return refuse('STRAIN_ID_UNRESOLVED', 'seq ' + row.seq + ': strain ' + JSON.stringify(tv.label) +
+          ' is not exactly ONE record on the live Strains read (absent, archived or ambiguous). Mint or correct it first.');
+      }
+      var body = {};
+      Object.keys(cap.body).forEach(function (k) { body[k] = cap.body[k]; });
+      body.ProductId = pid;
+      BATCH.lastRowAt = now;
+      INTERNAL = true;
+      var req;
+      try {
+        req = root.fetch(cap.url, { method: 'POST', headers: cap.headers || { 'Content-Type': 'application/json' },
+          credentials: 'include', body: JSON.stringify(body) });
+      } finally { INTERNAL = false; }
+      return req.then(function (r) {
+        if (r && r.status === 429) return { rateLimited: 'guard' };
+        if (r && r.status === 401) return { stop: refuse('SESSION_LOST', 'the guard read returned 401: the login ' +
+          'is gone. STOPPED; the Operator signs in again, then resume from the progress log.') };
+        if (!r || !r.ok) return { stop: refuse('GUARD_READ_UNVERIFIED', 'the guard read returned HTTP ' +
+          (r ? r.status : 'no response') + '. STOPPED.') };
+        return r.json().then(function (j) { return { json: j }; });
+      });
+    }).then(function (g) {
+      if (!g || g.ok === false) return g;
+      if (g.stop) return g.stop;
+      if (g.rateLimited) return backoff(row, pid, now, 'guard read');
+      var rec = findRecord(g.json, pid);
+      if (!rec) return refuse('GUARD_READ_UNVERIFIED', 'the guard read for ' + pid + ' holds no record with that ProductId. STOPPED.');
+      if (!(field in rec)) return refuse('READBACK_FIELD_ABSENT', 'the guard record for ' + pid + ' has no `' + field + '`. STOPPED.');
+      if ((o.refuseTags || []).length) {
+        var tagKey = keyOf(rec, /tag/i);
+        if (!tagKey) return refuse('TAG_CHECK_UNAVAILABLE', 'refuseTags was supplied but the guard record has no tag field.');
+        var hay = JSON.stringify(rec[tagKey] || '').toLowerCase();
+        var hit = o.refuseTags.filter(function (t) { return t && hay.indexOf(String(t).toLowerCase()) >= 0; });
+        if (hit.length) return refuse('REFUSED_TAG', pid + ' carries a refused tag: ' + hit.join(', '));
+      }
+      var live = rec[field];
+      if (liveEq(field, live, tv)) {
+        BATCH.backoffMs = 0;
+        return { ok: true, status: 'AT_TARGET', seq: row.seq, wrote: 0,
+          log: batchLog({ seq: row.seq, status: 'AT_TARGET', product_id: pid, field: field, live_before: live }) };
+      }
+      if (bv.unresolved || !liveEq(field, live, bv)) {
+        batchLog({ seq: row.seq, status: 'GUARD_MISMATCH', product_id: pid, field: field, live_before: live });
+        return refuse('GUARD_MISMATCH', 'seq ' + row.seq + ': ' + pid + ' `' + field + '` is live ' +
+          JSON.stringify(live) + ', which is neither the planned before (' + JSON.stringify(row.before) +
+          ') nor the target. Someone else wrote it, or the freeze is stale. STOPPED: no later row runs.');
+      }
+      var wbody = {
+        ProductList: [pid],
+        FieldList: [(function () { var f = {}; f[field] = tv.clear ? '' : tv.value; return f; })()],
+        CustomerTypes: [], TaxCategories: [], Tags: [],
+        SessionId: ctx.SessionId, LspId: ctx.LspId, LocId: ctx.LocId, OrgId: ctx.OrgId, UserId: ctx.UserId,
+      };
+      var capW = CAP.requests[WRITE_NAME];
+      var url = capW ? capW.url : root.location.origin + WRITE_PATH;
+      var headers = (capW && capW.headers) || cap.headers || null;
+      return post(url, headers, wbody).then(function (r) {
+        if (r && r.status === 429) return backoff(row, pid, now, 'write');
+        if (r && r.status === 401) return refuse('SESSION_LOST', 'the write returned 401. STOPPED; the row is NOT applied.');
+        if (!r || !r.ok) return refuse('WRITE_NOT_OK', 'the write returned HTTP ' + (r ? r.status : 'no response') + '. STOPPED.');
+        return r.json().then(function (j) {
+          if (!j || j.Result !== true) {
+            return refuse('WRITE_NOT_OK', 'the documented success pair is HTTP 200 plus {"Result":true}; got ' +
+              JSON.stringify(j).slice(0, 120) + '. STOPPED.');
+          }
+          BATCH.backoffMs = 0;
+          var res = { ok: true, status: 'WROTE', seq: row.seq, wrote: 1,
+            log: batchLog({ seq: row.seq, status: 'WROTE', product_id: pid, field: field, live_before: live,
+              target: tv.clear ? '' : tv.value }),
+            detail: 'written; NOT read back (R124: the certify proves it)' };
+          if (allow && allow.derives) res.declares = allow.derives + ' is DERIVED from ' + field;
+          return res;
+        });
+      });
+    });
+  }
+
+  function backoff(row, pid, now, what) {
+    BATCH.backoffMs = BATCH.backoffMs ? Math.min(BATCH.backoffMs * 2, BACKOFF_MAX_MS) : BACKOFF_FIRST_MS;
+    BATCH.backoffUntil = now + BATCH.backoffMs;
+    return { ok: true, status: 'BACKOFF', seq: row.seq, waitMs: BATCH.backoffMs, wrote: 0,
+      log: batchLog({ seq: row.seq, status: 'RATE_LIMITED', product_id: pid, field: row.field, during: what }),
+      detail: 'HTTP 429 on the ' + what + ': NOT applied. Wait, then call again; the guard read re-runs.' };
+  }
+
+  function gridBatchReset() {
+    BATCH.lastRowAt = 0; BATCH.backoffMs = 0; BATCH.backoffUntil = 0; BATCH.strains = null;
+    return { note: 'pace, backoff and the strain cache are cleared; the log is kept for the record' };
+  }
+
+  // ------------------------------------------------------------------------------------------
   // Operator-facing status.
   // ------------------------------------------------------------------------------------------
 
@@ -671,4 +1079,7 @@
   root.gridWriteCapture = gridWriteCapture;
   root.gridWriteStatus = gridWriteStatus;
   root.gridWriteReset = gridWriteReset;
+  root.gridBatch = gridBatch;
+  root.gridBatchReset = gridBatchReset;
+  root.gridPlanRowSha1 = planRowSha1;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

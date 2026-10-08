@@ -14,13 +14,17 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
  (or --text rendering, --lines)        (Active / Retired /           (R102 flags, R62 read,
                                             Strains exports)              R103 landed cost)
                                                                                │
-                                                        ══ STOP: Operator fills `approved`, replies ══
+                                          Operator fills `approved`, resolves the STOP flags
                                                                                │
-          intake-v3 ◀──create (write channel, Operator's login, one Copy item per call)──┘
-              │
-              ├──intake_certify (pre / post exports) ──▶ -certify-<ts>.md   (A / B / C, exit 1 on C)
+          pre-batch freeze (the lane pulls Active, Retired, Strains, Categories, Brands; export_refresh --apply)
+                                                                               │
+          intake_plan ──▶ <stem>-plan-vN.csv + summary   ══ STOP: the Operator approves the plan (R124) ══
+                                                                               │
+          create (write channel, Operator's login): ONE paced batch - gridBatch (grid rows, a guard read per
+          write, no read-back) + the UI rows (one item per call) ──▶ -plan-vN-progress-<ts>.jsonl
+              │   order = MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK
+              ├──post pull (Active + Retired) ──intake_certify --plan ──▶ -certify-<ts>.md (ONE certify, A / B / C)
               └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command on NEW_PL / NEW_CATEGORY / NEW_BRAND)
-          un-retires (RETIRED_MATCH, UNRETIRE_FIRST) run BEFORE the copies; a NEW_BRAND's Brand record before its copy
                                                      receive ──▶ phase 2 stub (exit 2)
 ```
 
@@ -30,12 +34,32 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 |---|---|---|---|
 | `pull` | session procedure (Gmail + Drive connectors) | connector only | Drive copy, inbox mirror, `manifest.jsonl` |
 | `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` | none | lines CSV, intake v1 + v2, exceptions CSV, STOP message |
-| `create` | session procedure in the write channel | Operator's | a new intake version with the read-back keys |
-| `certify` | `intake_certify.py` (`--no-create` for hand writes) | none | `-certify-<ts>.md` |
+| `create` | `intake_plan.py`, then `gridBatch` + the UI rows in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL |
+| `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
 | `notice` | `intake_notice.py` | none | `-notice-<ts>.md` (a draft; the Operator sends) |
 | `receive` | `receive.py` | - | stub, exit 2 |
 
 Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selftest_all.py`.
+
+## Files
+
+| Path | What it is |
+|---|---|
+| `scripts/intake_pointers.py` | the tenant `## Intake Pointers` parser and validator |
+| `scripts/intake_parse.py` + `scripts/parsers/` | invoice -> lines CSV (layout plugins) |
+| `scripts/intake_match.py` | lines -> intake v1 (verdicts, lanes, `unretire_set`) |
+| `scripts/intake_exceptions.py` | R102 flags, R62 read, R103 landed cost; the STOP message |
+| `scripts/intake_plan.py` | approved intake + the freeze -> the R124 plan file (refuses an UNPROVEN channel) |
+| `scripts/intake_certify.py` | `--plan`: the ONE batch certify on the Active + Retired union; single-pair mode for hand writes |
+| `scripts/intake_notice.py` | the new-items notice draft |
+| `scripts/receive.py` | phase 2 stub |
+| `scripts/intake_common.py` | shared plumbing |
+| `scripts/selftest_all.py` | every selftest + the `gridBatch` cases + the fixture checks + the CLI chain |
+| `fixtures/plan-intake.csv` | the synthetic batch: an un-retire lane, a sibling copy, a cross-brand copy, an EXISTS row |
+| `fixtures/plan-pre-active.csv`, `plan-pre-retired.csv` | the pre-batch freeze of that batch |
+| `fixtures/plan-post-active.csv`, `plan-post-retired.csv` | the post pull with every planned cell landed |
+| `fixtures/plan-strains.csv`, `plan-categories.csv`, `plan-brands.csv` | the records the plan binds by name |
+| `../dutchie-bi-looker/scripts/backoffice_grid_write.js` | `gridBatch`, the batch runner (one allowlist for every lane) |
 
 ## Layouts and the intake CSV
 

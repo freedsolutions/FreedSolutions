@@ -33,11 +33,16 @@ import intake_exceptions as IE  # noqa: E402
 import intake_match as IM  # noqa: E402
 import intake_notice as IN  # noqa: E402
 import intake_parse as IP  # noqa: E402
+import intake_plan as PL  # noqa: E402
 import intake_pointers as PTR  # noqa: E402
 import receive as RC  # noqa: E402
 
 SCRIPTS = ["intake_pointers.py", "intake_parse.py", "intake_match.py", "intake_exceptions.py",
-           "intake_certify.py", "intake_notice.py", "receive.py"]
+           "intake_plan.py", "intake_certify.py", "intake_notice.py", "receive.py"]
+# The batch runner lives in the sibling skill (one allowlist, one refusal set for every lane): its batch
+# cases run here too, so the whole R124 chain - plan, gridBatch, certify - is proven by one command.
+GRID_SELFTEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "dutchie-bi-looker", "scripts",
+                             "backoffice_grid_write_selftest.js")
 DROP = ("Status - Live",)
 ENV = dict(os.environ, PYTHONUTF8="1", PYTHONDONTWRITEBYTECODE="1")
 VERBOSE = "-v" in sys.argv
@@ -402,6 +407,53 @@ GUMMY_SRC = dict(BASE["active"][3], SKU="3101", ProductId="711", Brand="Birch La
                     "Online title": "Lime Gummies 100mg", "Online description": "Birch's lime gummies."})
 
 # (name, predicate(ctx-or-arg) , clean arg, broken arg, what the breaker does)
+# ---- R124: the plan file and the one certify (synthetic batch: fixtures/plan-*.csv) -------------------------
+PFX = IC.plan_fixture()
+
+
+def plan_of(guard_probed=True, intake_edit=None, copy_source=None):
+    """build_plan on the plan fixtures; `guard_probed` SIMULATES probe P2 (the CLI cannot)."""
+    intake = copy.deepcopy(rows_of("plan-intake.csv"))
+    if intake_edit:
+        intake_edit(intake)
+    if copy_source:
+        intake[1]["copy_source_productid"] = copy_source
+    kw = {"guard": PL._probed()} if guard_probed else {}
+    return PL.build_plan(intake, rows_of("plan-pre-active.csv"), rows_of("plan-pre-retired.csv"),
+                         rows_of("plan-strains.csv"), rows_of("plan-categories.csv"), rows_of("plan-brands.csv"), **kw)
+
+
+def plan_flags(edit):
+    """The fail flags of the one certify on the plan fixture after `edit(post_active, post_retired, plan)`."""
+    return [f.split(":")[0] for f in IC.run_plan(PFX, edit)[1]]
+
+
+def _pr(rows, pid):
+    return next(r for r in rows if r["ProductId"] == pid)
+
+
+def _mv(src, dst, pid):
+    r = _pr(src, pid)
+    src.remove(r)
+    dst.append(r)
+
+
+PLAN_BREAKERS = [
+    ("ROW_REMOVED", "drop an untouched item from both post files", lambda a, r, p: a.remove(_pr(a, "602"))),
+    ("C_FOREIGN_CELL", "another session moves a Price inside the window", lambda a, r, p: _pr(a, "602").update(Price="12")),
+    ("PLAN_NOT_APPLIED", "a 429 that was not resumed: one planned Cost stays put", lambda a, r, p: _pr(a, "402").update(Cost="4")),
+    ("CROSS_BRAND_RESIDUE_WORD", "the source brand's name left in the new item's description",
+     lambda a, r, p: _pr(a, "802").update(**{"Online description": "Lime gummies from Brand B."})),
+    ("UNRETIRE_PARTIAL", "one lane member stays in the Retired file", lambda a, r, p: _mv(a, r, "402")),
+    ("UNRETIRE_FOREIGN", "a retired item outside the set comes back", lambda a, r, p: _mv(r, a, "403")),
+    ("DUP_CREATE", "the copy ran twice under one planned name",
+     lambda a, r, p: a.append(dict(_pr(a, "801"), ProductId="803", SKU="8003"))),
+    ("TAG_NOT_READ_BACK", "the new-line tag never set on the create", lambda a, r, p: _pr(a, "802").update(Tags="")),
+    ("TAG_EXTRA", "the old decision tag left beside the Active one",
+     lambda a, r, p: _pr(a, "401").update(Tags="ITM - Active, ITM - Discontinue")),
+]
+
+
 CHECKS = [
     ("pointer contract complete", lambda t: PTR.validate(PTR.parse_text(t)) == [],
      BASE["tenant"], BASE["tenant"].replace("- Watermark: 500\n", ""), "delete the Watermark line"),
@@ -619,7 +671,34 @@ CHECKS = [
     ("receive --check join key is package_id, an intake CSV column",
      lambda cols: RC.CHECK_JOIN_KEY == "package_id" and RC.CHECK_JOIN_KEY in cols,
      IM.INTAKE_COLS, [c for c in IM.INTAKE_COLS if c != "package_id"], "remove package_id from the columns"),
-]
+    ("plan (R124): the synthetic batch plans 20 writes in step order with 0 refusals once P2 is proven",
+     lambda pr: len(pr[0]) == 20 and pr[1] == []
+     and [PL.STEPS.index(r["step"]) for r in pr[0]] == sorted(PL.STEPS.index(r["step"]) for r in pr[0]),
+     plan_of(), plan_of(intake_edit=lambda i: i[2].update(lane_Vendor="Vendor Other")),
+     "a cross-brand copy that changes Vendor (VendorId UNPROVEN, P7)"),
+    ("plan: with today's write-path map every retired-item write refuses on probe P2 (6), nothing else",
+     lambda pr: len(pr[1]) == 6 and {f["probe"] for f in pr[1]} == {"P2"}, plan_of(False), plan_of(True),
+     "simulate the P2 probe as proven"),
+    ("plan: a dead R81 record is never a copy source", lambda pr: not any(f["reason"] == "DEAD_SOURCE" for f in pr[1]),
+     plan_of(), plan_of(copy_source="404"), "point the sibling copy at the dead record"),
+    ("plan: every row_sha1 verifies (an edited row is caught before any write)",
+     lambda rows: all(PL.row_sha1(r) == r["row_sha1"] for r in rows),
+     plan_of()[0], [dict(r, target="17") if r["seq"] == "12" else r for r in plan_of()[0]], "edit one target after the build"),
+    ("plan: a cross-brand copy REPLACES the carried description with the new brand's words, never a blank clear",
+     lambda pr: not any(f["reason"] == "CONTENT_UNWRITTEN" for f in pr[1])
+     and any(r["field"] == "Online description" and r["target"] for r in pr[0]),
+     plan_of(), plan_of(intake_edit=lambda i: i[2].update(online_description="")),
+     "blank the new brand's description on the cross-brand intake row"),
+    ("certify --plan: an un-retired row's link moving blank -> link is derived (the Retired export blanks it)",
+     lambda fx_: (lambda rep, f, c: f == [] and c["C"] == 0)(*IC.run_plan(fx_)),
+     PFX, dict(PFX, pr=[dict(r, **{"Brand catalog product": "Brand A Old Link"}) if r["ProductId"] == "401" else r
+                        for r in PFX["pr"]]),
+     "give the un-retired row a pre-batch link that then changes"),
+    ("certify --plan GREEN: A = 19 planned + 2 derived, B 1, C 0",
+     lambda e: (lambda rep, f, c: f == [] and c["A"] == 19 and c["A_derived"] == 2 and c["B"] == 1 and c["C"] == 0)(*IC.run_plan(PFX, e)),
+     None, lambda a, r, p: _pr(a, "601").update(Available="45"), "Available goes UP on the sibling"),
+] + [(f"certify --plan: {flag} quiet on the clean batch, fires on its breaker",
+      (lambda fl: (lambda e: fl not in plan_flags(e)))(flag), None, brk, how) for flag, how, brk in PLAN_BREAKERS]
 
 
 def run_checks():
@@ -703,6 +782,27 @@ def cli_chain():
                                                        fx("certify-post.csv"), "--intake", v3], 1)
         step("notice", ["intake_notice.py", "--intake", v3, "--tenant", fx("tenant-CLAUDE.md")], 0)
         step("receive stub", ["receive.py"], 2)
+        pin = os.path.join(t, "plan-intake-v1.csv")
+        shutil.copy(fx("plan-intake.csv"), pin)
+        pargs = ["--intake", pin, "--active", fx("plan-pre-active.csv"), "--retired", fx("plan-pre-retired.csv"),
+                 "--strains", fx("plan-strains.csv"), "--categories", fx("plan-categories.csv"), "--brands", fx("plan-brands.csv")]
+        out = step("plan (REFUSED: the retired guard read is probe P2)", ["intake_plan.py"] + pargs, 2)
+        if "P2" not in out or any(n.endswith("-plan-v1.csv") for n in os.listdir(t)) \
+                or not any("-plan-refusals-" in n for n in os.listdir(t)):
+            bad.append("plan refusal")
+            print("  FAIL  the refused plan must name P2, write no plan file and write a refusals CSV")
+        else:
+            print("  PASS  the refused plan names P2, wrote no plan file, wrote a refusals CSV")
+        rows, _, _ = plan_of()
+        planf = os.path.join(t, "plan-intake-plan-v1.csv")
+        C.write_csv(planf, PL.PLAN_COLS, rows)
+        cargs = ["--plan", planf, "--pre-active", fx("plan-pre-active.csv"), "--pre-retired", fx("plan-pre-retired.csv"),
+                 "--post-retired", fx("plan-post-retired.csv"), "--out-dir", t]
+        step("certify --plan GREEN (union of Active + Retired, _state)", ["intake_certify.py"] + cargs
+             + ["--post-active", fx("plan-post-active.csv")], 0)
+        step("certify --plan RED on a post pull where nothing landed", ["intake_certify.py", "--plan", planf,
+             "--pre-active", fx("plan-pre-active.csv"), "--pre-retired", fx("plan-pre-retired.csv"),
+             "--post-active", fx("plan-pre-active.csv"), "--post-retired", fx("plan-pre-retired.csv"), "--out-dir", t], 1)
         stray = [n for n in os.listdir(FX) if n not in FIXTURE_FILES]
         if stray:
             bad.append("wrote into fixtures/")
@@ -722,6 +822,16 @@ def main():
         ok, _ = run([s, "--selftest"], 0)
         if not ok:
             fails.append(s)
+    if os.path.isfile(GRID_SELFTEST):
+        r = subprocess.run(["node", GRID_SELFTEST], capture_output=True, text=True, encoding="utf-8")
+        last = [x for x in r.stdout.splitlines() if x.startswith(("PASS", "FAIL"))]
+        print(f"  {'PASS' if r.returncode == 0 else 'FAIL'}  backoffice_grid_write_selftest.js (gridBatch) -> "
+              f"{last[-1] if last else r.stderr.strip()[:200]}")
+        if r.returncode != 0:
+            fails.append("backoffice_grid_write_selftest.js")
+    else:
+        print(f"  FAIL  the batch runner's selftest is missing: {GRID_SELFTEST}")
+        fails.append("backoffice_grid_write_selftest.js missing")
     print(f"\n2. fixture checks - each must pass clean AND fail on its breaker ({len(CHECKS)} checks)")
     fails += run_checks()
     print("\n3. CLI chain on the fixtures (temp output)")

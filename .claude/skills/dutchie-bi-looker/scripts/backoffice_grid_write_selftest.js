@@ -508,8 +508,266 @@ function extras() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// gridBatch — the R124 batch mode. A synthetic plan in the shape intake_plan.py writes, a mocked
+// platform with a per-item record read, and a driver that plays the neo runtime: it logs each call,
+// waits the PACE / BACKOFF it is told to on a FAKE clock, and runs the UI rows (HANDOFF) itself.
+// ---------------------------------------------------------------------------------------------
 
-runCases(0).then(extras).then(function () {
+const BATCH_IDS = { BrandId: { 'Brand A': 5101, 'Brand B': 5102 } };
+// The cross-language vector: intake_plan.py's selftest asserts the SAME row hashes to the SAME value.
+const SHA_VECTOR = {
+  row: { seq: '1', step: 'ALIGN', line_no: '3', product_key: 'new:3', field: 'Price', before: '20',
+    target: '18', channel: 'grid', depends_on: '5', provenance: '§2A row 10 · Brand A | Gummies' },
+  sha: '134d396126fcd0c7bc03b49d0da22069df4e16f3',
+};
+
+function rec(id, over) {
+  return Object.assign({ ProductId: id, ProductName: 'FIXTURE ' + id, StrainId: 101, Price: 20,
+    Flavor: 'Mango', BrandId: 5102, Cost: 9, Tags: 'FIXTURE-ACTIVE' }, over || {});
+}
+
+function batchPlan(sha) {
+  const rows = [
+    ['COPY', '2', 'new:2', '_copy', '9001', 'Brand A | Pre-Roll | Strain Q | 1g', 'ui_copy', ''],
+    ['ALIGN', '2', 'new:2', 'StrainId', 'name:Strain X', 'name:Strain Q', 'grid', '1'],
+    ['ALIGN', '3', '9002', 'Price', '20', '18', 'grid', ''],
+    ['ALIGN', '3', '9002', 'Flavor', 'Mango', 'Lime', 'grid', ''],
+    ['ALIGN', '3', '9002', 'BrandId', 'name:Brand B', 'name:Brand A', 'grid', ''],
+    ['ALIGN', '4', '9003', 'Cost', '9', '8', 'grid', ''],
+    ['CONTENT', '2', 'new:2', 'Online title', 'Strain X Pre-Roll 1g', 'Strain Q Pre-Roll 1g', 'item_form', '1'],
+  ].map(function (c, i) {
+    return { seq: String(i + 1), step: c[0], line_no: c[1], product_key: c[2], field: c[3], before: c[4],
+      target: c[5], channel: c[6], depends_on: c[7], provenance: 'synthetic' };
+  });
+  rows.forEach(function (r) { r.row_sha1 = sha(r); });
+  return rows;
+}
+
+function rehash(env, plan) {
+  plan.forEach(function (r) { r.row_sha1 = env.sandbox.window.gridPlanRowSha1(r); });
+  return plan;
+}
+
+// A mocked platform for the batch: the record read answers {Data: <record>} for body.ProductId.
+// `inject` = { guard429: {seq-free ProductId: n times}, write429: {pid: n}, guard401: pid, writeFalse: pid }
+function batchEnv(opts) {
+  const o = opts || {};
+  const db = {};
+  [rec(9001), rec(9002), rec(9003)].forEach(function (r) { db[r.ProductId] = r; });
+  Object.keys(o.over || {}).forEach(function (id) { Object.assign(db[id], o.over[id]); });
+  const inj = { guard429: Object.assign({}, o.guard429 || {}), write429: Object.assign({}, o.write429 || {}) };
+  const calls = [];
+  const sandbox = { console: console, location: { origin: ORIGIN, href: ORIGIN + '/products/catalog' } };
+  sandbox.fetch = function (url, init) {
+    const u = String(url);
+    const body = init && init.body ? JSON.parse(init.body) : null;
+    const call = { url: u, body: body, status: 200, applied: false };
+    calls.push(call);
+    if (u.indexOf('get-product-details-v2') >= 0) {
+      const id = body.ProductId;
+      if (inj.guard429[id] > 0) { inj.guard429[id]--; call.status = 429; return reply({ Message: 'Too many' }, 429); }
+      if (o.guard401 === id) { call.status = 401; return reply({}, 401); }
+      return reply(db[id] ? { Data: Object.assign({}, db[id]) } : { Data: null });
+    }
+    if (u.indexOf('update-products-multiple') >= 0) {
+      const id = body.ProductList[0];
+      if (inj.write429[id] > 0) { inj.write429[id]--; call.status = 429; return reply({ Message: 'Too many' }, 429); }
+      if (o.writeFalse === id) return reply({ Result: false });
+      const f = Object.keys(body.FieldList[0])[0];
+      db[id][f] = body.FieldList[0][f];
+      call.applied = true;
+      return reply({ Result: true });
+    }
+    if (u.indexOf('get-strains') >= 0) {
+      return reply({ Data: { strains: [{ StrainId: 101, StrainName: 'Strain X' }, { StrainId: 103, StrainName: 'Strain Q' }] } });
+    }
+    if (u.indexOf('get-product-master') >= 0) return reply({ Data: { products: Object.values(db) } });
+    return reply({ error: 'unmapped' }, 404);
+  };
+  vm.createContext(sandbox);
+  vm.runInContext('globalThis.window = globalThis;', sandbox);
+  vm.runInContext(SRC, sandbox, { filename: HELPER });
+  const env = { sandbox: sandbox, calls: calls, db: db };
+  // the page's own traffic: a catalog read (the envelope) and ONE item form load (the record read)
+  const ctxBody = Object.assign({}, ENVELOPE, { PageSize: 100 });
+  const primes = [[ORIGIN + '/api/product-master/get-product-master-v2', ctxBody]];
+  if (o.noDetailsCapture !== true) {
+    primes.push([ORIGIN + '/api/product/get-product-details-v2', Object.assign({}, ENVELOPE, { ProductId: 9001 })]);
+  }
+  return primes.reduce(function (ch, p) {
+    return ch.then(function () {
+      return sandbox.window.fetch(p[0], { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p[1]) });
+    });
+  }, Promise.resolve()).then(function () {
+    env.primeCalls = calls.length;
+    return env;
+  });
+}
+
+// The runtime: one gridBatch call at a time, the clock moved only by the waits it is told to make.
+function drive(env, plan, o) {
+  const st = { done: (o && o.done) || [], keyMap: Object.assign({}, (o && o.keyMap) || {}), clock: 1000000,
+    statuses: [], rowStarts: [], log: [], stop: null, final: null };
+  function step(n) {
+    if (n > 200) { st.stop = { reason: 'DRIVER_RUNAWAY' }; return Promise.resolve(st); }
+    return env.sandbox.window.gridBatch(plan, { dryRun: false, done: st.done, keyMap: st.keyMap,
+      ids: (o && o.ids) || BATCH_IDS, now: st.clock }).then(function (res) {
+      st.statuses.push(res.status || res.reason);
+      if (res.log) st.log.push(res.log);
+      if (res.ok === false) { st.stop = res; return st; }
+      if (res.status === 'DONE') { st.final = res; return st; }
+      if (res.status === 'PACE' || res.status === 'BACKOFF') {
+        st.clock += res.waitMs;
+        return step(n + 1);
+      }
+      if (res.status === 'HANDOFF') {
+        if (res.step === 'COPY' && !st.keyMap[res.product_key]) {   // the UI copy creates the item
+          env.db[9500] = rec(9500, { StrainId: 101, Price: 11, Cost: 4.5, Flavor: '', BrandId: 5101 });
+          st.keyMap[res.product_key] = 9500;
+        }
+        st.done.push(String(res.seq));
+        return step(n + 1);
+      }
+      st.rowStarts.push(st.clock);
+      st.done.push(String(res.seq));
+      return step(n + 1);
+    });
+  }
+  return step(0);
+}
+
+function batchCalls(env, what) {
+  return env.calls.slice(env.primeCalls).filter(function (c) { return c.url.indexOf(what) >= 0; });
+}
+
+function batchCases() {
+  let plan;
+  return batchEnv().then(function (env) {
+    // the cross-language hash and the dry run
+    eq(env.sandbox.window.gridPlanRowSha1(SHA_VECTOR.row), SHA_VECTOR.sha,
+      'batch — row_sha1 in the page equals intake_plan.py on the shared vector (U+001F join, UTF-8)');
+    plan = batchPlan(env.sandbox.window.gridPlanRowSha1);
+    return env.sandbox.window.gridBatch(plan, { ids: BATCH_IDS }).then(function (r) {
+      eq(r.ok, true, 'batch dry run — ok (dryRun is the default)' + (r.ok ? '' : ' [' + r.reason + ']'));
+      eq(r.planned, 5, 'batch dry run — N = 5 planned grid writes');
+      eq(r.handoff, 2, 'batch dry run — 2 UI rows handed off');
+      eq(r.refusals, 0, 'batch dry run — 0 refusals');
+      eq(env.calls.length - env.primeCalls, 0, 'batch dry run — zero requests of any kind');
+    });
+  }).then(function () {
+    return batchEnv();
+  }).then(function (env) {
+    return drive(env, plan).then(function (st) {
+      eq(st.stop, null, 'batch live — runs to DONE with no stop' + (st.stop ? ' [' + st.stop.reason + ': ' + st.stop.detail + ']' : ''));
+      const applied = batchCalls(env, 'update-products-multiple').filter(function (c) { return c.applied; });
+      eq(applied.length, 5, 'batch live — N = 5 writes');
+      eq(batchCalls(env, 'get-product-details-v2').length, 5, 'batch live — one guard read per grid row');
+      eq(batchCalls(env, 'get-product-master').length, 0, 'batch live — NO per-item read-back (no catalog read at all)');
+      eq(JSON.stringify(applied[0].body.FieldList), '[{"StrainId":103}]',
+        'batch live — the new item\'s strain is resolved by NAME to the one live record id');
+      eq(applied[0].body.ProductList[0], 9500, 'batch live — `new:2` resolved through the keyMap the COPY step filled');
+      eq(JSON.stringify(applied[3].body.FieldList), '[{"BrandId":5101}]', 'batch live — BrandId from opts.ids, a NUMBER');
+      eq(JSON.stringify(applied[1].body.FieldList), '[{"Price":18}]', 'batch live — Price posts as a NUMBER');
+      eq(Object.keys(applied[1].body).sort().join(','),
+        'CustomerTypes,FieldList,LocId,LspId,OrgId,ProductList,SessionId,Tags,TaxCategories,UserId',
+        'batch live — the write body is the KB envelope, key for key');
+      const gaps = st.rowStarts.slice(1).map(function (t, i) { return t - st.rowStarts[i]; });
+      ok(gaps.every(function (g) { return g >= 2000; }) && st.statuses.indexOf('PACE') >= 0,
+        'batch live — paced: >= 2 s between rows (<= 30 writes / 60 requests a minute), waited in the runtime');
+      ok(st.log.length === 5 && st.log.every(function (l) { return l.seq && l.status === 'WROTE' && 'live_before' in l && l.at; }),
+        'batch live — a write-log line per grid row (seq, status, live before, time) for the progress JSONL');
+      // the idempotent re-run on a catalog already at target
+      return drive(env, plan, { keyMap: { 'new:2': 9500 } }).then(function (st2) {
+        const w2 = batchCalls(env, 'update-products-multiple').length;
+        eq(st2.statuses.filter(function (s) { return s === 'AT_TARGET'; }).length, 5, 'batch re-run — N AT_TARGET');
+        eq(w2, 5, 'batch re-run — 0 further writes');
+      });
+    });
+  }).then(function () {
+    // an injected guard mismatch on row k = 4 (Flavor): stop AT row 4, nothing after it
+    return batchEnv({ over: { 9002: { Flavor: 'Peach' } } }).then(function (env) {
+      return drive(env, plan).then(function (st) {
+        eq(st.stop && st.stop.reason, 'GUARD_MISMATCH', 'batch guard mismatch — the batch STOPS');
+        ok(/seq 4/.test(st.stop && st.stop.detail), 'batch guard mismatch — at row k = 4');
+        const ids = batchCalls(env, 'update-products-multiple').map(function (c) { return JSON.stringify(c.body.FieldList); });
+        eq(ids.join(' '), '[{"StrainId":103}] [{"Price":18}]', 'batch guard mismatch — 0 writes at or after row k');
+      });
+    });
+  }).then(function () {
+    // an injected 429 on row k (the Price write, twice) and on a guard read: wait, re-read, resume
+    return batchEnv({ write429: { 9002: 2 }, guard429: { 9003: 1 } }).then(function (env) {
+      return drive(env, plan).then(function (st) {
+        eq(st.stop, null, 'batch 429 — no stop');
+        const all = batchCalls(env, 'update-products-multiple');
+        const applied = all.filter(function (c) { return c.applied; });
+        eq(applied.length, 5, 'batch 429 — ends with N writes applied');
+        const per = {};
+        applied.forEach(function (c) { const k = c.body.ProductList[0] + JSON.stringify(c.body.FieldList); per[k] = (per[k] || 0) + 1; });
+        ok(Object.keys(per).every(function (k) { return per[k] === 1; }), 'batch 429 — 0 doubles');
+        eq(st.statuses.filter(function (s) { return s === 'BACKOFF'; }).length >= 3, true, 'batch 429 — backed off on each 429');
+        ok(st.log.some(function (l) { return l.status === 'RATE_LIMITED'; }), 'batch 429 — the 429 is logged as RATE_LIMITED (not applied)');
+      });
+    });
+  }).then(function () {
+    // refusals that fire BEFORE the first request
+    const pre = [
+      ['PLAN_SHA_MISMATCH', 'one edited row', function (p) { p[2].target = '17'; return p; }, false],
+      ['FIELD_NOT_PROVEN', 'a VendorId row (UNPROVEN, P7) — the shared refusal set', function (p) { p[5].field = 'VendorId'; return p; }, true],
+      ['FIELD_NOT_PROVEN', 'a Tags row on the grid (UNPROVEN, P4)', function (p) { p[3].field = 'Tags'; return p; }, true],
+      ['VALUE_NOT_NUMERIC', 'a Cost target that will not cast', function (p) { p[5].target = '$8'; return p; }, true],
+      ['CLEAR_UNPROVEN_FOR_FIELD', 'a blank Price target (a clear)', function (p) { p[2].target = ''; return p; }, true],
+      ['NAME_UNRESOLVED', 'a BrandId name with no live id', function (p) { p[4].target = 'name:Brand Z'; return p; }, true],
+      ['PLAN_ORDER_INVALID', 'a row out of the step order', function (p) { p[6].step = 'COPY'; return p; }, true],
+    ];
+    return pre.reduce(function (ch, c) {
+      return ch.then(function () {
+        return batchEnv().then(function (env) {
+          let p = JSON.parse(JSON.stringify(plan));
+          p = c[2](p);
+          if (c[3]) rehash(env, p);
+          return env.sandbox.window.gridBatch(p, { dryRun: false, done: [], ids: BATCH_IDS, now: 1 }).then(function (r) {
+            eq(r.reason, c[0], 'batch RED ' + c[0] + ' — ' + c[1]);
+            eq(env.calls.length - env.primeCalls, 0, 'batch RED ' + c[0] + ' — refused before any request');
+          });
+        });
+      });
+    }, Promise.resolve());
+  }).then(function () {
+    // stops raised at run time, each by one break
+    const live = [
+      ['NEW_KEY_UNRESOLVED', 'the COPY ran but no keyMap names the new id', {}, { done: ['1'] }],
+      ['SESSION_LOST', 'a 401 on the guard read', { guard401: 9002 }, {}],
+      ['MISSING_READ_CAPTURE', 'no item form was opened, so the record read was never observed', { noDetailsCapture: true }, { done: ['1'], keyMap: { 'new:2': 9001 } }],
+      ['WRITE_NOT_OK', 'Result:false', { writeFalse: 9002 }, {}],
+    ];
+    return live.reduce(function (ch, c) {
+      return ch.then(function () {
+        return batchEnv(c[2]).then(function (env) {
+          return drive(env, plan, c[3]).then(function (st) {
+            eq(st.stop && st.stop.reason, c[0], 'batch STOP ' + c[0] + ' — ' + c[1]);
+          });
+        });
+      });
+    }, Promise.resolve());
+  }).then(function () {
+    // a strain the live read does not hold
+    return batchEnv().then(function (env) {
+      const p = rehash(env, JSON.parse(JSON.stringify(plan)).map(function (r) {
+        if (r.field === 'StrainId') r.target = 'name:Strain Nowhere';
+        return r;
+      }));
+      return drive(env, p).then(function (st) {
+        eq(st.stop && st.stop.reason, 'STRAIN_ID_UNRESOLVED', 'batch STOP STRAIN_ID_UNRESOLVED — a strain absent from the live read');
+        eq(batchCalls(env, 'update-products-multiple').length, 0, 'batch STOP STRAIN_ID_UNRESOLVED — 0 writes');
+      });
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+
+runCases(0).then(extras).then(batchCases).then(function () {
   console.log('backoffice_grid_write selftest');
   console.log('  helper: ' + HELPER);
   console.log('  ' + CASES.length + ' refusal case(s), each proven GREEN on a clean fixture and ' +
