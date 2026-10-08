@@ -106,14 +106,20 @@ Flag table (flags column; none fails the run):
                                     the row has no copy source until then
   CATEGORY_DIRECTED     R33   STOP  the Category came from the operator's direction, not the line's words:
                                     confirm it against the vendor's own words
-  CATEGORY_INFERRED     R33   STOP  the Category came from another brand's item and names a process or
-                                    feedstock word the line does not print (live / cured / distillate ...):
-                                    a vendor fact, confirmed through the R33 chain, never assumed
+  CATEGORY_INFERRED     R33   STOP  the Category came from another brand's item and names a route word the
+                                    line does not print (resin / rosin / distillate ...): a vendor fact,
+                                    confirmed through the R33 chain, never assumed. The feedstock word
+                                    (live / cured) is not a route word: OIL_LIVE_DEFAULT decides it
+  OIL_LIVE_DEFAULT      R79   INFO  the Category sits on a Live / Cured pair the taxonomy carries and the line
+                                    prints neither word: the Live Category by default (Adam 2026-10-08). A
+                                    line that prints `Cured` takes the Cured Category, never a note. Applies
+                                    to a NEW_PL placement and to a Live / Cured lane tie
   BRAND_NAME_UNREAD     R121  STOP  NEW_BRAND with no spelling: pass `--line-brand <line_no>=<Display name>`
                                     (the market's word, R121) and re-run; nothing is created as it stands
   STRAIN_TYPE_CONFLICT  R26   STOP  the line's Strain Type differs from the named Strain record's: the row
                                     lists the items on that record - a misalignment inside the brand is
-                                    fixed on them, a real difference is a NEW record (same name, its Type)
+                                    fixed on them, a real difference is a NEW record `<Name> (<Type>)`:
+                                    Dutchie Strain names are unique (precedent `Gelato (Indica)`)
   STRAIN_TYPE_RESEARCHED R33  INFO  the Strain Type came from `--strain-type` with its source; it rides the
                                     STOP as a finding with a source, never as a fact the line printed
   BAD_LINE              R103  DEFECT a product line with no units or unit cost (exit 1)
@@ -151,7 +157,7 @@ FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), (
          ("DOSE_UNREAD", "R50", "STOP"), ("FLAVOR_TO_SET", "R101", "STOP"), ("OT_TEMPLATE_MISS", "R101", "INFO"),
          ("NEW_LINE_FIELDS", "R101", "STOP"), ("UNRETIRE_FIELDS", "R101", "STOP"), ("UNRETIRE_FIRST", "R101", "STOP"),
          ("CROSS_BRAND_COPY", "R101", "STOP"), ("CATEGORY_UNREAD", "R101", "STOP"), ("CATEGORY_DIRECTED", "R33", "STOP"),
-         ("CATEGORY_INFERRED", "R33", "STOP"), ("BRAND_NAME_UNREAD", "R121", "STOP"),
+         ("CATEGORY_INFERRED", "R33", "STOP"), ("OIL_LIVE_DEFAULT", "R79", "INFO"), ("BRAND_NAME_UNREAD", "R121", "STOP"),
          ("STRAIN_TYPE_CONFLICT", "R26", "STOP"), ("STRAIN_TYPE_RESEARCHED", "R33", "INFO"),
          ("BAD_LINE", "R103", "DEFECT")]
 LANE_MAP = {"lane_Category": "Category", "lane_Type": "Type", "lane_IsCannabis": "Is cannabis",
@@ -415,6 +421,12 @@ def body_known(strain, fbody):
     return bool(fbody) or (bool(strain) and strain not in STRAIN_TYPES)
 
 
+def new_strain_name(strain, typ):
+    """The new record's name for a REAL Type difference (R26): Dutchie Strain names are unique, so it is
+    `<Name> (<Type>)` - the bare name stays the existing record's (precedent: `Gelato (Indica)`)."""
+    return f"{(strain or '').strip()} ({(typ or '').strip()})"
+
+
 def strain_conflict(strain, strains, stated, everything):
     """(record type, stated type, items on the record) when the line states a Strain Type that is not the
     named record's (R26; Adam: check the record's items before minting - a misalignment inside the brand
@@ -462,6 +474,48 @@ def copy_tags(src, drop_tags, prefix, decision):
     """The source's tags minus the dropped ones and every item-namespace tag, plus the ONE decision tag."""
     keep = {t for t in tag_set(src.get("Tags")) - set(drop_tags) if not t.startswith(prefix)}
     return ", ".join(sorted(keep | {decision}))
+
+
+FEEDSTOCK = ("live", "cured")
+
+
+def feedstock_default(cat, dtoks, tax):
+    """(Category, defaulted) on the R79 Live / Cured axis. When `cat` sits on a pair the taxonomy carries
+    (`Live <x>` AND `Cured <x>`), the line keys Cured only when it prints `Cured`, else Live (Adam 2026-10-08:
+    "Always assume `Live` when 'Cured' is not explicitly stated"); `defaulted` = it printed neither. Any
+    other Category (Distillate, Rosin, Live Distillate with no Cured twin - R94) passes through unchanged."""
+    toks = (cat or "").split()
+    if not toks or toks[0].lower() not in FEEDSTOCK:
+        return cat, False
+    rest = " ".join(toks[1:])
+    live, cured = tax.get(norm("Live " + rest)), tax.get(norm("Cured " + rest))
+    if not live or not cured:
+        return cat, False
+    if "cured" in dtoks:
+        return cured[1], False
+    return live[1], "live" not in dtoks
+
+
+def swap_feedstock(form, cat):
+    """The form word with its leading Live / Cured word set to the Category's (a Cured source's form word
+    must not survive on a Live create); a form word with no feedstock word is unchanged."""
+    f, c = (form or "").split(), (cat or "").split()
+    if f and c and f[0].lower() in FEEDSTOCK and c[0].lower() in FEEDSTOCK:
+        f[0] = c[0]
+    return " ".join(f)
+
+
+def feedstock_tiebreak(top, lanes, dtoks):
+    """The ONE tied lane the R79 default picks: every tied lane's Category is `Live <x>` / `Cured <x>` on one
+    `<x>`; the lane whose Category opens with `Cured` when the line prints it, else `Live`. None otherwise."""
+    cats = {k: (lanes[k]["rows"][0].get("Category") or "").split() for k in top}
+    if any(not c or c[0].lower() not in FEEDSTOCK for c in cats.values()):
+        return None
+    if len({" ".join(c[1:]).lower() for c in cats.values()}) != 1:
+        return None
+    want = "cured" if "cured" in dtoks else "live"
+    pick = [k for k, c in cats.items() if c[0].lower() == want]
+    return pick[0] if len(pick) == 1 else None
 
 
 def lanes_of(rows, brand, dtoks, g):
@@ -738,8 +792,23 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             if cross:
                 flags.append("CROSS_BRAND_COPY")
                 row.update(lane_Brand=brand or "", lane_Vendor=vend, lane_Price="")
-                if not cat_dir and not all(t in dtoks for t in canon(cat).split()):
+                if not cat_dir and not all(t in dtoks for t in canon(cat).split() if t not in FEEDSTOCK):
                     flags.append("CATEGORY_INFERRED")
+            fs_note = ""
+            if not cat_dir:
+                was = row.get("lane_Category", "")
+                fs_cat, fs_def = feedstock_default(was, dtoks, tax)
+                if norm(fs_cat) != norm(was):
+                    hit = tax[norm(fs_cat)]
+                    row.update(lane_Category=fs_cat, lane_MasterCategory=hit[0] or row.get("lane_MasterCategory", ""),
+                               lane_GlobalSubCategory=hit[2] or row.get("lane_GlobalSubCategory", ""))
+                    form = swap_feedstock(form, fs_cat)
+                    fs_note = f"; Category {fs_cat!r}, not the source's {was!r}"
+                if fs_def:
+                    flags.append("OIL_LIVE_DEFAULT")
+                    fs_note += "; the line prints neither Live nor Cured: the Live Category by default (R79)"
+                elif fs_note:
+                    fs_note += ": the line prints Cured (R79)"
             if cat_dir:
                 row.update(lane_Category=cat, lane_MasterCategory=mc, lane_GlobalSubCategory=gsc or row.get("lane_GlobalSubCategory", ""))
             src_brand = near.get("Brand", "")
@@ -758,7 +827,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             if cat_dir:
                 reason += f"; Category {cat!r} by the operator's direction - confirm against the vendor's words (R33)"
             elif cross and "CATEGORY_INFERRED" in flags:
-                reason += f"; Category {cat!r} is the source's, and the line does not print its words - a vendor fact (R33)"
+                reason += f"; Category {cat!r} is the source's, and the line does not print its route words - a vendor fact (R33)"
+            reason += fs_note
             if brand and near.get("Strain") and not strain:
                 row.update(verdict="STRAIN_MISSING", action="STOP - mint the Strain record first (R101)",
                            strain_record="MISSING", strain_type=st_type.strip(),
@@ -782,7 +852,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                            sibling_reason=reason + f"; the line says {said!r} but Strain record {strain!r} is {rec!r}; "
                                                    f"items on the record: {'; '.join(on) if on else 'none'} - a misalignment "
                                                    f"inside the brand is fixed on them, a real difference is a NEW record "
-                                                   f"(same name, Type {said!r})")
+                                                   f"named {new_strain_name(strain, said)!r} (Strain names are unique)")
                 row["flags"] = ";".join(flags)
                 out.append(row)
                 continue
@@ -822,6 +892,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             continue
         best = max(v["fs"] for v in lanes.values())
         top = [k for k, v in lanes.items() if v["fs"] == best]
+        fs_pick = feedstock_tiebreak(top, lanes, dtoks) if len(top) > 1 else None
+        if fs_pick is not None:
+            top = [fs_pick]
+            if "live" not in dtoks and "cured" not in dtoks:
+                flags.append("OIL_LIVE_DEFAULT")
         if len(top) > 1:
             flags.append("LANE_AMBIGUOUS")
             row.update(verdict="NEW_ITEM_WITH_SIBLING", action="STOP - lane ambiguous (R50)", lane_Brand=brand,
@@ -836,6 +911,10 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         reason = (f"lane {' | '.join(top[0])}: {len(members)} {'retired' if from_retired else 'active'} member(s), "
                   f"{with_img} with an image; chose {sib.get('SKU')} ({'image' if sib.get('Image URL') else 'no image'}, "
                   f"ProductId {sib.get('ProductId') or 'n/a'})")
+        if fs_pick is not None:
+            reason += ("; the Live and Cured lanes tie: " + ("the line prints Cured" if "cured" in dtoks else
+                       "the line prints Live" if "live" in dtoks else
+                       "the line prints neither Live nor Cured, so the Live lane by default") + " (R79)")
         if from_retired:
             flags.append("UNRETIRE_FIRST")
             row["unretire_set"] = ";".join(record_key(r) for r in members)
@@ -873,7 +952,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                        sibling_reason=reason + f"; the line says {said!r} but Strain record {strain!r} is {rec!r}; "
                                                f"items on the record: {'; '.join(on) if on else 'none'} - a misalignment "
                                                f"inside the brand is fixed on them, a real difference is a NEW record "
-                                               f"(same name, Type {said!r})")
+                                               f"named {new_strain_name(strain, said)!r} (Strain names are unique)")
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
@@ -1145,7 +1224,12 @@ def selftest():
             r["verdict"] == "STRAIN_MISSING" and "STRAIN_TYPE_CONFLICT" in r["flags"].split(";")
             and r["strain_record"] == "CONFLICT" and r["strain_type"] == "Sativa" and "none" in r["sibling_reason"],
             f"{r['verdict']} {r['flags']} {r['strain_type']}")
-    with_gelato = active + [_item("4", "Acme | Pre-Roll | Gelato | 0.5g", pid="14")]
+    t.check("STRAIN_TYPE_CONFLICT names the new record in the unique-name form `<Name> (<Type>)` (R26)",
+            "a NEW record named 'Gelato (Sativa)'" in r["sibling_reason"] and "same name" not in r["sibling_reason"],
+            r["sibling_reason"])
+    t.check("QUIET: a row with no conflict names no new record",
+            "a NEW record named" not in run("Acme Gelato preroll 1g Hybrid")["sibling_reason"])
+    with_gelato =active + [_item("4", "Acme | Pre-Roll | Gelato | 0.5g", pid="14")]
     r = run("Acme Gelato preroll 1g (S)", act=with_gelato)
     t.check("STRAIN_TYPE_CONFLICT lists the items on the record", "Acme 4 'Acme | Pre-Roll | Gelato | 0.5g'" in r["sibling_reason"],
             r["sibling_reason"])
@@ -1221,6 +1305,57 @@ def selftest():
     t.check("CATEGORY_INFERRED: a cross-brand source whose Category words (cured resin) the line does not print",
             "CATEGORY_INFERRED" in r["flags"].split(";") and r["copy_source_sku"] == "6", f"{r['flags']} {r['copy_source_sku']}")
     t.check("'510' reads as a cart (industry word)", "cart" in canon("Vape Product 1g (510, Liquid Diamond)").split())
+    # --- OIL_LIVE_DEFAULT (R79, Adam 2026-10-08): Live unless the line prints Cured ---
+    t.check("OIL_LIVE_DEFAULT: a Cured source on a line printing neither word -> the Live Category, an INFO note",
+            r["lane_Category"] == "Live Resin Cart" and "OIL_LIVE_DEFAULT" in r["flags"].split(";")
+            and r["lane_GlobalSubCategory"] == "live-resin-cartridge" and "Live Category by default" in r["sibling_reason"],
+            f"{r['lane_Category']} {r['flags']} {r['lane_GlobalSubCategory']}")
+    t.check("OIL_LIVE_DEFAULT is INFO, never a STOP", ("OIL_LIVE_DEFAULT", "R79", "INFO") in FLAGS)
+    t.check("the feedstock word leaves the CATEGORY_INFERRED reason: the route word still names it",
+            "route words" in r["sibling_reason"])
+    r = run("Zed Mango resin 510 cart 0.5g", act=cured, line_brands={"1": "Zed"})
+    t.check("QUIET: a line printing the route word (resin) is not CATEGORY_INFERRED; the feedstock defaults Live",
+            "CATEGORY_INFERRED" not in r["flags"] and "OIL_LIVE_DEFAULT" in r["flags"].split(";")
+            and r["lane_Category"] == "Live Resin Cart", f"{r['flags']} {r['lane_Category']}")
+    r = run("Zed Gelato resin 510 cart 0.5g", act=cured, line_brands={"1": "Zed"})
+    t.check("the Live default also rewrites a Cured source's form word in the drafted name",
+            r["copy_source_sku"] == "6" and r["create_name_FINAL"] == "Zed | Live Resin Cart | Gelato | 0.5g",
+            f"{r['copy_source_sku']} {r['create_name_FINAL']!r}")
+    r = run("Zed Mango cured resin 510 cart 0.5g", act=cured, line_brands={"1": "Zed"})
+    t.check("QUIET: a line printing Cured keeps the Cured Category, no default note, no inference",
+            r["lane_Category"] == "Cured Resin Cart" and "OIL_LIVE_DEFAULT" not in r["flags"]
+            and "CATEGORY_INFERRED" not in r["flags"], f"{r['lane_Category']} {r['flags']}")
+    live_src = cured + [
+        _item("5", "Bolt | Liquid Diamonds Cart | Mango | 1g", pid="15", cat="Live Resin Cart", vendor="Bolt Wholesale",
+              **{"Master category": "Vape", "Global SubCategory": "live-resin-cartridge", "Brand": "Bolt"})]
+    r = run("Zed Gelato - Vape Product - 1g (510, Liquid Diamond)", act=live_src, line_brands={"1": "Zed"})
+    t.check("OIL_LIVE_DEFAULT: a Live source on a line printing neither word stays Live, with the note (the UPG shape)",
+            r["copy_source_sku"] == "5" and r["lane_Category"] == "Live Resin Cart" and "OIL_LIVE_DEFAULT" in r["flags"].split(";"),
+            f"{r['copy_source_sku']} {r['lane_Category']} {r['flags']}")
+    r = run("Zed Gelato - Vape Product - 1g (510, Liquid Diamond)", act=live_src, line_brands={"1": "Zed"},
+            categories=[{"Master category": "Vape", "Category": "Live Resin Cart", "Global Subcategories": "live-resin-cartridge"}])
+    t.check("QUIET: with no Cured twin in the taxonomy there is no Live / Cured axis to default",
+            "OIL_LIVE_DEFAULT" not in r["flags"], r["flags"])
+    t.check("QUIET: a Category with no feedstock word passes through (Distillate never turns Live, R94)",
+            feedstock_default("Distillate Cart", set(), {norm("Live Distillate Cart"): ("Vape", "Live Distillate Cart", ""),
+                                                         norm("Distillate Cart"): ("Vape", "Distillate Cart", "")})
+            == ("Distillate Cart", False))
+    t.check("a Cured source's form word is set Live on a Live create", swap_feedstock("Cured Resin Cart", "Live Resin Cart")
+            == "Live Resin Cart" and swap_feedstock("Liquid Diamonds Cart", "Live Resin Cart") == "Liquid Diamonds Cart")
+    twins = active + [_item("21", "Acme | Resin Cart | Blue Dream | 1g", pid="21", cat="Live Resin Cart",
+                            **{"Master category": "Vape", "Image URL": "l.jpg"}),
+                      _item("22", "Acme | Resin Cart | OG Kush | 1g", pid="22", cat="Cured Resin Cart",
+                            **{"Master category": "Vape", "Image URL": "c.jpg"})]
+    r = run("Acme Gelato resin cart 1g", act=twins)
+    t.check("OIL_LIVE_DEFAULT: a Live / Cured lane tie on a line printing neither word takes the Live lane",
+            r["verdict"] == "NEW_ITEM_WITH_SIBLING" and r["copy_source_sku"] == "21" and "OIL_LIVE_DEFAULT" in r["flags"].split(";")
+            and "LANE_AMBIGUOUS" not in r["flags"], f"{r['verdict']} {r['copy_source_sku']} {r['flags']}")
+    r = run("Acme Gelato cured resin cart 1g", act=twins)
+    t.check("QUIET: the same tie on a line printing Cured takes the Cured lane, no default note",
+            r["copy_source_sku"] == "22" and "OIL_LIVE_DEFAULT" not in r["flags"], f"{r['copy_source_sku']} {r['flags']}")
+    rosin = [dict(x, Category="Rosin Cart") if x["SKU"] == "22" else x for x in twins]
+    t.check("QUIET: a tie that is not on the Live / Cured axis stays LANE_AMBIGUOUS",
+            "LANE_AMBIGUOUS" in run("Acme Gelato resin cart 1g", act=rosin)["flags"])
     # --- NEW_CATEGORY = a taxonomy gap only; a directed Category is checked against the categories export ---
     cats = [{"Master category": "Pre-Roll", "Category": "Pre-Roll Single", "Global Subcategories": "Singles"},
             {"Master category": "Vape", "Category": "Live Resin Cart", "Global Subcategories": "Live Resin - Cartridge"},

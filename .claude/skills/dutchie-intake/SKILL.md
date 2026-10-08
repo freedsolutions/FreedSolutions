@@ -136,7 +136,8 @@ through connector bodies only.
    is the Strain and the body `<Flavor> (<Type>)` is the Operator's to complete. A ratio line takes the ONE
    record with that ratio key, never a cannabinoid word out of it. A Type the line states that differs from the
    named record's is `STRAIN_TYPE_CONFLICT` (R26): the row lists the record's items - a misalignment inside the
-   brand is fixed on them, a real difference is a NEW record (same name, the line's Type).
+   brand is fixed on them, a real difference is a NEW record named `<Name> (<Type>)` - Dutchie Strain names are
+   unique, so the bare name stays the existing record's (precedents `Gelato (Indica)`, `Honeydew (Sativa)`).
    When brand + body + grams hit exactly ONE active item and only the Form test fails (the line names
    no form word at all), the verdict is EXISTS with the STOP-class flag `FORM_UNREAD` (R101): the
    Operator confirms the match. Two or more candidates, or a line that names a form word, stays
@@ -160,7 +161,10 @@ through connector bodies only.
    name, Price, Flower equiv, Servings per Unit and Category / Type in the lane cells at the one stop. Grams
    come from the line, Cost from the invoice. A Category not read from the line's own words is flagged for the
    vendor's confirmation (`CATEGORY_DIRECTED` by direction, `CATEGORY_INFERRED` from another brand's item whose
-   Category names a process word the line does not print - live, cured, distillate; R33). **NEW_CATEGORY** is
+   Category names a route word the line does not print - resin, rosin, distillate; R33). Live vs cured is never
+   a vendor question (R79): on a Live / Cured Category pair the taxonomy carries, a line that does not print
+   `Cured` takes the Live Category - in a NEW_PL placement and in a Live / Cured lane tie - with the INFO note
+   `OIL_LIVE_DEFAULT`; `Cured` printed takes the Cured Category. **NEW_CATEGORY** is
    the one STOP: the line's Category or Master category is absent from the taxonomy (a configuration decision).
    **NEW_BRAND** is a CREATE: the Brand record first (a live Global Brand read, R30; the display name as the
    Operator spells it, R121), then the line as a NEW_PL cross-brand copy; with no spelling (`BRAND_NAME_UNREAD`)

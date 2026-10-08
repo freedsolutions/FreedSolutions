@@ -245,7 +245,7 @@ def stop_message(rows, exc, summary, operator, intake_path):
             "(`unretire_set`) and reads it back BEFORE the copy; the copy reads the Active tag.",
             "- STRAIN_MISSING: mint the Strain record first, re-run `intake`, then approve. STRAIN_TYPE_CONFLICT (R26): the "
             "line's Type differs from the record's - the row lists the record's items; fix them if the brand is misaligned, "
-            "else mint a NEW record (same name, the line's Type). A Type the lane researched rides the row with its source "
+            "else mint a NEW record `<Name> (<Type>)` - Strain names are unique (precedent `Gelato (Indica)`). A Type the lane researched rides the row with its source "
             "(STRAIN_TYPE_RESEARCHED), never as a fact the line printed.",
             "- NEW_PL + Y: a new line under a brand we carry (R101). Created by Copy item from the brand's nearest item in "
             "the same Master category or, when the brand has none there, the CLOSEST item by subcategory in the catalog, any "
@@ -254,7 +254,9 @@ def stop_message(rows, exc, summary, operator, intake_path):
             "the business for QC. NEW_LINE_FIELDS (STOP): set or confirm the name, Price, Flower equiv, Servings per Unit "
             "and Category / Type in the lane cells of this CSV before you reply; certify checks the item against them. "
             "CATEGORY_UNREAD: no copy source yet - re-run with --line-category <line_no>=<Category>. CATEGORY_DIRECTED / "
-            "CATEGORY_INFERRED (R33): the Category is not read from the line's own words - confirm it with the vendor.",
+            "CATEGORY_INFERRED (R33): the Category's route word is not read from the line's own words - confirm it with the "
+            "vendor. OIL_LIVE_DEFAULT (R79, INFO): the line prints neither Live nor Cured, so it takes the Live Category; "
+            "never a vendor question.",
             "- NEW_BRAND + Y: the lane creates the Brand record first (a live Global Brand read, R30; display name per R121, "
             "as spelled by --line-brand), then the item as a NEW_PL cross-brand copy. BRAND_NAME_UNREAD: no spelling yet - "
             "re-run with --line-brand <line_no>=<Display name>; nothing is created as it stands.",
