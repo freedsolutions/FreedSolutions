@@ -24,7 +24,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
               │   order = MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK
               ├──post pull (Active + Retired) ──intake_certify --plan ──▶ -certify-<ts>.md (ONE certify, A / B / C)
               └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command on NEW_PL / NEW_CATEGORY / NEW_BRAND)
-                                                     receive ──▶ phase 2 stub (exit 2)
+                                                     receive --prep ──▶ <slug>-receipt-prep-<date>-vN.csv + -questions.md (one row per Metrc package)
 ```
 
 ## Modes
@@ -36,7 +36,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 | `create` | `intake_plan.py`, then `gridBatch` + `intake_ui_run.py` (UI rows) in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL, the keyMap |
 | `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
 | `notice` | `intake_notice.py` | none | `-notice-<ts>.md` (a draft; the Operator sends) |
-| `receive` | `receive.py` | - | stub, exit 2 |
+| `receive` | `receive.py --prep` (`--enter` / `--check` / `--vendor` stubs, exit 2) | none | `-receipt-prep-<date>-vN.csv` + `-questions.md` |
 
 Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selftest_all.py`.
 
@@ -52,7 +52,8 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 | `scripts/intake_plan.py` | approved intake + the freeze -> the R124 plan file (refuses an UNPROVEN channel) |
 | `scripts/intake_certify.py` | `--plan`: the ONE batch certify on the Active + Retired union; single-pair mode for hand writes |
 | `scripts/intake_notice.py` | the new-items notice draft |
-| `scripts/receive.py` | phase 2 stub |
+| `scripts/receive.py` | phase 2: `--prep`, the receipt prep sheet (other modes stubs) |
+| `fixtures/receive-*.csv` | the synthetic receipt: a split package, a sample package, a new-line item, an order-level credit |
 | `scripts/intake_common.py` | shared plumbing |
 | `scripts/selftest_all.py` | every selftest + the `gridBatch` cases + the fixture checks + the CLI chain |
 | `fixtures/plan-intake.csv` | the synthetic batch: an un-retire lane, a sibling copy, a cross-brand copy, an EXISTS row |

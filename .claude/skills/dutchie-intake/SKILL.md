@@ -22,7 +22,8 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 /dutchie-intake certify --plan <plan.csv> <pre-active> <pre-retired> <post-active> <post-retired>
 /dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
 /dutchie-intake notice <intake-vN.csv>                draft the notice; print the floor-sheet command
-/dutchie-intake receive                               phase 2 stub - exits 2
+/dutchie-intake receive --prep <lines.csv> [manifest]  the receipt prep sheet: one row per Metrc package + questions
+/dutchie-intake receive --enter | --check | --vendor   phase 2 stubs - exit 2
 ```
 
 ## When to Use
@@ -286,8 +287,39 @@ SKU. A created NEW_PL item is marked on its line for the business's review. A NE
 NEW_BRAND row prints the `Floor sheet:` command; review it, then run it. The Operator
 adds recipients and sends; this skill sends nothing.
 
-**`receive`** - phase 2, not built. `receive.py` exits 2 and points at the receiving plan in the
-tenant estate; its intended signatures (`--prep`, `--enter`, `--check`, `--vendor`) are in its header.
+**`receive`** - phase 2. `--prep` is built; `--enter`, `--check` and `--vendor` are stubs (exit 2). No login and
+no write: `--prep` reads files and writes a NEW sheet. The tenant's rules: one row per Metrc package, received into
+`Intake`, manifest tie-out and the order-level credit (R126); the `PKG - ` tag from the invoice and the vendor's
+email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
+1. **Metrc manifest read (READ-ONLY).** In the write channel, open Metrc > Licensed Transfers > Incoming, expand each
+   transfer row and read its packages. Never click Receive, Reject or any button but the row expanders: a Metrc
+   receive is a compliance event and is Dutchie's to send. Type what you read into a NEW
+   `<vendor>-<manifest no>-manifest-<date>-vN.csv`: `package_id, line, metrc_item, qty, ship_cost[, vendor_batch,
+   expiry, map_basis]`. Record the manifest number, the shipper license, the ETA and the package count in a read note.
+2. **Map every package to its invoice line** from the documents, not from a name: the PO (an Apex document can be
+   the PO), the SO or invoice the vendor bills, and the manifest. Evidence, strongest first: ship $ and qty tie to
+   the line; the same unit price; the item words. A line that ships as several packages takes one `line` per package
+   (rows `6a`, `6b`). An Apex "1 Unit" can be a whole case: the manifest qty is then a whole multiple with the $
+   tied (`APEX_UNIT_IS_CASE`, INFO). A blank `line` cell makes the runner PROPOSE a line by unit price and item words;
+   a proposal is a STOP (`MAP_PROPOSED`) until the reader types it. Never type a mapping you cannot evidence.
+3. `receive.py --prep --lines <lines.csv> --catalog <active.csv> --inventory <inventory.csv> [--intake <vN.csv>]
+   [--manifest <manifest.csv>] [--item <line>=<ProductId>] [--program <line>=<disposition>] --tenant <CLAUDE.md>`.
+   The Inventory export is the receive-time snapshot (freeze it with the `Export refresh` pointer first). Without a
+   manifest the sheet has one row per product line and blank package ids; re-run when the manifest is read.
+   - Item: `--item` > intake `new_productid` > the EXISTS / RETIRED_MATCH match; none = `ITEM_PENDING` (STOP).
+   - Tag: `--program` states what the invoice or the email says - `sample`, `display`, `deal`, `tier <n>`, `none`,
+     `cost change`. An invoice marker (`sample`, `display`) or a printed line discount counts as stated. Unstated, a
+     penny unit (<= $0.05) is `PENNY_UNMARKED` and a price below catalog Cost is `PRICE_DROP_UNMARKED`, both STOP
+     questions: the proposed default is the vendor deal tag on flower and pre-roll (a presumed tier), else a catalog
+     cost change. A price above catalog Cost is `CATALOG_COST_RAISE` (the catalog keeps the highest cost).
+   - Credit: entered once in the receipt header. Dutchie blends it EQUALLY across the packages; the sheet prints that
+     blend per package, and `CREDIT_BLEND_NEGATIVE` / `CREDIT_TRIPS_R62` are STOPs.
+   - Manifest: a line whose summed ship $ differs from its ext is `MANIFEST_COST_MISMATCH`, a DEFECT (exit 1; the line is not entered). A qty
+     gap is `MANIFEST_QTY_MISMATCH` (PO > Invoice > Physical: the vendor reissues or the package is rejected whole). A
+     sample inside its paid package is `SAMPLE_MERGED` (STOP).
+4. Send the `-questions.md` it writes to the Operator BEFORE the delivery is received; every STOP is a question there.
+   The receiver types `physical_count`, `qty_match` and `expiry_typed` on the sheet. After the receipt, a new line's
+   items flip from the new-line tag to the active tag in one bulk update (the `item_tag_flip` column; R126).
 The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt Detail package tag).
 
 ## The ONE human stop (pre-create)
@@ -372,13 +404,13 @@ output · exit 1 only on DEFECT · abort on a missing column.
 
 `scripts/`: `intake_pointers.py` · `intake_parse.py` (+ `parsers/`) · `intake_match.py` ·
 `intake_exceptions.py` · `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
-`intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (stub) ·
+`intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_write.js`.
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 83 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 88 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

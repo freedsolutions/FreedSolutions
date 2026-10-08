@@ -11,7 +11,7 @@ Three layers, exit 1 on any failure:
      a predicate paired with a BREAKER - one named mutation of the fixture. The check passes only when
      the predicate is TRUE on the clean fixture AND FALSE on the broken one. A check that stays green
      on its breaker is reported INERT and fails the run: a gate can lie green;
-  3. the CLI chain parse -> match -> exceptions -> certify -> notice -> receive, run as a user would,
+  3. the CLI chain parse -> match -> exceptions -> certify -> notice -> receive --prep, run as a user would,
      with every output in a temp folder (nothing is written under the skill or a tenant).
 """
 import copy
@@ -639,7 +639,7 @@ CHECKS = [
     ("notice: NEW_PL + NEW_BRAND keep the new-line bullet", lambda rows: len(notice_text(rows)[2]) == 2,
      approved_intake(ctx()), [r for r in approved_intake(ctx()) if r["verdict"] not in ("NEW_PL", "NEW_BRAND")],
      "drop the new-line rows"),
-    ("receive stub exits 2", lambda a: quiet(RC.main, a) == 2, [], ["--selftest"], "call the selftest path instead"),
+    ("receive with no mode exits 2", lambda a: quiet(RC.main, a) == 2, [], ["--selftest"], "call the selftest path instead"),
     ("EXISTS + FORM_UNREAD: the line omits the form word the catalog carries (edition in a later segment)",
      form_unread_exists, fu_ctx(), fu_ctx(second=True), "add a second brand + body + grams candidate"),
     ("FORM_UNREAD stays off a line that names a form word: never EXISTS", form_named_not_exists,
@@ -703,9 +703,58 @@ CHECKS = [
       (lambda fl: (lambda e: fl not in plan_flags(e)))(flag), None, brk, how) for flag, how, brk in PLAN_BREAKERS]
 
 
+RCX = {"lines": rows_of("receive-lines.csv"), "catalog": rows_of("receive-catalog.csv"),
+       "inventory": rows_of("receive-inventory.csv"), "manifest": rows_of("receive-manifest.csv")}
+RC_ITEMS = {"1": "11", "2": "12", "3": "13", "4": "13"}
+
+
+def rc_prep(c):
+    """receive --prep on a receive fixture context -> (rows by row id, [(flag, class, line)])."""
+    rows, exc, _ = RC.prep(c["lines"], c["catalog"], c["inventory"], None, c["manifest"], RC_ITEMS, None, "PKG - Vendor Deal")
+    return {r["row"]: r for r in rows}, [(e["flag"], e["class"], e["line"]) for e in exc]
+
+
+def rc_mut(kind, pred, **changes):
+    c = copy.deepcopy(RCX)
+    for r in c[kind]:
+        if pred(r):
+            r.update(changes)
+    return c
+
+
+def rc_drop(kind, pred):
+    c = copy.deepcopy(RCX)
+    c[kind] = [r for r in c[kind] if not pred(r)]
+    return c
+
+
+RECEIVE_CHECKS = [
+    ("receive --prep: one row per Metrc package (line 1 ships as PKG-A + PKG-B -> rows 1a / 1b)",
+     lambda c: (lambda rw: "1a" in rw and "1b" in rw and "1" not in rw)(rc_prep(c)[0]),
+     RCX, rc_drop("manifest", lambda r: r["package_id"] == "PKG-B"), "drop the second package (it becomes a qty gap)"),
+    ("receive --prep: the manifest ties - no DEFECT on the clean receipt",
+     lambda c: not [f for f in rc_prep(c)[1] if f[1] == "DEFECT"],
+     RCX, rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", ship_cost="480.00"), "ship $ on PKG-C $20 short"),
+    ("receive --prep: a sample merged into its paid package is a STOP (SAMPLE_MERGED)",
+     lambda c: ("SAMPLE_MERGED", "STOP", "4") in rc_prep(c)[1],
+     (lambda c: (c.update(manifest=[dict(r, qty="15", ship_cost="200.05") if r["package_id"] == "PKG-D" else r
+                                    for r in c["manifest"] if r["package_id"] != "PKG-E"]), c)[1])(copy.deepcopy(RCX)),
+     RCX, "give the sample its own package"),
+    ("receive --prep: every package goes to Intake; the item's ITM tags strip except the new-line tag (R47)",
+     lambda c: (lambda rw: all(r["receive_room"] == "Intake" for r in rw.values() if r["line"] != "90")
+                and rw["3"]["itm_tags_to_strip"] == "ITM - Protect")(rc_prep(c)[0]),
+     RCX, rc_mut("catalog", lambda r: r["ProductId"] == "13", Tags="ITM - New PL; ITM - Protect; ITM - Discontinue"),
+     "a second ITM tag on the item (it must strip too)"),
+    ("receive --prep: the order-level credit prints once and blends equally per package (R126)",
+     lambda c: (lambda rw: rw.get("90", {}).get("flags", "").startswith("ORDER-LEVEL CREDIT")
+                and rw["2"]["blended_unit_cost"] == f"{(500 - 10 / 5) / 100:.4f}")(rc_prep(c)[0]),
+     RCX, rc_drop("lines", lambda r: r["line_no"] == "90"), "drop the credit line"),
+]
+
+
 def run_checks():
     bad = []
-    for name, pred, good, broken, how in CHECKS:
+    for name, pred, good, broken, how in CHECKS + RECEIVE_CHECKS:
         try:
             g = bool(quiet(pred, good))
         except Exception as e:
@@ -791,7 +840,20 @@ def cli_chain():
         print(f"  {'PASS' if ok else 'FAIL'}  the msrp read wrote ONE -msrp-<ts>.md and printed the pending STOP block")
         if not ok:
             bad.append("msrp output")
-        step("receive stub", ["receive.py"], 2)
+        step("receive with no mode (usage)", ["receive.py"], 2)
+        rargs = ["receive.py", "--prep", "--lines", fx("receive-lines.csv"), "--catalog", fx("receive-catalog.csv"),
+                 "--inventory", fx("receive-inventory.csv"), "--tenant", fx("tenant-CLAUDE.md"), "--out-dir", t,
+                 "--slug", "rcv", "--asof", "2026-01-01"] + sum([["--item", f"{k}={v}"] for k, v in RC_ITEMS.items()], [])
+        step("receive --prep (manifest ties; STOP questions only)", rargs + ["--manifest", fx("receive-manifest.csv")], 0)
+        if not any(n.startswith("rcv-receipt-prep-2026-01-01-v1") and n.endswith("-questions.md") for n in os.listdir(t)):
+            bad.append("receive questions file")
+            print("  FAIL  receive --prep must write <slug>-receipt-prep-<date>-v1.csv and its -questions.md")
+        badman = os.path.join(t, "manifest-short.csv")
+        mrows = rows_of("receive-manifest.csv")
+        mrows[2]["ship_cost"] = "480.00"
+        C.write_csv(badman, list(mrows[0].keys()), mrows)
+        step("receive --prep DEFECT (manifest ship $ does not tie)", rargs + ["--manifest", badman], 1)
+        step("receive --check stub", ["receive.py", "--check", "a.csv", "b.csv"], 2)
         pin = os.path.join(t, "plan-intake-v1.csv")
         shutil.copy(fx("plan-intake.csv"), pin)
         pargs = ["--intake", pin, "--active", fx("plan-pre-active.csv"), "--retired", fx("plan-pre-retired.csv"),
@@ -858,7 +920,7 @@ def main():
     else:
         print(f"  FAIL  the batch runner's selftest is missing: {GRID_SELFTEST}")
         fails.append("backoffice_grid_write_selftest.js missing")
-    print(f"\n2. fixture checks - each must pass clean AND fail on its breaker ({len(CHECKS)} checks)")
+    print(f"\n2. fixture checks - each must pass clean AND fail on its breaker ({len(CHECKS) + len(RECEIVE_CHECKS)} checks)")
     fails += run_checks()
     print("\n3. CLI chain on the fixtures (temp output)")
     fails += cli_chain()

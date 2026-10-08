@@ -1,0 +1,6 @@
+package_id,line,metrc_item,qty,ship_cost
+PKG-A,1,Lemon Gummies,20,200.00
+PKG-B,1,Lemon Gummies,20,200.00
+PKG-C,2,Haze Pre-Roll,100,500.00
+PKG-D,3,Mint Vape,10,200.00
+PKG-E,4,Mint Vape sample,5,0.05
