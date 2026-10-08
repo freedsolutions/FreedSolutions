@@ -1326,13 +1326,13 @@ def selftest():
             r["lane_Category"] == "Cured Resin Cart" and "OIL_LIVE_DEFAULT" not in r["flags"]
             and "CATEGORY_INFERRED" not in r["flags"], f"{r['lane_Category']} {r['flags']}")
     live_src = cured + [
-        _item("5", "Bolt | Liquid Diamonds Cart | Mango | 1g", pid="15", cat="Live Resin Cart", vendor="Bolt Wholesale",
+        _item("5", "Bolt | Sauce Cart | Mango | 1g", pid="15", cat="Live Resin Cart", vendor="Bolt Wholesale",
               **{"Master category": "Vape", "Global SubCategory": "live-resin-cartridge", "Brand": "Bolt"})]
-    r = run("Zed Gelato - Vape Product - 1g (510, Liquid Diamond)", act=live_src, line_brands={"1": "Zed"})
-    t.check("OIL_LIVE_DEFAULT: a Live source on a line printing neither word stays Live, with the note (the UPG shape)",
+    r = run("Zed Gelato - Vape Product - 1g (510, Sauce)", act=live_src, line_brands={"1": "Zed"})
+    t.check("OIL_LIVE_DEFAULT: a Live source on a line printing neither word stays Live, with the note (a form word with no route word)",
             r["copy_source_sku"] == "5" and r["lane_Category"] == "Live Resin Cart" and "OIL_LIVE_DEFAULT" in r["flags"].split(";"),
             f"{r['copy_source_sku']} {r['lane_Category']} {r['flags']}")
-    r = run("Zed Gelato - Vape Product - 1g (510, Liquid Diamond)", act=live_src, line_brands={"1": "Zed"},
+    r = run("Zed Gelato - Vape Product - 1g (510, Sauce)", act=live_src, line_brands={"1": "Zed"},
             categories=[{"Master category": "Vape", "Category": "Live Resin Cart", "Global Subcategories": "live-resin-cartridge"}])
     t.check("QUIET: with no Cured twin in the taxonomy there is no Live / Cured axis to default",
             "OIL_LIVE_DEFAULT" not in r["flags"], r["flags"])
@@ -1341,7 +1341,7 @@ def selftest():
                                                          norm("Distillate Cart"): ("Vape", "Distillate Cart", "")})
             == ("Distillate Cart", False))
     t.check("a Cured source's form word is set Live on a Live create", swap_feedstock("Cured Resin Cart", "Live Resin Cart")
-            == "Live Resin Cart" and swap_feedstock("Liquid Diamonds Cart", "Live Resin Cart") == "Liquid Diamonds Cart")
+            == "Live Resin Cart" and swap_feedstock("Sauce Cart", "Live Resin Cart") == "Sauce Cart")
     twins = active + [_item("21", "Acme | Resin Cart | Blue Dream | 1g", pid="21", cat="Live Resin Cart",
                             **{"Master category": "Vape", "Image URL": "l.jpg"}),
                       _item("22", "Acme | Resin Cart | OG Kush | 1g", pid="22", cat="Cured Resin Cart",
