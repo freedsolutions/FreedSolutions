@@ -837,6 +837,8 @@ Everything: category, type, unit, cannabis flags, grams/concentration, flower
 equivalent, price, cost, taxed prices, vendor, brand, servings per unit, tags, the
 online-available flag, online title, online description, **and images**.
 
+**[PROBE 2026-10-08] Keep `Copy online details` CHECKED on every copy.** Unchecked, the copy blanked the Online title, description and Global Category / Sub, but the source brand's image still copied; on a cross-brand copy, replace the title and description with the new brand's own words and delete the copied image before Save.
+
 **Only the SKU is new** — it is issued automatically. Never reuse a retired item's SKU;
 this path cannot, which is one of its advantages.
 

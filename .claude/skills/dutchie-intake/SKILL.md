@@ -182,15 +182,14 @@ with the direction it asks for). `RETIRED_MATCH` rows are un-retires, never crea
    when it exists, display name = `lane_Brand` (R121). Then per create row, ONE write-channel call: open the
    source by ProductId -> Actions > Copy -> in `Confirm copy product` replace the whole name with
    `create_name_FINAL` (a blank name means the Operator writes it at the stop; never save a `(Copy)` name) ->
-   the online-details copy control, when the dialog offers one, per copy kind: a same-line sibling copy KEEPS
-   the online details (the description is the line's template); a cross-brand copy (`CROSS_BRAND_COPY`) does
-   NOT copy them - the source brand's Online title, description and image are residue, not a template ->
-   Confirm -> Brand and Vendor on a cross-brand copy (`lane_Brand`, `lane_Vendor`) -> Strain (modal picker:
-   type, take the exact option, check the type shown under it) and Flavor when flagged `FLAVOR_TO_SET` ->
-   Online title and description (a sibling copy: replace the strain paragraph only; a cross-brand copy: write
-   the new brand's own, none of the source's words survive) -> images per the KB (a cross-brand copy carries
-   none of the source's) -> Save. Read the control's exact label and default on the live form before relying
-   on it; the platform KB records it once a logged-in lane has probed it.
+   keep `Copy online details` CHECKED on EVERY copy, sibling or cross-brand (ruled 2026-10-08: unchecked, the
+   copy blanks the Online title, description and Global Category / Sub, yet the source brand's image still
+   copies) -> Confirm -> Brand and Vendor on a cross-brand copy (`lane_Brand`, `lane_Vendor`) -> Strain (modal
+   picker: type, take the exact option, check the type shown under it) and Flavor when flagged `FLAVOR_TO_SET`
+   -> Online title and description (a sibling copy: replace the strain paragraph only; a `CROSS_BRAND_COPY`:
+   replace both with the new brand's own words, none of the source's survive) -> images per the KB (a
+   `CROSS_BRAND_COPY`: delete the copied image before Save) -> Save. Global Category / Sub carry from the
+   source on every copy.
 3. Read back after a reload: ProductId, SKU, name, Strain, Tags. The copy inherits its source's tags: set
    the ONE decision tag the intake row's `tags` cell names (the lane's tag, or the new-line tag on a NEW_PL)
    and remove the source's; it is READ BACK, never assumed (certify fails `TAG_NOT_READ_BACK` / `TAG_EXTRA`). Check for an inherited location-override row.
