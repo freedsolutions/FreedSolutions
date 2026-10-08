@@ -173,7 +173,7 @@ through connector bodies only.
    program - PO `program` column or `--program <line>=<program>` - whether or not a discount line is
    printed; may co-fire with `COST_DRIFT`), `EXPIRY_NEAR`, `PO_MISMATCH`; the R62 INFO read
    `PKG_TAG_DUE`; R103 `landed_unit_cost`. Writes `-v2` + `-exceptions-<ts>.csv`, prints the STOP.
-4. **MSRP read** - a standard step whenever v2 carries a new line (NEW_PL, NEW_BRAND, NEW_CATEGORY, a
+4. **MSRP read (R125)** - a standard step whenever v2 carries a new line (NEW_PL, NEW_BRAND, NEW_CATEGORY, a
    `NEW_LINE_FIELDS` or `CROSS_BRAND_COPY` row, or a STRAIN_MISSING row whose reason names a new line):
    `intake_msrp.py --intake <v2> --tenant <CLAUDE.md> [--cost <line_no|*>=<catalog cost>]`. Read-only, no
    login. One recommendation per product line (brand + form + size + process words), from two families of
@@ -190,7 +190,8 @@ through connector bodies only.
    store (`Own store:`) is dropped BEFORE matching and the report asserts zero own-store rows (else DEFECT).
    Writes a NEW `<v2 stem>-msrp-<ts>.md` (per line: same-product table, comparables, own lanes, evidence
    counts, flags) and prints the STOP block. It writes no Price: the Operator sets the confirmed number in the
-   lane cells at the stop.
+   lane cells at the stop (the confirmed number is the lane Price, R50). R125 states the rule; the $5 points,
+   the radius and the 20 % `MSRP_SPREAD` are this script's parameters.
 5. Send the STOP message (below), with the MSRP block, and stop.
 
 **`create`** - the only Dutchie write, run as ONE batch from ONE approved plan file (R124). Operator's login.
@@ -293,7 +294,7 @@ first. The message has three parts printed by `intake_exceptions.py`, plus a fou
    replies. What Y does per verdict is printed with it: NEW_ITEM_WITH_SIBLING, NEW_PL and NEW_BRAND + Y are
    created (a NEW_BRAND after its Brand record); RETIRED_MATCH + Y un-retires the whole line (R101);
    NEW_CATEGORY and STRAIN_MISSING are never created by this lane.
-4. **MSRP - pending business confirmation** - `# | Line | Rows | Unit cost | MSRP | Margin | Basis |
+4. **MSRP - pending business confirmation (R125)** - `# | Line | Rows | Unit cost | MSRP | Margin | Basis |
    Evidence (same / comps / lanes) | Flags`, one row per new line, each number marked *pending business
    confirmation*. The Operator confirms it with the business (or replaces it) and writes the confirmed Price
    into the lane cells (`NEW_LINE_FIELDS`). The flags are INFO: `MSRP_THIN`, `MSRP_SPREAD` (the number is

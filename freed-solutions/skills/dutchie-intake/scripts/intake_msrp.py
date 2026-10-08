@@ -1,4 +1,9 @@
-"""intake_msrp.py - the recommended MSRP for every new line at the pre-create STOP (read-only).
+"""intake_msrp.py - the recommended MSRP for every new line at the pre-create STOP (read-only). R125.
+
+The tenant's R125 states the rule (the anchor, the floor, PENDING until the business confirms; the confirmed
+number is the lane Price, R50; Cost is the catalog Cost, never a case-deal price, R62). This script cites it
+and implements its parameters: the $5 price points, the radius and the 20 % MSRP_SPREAD are parameters here,
+not rule text.
 
   python intake_msrp.py --intake <intake-vN.csv> --tenant <CLAUDE.md>
                         [--active <catalog-active.csv>] [--min-rows <n>]
@@ -59,7 +64,7 @@ line the same-product table, the comparables, the own lanes, the evidence counts
 STOP block is also printed: it rides the STOP message. Every number is PENDING BUSINESS CONFIRMATION;
 this script writes no Price.
 
-Flags (INFO - they never fail the run):
+Flags (R125, INFO - they never fail the run):
   MSRP_THIN          the basis that set the number has fewer than 3 stores (or lanes)
   MSRP_SPREAD        the recommendation and another market read (same product or comparables) that
                      did not set it differ by more than 20 %
@@ -67,7 +72,7 @@ Flags (INFO - they never fail the run):
   MSRP_MARGIN_LOW    the margin at cost is below the lowest margin among the own lanes read
   MSRP_ARCHIVE_ONLY  no live source contributed to the basis
   MSRP_NO_EVIDENCE   no basis had any evidence: the Operator prices the line with the business
-DEFECT (exit 1): OWN_STORE_IN_MARKET - an own-store row reached the market detail.
+DEFECT (exit 1): OWN_STORE_IN_MARKET (R125: our own store excluded) - an own-store row reached the market detail.
 ABORT (exit 2): a missing column, a missing pointer, an export under its row floor. An intake with no
 new line is not an abort: exit 0 and says so.
 """
@@ -599,7 +604,7 @@ def label(g):
 
 
 def stop_block(reads, intake_name):
-    out = ["## MSRP - pending business confirmation", "",
+    out = ["## MSRP - pending business confirmation (R125)", "",
            f"From `{intake_name}`. One recommendation per new line. The Operator confirms each number with the "
            "business, or replaces it, before the Price is set.", "",
            "| # | Line | Rows | Unit cost | MSRP | Margin | Basis | Evidence (same / comps / lanes) | Flags |",
