@@ -755,7 +755,9 @@ Type (a MUI Select) and External ID, then Save. House convention fills Name = Ab
 - **A Strain record CAN be deleted [PROBE 2026-10-08].** On the Strains LIST, the row's `...` button at the far right
   > Delete > "Are you sure?" Confirm. The record form has only Save and the list's Actions menu has only Export and
   Print, so the control is easy to miss. Proven on two records with 0 items, each read back absent after a full reload.
-  NOT tested on a record with items bound to it - list the membership first and re-bind before deleting. The app's
+  Deleting a record that still has items bound is ALLOWED (Adam 2026-10-08: "It is possible to delete a Strain that is
+  associated to Items." - his statement, not a probe); the effect on the bound items is not probed, so list the
+  membership first and re-bind before deleting. The constant name suggests a soft delete. The app's
   endpoint constant is `DELETE_STRAIN = api/strain/update-strains-deleted` (body not captured).
 
 ### Clearing an attribute through the grid
