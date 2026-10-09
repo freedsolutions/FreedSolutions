@@ -173,7 +173,9 @@ through connector bodies only.
    beside a count is PER PIECE when piece x count fits the TARGET Master category's package cap, else it is the
    PACKAGE TOTAL and the piece is total / count (`100mg - 10ct` = 10 mg x 10, 0.1 g). **The cap is R130's:** the
    master's `package_cap_mg` in the class map the `FL EQ classes:` pointer names (a master with no cap reads per
-   piece); the master is read before the grams (the operator's Category direction, else the matched items' master,
+   piece). An ENUMERATED Category exception (`[limit_exception."<Category>"]`, the `[plc_exception]` shape) carries
+   its own caps and `fl_eq` class and is read BEFORE its master's - for the cap and for Flower equiv alike (R6,
+   R130). The master and Category are read before the grams (the operator's Category direction, else the matched items' master,
    else the line's placement) and a new line re-reads under its final master. The skill's generic constant is the
    no-map fallback only (no map, a map with no `package_cap_mg`, or a master the map does not list;
    `--package-cap-mg` overrides it); the single `Package THC cap mg:` pointer is RETIRED and the parser refuses it.

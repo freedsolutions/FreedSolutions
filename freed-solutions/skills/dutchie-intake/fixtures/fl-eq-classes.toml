@@ -23,14 +23,21 @@ package_cap_mg = 100        # a multipack may carry more than one unit's cap
 
 [master.Tincture]
 fl_eq = "thc_g_x5.6"
-unit_cap_mg = 1000
-package_cap_mg = 1000
+unit_cap_mg = 500
+package_cap_mg = 10000      # multipacks to the transaction allotment
+txn_allotment = "10000mg"
 
 [master.Infused]
 fl_eq = "composite"
 
 [master.Topical]
 fl_eq = "sentinel_0.0001"
+
+# An enumerated Category-level exception (R6 / R130 shape): read BEFORE its master's class and caps.
+[limit_exception."Transdermal"]
+fl_eq = "thc_g_x5.6"
+unit_cap_mg = 500
+package_cap_mg = 10000
 
 [master.CBD]
 fl_eq = "none"

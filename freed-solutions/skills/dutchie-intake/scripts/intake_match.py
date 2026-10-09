@@ -291,28 +291,37 @@ def dose_of(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
     return dose_read(desc, cap_mg)["total"]
 
 
-def cap_for(mc, package_caps, fallback=DEFAULT_PACKAGE_THC_CAP_MG):
-    """(cap mg | None, the master it came from | None) for the vendor dose read (R130). `package_caps` =
-    intake_pointers.load_caps (None = no per-master caps: the fallback for every line). A master the map lists
-    takes its own `package_cap_mg` (None = no cap, per piece); a master the map does not list - or no master
-    read at all - takes the fallback, and the cite says so."""
-    if package_caps is None or not mc or norm(mc) not in package_caps:
+def cap_for(mc, package_caps, fallback=DEFAULT_PACKAGE_THC_CAP_MG, cat=None):
+    """(cap mg | None, the Category or master it came from | None) for the vendor dose read (R130).
+    `package_caps` = intake_pointers.load_caps (None = no caps: the fallback for every line). An enumerated
+    Category exception (`[limit_exception."<Category>"]`) is read FIRST; then a master the map lists takes its own
+    `package_cap_mg` (None = no cap, per piece); a master the map does not list - or no master read at all - takes
+    the fallback, and the cite says so."""
+    if package_caps is None:
+        return fallback, None
+    if cat and intake_derive.CAT_PREFIX + norm(cat) in package_caps:
+        return package_caps[intake_derive.CAT_PREFIX + norm(cat)], cat
+    if not mc or norm(mc) not in package_caps:
         return fallback, None
     return package_caps[norm(mc)], mc
 
 
 def line_mc(rows_live, rows_old, brand, brand_is_new, desc_n, dtoks, fl, stated, rkey, cat_dir, tax):
-    """The Master category the line is read against BEFORE its grams are known (R130: the dose read's cap is the
-    target master's). In order: the operator's Category direction; the master of the items brand + body + form hit
-    at any grams (active, then retired) when they agree on one; the line's placement by form word (place_line)."""
+    """(Master category, Category | None) the line is read against BEFORE its grams are known (R130: the dose
+    read's cap is the target Category exception's, else its master's). In order: the operator's Category direction;
+    the items brand + body + form hit at any grams (active, then retired) when they agree on one master (the
+    Category only when they agree on one); the line's placement by form word (place_line)."""
     if cat_dir and tax.get(norm(cat_dir)):
-        return tax[norm(cat_dir)][0]
+        return tax[norm(cat_dir)][0], cat_dir
     if brand and not brand_is_new:
         for rows in (rows_live, rows_old):
-            mcs = {r.get("Master category", "") for r in body_hits(rows, brand, desc_n, dtoks, None, fl, stated, rkey)}
+            hits = body_hits(rows, brand, desc_n, dtoks, None, fl, stated, rkey)
+            mcs = {r.get("Master category", "") for r in hits}
             if len(mcs) == 1 and next(iter(mcs)):
-                return next(iter(mcs))
-    return place_line(rows_live, brand, dtoks)[0]
+                cats = {r.get("Category", "") for r in hits}
+                return next(iter(mcs)), (next(iter(cats)) or None) if len(cats) == 1 else None
+    pl = place_line(rows_live, brand, dtoks)
+    return pl[0], pl[1]
 
 
 def dose_unit_of(desc):
@@ -769,8 +778,9 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
           package_caps=None):
     """Pure: (intake rows, defects). `fl_eq_classes` = {norm(Master category): fl_eq class} (intake_derive;
     None = no pointer, Flower equiv stays at the stop); `conc_grams` = {line_no or '*': grams} directions (R2);
-    `package_caps` = {norm(Master category): package cap mg | None} from the class map (R130,
-    intake_pointers.load_caps): the vendor dose read (R129) tests piece x count against the TARGET master's cap;
+    `package_caps` = {norm(Master category) | CAT_PREFIX + norm(Category): package cap mg | None} from the class map
+    (R130, intake_pointers.load_caps): the vendor dose read (R129) tests piece x count against the TARGET Category
+    exception's cap, else its master's (cap_for);
     `package_cap_mg` = the no-map fallback (no caps in the map, or a master the map does not list).
     `strains` = {name: {'type':..., 'id':...}}. `tag_overrides` =
     {line_no or '*': tag} - the business's direction for a sibling copy's decision tag (R96).
@@ -810,9 +820,9 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         stated0, rkey0 = line_type(desc), ratio_key(desc)
         # R129 + R130: per piece when piece x count fits the TARGET Master category's package cap, else the package
         # total. The master is read first (line_mc); a new line re-reads below if its final master differs.
-        mc0 = line_mc(live, old, brand, brand_is_new, desc_n, dtoks, fl, stated0, rkey0,
-                      direction(line_categories, ln.get("line_no")), tax)
-        rd = dose_read(desc, *cap_for(mc0, package_caps, package_cap_mg))
+        mc0, cat0 = line_mc(live, old, brand, brand_is_new, desc_n, dtoks, fl, stated0, rkey0,
+                            direction(line_categories, ln.get("line_no")), tax)
+        rd = dose_read(desc, *cap_for(mc0, package_caps, package_cap_mg, cat0))
         g = rd["total"]
         if g is None:
             flags.append("DOSE_UNREAD")
@@ -957,9 +967,9 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                     fs_note += ": the line prints Cured (R79)"
             if cat_dir:
                 row.update(lane_Category=cat, lane_MasterCategory=mc, lane_GlobalSubCategory=gsc or row.get("lane_GlobalSubCategory", ""))
-            mc_final = row.get("lane_MasterCategory") or mc
-            if g is not None and cap_for(mc_final, package_caps, package_cap_mg) != (rd["cap_mg"], rd["mc"]):
-                rd = dose_read(desc, *cap_for(mc_final, package_caps, package_cap_mg))
+            mc_final, cat_final = row.get("lane_MasterCategory") or mc, row.get("lane_Category") or cat
+            if g is not None and cap_for(mc_final, package_caps, package_cap_mg, cat_final) != (rd["cap_mg"], rd["mc"]):
+                rd = dose_read(desc, *cap_for(mc_final, package_caps, package_cap_mg, cat_final))
                 g = rd["total"]
                 reads[-1] = (reads[-1][0], rd)
             src_brand = near.get("Brand", "")
@@ -1013,7 +1023,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             # The fields canon derives (R1-R3, R6, R7, R34, R42, R66): computed from the line's facts and the target
             # Master category's class; each leaves the stop and is cited in `derived`. What cannot be derived stays.
             dv = intake_derive.derive(mc, g, dose_unit_of(desc), pack_count_of(desc), fl_eq_classes,
-                                      conc=direction(conc_grams, ln.get("line_no")), read=rd)
+                                      conc=direction(conc_grams, ln.get("line_no")), read=rd,
+                                      cat=row.get("lane_Category") or cat)
             derived_txt, derived_fields, derived_stops = intake_derive.describe(dv)
             flags += [f for f in dv["flags"] if f not in flags]
             dose = dv["values"].get("dose_segment") or ("" if g is None else f"{g:g}g")
@@ -1617,6 +1628,9 @@ def selftest():
     t.check("cap_for: a listed master takes its own cap; an unlisted master or no map takes the fallback",
             cap_for("Edible", caps) == (100.0, "Edible") and cap_for("Vape", caps) == (None, "Vape")
             and cap_for("Tincture", caps, 70) == (70, None) and cap_for("Edible", None, 70) == (70, None))
+    xc = dict(caps, topical=None, **{intake_derive.CAT_PREFIX + "patch": 900.0})
+    t.check("cap_for (R130 re-rule): an enumerated Category exception is read BEFORE its master; a sibling Category keeps the master's",
+            cap_for("Topical", xc, 70, "Patch") == (900.0, "Patch") and cap_for("Topical", xc, 70, "Balm") == (None, "Topical"))
     r = run("Bolt Mango gummy 100mg 10pk", vendor="Bolt Wholesale", act=vape, fl_eq_classes=classes, package_caps=caps)
     t.check("R129 amended: an EXISTS row read as the package total carries NO DOSE_READ_TOTAL (quiet on an existing item)",
             r["verdict"] == "EXISTS" and "DOSE_READ_TOTAL" not in r["flags"].split(";"), f"{r['verdict']} {r['flags']}")

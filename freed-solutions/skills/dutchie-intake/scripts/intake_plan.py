@@ -415,7 +415,8 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                 if field == "FlowerEquivalent" and fl_eq_classes is not None:
                     # Re-derive from the row's FINAL grams (unit mg: a THC class the intake derived had its mg).
                     dv = intake_derive.derive(r.get("lane_MasterCategory"), r.get("lane_ProductGrams"), "mg", None,
-                                              fl_eq_classes, conc=intake_derive.conc_of(r.get("derived")))
+                                              fl_eq_classes, conc=intake_derive.conc_of(r.get("derived")),
+                                              cat=r.get("lane_Category"))   # an enumerated Category exception wins (R6 R130)
                     rv = dv["values"].get("lane_FlowerEquiv")
                     if rv is not None and not same(field, plan_value(field, rv)[0], tgt):
                         cite_extra += (f"; re-derived from Product grams {r.get('lane_ProductGrams')!r}: {rv} "

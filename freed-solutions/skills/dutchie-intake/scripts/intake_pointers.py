@@ -43,6 +43,9 @@ RETIRED_KEYS = {"Package THC cap mg": "RETIRED by R130: the dose read's cap is t
                                       "in the class map the `FL EQ classes:` pointer names - delete the line"}
 # R130: the per-master market limits the class map may carry beside `fl_eq` (all optional, absent = none).
 CAP_KEYS = ("unit_cap_mg", "package_cap_mg")
+# R130 (re-ruled 2026-10-09): an ENUMERATED Category-level exception - `[limit_exception."<Category>"]`, the shape of
+# [plc_exception] - carries its own caps and fl_eq class, read BEFORE its master's. Keys are CAT_PREFIX + norm(Category).
+CAT_PREFIX = "cat:"
 # The MSRP read (intake_msrp.py). Optional here; intake_msrp ABORTs without center, radius and own store.
 OPTIONAL_MARKET_KEYS = ["Market center", "Market radius mi", "Market box", "Market archive", "Own store",
                         "MSRP anchor", "MSRP floor x cost"]
@@ -159,28 +162,34 @@ def validate(res):
 
 def load_caps(path):
     """R130: {norm(Master category): package cap mg | None} from the tenant's class map (the TOML the
-    `FL EQ classes:` pointer names). None = a master with no cap (the dose read reads it per piece). Returns
-    None - no per-master caps, the generic fallback stands - when NO master carries `package_cap_mg` (a map that
-    predates R130). Raises ValueError on a cap that is not a positive number, or on a package cap below the
-    master's own unit cap (a package holds at least one unit)."""
+    `FL EQ classes:` pointer names), plus {CAT_PREFIX + norm(Category): ...} for each enumerated Category-level
+    exception (`[limit_exception."<Category>"]`), which the dose read takes BEFORE its master's. None = no cap (the
+    dose read reads it per piece). Returns None - no caps, the generic fallback stands - when NO table carries
+    `package_cap_mg` (a map that predates R130). Raises ValueError on a cap that is not a positive number, or on a
+    package cap below the table's own unit cap (a package holds at least one unit)."""
     with open(path, "rb") as f:
         data = tomllib.load(f)
     masters = data.get("master")
     if not isinstance(masters, dict) or not masters:
         raise ValueError(f"{path}: no [master.<Master category>] tables")
-    if not any(isinstance(b, dict) and "package_cap_mg" in b for b in masters.values()):
+    excs = data.get("limit_exception") or {}
+    if not isinstance(excs, dict):
+        raise ValueError(f"{path}: [limit_exception] must be a table of [limit_exception.\"<Category>\"] tables")
+    tables = [("master", k, v, norm(k)) for k, v in masters.items()] + \
+             [("limit_exception", k, v, CAT_PREFIX + norm(k)) for k, v in excs.items()]
+    if not any(isinstance(b, dict) and "package_cap_mg" in b for _, _, b, _ in tables):
         return None
     out = {}
-    for mc, body in masters.items():
+    for kind, name, body, key in tables:
         body = body if isinstance(body, dict) else {}
         for k in CAP_KEYS:
             v = body.get(k)
             if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0):
-                raise ValueError(f"{path}: [master.{mc}] {k} = {v!r} is not a positive number of mg (R130)")
+                raise ValueError(f"{path}: [{kind}.{name}] {k} = {v!r} is not a positive number of mg (R130)")
         u, p = body.get("unit_cap_mg"), body.get("package_cap_mg")
         if u is not None and p is not None and p < u:
-            raise ValueError(f"{path}: [master.{mc}] package_cap_mg {p} is below unit_cap_mg {u} (R130)")
-        out[norm(mc)] = float(p) if p is not None else None
+            raise ValueError(f"{path}: [{kind}.{name}] package_cap_mg {p} is below unit_cap_mg {u} (R130)")
+        out[key] = float(p) if p is not None else None
     return out
 
 
@@ -315,6 +324,12 @@ def selftest():
                 and caps_of(good.replace("package_cap_mg = 70", 'package_cap_mg = "70"'))[0] == "ValueError")
         t.check("FIRES: a package cap below the unit cap is refused",
                 caps_of(good.replace("package_cap_mg = 70", "package_cap_mg = 5"))[0] == "ValueError")
+        exc = good + '[limit_exception."Patch"]\nfl_eq = "thc_g_x5.6"\nunit_cap_mg = 50\npackage_cap_mg = 900\n'
+        t.check("load_caps (R130): an enumerated Category exception reads under its own key, beside its master's",
+                caps_of(exc) == {"edible": 70.0, "topical": None, CAT_PREFIX + "patch": 900.0}, str(caps_of(exc)))
+        t.check("FIRES: a Category exception's bad cap is refused, naming the exception",
+                caps_of(exc.replace("package_cap_mg = 900", "package_cap_mg = 9"))[0] == "ValueError"
+                and "limit_exception.Patch" in caps_of(exc.replace("package_cap_mg = 900", "package_cap_mg = 9"))[1])
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()

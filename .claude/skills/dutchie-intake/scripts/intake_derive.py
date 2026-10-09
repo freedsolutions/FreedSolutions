@@ -61,6 +61,16 @@ def fmt_g(x):
     return f"{x:.6f}".rstrip("0").rstrip(".") + "g"
 
 
+CAT_PREFIX = "cat:"   # a Category-level exception's key in the class / cap maps (R6, R130; intake_pointers.CAT_PREFIX)
+
+
+def class_of(classes, mc, cat=None):
+    """(class | None, the Category it came from | None): an enumerated Category exception first, else the master's."""
+    if cat and (classes or {}).get(CAT_PREFIX + norm(cat)):
+        return classes[CAT_PREFIX + norm(cat)], cat
+    return ((classes or {}).get(norm(mc)) if mc else None), None
+
+
 def cap_name(rd):
     """How a dose-read cite names its cap: the target Master category's (R130) or the generic no-map fallback."""
     cap = fmt_mg(rd["cap_mg"])
@@ -68,7 +78,9 @@ def cap_name(rd):
 
 
 def load_classes(path):
-    """{norm(Master category): class string}. Raises ValueError on an unreadable file or a table with no fl_eq."""
+    """{norm(Master category): class string}, plus {CAT_PREFIX + norm(Category): class} for each enumerated
+    Category-level exception that names one (`[limit_exception."<Category>"]` fl_eq, R6 / R130), read BEFORE its
+    master's (class_of). Raises ValueError on an unreadable file or a master table with no fl_eq."""
     with open(path, "rb") as f:
         data = tomllib.load(f)
     masters = data.get("master")
@@ -80,6 +92,12 @@ def load_classes(path):
         if not isinstance(cls, str) or not cls.strip():
             raise ValueError(f"{path}: [master.{mc}] has no fl_eq class")
         out[norm(mc)] = cls.strip()
+    for cat, body in (data.get("limit_exception") or {}).items():
+        cls = (body or {}).get("fl_eq") if isinstance(body, dict) else None
+        if cls is not None and (not isinstance(cls, str) or not cls.strip()):
+            raise ValueError(f"{path}: [limit_exception.{cat}] fl_eq is not a class string")
+        if cls:
+            out[CAT_PREFIX + norm(cat)] = cls.strip()
     return out
 
 
@@ -107,7 +125,7 @@ def fmt_mg(x):
     return f"{x:.4f}".rstrip("0").rstrip(".") + " mg"
 
 
-def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_MC, read=None):
+def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_MC, read=None, cat=None):
     """Pure. mc = the target Master category; grams = total Product grams (float or '1g'); unit = the unit the
     line printed ('g' | 'mg' | None); pack = the pack count the line printed (int or None); classes = the
     class map (None = no pointer); conc = concentrate grams the operator supplied (float / '0.3g' / None);
@@ -119,7 +137,8 @@ def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_
     g = grams_of(grams) if isinstance(grams, str) else grams
     c_in = grams_of(conc) if isinstance(conc, str) else conc
     values, cite, stops, flags = {}, {}, {}, []
-    cls = (classes or {}).get(norm(mc)) if mc else None
+    cls, by_cat = class_of(classes, mc, cat)   # cat = the row's Category: an enumerated exception wins (R6, R130)
+    via = f" by Category {by_cat} (R6 R130)" if by_cat else ""
     kind, k = class_kind(cls) if cls else (None, None)
     # --- the vendor dose read (R129) -----------------------------------------------------------------------
     rd = read or {}
@@ -160,7 +179,7 @@ def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_
             stops["Flower equiv"] = f"class {cls} needs THC mg and the line prints none (R3 R5)"
         else:
             values["lane_FlowerEquiv"] = fmt_g(g * k)
-            cite["Flower equiv"] = f"{values['lane_FlowerEquiv']} (R3 R5: {cls}, THC {fmt_g(g)})"
+            cite["Flower equiv"] = f"{values['lane_FlowerEquiv']} (R3 R5: {cls}{via}, THC {fmt_g(g)})"
     else:  # composite
         factor = conc_factor(classes)
         if factor is None:
@@ -321,6 +340,11 @@ def selftest():
     pp = dict(tot, reading="per piece", over_mg=None)
     r = derive("Gamma", 0.1, "mg", 10, cl, read=pp)
     t.check("R129: a per-piece read is cited with the fit", r["cite"]["Product grams"] == "0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap (generic fallback: no class-map cap))", str(r["cite"]))
+    rc = derive("Epsilon", 0.5, "mg", 2, dict(cl, **{CAT_PREFIX + "patch": "thc_g_x5.6"}), cat="Patch")
+    t.check("R6 R130: an enumerated Category exception's class beats its master's sentinel - THC x 5.6, cited by Category",
+            rc["values"].get("lane_FlowerEquiv") == "2.8g" and "by Category Patch (R6 R130)" in rc["cite"]["Flower equiv"], str(rc["cite"]))
+    t.check("QUIET: another Category under the same master keeps the master's sentinel",
+            derive("Epsilon", 0.5, "mg", 2, dict(cl, **{CAT_PREFIX + "patch": "thc_g_x5.6"}), cat="Balm")["values"]["lane_FlowerEquiv"] == "0.0001g")
     r3 = derive("Gamma", 0.1, "mg", 10, cl, read=dict(tot, mc="Gamma"))
     t.check("R130: a package-total read under a class-map cap names the Master category and its cap",
             r3["cite"]["Product grams"] == "0.1g (R129: package total: a per-piece read would be 900 mg over the Gamma 100 mg package cap (R130); 10 mg x 10)", str(r3["cite"]))

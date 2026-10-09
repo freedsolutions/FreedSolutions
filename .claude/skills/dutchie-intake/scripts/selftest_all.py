@@ -475,13 +475,22 @@ MC_SRC = {   # R130: one synthetic source item + its taxonomy row per mg master 
     "Tincture": ("Tinctures", "tinctures", "Tincture"),
     "Beverage": ("Drinks", "drinks", "Drink"),
     "Topical": ("Balms", "balms", "Balm"),
+    "Transdermal": ("Transdermal", "transdermal-patches", "Patch", "Topical"),   # a Category exception under Topical
 }
 
 
+def without_exception(cat):
+    """The fixture map's classes and caps with the enumerated Category exception `cat` removed (the R130 breaker)."""
+    k = ID.CAT_PREFIX + C.norm(cat)
+    return {"fl_eq": {a: v for a, v in BASE["fl_eq"].items() if a != k}, "caps": {a: v for a, v in BASE["caps"].items() if a != k}}
+
+
 def mc_line_ctx(desc, mc, **over):
-    """Line 6 re-described as a NEW_BRAND (Cedar Co) line in Master category `mc`, with a Birch Labs source item
-    there to copy across brands; the dose read takes `mc`'s package cap from the fixture class map (R130)."""
-    cat, gsc, form = MC_SRC[mc]
+    """Line 6 re-described as a NEW_BRAND (Cedar Co) line in Master category `mc` (or the Category MC_SRC names
+    under its master), with a Birch Labs source item there to copy across brands; the dose read takes the package
+    cap of the Category exception, else the master, from the fixture class map (R130)."""
+    cat, gsc, form, *own = MC_SRC[mc]
+    mc = own[0] if own else mc
     src = dict(GUMMY_SRC, SKU="3201", ProductId="721", Product=f"Birch Labs | {form} | Lime | 100mg", Category=cat,
                **{"Master category": mc, "Global SubCategory": gsc})
     tax_row = dict(BASE["categories"][0], **{"Master category": mc, "Category": cat, "Global Subcategories": gsc})
@@ -712,7 +721,7 @@ CHECKS = [
      "Edible carries no cap in the map: per piece, 1 g, no flag"),
     ("R130: Tincture `500mg 2pk` is per piece - 1 g fits Tincture's cap; `500mg x 2pk`, no flag, the cite names Tincture",
      lambda c: (lambda r: r["lane_ProductGrams"] == "1g" and "Dose: 500mg x 2pk" in r["derived"]
-                and "fits the Tincture 1000 mg package cap (R130)" in r["derived"] and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
+                and "fits the Tincture 10000 mg package cap (R130)" in r["derived"] and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
      mc_line_ctx("Cedar Co Lime tincture 500mg 2pk", "Tincture"), mc_line_ctx("Cedar Co Lime tincture 500mg 2pk", "Tincture", caps=caps_with(tincture=100)),
      "a 100 mg Tincture cap: the same line reads as the package total, 0.5 g, flagged"),
     ("R130: Beverage `5mg - 4ct` is per piece - 0.02 g fits Beverage's multipack cap; `5mg x 4pk`",
@@ -720,11 +729,23 @@ CHECKS = [
                 and "fits the Beverage 100 mg package cap (R130)" in r["derived"] and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
      mc_line_ctx("Cedar Co Lime drink 5mg - 4ct", "Beverage"), mc_line_ctx("Cedar Co Lime drink 5mg - 4ct", "Beverage", caps=caps_with(beverage=5)),
      "the Beverage cap set to its unit cap (5 mg): 5 mg x 4 breaks it, package total"),
-    ("R130: Topical `250mg - 2ct` is per piece - Topical carries no cap; 0.5 g, `250mg x 2pk`, no flag",
+    ("R130: Topical `250mg - 2ct` is per piece - Topical carries no cap; 0.5 g, `250mg x 2pk`, no flag, the sentinel FL EQ (R6)",
      lambda c: (lambda r: r["lane_ProductGrams"] == "0.5g" and "Topical carries no package cap (R130)" in r["derived"]
-                and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
+                and r["lane_FlowerEquiv"] == "0.0001g" and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
      mc_line_ctx("Cedar Co Lime balm 250mg - 2ct", "Topical"), mc_line_ctx("Cedar Co Lime balm 250mg - 2ct", "Topical", caps=caps_with(topical=100)),
      "give Topical a 100 mg cap: package total 0.25 g, flagged"),
+    ("R130 re-rule: Tincture `6000mg 2pk` breaks the 10000 mg multipack ceiling - package total 6 g, `3000mg x 2pk`, flagged",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "6g" and "Dose: 3000mg x 2pk" in r["derived"]
+                and "over the Tincture 10000 mg package cap (R130)" in r["derived"] and "DOSE_READ_TOTAL" in r["flags"].split(";"))(line6_row(c)),
+     mc_line_ctx("Cedar Co Lime tincture 6000mg 2pk", "Tincture"), mc_line_ctx("Cedar Co Lime tincture 6000mg 2pk", "Tincture", caps=caps_with(tincture=20000)),
+     "a 20000 mg ceiling: per piece, 12 g, no flag"),
+    ("R130 + R6 re-rule: a Transdermal line reads against the CATEGORY exception (per piece to 10000 mg) and derives concentrate EQ on THC grams",
+     lambda c: (lambda r: r["lane_Category"] == "Transdermal" and r["lane_ProductGrams"] == "0.2g" and r["lane_FlowerEquiv"] == "1.12g"
+                and "fits the Transdermal 10000 mg package cap (R130)" in r["derived"] and "by Category Transdermal (R6 R130)" in r["derived"]
+                and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
+     mc_line_ctx("Cedar Co Lime patch 20mg - 10ct", "Transdermal"),
+     mc_line_ctx("Cedar Co Lime patch 20mg - 10ct", "Transdermal", **without_exception("Transdermal")),
+     "drop the Transdermal exception: the line rides Topical (no cap, the 0.0001 g sentinel)"),
     ("R129 amended: an EXISTS gummy read as the package total carries NO DOSE_READ_TOTAL (quiet on an existing item)",
      lambda c: (lambda r: r["verdict"] == "EXISTS" and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(gummy_row(c)),
      gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False), gummy_ctx("Cedar Co Mango gummies 100mg 10pk"),

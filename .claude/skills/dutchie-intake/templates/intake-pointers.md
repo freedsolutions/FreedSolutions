@@ -40,7 +40,8 @@ record that ruled it in the tenant's DECISIONS.
                                          # the lane derives Flower equiv (and the dose unit) from it. Absent: Flower equiv
                                          # stays at the create stop on every new line. R130: each table may also carry
                                          # unit_cap_mg / package_cap_mg / txn_allotment; package_cap_mg is the vendor
-                                         # dose read's cap (none = per piece). There is no `Package THC cap mg:` line
+                                         # dose read's cap (none = per piece). A [limit_exception."<Category>"] table
+                                         # (fl_eq + caps) is read before its master's. There is no `Package THC cap mg:` line
                                          # (RETIRED by R130; the parser refuses it)
 ```
 
