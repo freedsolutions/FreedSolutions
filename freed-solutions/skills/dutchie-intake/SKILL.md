@@ -59,6 +59,7 @@ the second is the `bi-change` block the tenant already has.
 - Vendor deal tag: <PKG - tag>
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 - Market center / Market radius mi / Own store (+ optional Market box, Market archive, MSRP anchor, MSRP floor x cost)
+- FL EQ classes: <abs path to the tenant's fl_eq class map .toml>   (optional; R1-R3, R6 - see "derived" below)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
@@ -161,8 +162,19 @@ through connector bodies only.
    then Master category), any brand (`CROSS_BRAND_COPY`: the copy gives up the source's Brand, Vendor, Price,
    Online title / description and image, and certify proves none of it survived). Tagged with the new-line tag
    and flagged `NEW_LINE_FIELDS` (STOP): the copy inherits a different lane, so the Operator sets or confirms
-   name, Price, Flower equiv, Servings per Unit and Category / Type in the lane cells at the one stop. Grams
-   come from the line, Cost from the invoice. A Category not read from the line's own words is flagged for the
+   the name's body, Price and Category / Type in the lane cells at the one stop. Grams come from the line, Cost
+   from the invoice, and **the fields canon derives are derived, never typed** (`intake_derive.py`; the row's
+   `derived` cell names each with its value and rule): Flower equiv from the grams and the target Master
+   category's `fl_eq` class (R1-R3, R6 - the class map is the tenant's own file, pointer `FL EQ classes:`;
+   classes `product_g_x<k>`, `thc_g_x<k>` on an mg line, `composite`, `sentinel_<v>`, `none`); Servings per Unit
+   from the pack count the line prints (R34); CBD content blank off the CBD master (R66); the name's dose segment
+   `Ng` / `Nmg` / `N x Mpk` with the unit by class (R7, R42). A field the line gives the lane no fact for stays at
+   the stop and the STOP text names it with the reason (no pointer; a THC-grams class on a g-only line; no pack
+   count printed; the CBD dose on a CBD item). The composite (infused) class derives at the 30 % default and
+   STOPS on the concentrate grams - a product fact (R2) - as `CONC_GRAMS_TO_SET`; `--conc-grams <line_no>=<g>`
+   from the label / COA re-derives it. The plan (`intake_plan.py`) re-derives Flower equiv from the row's FINAL
+   grams, so a grams correction at the stop moves it; the plan row's provenance cites the rule. A Category not
+   read from the line's own words is flagged for the
    vendor's confirmation (`CATEGORY_DIRECTED` by direction, `CATEGORY_INFERRED` from another brand's item whose
    Category names a route word the line does not print - rosin, distillate, or resin beside an added-terpene
    mention; R33). A missing `Resin` alone, on a line that mentions no added terpenes, is Resin by default (INFO
@@ -175,7 +187,8 @@ through connector bodies only.
    Operator spells it, R121), then the line as a NEW_PL cross-brand copy; with no spelling (`BRAND_NAME_UNREAD`)
    nothing is created as it stands. Tag names: the tenant's optional `New line tag:` / `Active tag:` pointers,
    else `--new-line-tag` / `--active-tag`, else the generic defaults in `intake_common.py`. The intake CSV is
-   v5: 56 columns, the 54 v3 columns in place plus `unretire_set` and `image_source` (blank until create step 5).
+   v6: 57 columns, the 54 v3 columns in place plus `unretire_set`, `image_source` (blank until create step 5)
+   and `derived` (the derived create-stop fields with their rule cites; blank off a NEW_PL / NEW_BRAND row).
 3. `intake_exceptions.py --intake <v1> --lines <lines.csv> [--po <po.csv>] --tenant <CLAUDE.md>`:
    R102 `COST_DRIFT` (list unit vs lane Cost, quiet when a discount or credit explains it),
    `DEAL_UNDECIDED` (landed unit <= 0.90 x lane Cost, R62, and no ruled Vendor Deal, Tier or margin
@@ -364,7 +377,8 @@ first. The message has three parts printed by `intake_exceptions.py`, plus a fou
 4. **MSRP - pending business confirmation (R125)** - `# | Line | Rows | Unit cost | MSRP | Margin | Basis |
    Evidence (same / comps / lanes) | Flags`, one row per new line, each number marked *pending business
    confirmation*. The Operator confirms it with the business (or replaces it) and writes the confirmed Price
-   into the lane cells (`NEW_LINE_FIELDS`). The flags are INFO: `MSRP_THIN`, `MSRP_SPREAD` (the number is
+   into the lane cells (`NEW_LINE_FIELDS`); the derived cells (Flower equiv, Servings per Unit, CBD content,
+   the dose segment - the row's `derived` column) are not retyped. The flags are INFO: `MSRP_THIN`, `MSRP_SPREAD` (the number is
    more than 20 % from a market read that did not set it), `MSRP_FLOOR_RAISED`, `MSRP_MARGIN_LOW`,
    `MSRP_ARCHIVE_ONLY`, `MSRP_NO_EVIDENCE` (price it by hand with the business).
 
@@ -430,6 +444,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 ## Scripts and proofs
 
 `scripts/`: `intake_pointers.py` · `intake_parse.py` (+ `parsers/`) · `intake_match.py` ·
+`intake_derive.py` (the derived create-stop fields: R1-R3, R6, R7, R34, R42, R66) ·
 `intake_exceptions.py` · `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
@@ -437,7 +452,7 @@ The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_wr
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 94 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 101 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

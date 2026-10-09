@@ -1,0 +1,23 @@
+# Synthetic fl_eq class map (selftest fixture; not a tenant's). The tenant's own map is the file its
+# `FL EQ classes:` pointer names: one [master.<Master category>] table per master, `fl_eq = "<class>"`.
+# Class vocabulary: intake_derive.py (product_g_x<k>, thc_g_x<k>, composite, sentinel_<v>, none).
+[master."Pre-Roll"]
+fl_eq = "product_g_x1"
+
+[master.Vape]
+fl_eq = "product_g_x5.6"   # the concentrate factor the composite class reads
+
+[master.Edible]
+fl_eq = "thc_g_x56"
+
+[master.Infused]
+fl_eq = "composite"
+
+[master.Topical]
+fl_eq = "sentinel_0.0001"
+
+[master.CBD]
+fl_eq = "none"
+
+[master.Accessory]
+fl_eq = "none"

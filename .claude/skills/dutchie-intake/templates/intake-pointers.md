@@ -35,6 +35,10 @@ record that ruled it in the tenant's DECISIONS.
 - Own store: <token[, token]>            # MSRP read: the tenant's own store(s), dropped before matching
 - MSRP anchor: <market | own lanes>      # OPTIONAL (ruled): which evidence sets the number; default `market`
 - MSRP floor x cost: <n>                 # OPTIONAL (ruled): the number is never below cost x n (2 = keystone)
+- FL EQ classes: <abs path .toml>        # OPTIONAL (R1-R3, R6): the tenant's fl_eq class map - [master.<Master category>]
+                                         # tables with fl_eq = product_g_x<k> | thc_g_x<k> | composite | sentinel_<v> | none;
+                                         # the lane derives Flower equiv (and the dose unit) from it. Absent: Flower equiv
+                                         # stays at the create stop on every new line
 ```
 
 The MSRP keys are read only by `intake_msrp.py`; the other runners ignore them. `MSRP anchor` and

@@ -27,3 +27,4 @@ Not a real tenant. Relative paths resolve against this file's folder.
 - Own store: exampleco                   # dropped from every market read
 - MSRP anchor: own lanes
 - MSRP floor x cost: 2
+- FL EQ classes: ./fl-eq-classes.toml   # R1-R3, R6: the fl_eq class per Master Category; the lane derives Flower equiv from it

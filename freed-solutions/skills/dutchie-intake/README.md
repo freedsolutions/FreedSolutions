@@ -46,7 +46,9 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 |---|---|
 | `scripts/intake_pointers.py` | the tenant `## Intake Pointers` parser and validator |
 | `scripts/intake_parse.py` + `scripts/parsers/` | invoice -> lines CSV (layout plugins) |
-| `scripts/intake_match.py` | lines -> intake v1 (verdicts, lanes, `unretire_set`) |
+| `scripts/intake_match.py` | lines -> intake v1 (verdicts, lanes, `unretire_set`, the `derived` cell) |
+| `scripts/intake_derive.py` | the create-stop fields canon derives (Flower equiv, Servings per Unit, CBD content, the dose segment) from the line's facts and the tenant's `fl_eq` class map; cited by rule id |
+| `fixtures/fl-eq-classes.toml` | the synthetic class map the fixture tenant points at (`FL EQ classes:`) |
 | `scripts/intake_exceptions.py` | R102 flags, R62 read, R103 landed cost; the STOP message |
 | `scripts/intake_msrp.py` | the recommended MSRP per new line (market + own shelf + floor), pending business confirmation |
 | `scripts/intake_plan.py` | approved intake + the freeze -> the R124 plan file (refuses an UNPROVEN channel) |
