@@ -1,12 +1,15 @@
 """intake_match.py - invoice lines vs the catalog: one verdict per product line, the sibling to copy
-from, and the intake CSV v5: 56 columns = the 45 v2 columns + verdict, sibling_reason, flags,
+from, and the intake CSV v6: 57 columns = the 45 v2 columns + verdict, sibling_reason, flags,
 landed_unit_cost, po_line_ref, expiry_date, approved + parse_source (which source intake_parse read:
 pypdf / pdftotext / text / lines, so a certify reader knows the provenance) + package_id (the
 package tag(s) printed on the invoice line, `;`-joined; blank when the layout prints none)
 + unretire_set (v4: the retired items of a product line that comes back WHOLE, `;`-joined ProductIds,
 SKU where the export has none; blank unless the row un-retires a line - R101)
 + image_source (v5: the create step's image-sourcing record, read by the notice - `sourced: <url>` /
-`not found: <where the lane looked>` / `not attempted: <why>`; blank here, written at the create step).
+`not found: <where the lane looked>` / `not attempted: <why>`; blank here, written at the create step)
++ derived (v6: the create-stop fields the lane DERIVED on a NEW_PL / NEW_BRAND copy, each with its value and
+rule cite - `Flower equiv: 2.8g (R1 R3: product_g_x5.6, grams 0.5g); Servings per Unit: 5 (R34 ...)` - read
+by intake_plan for the plan row's provenance and its re-derivation; blank on every other verdict).
 `package_id` is optional on the lines CSV: a lines file written before the column reads blank.
 
   python intake_match.py --lines <lines.csv> --active <catalog-active.csv> --retired <catalog-retired.csv>
@@ -21,6 +24,10 @@ SKU where the export has none; blank unless the row un-retires a line - R101)
                                        words (`*=` for every line); checked against the categories export
            --strain-type <line_no>=<Type>@<source>  the Strain Type the lane researched for a line whose
                                        assets do not print it (R33 chain); the source rides the STOP
+           --conc-grams <line_no>=<g>  the concentrate grams of ONE composite-class (infused) line, a product
+                                       fact (R2; label / COA); absent, 30 % by default + STOP CONC_GRAMS_TO_SET
+           --fl-eq-classes <toml>      the fl_eq class map (default: the tenant pointer `FL EQ classes:`);
+                                       with neither, Flower equiv stays at the stop on every new line
            --new-line-tag "<tag>"      the R83 tag a NEW_PL create carries (default `ITM - New PL`;
                                        tenant: `New line tag:` in `## Intake Pointers`)
            --active-tag "<tag>"        the R96 standard state (default `ITM - Active`; tenant: `Active tag:`)
@@ -72,7 +79,11 @@ For EXISTS / RETIRED_MATCH the copy_source_* columns carry the MATCHED record, n
 
 Sibling = the lane member WITH an image first, then the newest ProductId, then the lowest SKU.
 Lane fields (lane_*) are the sibling's own values: the copy inherits them. A NEW_PL row's lane fields are
-the source item's, except Product grams (the line's dose) and Cost (the invoice unit cost); a CROSS-BRAND
+the source item's, except Product grams (the line's dose), Cost (the invoice unit cost) and the fields canon
+DERIVES (intake_derive.py; the `derived` column cites each): Flower equiv from the grams and the target Master
+category's fl_eq class (R1-R3, R6; tenant pointer `FL EQ classes:`), Servings per Unit from the pack count the
+line prints (R34), CBD content blank off the CBD master (R66), and the name's {Dose} segment (R7, R42). A field
+canon cannot derive from the line stays at the stop and the STOP text says which and why. A CROSS-BRAND
 source also gives up Brand (the line's), Vendor (the invoice's), Price (blank: the business sets it),
 Online title / description and image (residue the certify diff proves gone).
 
@@ -94,8 +105,13 @@ Flag table (flags column; none fails the run):
   DOSE_UNREAD           R50   STOP  no grams / mg read from the line; the lane test ran without it
   FLAVOR_TO_SET         R101  STOP  the sibling carries a Flavor: set the new item's own at create
   OT_TEMPLATE_MISS      R101  INFO  the sibling's Online title does not contain its strain; write it by hand
-  NEW_LINE_FIELDS       R101  STOP  a NEW_PL copy inherits a different lane: confirm or edit the name, Price,
-                                    Flower equiv, Servings per Unit and Category / Type in the lane cells
+  NEW_LINE_FIELDS       R101  STOP  a NEW_PL copy inherits a different lane: confirm or edit the name's body,
+                                    Price and Category / Type in the lane cells, plus any field the row's
+                                    `derived` cell does not carry (Flower equiv, Servings per Unit, CBD content
+                                    when the line gives the lane no fact to derive it from - the STOP says why)
+  CONC_GRAMS_TO_SET     R2    STOP  a composite-class (infused) line with no concentrate grams: Flower equiv is
+                                    derived at the 30 % default; supply the label / COA grams with
+                                    `--conc-grams <line_no>=<g>` and re-run, or accept the default
   UNRETIRE_FIELDS       R101  STOP  RETIRED_MATCH: un-retire every item in `unretire_set`; Cost = the
                                     invoice, Price confirmed current, tag = the Active tag, on each
   UNRETIRE_FIRST        R101  STOP  the copy source is RETIRED: un-retire the lane (`unretire_set`) and read
@@ -144,6 +160,7 @@ from intake_common import (CATALOG_REQUIRED, COL_RETIRED, DEFAULT_ACTIVE_TAG, DE
                            EXIT_ABORT, EXIT_DEFECT, EXIT_OK, STRAINS_REQUIRED, Selftest, abort, body_of,
                            form_word, freshest, get_all, get_flag, grams_eq, grams_of, has_phrase, lane_key,
                            next_version, norm, num, read_csv, slug, tag_set, write_csv)
+import intake_derive  # noqa: E402
 
 LINES_REQUIRED = ["invoice_no", "invoice_date", "vendor", "line_no", "description", "cases", "units_total",
                   "case_cost", "unit_cost", "ext_cost", "potency_tac_pct", "container", "coa_url", "expiry_date",
@@ -162,7 +179,9 @@ V4_NEW = ["unretire_set"]
 V4_COLS = V3_COLS + V4_NEW
 V5_NEW = ["image_source"]   # the create step's image-sourcing record (ruled 2026-10-08); the notice reads it
 V5_COLS = V4_COLS + V5_NEW
-INTAKE_COLS = V5_COLS   # what this script writes; every reader requires V3_COLS, so a v3 or v4 file still reads
+V6_NEW = ["derived"]   # the create-stop fields the lane derived, with their rule cites (R1-R3, R6, R7, R34, R42, R66)
+V6_COLS = V5_COLS + V6_NEW
+INTAKE_COLS = V6_COLS   # what this script writes; every reader requires V3_COLS, so a v3, v4 or v5 file still reads
 VERDICTS = ["EXISTS", "RETIRED_MATCH", "NEW_ITEM_WITH_SIBLING", "STRAIN_MISSING", "NEW_PL", "NEW_CATEGORY", "NEW_BRAND"]
 FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), ("LANE_AMBIGUOUS", "R50", "STOP"),
          ("DOSE_UNREAD", "R50", "STOP"), ("FLAVOR_TO_SET", "R101", "STOP"), ("OT_TEMPLATE_MISS", "R101", "INFO"),
@@ -170,7 +189,7 @@ FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), (
          ("CROSS_BRAND_COPY", "R101", "STOP"), ("CATEGORY_UNREAD", "R101", "STOP"), ("CATEGORY_DIRECTED", "R33", "STOP"),
          ("CATEGORY_INFERRED", "R33", "STOP"), ("OIL_LIVE_DEFAULT", "R79", "INFO"), ("ROUTE_RESIN_DEFAULT", "R33", "INFO"), ("BRAND_NAME_UNREAD", "R121", "STOP"),
          ("STRAIN_TYPE_CONFLICT", "R128", "STOP"), ("STRAIN_TYPE_RESEARCHED", "R33", "INFO"),
-         ("BAD_LINE", "R103", "DEFECT")]
+         ("CONC_GRAMS_TO_SET", "R2", "STOP"), ("BAD_LINE", "R103", "DEFECT")]
 LANE_MAP = {"lane_Category": "Category", "lane_Type": "Type", "lane_IsCannabis": "Is cannabis",
             "lane_MasterCategory": "Master category", "lane_GlobalCategory": "Global Category",
             "lane_GlobalSubCategory": "Global SubCategory", "lane_ProductGrams": "Product grams",
@@ -232,6 +251,13 @@ def dose_of(desc):
         if any(abs(w - v * n) < 1e-6 for v in ws if v != w):
             return w
     return round(min(ws) * n, 4)
+
+
+def dose_unit_of(desc):
+    """The unit of the FIRST weight the line prints ('g' | 'mg'), the one dose_of reads a single from; None when
+    it prints none. An mg unit is what makes a THC-grams class derivable (intake_derive)."""
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(mg|g)\b", desc or "", re.I)
+    return m.group(2).lower() if m else None
 
 
 def vendor_tokens(v):
@@ -677,8 +703,9 @@ def direction(table, line_no):
 def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEFAULT_NEW_LINE_TAG,
           dead_tag=DEFAULT_DEAD_TAG, drop_tags=(), active_tag=DEFAULT_ACTIVE_TAG, prefix=ITEM_PREFIX,
           tag_overrides=None, categories=None, brands=None, line_brands=None, line_categories=None,
-          strain_types=None):
-    """Pure: (intake rows, defects). `strains` = {name: {'type':..., 'id':...}}. `tag_overrides` =
+          strain_types=None, fl_eq_classes=None, conc_grams=None):
+    """Pure: (intake rows, defects). `fl_eq_classes` = {norm(Master category): fl_eq class} (intake_derive;
+    None = no pointer, Flower equiv stays at the stop); `conc_grams` = {line_no or '*': grams} directions (R2). `strains` = {name: {'type':..., 'id':...}}. `tag_overrides` =
     {line_no or '*': tag} - the business's direction for a sibling copy's decision tag (R96).
     `categories` = the taxonomy rows (None: the catalog's own stand in); `brands` = the Brand records
     (Display name); `line_brands` / `line_categories` / `strain_types` = {line_no or '*': value} directions,
@@ -904,7 +931,14 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             if near.get("Flavor"):
                 flags.append("FLAVOR_TO_SET")
             s = strain or ""
-            dose = "" if g is None else f"{g:g}g"
+            # The fields canon derives (R1-R3, R6, R7, R34, R42, R66): computed from the line's facts and the target
+            # Master category's class; each leaves the stop and is cited in `derived`. What cannot be derived stays.
+            dv = intake_derive.derive(mc, g, dose_unit_of(desc), pack_count_of(desc), fl_eq_classes,
+                                      conc=direction(conc_grams, ln.get("line_no")))
+            derived_txt, derived_fields, derived_stops = intake_derive.describe(dv)
+            flags += [f for f in dv["flags"] if f not in flags]
+            dose = dv["values"].get("dose_segment") or ("" if g is None else f"{g:g}g")
+            stop_fields = ["name" if "Dose" in derived_fields else "name (dose unread)", "Price"] + derived_stops + ["Category / Type"]
             seg0 = (brand or "") if cross else ((near.get("Product") or "").split(" | ")[0].strip() or brand)
             if s:
                 flags.append("OT_TEMPLATE_MISS")
@@ -912,8 +946,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                        action=("CREATE - new brand, then copy closest by subcategory (R101)" if brand_is_new
                                else "CREATE - copy closest by subcategory, any brand (new line, R83)" if cross
                                else "CREATE - copy nearest (new line, R83)"),
-                       sibling_reason=reason + "; set or confirm at the stop: name, Price, Flower equiv, "
-                                               "Servings per Unit, Category / Type"
+                       sibling_reason=reason + (f"; derived: {derived_txt}" if derived_txt else "")
+                       + "; set or confirm at the stop: " + ", ".join(stop_fields)
                        + ("; the copy gives up the source's Brand, Vendor, Price, Online title / description and image"
                           if cross else "")
                        + ("" if body_known(s, fbody) or not s else f"; name body = <Flavor> ({s}): the operator completes it"),
@@ -928,9 +962,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                        image_state=(("source brand's image carried - REMOVE (cross-brand residue)" if cross else
                                      "nearest item's image carried - keep only if generic brand art (platform KB Images)")
                                     if near.get("Image URL") else "0 images (NO_ECOM_IMAGE - a human supplies art)"),
-                       lane_ProductGrams=dose or row.get("lane_ProductGrams", ""),
+                       lane_ProductGrams=("" if g is None else f"{g:g}g") or row.get("lane_ProductGrams", ""),
                        lane_Cost=ln.get("unit_cost", "") or row.get("lane_Cost", ""),
-                       tags=copy_tags(near, drop_tags, prefix, new_line_tag))
+                       tags=copy_tags(near, drop_tags, prefix, new_line_tag),
+                       derived=derived_txt,
+                       **{k: v for k, v in dv["values"].items() if k.startswith("lane_")})
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
@@ -1110,6 +1146,18 @@ def parse_overrides(specs, new_line_tag, dead_tag, prefix=ITEM_PREFIX):
     return out
 
 
+def load_fl_eq_classes(argv, ptr):
+    """The fl_eq class map: `--fl-eq-classes <toml>`, else the tenant pointer `FL EQ classes:`; None when neither
+    names a file. A named file that does not read is an ABORT, never a silent 'stays at the stop'."""
+    p = get_flag(argv, "--fl-eq-classes") or ((ptr or {}).get("intake", {}) or {}).get("FL EQ classes")
+    if not p or re.fullmatch(r"<[^>]*>", p.strip()):
+        return None
+    try:
+        return intake_derive.load_classes(p)
+    except (OSError, ValueError, intake_derive.tomllib.TOMLDecodeError) as e:
+        abort(f"fl_eq class map {p}: {e}")
+
+
 def parse_directions(specs, flag):
     """`<line_no>=<value>` / `*=<value>` -> {key: value}; an empty side ABORTs."""
     out = {}
@@ -1138,12 +1186,18 @@ def main(argv):
     paths, active, retired, strains, cats, brs = load_exports(argv, ptr)
     new_line_tag, active_tag = tag_options(argv, ptr)
     overrides = parse_overrides(get_all(argv, "--tag-override"), new_line_tag, get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG))
+    classes = load_fl_eq_classes(argv, ptr)
     rows, defects = match(lines, active, retired, strains, get_flag(argv, "--brand"), new_line_tag,
                           get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG), get_all(argv, "--drop-tag"),
                           active_tag, ITEM_PREFIX, overrides, categories=cats, brands=brs,
                           line_brands=parse_directions(get_all(argv, "--line-brand"), "--line-brand"),
                           line_categories=parse_directions(get_all(argv, "--line-category"), "--line-category"),
-                          strain_types=parse_directions(get_all(argv, "--strain-type"), "--strain-type"))
+                          strain_types=parse_directions(get_all(argv, "--strain-type"), "--strain-type"),
+                          fl_eq_classes=classes,
+                          conc_grams=parse_directions(get_all(argv, "--conc-grams"), "--conc-grams"))
+    if classes is None:
+        print("WARNING: no fl_eq class map (--fl-eq-classes or the tenant pointer `FL EQ classes:`): Flower equiv "
+              "stays at the stop on every new line")
     out_dir = get_flag(argv, "--out-dir") or (ptr["intake"]["Intake dir"] if ptr else os.path.dirname(os.path.abspath(lines_p)))
     tslug = get_flag(argv, "--slug") or (slug(os.path.basename(os.path.dirname(os.path.abspath(tenant)))) if tenant else "tenant")
     first = next((ln for ln in lines if not ln.get("order_level_kind")), lines[0] if lines else {})
@@ -1353,6 +1407,56 @@ def selftest():
             f"{r['lane_Category']} {r['lane_MasterCategory']} {r['lane_Cost']}")
     t.check("QUIET: CATEGORY_INFERRED off when the line prints the Category's words (gummy)",
             "CATEGORY_INFERRED" not in r["flags"])
+    # --- the derived create-stop fields (R1-R3, R6, R7, R34, R42, R66) on a NEW_PL copy ---
+    classes = {"vape": "product_g_x5.6", "pre-roll": "product_g_x1", "edible": "thc_g_x56", "infused": "composite", "cbd": "none"}
+    src7 = next(x for x in vape if x["SKU"] == "7")
+    r0 = run("Acme Gelato cart 0.5g", act=vape)
+    t.check("QUIET: with no class map the source's Flower equiv carries and the STOP names it (no pointer)",
+            r0["lane_FlowerEquiv"] == src7["Flower equiv"] and "Flower equiv (no `FL EQ classes` pointer" in r0["sibling_reason"]
+            and "Flower equiv:" not in r0["derived"], f"{r0['lane_FlowerEquiv']!r} {r0['sibling_reason'][-160:]}")
+    r = run("Acme Gelato cart 0.5g", act=vape, fl_eq_classes=classes)
+    t.check("DERIVED Flower equiv on a NEW_PL: 0.5g x 5.6 = 2.8g (R1 R3), cited in `derived`, off the stop list",
+            r["lane_FlowerEquiv"] == "2.8g" and r["derived"].startswith("Flower equiv: 2.8g (R1 R3: product_g_x5.6, grams 0.5g)")
+            and "; derived: Flower equiv: 2.8g" in r["sibling_reason"] and "Flower equiv (" not in r["sibling_reason"],
+            f"{r['lane_FlowerEquiv']!r} {r['derived']!r} {r['sibling_reason'][-200:]}")
+    t.check("a single with no printed pack count keeps Servings per Unit at the stop (R31), CBD content derived blank (R66)",
+            "Servings per Unit (the line prints no pack count" in r["sibling_reason"] and r["lane_CBDContent"] == ""
+            and "CBD content: blank (R66" in r["derived"], r["sibling_reason"][-220:])
+    t.check("the stop list is now: name, Price, the undeliverable fields, Category / Type",
+            r["sibling_reason"].split("set or confirm at the stop: ")[1].startswith("name, Price, Servings per Unit (")
+            and r["sibling_reason"].rstrip().endswith("Category / Type"), r["sibling_reason"][-200:])
+    r = run("Acme Gelato cart 0.5g 3-pack", act=vape, fl_eq_classes=classes)
+    t.check("a pack line: Servings = the printed count (R34), grams = the total, Flower equiv on the total, the name's dose `0.5g x 3pk` (R42)",
+            r["lane_ServingsPerUnit"] == "3" and r["lane_ProductGrams"] == "1.5g" and r["lane_FlowerEquiv"] == "8.4g"
+            and r["create_name_FINAL"].endswith("| 0.5g x 3pk") and "Servings per Unit: 3 (R34" in r["derived"],
+            f"{r['lane_ServingsPerUnit']} {r['lane_ProductGrams']} {r['lane_FlowerEquiv']} {r['create_name_FINAL']!r}")
+    r = run("Acme Mango gummy 100mg 10pk", act=vape, fl_eq_classes=classes)
+    t.check("a THC-grams class on an mg line: Flower equiv = the row's THC grams x 56 (R3 R5), dose segment in mg (R7)",
+            grams_eq(r["lane_FlowerEquiv"], f"{grams_of(r['lane_ProductGrams']) * 56:g}g") and "R3 R5: thc_g_x56" in r["derived"]
+            and "Dose: 100mg x 10pk (R7 R42 R34)" in r["derived"] and r["lane_ServingsPerUnit"] == "10",
+            f"{r['lane_FlowerEquiv']} {r['lane_ProductGrams']} {r['create_name_FINAL']!r}")
+    r = run("Acme Mango gummy 1g 10pk", act=vape, fl_eq_classes=classes)
+    t.check("FIRES: a THC-grams class on a g-only line keeps Flower equiv at the stop, named",
+            "needs THC mg" in r["sibling_reason"] and "Flower equiv:" not in r["derived"], r["sibling_reason"][-200:])
+    inf = vape + [_item("31", "Acme | Infused Pre-Roll | Blue Dream | 1g", pid="31", cat="Infused Pre-Roll",
+                        **{"Master category": "Infused", "Image URL": "i.jpg"})]
+    inf_cat = {"1": "Infused Pre-Roll"}   # the form word spans two Master categories: the operator names the Category
+    r = run("Acme Gelato infused pre-roll 0.5g", act=inf, fl_eq_classes=classes, line_categories=inf_cat)
+    t.check("composite class, no concentrate grams: Flower equiv at the 30 % default (R2) and the STOP flag CONC_GRAMS_TO_SET",
+            r["verdict"] == "NEW_PL" and r["copy_source_sku"] == "31" and r["lane_FlowerEquiv"] == "1.19g"
+            and "CONC_GRAMS_TO_SET" in r["flags"].split(";") and "concentrate grams (a product fact (R2)" in r["sibling_reason"],
+            f"{r['verdict']} {r['copy_source_sku']} {r['lane_FlowerEquiv']} {r['flags']} {r['sibling_reason'][-200:]}")
+    r = run("Acme Gelato infused pre-roll 0.5g", act=inf, fl_eq_classes=classes, conc_grams={"1": "0.2g"}, line_categories=inf_cat)
+    t.check("--conc-grams: the operator's concentrate grams re-derive it ((0.3) + 0.2 x 5.6 = 1.42g), no STOP flag",
+            r["lane_FlowerEquiv"] == "1.42g" and "CONC_GRAMS_TO_SET" not in r["flags"] and "conc 0.2g operator" in r["derived"],
+            f"{r['lane_FlowerEquiv']} {r['flags']} {r['derived']}")
+    t.check("QUIET: a direction for another line leaves this one on the default",
+            "CONC_GRAMS_TO_SET" in run("Acme Gelato infused pre-roll 0.5g", act=inf, fl_eq_classes=classes, conc_grams={"2": "0.2g"},
+                                       line_categories=inf_cat)["flags"])
+    t.check("the derived cell is blank on a sibling copy and on EXISTS (nothing derived there)",
+            run("Acme Gelato preroll 1g", fl_eq_classes=classes)["derived"] == "" and run("Acme Blue Dream preroll 1g", fl_eq_classes=classes)["derived"] == "")
+    t.check("dose_unit_of reads the first weight's unit", dose_unit_of("Acme Gummy 100mg 10pk") == "mg" and dose_unit_of("Acme Cart 0.5g 3-pack") == "g"
+            and dose_unit_of("Acme Thing") is None)
     cured = vape + [_item("6", "Bolt | Cured Resin Cart | Mango | 0.5g", pid="16", cat="Cured Resin Cart", vendor="Bolt Wholesale",
                           **{"Master category": "Vape", "Global SubCategory": "cured-resin-cartridge", "Brand": "Bolt"})]
     r = run("Zed Mango 510 cart 0.5g botanical terpenes", act=cured, line_brands={"1": "Zed"})
@@ -1469,9 +1573,9 @@ def selftest():
     _, d = match([{"description": "Acme Blue Dream preroll 1g", "vendor": "x", "units_total": "", "unit_cost": "4.5"}],
                  active, retired, strains)
     t.check("FIRES: BAD_LINE on a line with no units", len(d) == 1)
-    t.check("v5 has 56 columns (45 + 7 + parse_source + package_id + unretire_set + image_source); every v3 column keeps its place",
-            len(INTAKE_COLS) == 56 and len(V2_COLS) == 45 and INTAKE_COLS[:54] == V3_COLS
-            and INTAKE_COLS[-4:] == ["parse_source", "package_id", "unretire_set", "image_source"], str(len(INTAKE_COLS)))
+    t.check("v6 has 57 columns (45 + 7 + parse_source + package_id + unretire_set + image_source + derived); every v3 column keeps its place",
+            len(INTAKE_COLS) == 57 and len(V2_COLS) == 45 and INTAKE_COLS[:54] == V3_COLS
+            and INTAKE_COLS[-5:] == ["parse_source", "package_id", "unretire_set", "image_source", "derived"], str(len(INTAKE_COLS)))
     t.check("image_source is blank on every verdict here (the create step writes it)",
             run("Acme Blue Dream preroll 1g")["image_source"] == "" and "image_source" in run("Acme Blue Dream preroll 1g"))
     r = match([{"description": "Acme Blue Dream preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",

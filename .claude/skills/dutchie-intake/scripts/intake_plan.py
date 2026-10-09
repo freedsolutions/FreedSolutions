@@ -2,6 +2,7 @@
 
   python intake_plan.py --intake <intake-vN.csv> --active <f> --retired <f> --strains <f>
                         --categories <f> --brands <f> [--out-dir <dir> | --tenant <CLAUDE.md>] [--dry-run]
+                        [--fl-eq-classes <toml>]   (default: the tenant pointer `FL EQ classes:`)
   python intake_plan.py --selftest
 
 R124: the Operator approves one plan file that names every write - item, field, before-value, target. The
@@ -40,6 +41,13 @@ the new brand's own words - `online_title` and the optional intake column `onlin
 the STOP; a blank one is refused (CONTENT_UNWRITTEN), never planned as a clear - and deletes the copied image
 (IMAGE_REMOVE). Global Category / Sub carry from the source.
 
+Derived fields (intake_derive.py; the intake row's `derived` cell, v6). A create row's Flower equiv, Servings per
+Unit and CBD content that the lane DERIVED carry their rule cite into the plan row's provenance. Flower equiv is
+RE-DERIVED here from the row's FINAL Product grams and Master category (the class map), so a grams correction at
+the stop moves it; a row cell that disagrees is superseded and the provenance says so. A derived-blank CBD content
+over a source value plans the clear - which the grid refuses (CBDContent UNPROVEN, P7): the refusal is the plan
+telling the Operator the item form must clear it.
+
 A dead record (R81, the dead tag) is never a copy source and never un-retired. A RETIRED_MATCH (and an
 UNRETIRE_FIRST copy) brings back its whole `unretire_set` (R101, the R50 lane): Cost = `lane_Cost` (the invoice),
 Price = `lane_Price` (confirmed current at the STOP), the ONE decision tag (R96), then the un-retire.
@@ -58,6 +66,10 @@ from intake_common import (CATALOG_COLS, CATEGORIES_REQUIRED, CREATE_VERDICTS, D
                            EXIT_OK, ITEM_PREFIX, Selftest, abort, get_flag, grams_of, money_eq, new_path,
                            next_version, norm, num, read_csv, stamp, tag_set, version_stem, write_csv)
 from intake_match import V3_COLS  # noqa: E402
+import intake_derive  # noqa: E402
+
+# plan field -> (the derived-cell field name, the intake column it re-derives from)
+DERIVED_FIELDS = {"FlowerEquivalent": "Flower equiv", "ServingSizePerUnit": "Servings per Unit", "CBDContent": "CBD content"}
 
 PLAN_COLS = ["seq", "step", "line_no", "product_key", "field", "before", "target", "channel", "depends_on",
              "provenance", "row_sha1"]
@@ -215,9 +227,10 @@ def is_dead(r, dead_tag=DEFAULT_DEAD_TAG):
 
 
 def build_plan(intake, active, retired, strains, categories, brands, channels=None, grid_fields=None,
-               form_fields=None, guard=None, dead_tag=DEFAULT_DEAD_TAG, prefix=ITEM_PREFIX):
+               form_fields=None, guard=None, dead_tag=DEFAULT_DEAD_TAG, prefix=ITEM_PREFIX, fl_eq_classes=None):
     """Pure. (plan rows, refusals, notes). The four maps default to this module's; a selftest passes a copy
-    to simulate a probe result - the CLI has no flag that widens them."""
+    to simulate a probe result - the CLI has no flag that widens them. `fl_eq_classes` = the tenant's class map
+    (intake_derive.load_classes); None = no re-derivation, the row's cells stand."""
     channels, grid_fields = channels or CHANNELS, grid_fields or GRID_FIELDS
     form_fields, guard = form_fields or FORM_FIELDS, guard or GUARD
     act, ret = keyed(active, "--active"), keyed(retired, "--retired")
@@ -394,14 +407,31 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
             if not ok:
                 refuse("VALUE_NOT_NUMERIC", "ALIGN", n, key, field, channel, "", f"target {r.get(icol)!r}")
                 continue
+            dcell = intake_derive.parse_derived(r.get("derived"))
+            cite_extra = ""
+            if field in DERIVED_FIELDS and DERIVED_FIELDS[field] in dcell:
+                cite_extra = f"derived {DERIVED_FIELDS[field]} {dcell[DERIVED_FIELDS[field]]}"
+                if field == "FlowerEquivalent" and fl_eq_classes is not None:
+                    # Re-derive from the row's FINAL grams (unit mg: a THC class the intake derived had its mg).
+                    dv = intake_derive.derive(r.get("lane_MasterCategory"), r.get("lane_ProductGrams"), "mg", None,
+                                              fl_eq_classes, conc=intake_derive.conc_of(r.get("derived")))
+                    rv = dv["values"].get("lane_FlowerEquiv")
+                    if rv is not None and not same(field, plan_value(field, rv)[0], tgt):
+                        cite_extra += (f"; re-derived from Product grams {r.get('lane_ProductGrams')!r}: {rv} "
+                                       f"(row cell {r.get(icol)!r} superseded)")
+                        tgt = plan_value(field, rv)[0]
             if not tgt:
-                # A blank lane cell is not a planned clear, except two: a blank Cost / Price on a create is a STOP
-                # item, and a cross-brand copy's carried Flavor is cleared (the one grid field whose clear is proven).
+                # A blank lane cell is not a planned clear, except three: a blank Cost / Price on a create is a STOP
+                # item, a cross-brand copy's carried Flavor is cleared (the one grid field whose clear is proven), and
+                # a DERIVED blank (R66 CBD content off the CBD master) over a source value is a clear the plan must
+                # name - the channel refuses it (P7), which is the Operator's instruction to clear it by the form.
                 if bef and field in MONEY:
                     refuse("TARGET_BLANK", "ALIGN", n, key, field, channel, "",
                            f"{col} is blank on the intake row: set it at the STOP (NEW_LINE_FIELDS)")
                 elif bef and field == "Flavor" and "CROSS_BRAND_COPY" in (r.get("flags") or "").split(";"):
                     emit("ALIGN", n, key, field, bef, "", channel, [cseq], "active", "cross-brand residue clear")
+                elif bef and cite_extra:
+                    emit("ALIGN", n, key, field, bef, "", channel, [cseq], "active", cite_extra + ": the source's value must clear")
                 continue
             if same(field, bef, tgt):
                 continue
@@ -425,7 +455,7 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                 elif mc_of.get(norm(bc)) != mc_of.get(norm(tc)) and CROSS_MC[0] != PROVEN:
                     refuse("CHANNEL_UNPROVEN", "ALIGN", n, key, field, channel, CROSS_MC[1],
                            f"{CROSS_MC[2]}: {mc_of.get(norm(bc))!r} -> {mc_of.get(norm(tc))!r}")
-            emit("ALIGN", n, key, field, bef, tgt, channel, deps, "active")
+            emit("ALIGN", n, key, field, bef, tgt, channel, deps, "active", cite_extra)
     # 7 CONTENT  8 IMAGE_REMOVE  9 LINK ------------------------------------------------------------------------
     later = []
     for n, r in creates:
@@ -513,16 +543,21 @@ def main(argv):
     strains = read_csv(paths["strains"], STRAINS_REQUIRED, "--strains")[1]
     categories = read_csv(paths["categories"], CATEGORIES_REQUIRED, "--categories")[1]
     brands = read_csv(paths["brands"], BRANDS_REQUIRED, "--brands")[1]
-    rows, refusals, notes = build_plan(intake, active, retired, strains, categories, brands)
+    tenant = get_flag(argv, "--tenant")
+    ptr = None
+    if tenant:
+        import intake_pointers
+        ptr = intake_pointers.load(tenant)
+    from intake_match import load_fl_eq_classes
+    rows, refusals, notes = build_plan(intake, active, retired, strains, categories, brands,
+                                       fl_eq_classes=load_fl_eq_classes(argv, ptr))
     print("\n".join(summary(rows, refusals, notes)))
     if "--dry-run" in argv:
         print("\ndry run: nothing written")
         return EXIT_ABORT if refusals else EXIT_OK
     out_dir = get_flag(argv, "--out-dir")
-    tenant = get_flag(argv, "--tenant")
-    if not out_dir and tenant:
-        import intake_pointers
-        out_dir = intake_pointers.load(tenant)["intake"]["Intake dir"]
+    if not out_dir and ptr:
+        out_dir = ptr["intake"]["Intake dir"]
     d_, stem = version_stem(paths["intake"])
     out_dir = out_dir or d_
     if refusals:
@@ -635,6 +670,37 @@ def selftest():
     t.check("an EXISTS row plans no write", not any(r["line_no"] == "4" for r in rows))
     t.check("every row carries its provenance cite and a 40-hex row_sha1",
             all(r["provenance"] and re.fullmatch(r"[0-9a-f]{40}", r["row_sha1"]) for r in rows))
+    # --- derived fields (R1-R3, R6, R34, R66): the cite rides the plan row; Flower equiv re-derives from the final grams
+    classes = {"edible": "thc_g_x56", "pre-roll": "product_g_x1", "vape": "product_g_x5.6"}
+    fd = _fixture()
+    fd["intake"][2].update(lane_MasterCategory="Edible", lane_ProductGrams="0.1g", lane_FlowerEquiv="5.6g", lane_ServingsPerUnit="10",
+                           derived="Flower equiv: 5.6g (R3 R5: thc_g_x56, THC 0.1g); Servings per Unit: 10 (R34: the pack count the line prints); "
+                                   "CBD content: blank (R66: Master category is not CBD); Dose: 10mg x 10pk (R7 R42 R34)")
+    fd["active"][1].update(**{"Flower equiv": "0.1g", "Servings per Unit": "1"})
+    rows_d, ref_d, _ = _build(fd, guard=_probed(), fl_eq_classes=classes)
+    byf = {(r["product_key"], r["field"]): r for r in rows_d}
+    fe = byf.get(("new:3", "FlowerEquivalent"))
+    t.check("a derived Flower equiv plans with its rule cite in the provenance",
+            ref_d == [] and fe is not None and fe["target"] == "5.6" and "derived Flower equiv 5.6g (R3 R5" in fe["provenance"],
+            f"{ref_d} {fe}")
+    t.check("a derived Servings per Unit cites R34 in the provenance",
+            "R34" in byf[("new:3", "ServingSizePerUnit")]["provenance"] and byf[("new:3", "ServingSizePerUnit")]["target"] == "10")
+    fd["intake"][2]["lane_ProductGrams"] = "0.05g"   # the Operator corrected the grams at the stop; FE cell is stale
+    rows_d, ref_d, _ = _build(fd, guard=_probed(), fl_eq_classes=classes)
+    fe = next(r for r in rows_d if r["product_key"] == "new:3" and r["field"] == "FlowerEquivalent")
+    t.check("FIRES: a grams correction at the stop re-derives Flower equiv (0.05 x 56 = 2.8), superseding the stale cell",
+            fe["target"] == "2.8" and "re-derived from Product grams '0.05g': 2.8g (row cell '5.6g' superseded)" in fe["provenance"], str(fe))
+    rows_n, _, _ = _build(fd, guard=_probed())
+    fe = next(r for r in rows_n if r["product_key"] == "new:3" and r["field"] == "FlowerEquivalent")
+    t.check("QUIET: with no class map the row cell stands and the cite still rides", fe["target"] == "5.6" and "derived Flower equiv" in fe["provenance"])
+    fd["active"][1]["CBD content"] = "25"   # a cross-brand source carrying CBD content; R66 derives blank off the CBD master
+    rows_c, ref_c, _ = _build(fd, guard=_probed(), fl_eq_classes=classes)
+    t.check("FIRES: a derived-blank CBD content over a source value plans the clear, which the grid refuses (P7) - the Operator clears it by the form",
+            any(f["reason"] == "CHANNEL_UNPROVEN" and f["field"] == "CBDContent" and f["probe"] == "P7" for f in ref_c), str(ref_c))
+    fd["intake"][2]["derived"] = ""
+    rows_c, ref_c, _ = _build(fd, guard=_probed(), fl_eq_classes=classes)
+    t.check("QUIET: with no derivation on the row, a blank CBD content is not a planned clear",
+            not any(f["field"] == "CBDContent" for f in ref_c), str(ref_c))
     v, h = SHA_VECTOR
     got = row_sha1(v)
     t.check("row_sha1 = sha1 of the ten cells joined by U+001F (the vector gridBatch's selftest also checks)",

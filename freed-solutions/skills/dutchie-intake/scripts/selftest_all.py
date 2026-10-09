@@ -28,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FX = os.path.join(os.path.dirname(HERE), "fixtures")
 sys.path.insert(0, HERE)
 import intake_certify as IC  # noqa: E402
+import intake_derive as ID  # noqa: E402
 import intake_common as C  # noqa: E402
 import intake_exceptions as IE  # noqa: E402
 import intake_match as IM  # noqa: E402
@@ -39,7 +40,7 @@ import receive as RC  # noqa: E402
 
 SCRIPTS = ["intake_pointers.py", "intake_parse.py", "intake_match.py", "intake_exceptions.py",
            "intake_plan.py", "intake_certify.py", "intake_notice.py", "intake_ui_run.py", "receive.py",
-           "intake_msrp.py"]
+           "intake_msrp.py", "intake_derive.py"]
 # The batch runner lives in the sibling skill (one allowlist, one refusal set for every lane): its batch
 # cases run here too, so the whole R124 chain - plan, gridBatch, certify - is proven by one command.
 GRID_SELFTEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "dutchie-bi-looker", "scripts",
@@ -74,6 +75,7 @@ BASE = {
     "post": rows_of("certify-post.csv"), "hdr": hdr_of("catalog-active.csv"),
     "categories": rows_of("categories.csv"), "brands": rows_of("brands.csv"),
     "notice": open(os.path.join(os.path.dirname(HERE), "templates", "notice.md"), encoding="utf-8").read(),
+    "fl_eq": ID.load_classes(fx("fl-eq-classes.toml")),   # the synthetic class map the fixture tenant points at
 }
 
 
@@ -100,7 +102,8 @@ def ctx(**over):
 def matched(c):
     return IM.match(c["lines"], c["active"], c["retired"], c["strains"], drop_tags=DROP,
                     categories=c.get("categories"), brands=c.get("brands"), line_brands=c.get("line_brands"),
-                    line_categories=c.get("line_categories"), strain_types=c.get("strain_types"))[0]
+                    line_categories=c.get("line_categories"), strain_types=c.get("strain_types"),
+                    fl_eq_classes=c.get("fl_eq"), conc_grams=c.get("conc_grams"))[0]
 
 
 def verdict_count(c, v):
@@ -299,6 +302,37 @@ def new_line_ctx(lane=False):
 
 def new_line_row(c):
     return row_for(c, "Acme Farms Northern Lights")
+
+
+def pack_line_ctx():
+    """Line 5 printed as a 3-pack of 0.5g carts: 1.5g total, no lane -> NEW_PL from the 1g cart, pack count 3."""
+    c = new_line_ctx()
+    c["lines"] = [dict(ln, description=ln["description"] + " 3-pack") if ln["line_no"] == "5" else ln for ln in c["lines"]]
+    return c
+
+
+def cbd_source_ctx(master="Vape"):
+    """The NEW_PL copy source carries a CBD content; its Master category is `master`."""
+    c = new_line_ctx()
+    c["active"] = [dict(r, **{"CBD content": "25", "Master category": master}) if r["SKU"] == "1008" else r for r in c["active"]]
+    return c
+
+
+def cert_derived(c):
+    """Certify the NEW_PL create against a post export that prints the derived Flower equiv (2.8g) - or, when c is
+    the string "break", the source's 1.2g: the A-population compare must fail on that cell."""
+    broken = c == "break"
+    c = new_line_ctx() if broken else c
+    rows = matched(c)
+    row = next(r for r in rows if r["verdict"] == "NEW_PL")
+    row.update(approved="Y", new_sku="1009", new_productid="509")
+    post = {r["SKU"]: dict(r) for r in c["active"]}
+    new = dict(next(r for r in c["active"] if r["SKU"] == "1008"), SKU="1009", ProductId="509",
+               Product=row["create_name_FINAL"] or "Acme Farms | Live Resin Cart | Northern Lights | 0.5g",
+               **{"Product grams": "0.5g", "Flower equiv": "1.2g" if broken else "2.8g", "Tags": C.DEFAULT_NEW_LINE_TAG})
+    post["1009"] = new
+    rep, fails, counts = IC.certify(c["hdr"], keyed(c["active"]), c["hdr"], post, "SKU", rows)[:3]
+    return {"rep": rep, "fails": fails, "counts": counts}
 
 
 def new_line_created(rows):
@@ -565,6 +599,30 @@ CHECKS = [
      lambda c: new_line_row(c)["tags"] == "ITM - Protect",
      new_line_ctx(lane=True), mut(new_line_ctx(lane=True), "active", lambda r: r["SKU"] == "1005", Tags="ITM - Discontinue"),
      "mix the lane (one member Discontinue)"),
+    # --- the derived create-stop fields (R1-R3, R6, R7, R34, R42, R66) ---
+    ("DERIVED Flower equiv on the NEW_PL copy: 0.5g x 5.6 = 2.8g (R1 R3), cited in `derived`, off the stop list",
+     lambda c: new_line_row(c)["lane_FlowerEquiv"] == "2.8g" and "Flower equiv: 2.8g (R1 R3: product_g_x5.6" in new_line_row(c)["derived"]
+     and "Flower equiv (" not in new_line_row(c)["sibling_reason"],
+     new_line_ctx(), dict(new_line_ctx(), fl_eq=None), "no class map (no `FL EQ classes` pointer): the source's value carries and the stop names it"),
+    ("the STOP names Flower equiv with the reason when the lane cannot derive it",
+     lambda c: "Flower equiv (no `FL EQ classes` pointer" in new_line_row(c)["sibling_reason"],
+     dict(new_line_ctx(), fl_eq=None), new_line_ctx(), "the class map is present (derived, not at the stop)"),
+    ("a single with no printed pack count keeps Servings per Unit at the stop (R31)",
+     lambda c: "Servings per Unit (the line prints no pack count" in new_line_row(c)["sibling_reason"],
+     new_line_ctx(), pack_line_ctx(), "the line prints `3-pack` (R34 derives it)"),
+    ("a pack line derives Servings per Unit (R34), the total grams, Flower equiv on the total and the name's `0.5g x 3pk` (R42)",
+     lambda c: (lambda r: r["lane_ServingsPerUnit"] == "3" and r["lane_ProductGrams"] == "1.5g" and r["lane_FlowerEquiv"] == "8.4g"
+                and r["create_name_FINAL"].endswith("| 0.5g x 3pk"))(new_line_row(c)),
+     pack_line_ctx(), new_line_ctx(), "the single line (no pack count)"),
+    ("CBD content derived blank off the CBD master (R66), even when the copy source carries one",
+     lambda c: new_line_row(c)["lane_CBDContent"] == "" and "CBD content: blank (R66" in new_line_row(c)["derived"],
+     cbd_source_ctx(), cbd_source_ctx(master="CBD"), "the source sits in the CBD master (the dose is a product fact: stays at the stop)"),
+    ("on the CBD master the CBD dose stays at the stop, named",
+     lambda c: "CBD content (the CBD dose is a product fact" in new_line_row(c)["sibling_reason"],
+     cbd_source_ctx(master="CBD"), cbd_source_ctx(), "the source is off the CBD master"),
+    ("certify A-population: a created item's Flower equiv must equal the DERIVED target (grams compare)",
+     lambda c: not any("MISMATCH Flower equiv:" in line for line in cert_derived(c)["rep"]),
+     new_line_ctx(), "break", "the post export prints the source's 1.2g instead of the derived 2.8g"),
     ("notice marks a created NEW_PL item for review", lambda rows: "NEW LINE, tagged `ITM - New PL`" in notice_text(rows)[0],
      new_line_created(matched(new_line_ctx())), new_line_created(matched(new_line_ctx(lane=True))), "the line has a sibling"),
     ("NEW_BRAND fires once", lambda c: verdict_count(c, "NEW_BRAND") == 1,
@@ -853,16 +911,17 @@ def cli_chain():
         lines = next(os.path.join(t, n) for n in os.listdir(t) if "-lines-" in n)
         step("match", ["intake_match.py", "--lines", lines, "--active", fx("catalog-active.csv"), "--retired",
                        fx("catalog-retired.csv"), "--strains", fx("strains.csv"), "--categories", fx("categories.csv"),
-                       "--brands", fx("brands.csv"), "--out-dir", t, "--slug", "example", "--drop-tag", DROP[0]], 0)
+                       "--brands", fx("brands.csv"), "--out-dir", t, "--slug", "example", "--drop-tag", DROP[0],
+                       "--fl-eq-classes", fx("fl-eq-classes.toml")], 0)
         v1 = next(os.path.join(t, n) for n in os.listdir(t) if n.endswith("-v1.csv"))
         with open(v1, encoding="utf-8") as f:
             hdr = next(csv.reader(f))
-        if (hdr != IM.INTAKE_COLS or len(hdr) != 56 or hdr[-4:] != ["parse_source", "package_id", "unretire_set", "image_source"]
+        if (hdr != IM.INTAKE_COLS or len(hdr) != 57 or hdr[-5:] != ["parse_source", "package_id", "unretire_set", "image_source", "derived"]
                 or hdr[:54] != IM.V3_COLS):
-            bad.append("v5 header")
-            print(f"  FAIL  intake CSV header is not the 56-column v5 ({len(hdr)} columns)")
+            bad.append("v6 header")
+            print(f"  FAIL  intake CSV header is not the 57-column v6 ({len(hdr)} columns)")
         else:
-            print("  PASS  intake CSV header is the 56-column v5 (the 54 v3 columns in place + unretire_set + image_source)")
+            print("  PASS  intake CSV header is the 57-column v6 (the 54 v3 columns in place + unretire_set + image_source + derived)")
         with open(lines, encoding="utf-8") as f:
             lhdr = next(csv.reader(f))
         ok = lhdr == IP.OUT_COLS and "package_id" in lhdr

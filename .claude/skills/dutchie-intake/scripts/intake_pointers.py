@@ -28,10 +28,13 @@ REQUIRED_INTAKE = ["Operator", "Mail label", "Drive invoices folder", "Intake di
                    "Standard cost", "Expiry threshold days", "PO source", "Watermark",
                    "Notice template", "Floor sheet", "Vendor deal tag"]
 REQUIRED_BI = ["Backoffice login", "Write channel"]
-PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir", "Market archive"]
+PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir", "Market archive", "FL EQ classes"]
 CHANNELS = ["neo", "playwright", "pane"]
 PO_SOURCES = ["apex", "vendor pdf", "none"]
 OPTIONAL_TAG_KEYS = ["New line tag", "Active tag"]   # R83 / R96; absent = the skill's generic default
+# R1-R3, R6: the tenant's fl_eq class map (a TOML of [master.<MC>] tables); optional - absent, Flower equiv stays
+# at the create stop on every new line (intake_derive.py).
+OPTIONAL_CLASS_KEY = "FL EQ classes"
 # The MSRP read (intake_msrp.py). Optional here; intake_msrp ABORTs without center, radius and own store.
 OPTIONAL_MARKET_KEYS = ["Market center", "Market radius mi", "Market box", "Market archive", "Own store",
                         "MSRP anchor", "MSRP floor x cost"]
@@ -134,6 +137,9 @@ def validate(res):
         probs.append(f"`MSRP anchor` must be one of {MSRP_ANCHORS}, got {mk['MSRP anchor']!r}")
     if "MSRP floor x cost" in mk and not re.fullmatch(r"\d+(?:\.\d+)?", mk["MSRP floor x cost"]):
         probs.append(f"`MSRP floor x cost` must be a number (2 = keystone), got {mk['MSRP floor x cost']!r}")
+    fl = res["intake"].get(OPTIONAL_CLASS_KEY)
+    if fl is not None and not is_placeholder(fl) and not fl.lower().endswith(".toml"):
+        probs.append(f"`{OPTIONAL_CLASS_KEY}` must name a .toml class map, got {fl!r}")
     wc = res["bi"].get("Write channel")
     if wc is not None and not is_placeholder(wc) and not ladder(res["raw"].get("bi:Write channel", wc)):
         probs.append(f"`Write channel` names no known channel {CHANNELS}")
@@ -239,6 +245,13 @@ def selftest():
             any("MSRP anchor" in p for p in validate(parse_text(ms.replace("anchor: own lanes", "anchor: vibes")))))
     t.check("FIRES: a floor that is not a number is refused",
             any("floor" in p for p in validate(parse_text(ms.replace("cost: 2", "cost: keystone")))))
+    t.check("QUIET: the FL EQ classes key is optional", OPTIONAL_CLASS_KEY not in r["intake"] and validate(r) == [])
+    fl = SAMPLE.replace("## Change log", "- FL EQ classes: ./category-qc/intent.toml   # R1-R3, R6: fl_eq per Master Category\n\n## Change log", 1)
+    rf = parse_text(fl)
+    t.check("the FL EQ classes value parses with its trailing comment stripped",
+            validate(rf) == [] and rf["intake"][OPTIONAL_CLASS_KEY] == "./category-qc/intent.toml", str(rf["intake"].get(OPTIONAL_CLASS_KEY)))
+    t.check("FIRES: a class map that is not a .toml is refused",
+            any("class map" in p for p in validate(parse_text(fl.replace("intent.toml", "intent.csv")))))
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()
