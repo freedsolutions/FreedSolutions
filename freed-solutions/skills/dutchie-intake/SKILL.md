@@ -65,7 +65,9 @@ the second is the `bi-change` block the tenant already has.
 ```
 
 `python scripts/intake_pointers.py --tenant <CLAUDE.md>` validates it; every runner calls the same
-parser through `--tenant` and ABORTs on a missing key or a value still written `<like this>`.
+parser through `--tenant` and ABORTs on a missing key or a value still written `<like this>`. A runner that
+reads only some keys (`receive --prep` reads the tag pointers) ABORTs only on a gap in a key it reads; any other
+gap prints a `WARNING:` line (`intake_pointers.load_for`).
 The Operator's name comes from `Operator:`, never from this file.
 
 ## Pipeline
@@ -349,27 +351,51 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
    expiry, map_basis]`. Record the manifest number, the shipper license, the ETA and the package count in a read note.
 2. **Map every package to its invoice line** from the documents, not from a name: the PO (an Apex document can be
    the PO), the SO or invoice the vendor bills, and the manifest. Evidence, strongest first: ship $ and qty tie to
-   the line; the same unit price; the item words. A line that ships as several packages takes one `line` per package
-   (rows `6a`, `6b`). An Apex "1 Unit" can be a whole case: the manifest qty is then a whole multiple with the $
+   the line; the same unit price; the item words. A line that ships as several packages types the product `line_no`
+   in the `line` cell of EVERY package (`6` on both); the runner labels the rows `6a`, `6b` itself. A typed `6a` / `6b`
+   reads as line 6; an `<n><letter>` whose `<n>` is not a product line is `MANIFEST_PACKAGE_UNMAPPED` (DEFECT). An Apex "1 Unit" can be a whole case: the manifest qty is then a whole multiple with the $
    tied (`APEX_UNIT_IS_CASE`, INFO). A blank `line` cell makes the runner PROPOSE a line by unit price and item words;
    a proposal is a STOP (`MAP_PROPOSED`) until the reader types it. Never type a mapping you cannot evidence.
 3. `receive.py --prep --lines <lines.csv> --catalog <active.csv> --inventory <inventory.csv> [--intake <vN.csv>]
    [--manifest <manifest.csv>] [--item <line>=<ProductId>] [--program <line>=<disposition>] --tenant <CLAUDE.md>`.
    The Inventory export is the receive-time snapshot (freeze it with the `Export refresh` pointer first). Without a
    manifest the sheet has one row per product line and blank package ids; re-run when the manifest is read.
-   - Item: `--item` > intake `new_productid` > the EXISTS / RETIRED_MATCH match; none = `ITEM_PENDING` (STOP).
+   `--vendor-record` and `--txn-id` set the header values (default: the lines' `vendor` and `invoice_no` cells).
+   - Item: `--item` > intake `new_productid` > the EXISTS / RETIRED_MATCH match; none = `ITEM_PENDING` (STOP; its
+     detail names the intake row's verdict). Intake rows pair to product lines by description, each row once. The
+     intake gives the ITEM ID only: catalog Cost and the item's tags come from `--catalog` by ProductId, never from
+     the intake's `lane_Cost` or `tags` cells; with no item id, no price is compared and nothing flips. An intake row
+     that pairs to no product line is `INTAKE_ROW_UNPAIRED`; a product line no intake row pairs to (and no `--item`)
+     is `LINE_NO_INTAKE_ROW`. Both are STOP questions in the questions file.
    - Tag: `--program` states what the invoice or the email says - `sample`, `display`, `deal`, `tier <n>`, `none`,
-     `cost change`. An invoice marker (`sample`, `display`) or a printed line discount counts as stated. Unstated, a
+     `cost change`. An invoice marker (`sample`, `display`) or a printed line discount counts as stated; a sample the
+     vendor states only in an email is `--program <line>=sample` (R127). Unstated, a
      penny unit (<= $0.05) is `PENNY_UNMARKED` and a price below catalog Cost is `PRICE_DROP_UNMARKED`, both STOP
      questions: the proposed default is the vendor deal tag on flower and pre-roll (a presumed tier), else a catalog
-     cost change. A price above catalog Cost is `CATALOG_COST_RAISE` (the catalog keeps the highest cost).
+     cost change. A price above catalog Cost is `CATALOG_COST_RAISE` (the catalog keeps the highest cost). An on-hand
+     package cost ABOVE the new unit cost is no question when the new cost equals catalog Cost: price compression is
+     normal (R62 keeps the highest cost on the catalog; only an unmarked LOWER price is asked). `on_hand_pkg_costs` is
+     information only (Operator ruling 2026-10-09).
    - Credit: entered once in the receipt header. Dutchie blends it EQUALLY across the packages; the sheet prints that
      blend per package, and `CREDIT_BLEND_NEGATIVE` / `CREDIT_TRIPS_R62` are STOPs.
    - Manifest: a line whose summed ship $ differs from its ext is `MANIFEST_COST_MISMATCH`, a DEFECT (exit 1; the line is not entered). A qty
      gap is `MANIFEST_QTY_MISMATCH` (PO > Invoice > Physical: the vendor reissues or the package is rejected whole). A
      sample inside its paid package is `SAMPLE_MERGED` (STOP).
 4. Send the `-questions.md` it writes to the Operator BEFORE the delivery is received; every STOP is a question there.
-   The receiver types `physical_count`, `qty_match` and `expiry_typed` on the sheet. After the receipt, a new line's
+   Its header block carries the receive form's header values (platform KB "Receive inventory from a pending Metrc
+   transfer [PROBE 2026-10-09]" in `dutchie-bi-looker/references/dutchie-platform-kb.md`):
+   - **Vendor** and **Room** (`Intake`, R126): set once in the form header; they flow down to every row.
+   - **Transaction ID** (Operator ruling 2026-10-09): the vendor's final invoice number when it exists, else the
+     sales-order number until one arrives. The mapping that lands in the accounting system is open. The receive form
+     has no Transaction ID field (same KB section): it is a record value on the sheet, never a form field.
+   - **Count** (Operator ruling 2026-10-09): staff verify the drop against Metrc and fix any count issue BEFORE the
+     transfer lands as pending in Dutchie. The sheet sets `physical_count` = manifest qty and `qty_match` = Y on every
+     mapped package. The lane asks no count question.
+   - **Expiry** (Operator ruling 2026-10-09): vendors vary on package-level expiry and every label shows it. The lane
+     leaves expiry blank on entry; staff add each package's expiration date as a confirmation step after the pending
+     receipt is saved (why the save allows it: the KB section above). The sheet's `expiry` column is reference only.
+     Later idea, NOT built: pull the expiration date from Metrc's lab-testing record automatically.
+   After the receipt, a new line's
    items flip from the new-line tag to the active tag in one bulk update (the `item_tag_flip` column; R126) - but
    only an item with at least one SELLABLE package on this receipt. A sample or display package (the sample /
    display tag) never carries the new-line tag: it strips with every other `ITM - ` tag (R47), so the
@@ -477,7 +503,7 @@ The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_wr
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 101 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 126 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

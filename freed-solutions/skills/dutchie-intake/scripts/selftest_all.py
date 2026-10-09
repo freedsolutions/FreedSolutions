@@ -926,9 +926,43 @@ RC_ITEMS = {"1": "11", "2": "12", "3": "13", "4": "13"}
 
 def rc_prep(c):
     """receive --prep on a receive fixture context -> (rows by row id, [(flag, class, line)])."""
-    rows, exc, _ = RC.prep(c["lines"], c["catalog"], c["inventory"], None, c["manifest"], RC_ITEMS, c.get("programs"),
-                           "PKG - Vendor Deal")
+    rows, exc, _ = RC.prep(c["lines"], c["catalog"], c["inventory"], c.get("intake"), c["manifest"],
+                           c.get("items", RC_ITEMS), c.get("programs"), "PKG - Vendor Deal")
     return {r["row"]: r for r in rows}, [(e["flag"], e["class"], e["line"]) for e in exc]
+
+
+def rc_intake(verdict="EXISTS", skip=(), extra=(), items=None, **cells):
+    """The receive fixture with an intake CSV (one row per product line, `invoice_line` == description) and NO --item:
+    the item id comes from the intake (EXISTS -> copy_source_productid). `cells` overwrite the lane cells (the lies
+    the runner must not read)."""
+    c = copy.deepcopy(RCX)
+    c["intake"] = [dict({"invoice_line": ln["description"], "verdict": verdict, "new_productid": "",
+                         "copy_source_productid": RC_ITEMS[ln["line_no"]], "create_name_FINAL": "", "tags": "",
+                         "lane_Cost": ""}, **cells)
+                   for ln in c["lines"] if ln["line_no"] in RC_ITEMS and ln["line_no"] not in skip] + list(extra)
+    c["items"] = items or {}
+    return c
+
+
+def rc_with(c, kind, pred, **changes):
+    for r in c[kind]:
+        if pred(r):
+            r.update(changes)
+    return c
+
+
+def rc_tenant(placeholders):
+    """(blocking, warnings) for receive --prep's pointer read on the fixture tenant with the named lines placeholdered."""
+    text = BASE["tenant"]
+    for line, ph in placeholders:
+        text = text.replace(line, ph)
+    return PTR.split_problems(PTR.parse_text(text), ["Vendor deal tag"], RC.TENANT_OPTIONAL)
+
+
+DRIVE_PH = ("Drive invoices folder: fixture-folder-id", "Drive invoices folder: <Drive folder id>")
+DEAL_PH = ("Vendor deal tag: `PKG - Vendor Deal`", "Vendor deal tag: `<PKG - tag>`")
+STRAY_INTAKE = {"invoice_line": "Some Other Vendor Item 1g", "verdict": "EXISTS", "new_productid": "",
+                "copy_source_productid": "12", "create_name_FINAL": "", "tags": "", "lane_Cost": ""}
 
 
 def rc_mut(kind, pred, **changes):
@@ -994,6 +1028,62 @@ RECEIVE_CHECKS = [
      lambda c: (lambda n, f: n == 1 and f == {"ITM - New PL -> ITM - Active after the receipt (R126)"})(
          *rc_new_pl(rc_prep(c)[0])),
      rc_only("4", "PKG-E"), rc_only("4", "PKG-E", {"3": "display"}), "the only package is stated a display"),
+    ("receive --prep tenant read: a placeholder in a key it does not read (Drive folder) is a WARNING, never an abort",
+     lambda ph: (lambda b, w: b == [] and any("Drive invoices folder" in x for x in w))(*rc_tenant(ph)),
+     [DRIVE_PH], [DRIVE_PH, DEAL_PH], "the Vendor deal tag (a key --prep reads) is a placeholder too"),
+    ("receive --prep: a typed `1a` / `1b` manifest line reads as line 1 (rows 1a / 1b, no MANIFEST_PACKAGE_UNMAPPED)",
+     lambda c: (lambda rw, fl: "1a" in rw and "1b" in rw and not any(f[0] == "MANIFEST_PACKAGE_UNMAPPED" for f in fl))(
+         *rc_prep(c)),
+     rc_with(rc_with(copy.deepcopy(RCX), "manifest", lambda r: r["package_id"] == "PKG-A", line="1a"),
+             "manifest", lambda r: r["package_id"] == "PKG-B", line="1b"),
+     rc_with(rc_with(copy.deepcopy(RCX), "manifest", lambda r: r["package_id"] == "PKG-A", line="9a"),
+             "manifest", lambda r: r["package_id"] == "PKG-B", line="1b"), "type `9a` (no line 9) on PKG-A"),
+    ("receive --prep: an `<n><letter>` whose <n> is not a product line stays a DEFECT (MANIFEST_PACKAGE_UNMAPPED)",
+     lambda c: ("MANIFEST_PACKAGE_UNMAPPED", "DEFECT", "9a") in rc_prep(c)[1],
+     rc_mut("manifest", lambda r: r["package_id"] == "PKG-A", line="9a"),
+     rc_mut("manifest", lambda r: r["package_id"] == "PKG-A", line="1a"), "type `1a` instead"),
+    ("receive --prep: physical_count = manifest qty and qty_match = Y on every mapped package (no count question)",
+     lambda c: (lambda mp: bool(mp) and all(r["physical_count"] == r["manifest_qty"] and r["qty_match"] == "Y" for r in mp))(
+         [r for r in rc_prep(c)[0].values() if r.get("metrc_package_id")]),
+     RCX, dict(copy.deepcopy(RCX), manifest=None), "no manifest read (no mapped package)"),
+    ("receive --prep: an intake-resolved item reads catalog Cost by ProductId, never the intake lane_Cost",
+     lambda c: (lambda rw, fl: rw["1a"]["dutchie_productid"] == "11" and rw["1a"]["catalog_cost"] == "10"
+                and not any(f[0] in ("PRICE_DROP_UNMARKED", "CATALOG_COST_RAISE") for f in fl))(*rc_prep(c)),
+     rc_intake(lane_Cost="99"), rc_with(rc_intake(lane_Cost="99"), "catalog", lambda r: r["ProductId"] == "11", Cost="12"),
+     "the CATALOG Cost of item 11 is 12 (the price drop is then real)"),
+    ("receive --prep: the flip reads the item's CURRENT catalog tags, never the intake `tags` cell (R83)",
+     lambda c: not any(r["item_tag_flip"] for r in rc_prep(c)[0].values() if r.get("dutchie_productid") == "11"),
+     rc_intake(tags="ITM - New PL"),
+     rc_with(rc_intake(tags="ITM - New PL"), "catalog", lambda r: r["ProductId"] == "11", Tags="ITM - New PL"),
+     "the catalog tags item 11 new-line"),
+    ("receive --prep: a pending line (intake row, no item id) compares no lane_Cost and flips nothing",
+     lambda c: (lambda rw, fl: ("ITEM_PENDING", "STOP", "1") in fl and not any(f[0] == "PRICE_DROP_UNMARKED" for f in fl)
+                and not any(r.get("item_tag_flip") for r in rw.values()))(*rc_prep(c)),
+     rc_intake("NEW_PL", lane_Cost="12", tags="ITM - New PL"),
+     rc_with(rc_intake("NEW_PL", lane_Cost="12", tags="ITM - New PL", items={"1": "11"}), "catalog",
+             lambda r: r["ProductId"] == "11", Cost="12"), "--item 1=11 and the catalog Cost of 11 is 12"),
+    ("receive --prep: an intake row pairing to no product line is INTAKE_ROW_UNPAIRED (STOP)",
+     lambda c: ("INTAKE_ROW_UNPAIRED", "STOP", "") in rc_prep(c)[1],
+     rc_intake(extra=[STRAY_INTAKE]), rc_intake(), "drop the stray intake row"),
+    ("receive --prep: a product line no intake row pairs to is LINE_NO_INTAKE_ROW (STOP), never ITEM_PENDING",
+     lambda c: (lambda fl: ("LINE_NO_INTAKE_ROW", "STOP", "2") in fl and not any(f[0] == "ITEM_PENDING" and f[2] == "2" for f in fl))(
+         rc_prep(c)[1]),
+     rc_intake(skip=("2",)), rc_intake(), "give line 2 its intake row"),
+    ("receive --prep: an on-hand pkg cost ABOVE the new cost is no question when new == catalog Cost (R62)",
+     lambda c: (lambda rw, fl: rw["3"]["on_hand_pkg_costs"] == "22"
+                and not any(f[2] == "3" and f[1] in ("STOP", "DEFECT") for f in fl))(*rc_prep(c)),
+     dict(copy.deepcopy(RCX), inventory=RCX["inventory"] + [{"SKU": "9013", "Room": "Vault", "Available": "3", "Cost": "22"}]),
+     rc_with(rc_with(dict(copy.deepcopy(RCX), inventory=RCX["inventory"] + [{"SKU": "9013", "Room": "Vault", "Available": "3",
+                                                                              "Cost": "22"}]),
+                     "lines", lambda r: r["line_no"] == "3", unit_cost="18.00", ext_cost="180.00"),
+             "manifest", lambda r: r["package_id"] == "PKG-D", ship_cost="180.00"),
+     "the new cost is 18, BELOW catalog Cost 20, no deal marked"),
+    ("receive --prep: the questions header prints Vendor, Room and the Transaction ID (receive form header)",
+     lambda ls: (lambda q: "- Vendor: Acme Supply" in q and "- Room: Intake" in q and "- Transaction ID: SO-1001" in q)(
+         RC.questions([], {"product_lines": 4, "packages": 5, "manifest": True, "order_level": 0.0}, "x",
+                      RC.header_values(ls))),
+     RCX["lines"], [{k: v for k, v in r.items() if k not in ("vendor", "invoice_no")} for r in RCX["lines"]],
+     "lines with no vendor / invoice_no cells"),
 ]
 
 
@@ -1100,6 +1190,22 @@ def cli_chain():
         mrows[2]["ship_cost"] = "480.00"
         C.write_csv(badman, list(mrows[0].keys()), mrows)
         step("receive --prep DEFECT (manifest ship $ does not tie)", rargs + ["--manifest", badman], 1)
+        for label, phs, expect in (("an unrelated placeholder (WARNING, exit 0)", [DRIVE_PH], 0),
+                                   ("a placeholder in the Vendor deal tag it reads (ABORT)", [DRIVE_PH, DEAL_PH], 2)):
+            tdir = os.path.join(t, f"tenant-{expect}")
+            os.makedirs(tdir)
+            ten = os.path.join(tdir, "CLAUDE.md")
+            text = BASE["tenant"]
+            for a, b in phs:
+                text = text.replace(a, b)
+            with open(ten, "w", encoding="utf-8") as fh:
+                fh.write(text)
+            out = step(f"receive --prep tenant with {label}",
+                       [a if a != fx("tenant-CLAUDE.md") else ten for a in rargs] + ["--manifest", fx("receive-manifest.csv")],
+                       expect)
+            if expect == 0 and "WARNING: tenant contract" not in out:
+                bad.append("receive tenant warning")
+                print("  FAIL  an unrelated tenant placeholder must print a WARNING line")
         step("receive --check stub", ["receive.py", "--check", "a.csv", "b.csv"], 2)
         pin = os.path.join(t, "plan-intake-v1.csv")
         shutil.copy(fx("plan-intake.csv"), pin)

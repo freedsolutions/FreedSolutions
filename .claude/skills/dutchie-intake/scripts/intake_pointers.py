@@ -13,6 +13,10 @@ When a value carries backticks, the FIRST backticked span is the value and the r
 
 Exit 0 when every required key is present and filled; 2 (ABORT) otherwise, naming each gap.
 A value still written `<like this>` is a placeholder and counts as missing.
+
+A runner that reads only SOME keys calls `load_for(path, need, optional)` instead of `load`: a gap in a key it reads
+(or an absent `## Intake Pointers` block) ABORTs; any other gap is a WARNING line, never an abort (receive --prep
+reads the tag pointers only; an unfilled `Drive invoices folder:` is not its business).
 """
 import json
 import os
@@ -105,59 +109,82 @@ def ladder(value):
     return out
 
 
-def validate(res):
-    """List of human-readable problems; empty = the contract is complete."""
+def problems_keyed(res):
+    """[(key, problem)]: each contract gap with the key it is about (the section head for an absent section)."""
     probs = []
     for head, bucket, req in ((INTAKE_HEAD, "intake", REQUIRED_INTAKE), (BI_HEAD, "bi", REQUIRED_BI)):
         if not res["found"].get(head):
-            probs.append(f"section `{head}` absent")
+            probs.append((head, f"section `{head}` absent"))
             continue
         for k in req:
             v = res[bucket].get(k)
             if v is None:
-                probs.append(f"{head}: key `{k}` missing")
+                probs.append((k, f"{head}: key `{k}` missing"))
             elif is_placeholder(v):
-                probs.append(f"{head}: key `{k}` is still a placeholder ({v!r})")
+                probs.append((k, f"{head}: key `{k}` is still a placeholder ({v!r})"))
     for d in res["dupes"]:
-        probs.append(f"duplicate key {d} (ambiguous - one line per key)")
+        probs.append((d.split(" / ", 1)[-1], f"duplicate key {d} (ambiguous - one line per key)"))
     days = res["intake"].get("Expiry threshold days")
     if days is not None and not is_placeholder(days) and not re.fullmatch(r"\d+", days):
-        probs.append(f"`Expiry threshold days` must be a whole number, got {days!r}")
+        probs.append(("Expiry threshold days", f"`Expiry threshold days` must be a whole number, got {days!r}"))
     po = res["intake"].get("PO source")
     if po is not None and not is_placeholder(po) and po.lower() not in PO_SOURCES:
-        probs.append(f"`PO source` must be one of {PO_SOURCES}, got {po!r}")
+        probs.append(("PO source", f"`PO source` must be one of {PO_SOURCES}, got {po!r}"))
     deal = res["intake"].get("Vendor deal tag")
     if deal is not None and not is_placeholder(deal) and not deal.startswith(PKG_PREFIX):
-        probs.append(f"`Vendor deal tag` must be a package tag (`{PKG_PREFIX}...`, R47), got {deal!r}")
+        probs.append(("Vendor deal tag", f"`Vendor deal tag` must be a package tag (`{PKG_PREFIX}...`, R47), got {deal!r}"))
     for k in OPTIONAL_TAG_KEYS:
         v = res["intake"].get(k)
         if v is not None and not is_placeholder(v) and (v.startswith(PKG_PREFIX) or " - " not in v):
-            probs.append(f"`{k}` must be an item decision tag (`<prefix> - <word>`, never `{PKG_PREFIX}...`, R47), got {v!r}")
+            probs.append((k, f"`{k}` must be an item decision tag (`<prefix> - <word>`, never `{PKG_PREFIX}...`, R47), got {v!r}"))
     a, n = res["intake"].get("Active tag"), res["intake"].get("New line tag")
     if a and n and a == n:
-        probs.append("`Active tag` and `New line tag` name the same tag (R96 vs R83)")
+        probs.append(("Active tag", "`Active tag` and `New line tag` name the same tag (R96 vs R83)"))
     mk = {k: res["intake"].get(k) for k in OPTIONAL_MARKET_KEYS}
     mk = {k: v for k, v in mk.items() if v is not None and not is_placeholder(v)}
     if "Market center" in mk and not re.fullmatch(rf"\s*{_NUM}\s*,\s*{_NUM}\s*", mk["Market center"]):
-        probs.append(f"`Market center` must be `lat,lng`, got {mk['Market center']!r}")
+        probs.append(("Market center", f"`Market center` must be `lat,lng`, got {mk['Market center']!r}"))
     if "Market radius mi" in mk and not re.fullmatch(r"\d+(?:\.\d+)?", mk["Market radius mi"]):
-        probs.append(f"`Market radius mi` must be a number of miles, got {mk['Market radius mi']!r}")
+        probs.append(("Market radius mi", f"`Market radius mi` must be a number of miles, got {mk['Market radius mi']!r}"))
     if "Market box" in mk and not re.fullmatch(rf"\s*{_NUM}(?:\s*,\s*{_NUM}){{3}}\s*", mk["Market box"]):
-        probs.append(f"`Market box` must be `south,west,north,east`, got {mk['Market box']!r}")
+        probs.append(("Market box", f"`Market box` must be `south,west,north,east`, got {mk['Market box']!r}"))
     if "MSRP anchor" in mk and mk["MSRP anchor"].strip().lower() not in MSRP_ANCHORS:
-        probs.append(f"`MSRP anchor` must be one of {MSRP_ANCHORS}, got {mk['MSRP anchor']!r}")
+        probs.append(("MSRP anchor", f"`MSRP anchor` must be one of {MSRP_ANCHORS}, got {mk['MSRP anchor']!r}"))
     if "MSRP floor x cost" in mk and not re.fullmatch(r"\d+(?:\.\d+)?", mk["MSRP floor x cost"]):
-        probs.append(f"`MSRP floor x cost` must be a number (2 = keystone), got {mk['MSRP floor x cost']!r}")
+        probs.append(("MSRP floor x cost", f"`MSRP floor x cost` must be a number (2 = keystone), got {mk['MSRP floor x cost']!r}"))
     fl = res["intake"].get(OPTIONAL_CLASS_KEY)
     if fl is not None and not is_placeholder(fl) and not fl.lower().endswith(".toml"):
-        probs.append(f"`{OPTIONAL_CLASS_KEY}` must name a .toml class map, got {fl!r}")
+        probs.append((OPTIONAL_CLASS_KEY, f"`{OPTIONAL_CLASS_KEY}` must name a .toml class map, got {fl!r}"))
     for k, why in RETIRED_KEYS.items():
         if k in res["intake"]:
-            probs.append(f"`{k}` is {why}")
+            probs.append((k, f"`{k}` is {why}"))
     wc = res["bi"].get("Write channel")
     if wc is not None and not is_placeholder(wc) and not ladder(res["raw"].get("bi:Write channel", wc)):
-        probs.append(f"`Write channel` names no known channel {CHANNELS}")
+        probs.append(("Write channel", f"`Write channel` names no known channel {CHANNELS}"))
     return probs
+
+
+def validate(res):
+    """List of human-readable problems; empty = the contract is complete."""
+    return [m for _, m in problems_keyed(res)]
+
+
+def split_problems(res, need, optional=()):
+    """(blocking, warnings) for a runner that reads only `need` (each must be present and filled) and `optional`
+    (read when present; a placeholder there blocks) from `## Intake Pointers`. A gap in any other key is a warning."""
+    used = set(need) | set(optional)
+    block, warn = [], []
+    for k, m in problems_keyed(res):
+        (block if k in used or k == INTAKE_HEAD else warn).append(m)
+    for k in need:
+        v = res["intake"].get(k)
+        if k not in REQUIRED_INTAKE and (v is None or is_placeholder(v)):
+            block.append(f"{INTAKE_HEAD}: key `{k}` " + ("missing" if v is None else f"is still a placeholder ({v!r})"))
+    for k in optional:
+        v = res["intake"].get(k)
+        if v is not None and is_placeholder(v):
+            block.append(f"{INTAKE_HEAD}: key `{k}` is still a placeholder ({v!r}); fill it or delete the line")
+    return block, warn
 
 
 def load_caps(path):
@@ -214,6 +241,20 @@ def load(path, strict=True):
                 res[bucket][k] = os.path.normpath(os.path.join(base, v))
     res["ladder"] = ladder(res["raw"].get("bi:Write channel", res["bi"].get("Write channel", "")))
     res["problems"] = probs
+    return res
+
+
+def load_for(path, need, optional=()):
+    """`load` for a runner that reads only some keys (see split_problems): ABORT on a gap in a key it reads; print every
+    other gap as a WARNING line and carry on."""
+    res = load(path, strict=False)
+    block, warn = split_problems(res, need, optional)
+    for m in warn:
+        print(f"WARNING: tenant contract: {m} (a key this runner does not read; not an abort)")
+    if block:
+        print("ABORT: the tenant contract has a gap in a key this runner reads:\n  - " + "\n  - ".join(block),
+              file=sys.stderr)
+        sys.exit(EXIT_ABORT)
     return res
 
 
@@ -330,6 +371,17 @@ def selftest():
         t.check("FIRES: a Category exception's bad cap is refused, naming the exception",
                 caps_of(exc.replace("package_cap_mg = 900", "package_cap_mg = 9"))[0] == "ValueError"
                 and "limit_exception.Patch" in caps_of(exc.replace("package_cap_mg = 900", "package_cap_mg = 9"))[1])
+    drive_ph = SAMPLE.replace("Drive invoices folder: folder-id-0001", "Drive invoices folder: <Drive folder id>")
+    blk, wrn = split_problems(parse_text(drive_ph), ["Vendor deal tag"], ["New line tag", "Active tag"])
+    t.check("split_problems: a placeholder in a key the runner does not read is a WARNING, not a block",
+            blk == [] and any("Drive invoices folder" in w for w in wrn), f"block={blk} warn={wrn}")
+    vd = parse_text(drive_ph.replace("`PKG - Vendor Deal`", "`<PKG - tag>`"))
+    t.check("FIRES: split_problems blocks on a placeholder in a key the runner reads",
+            any("Vendor deal tag" in b for b in split_problems(vd, ["Vendor deal tag"])[0]))
+    ot = parse_text(SAMPLE.replace("## Change log", "- New line tag: <tag>\n\n## Change log", 1))
+    t.check("FIRES: a placeholder in an OPTIONAL key the runner reads blocks (never read as the tag)",
+            any("New line tag" in b for b in split_problems(ot, [], ["New line tag"])[0])
+            and split_problems(ot, [], [])[0] == [])
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()

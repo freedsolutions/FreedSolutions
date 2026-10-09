@@ -1,6 +1,6 @@
-line_no,description,units_total,unit_cost,ext_cost,is_order_level,order_level_kind,expiry_date
-1,Acme Lemon Gummies 100mg 10ct,40,10.00,400.00,N,,
-2,Acme Haze Pre-Roll 1g,100,5.00,500.00,N,,
-3,Acme Mint Vape 1g,10,20.00,200.00,N,,
-4,Acme Mint Vape 1g (sample),5,0.01,0.05,N,,
-90,Credit for returned stock,,,-10.00,Y,credit,
+line_no,description,units_total,unit_cost,ext_cost,is_order_level,order_level_kind,expiry_date,invoice_no,vendor
+1,Acme Lemon Gummies 100mg 10ct,40,10.00,400.00,N,,,SO-1001,Acme Supply
+2,Acme Haze Pre-Roll 1g,100,5.00,500.00,N,,,SO-1001,Acme Supply
+3,Acme Mint Vape 1g,10,20.00,200.00,N,,,SO-1001,Acme Supply
+4,Acme Mint Vape 1g (sample),5,0.01,0.05,N,,,SO-1001,Acme Supply
+90,Credit for returned stock,,,-10.00,Y,credit,,SO-1001,Acme Supply

@@ -4,6 +4,7 @@ are stubs that exit 2.
   python receive.py --prep --lines <lines.csv> --catalog <active.csv> --inventory <inventory.csv>
                     [--intake <intake-vN.csv>] [--manifest <manifest.csv>] [--item <line>=<ProductId>]...
                     [--program <line>=<disposition>]... --tenant <CLAUDE.md> [--out-dir <dir>] [--slug <s>]
+                    [--vendor-record <Dutchie vendor>] [--txn-id <final invoice no | SO no>]
   python receive.py --enter | --check | --vendor ...   phase 2 stubs; exit 2
   python receive.py --selftest
 
@@ -16,15 +17,36 @@ Inputs (columns are checked; a missing one ABORTs, never reads as blank):
                unit_cost, ext_cost, is_order_level, order_level_kind. Order-level rows (credit / shipping) ride along.
   --catalog    the Catalog Active export: ProductId, SKU, Product, Master category, Cost, Tags.
   --inventory  the Inventory export frozen at receive time (the FIFO snapshot): SKU, Room, Available, Cost.
-  --intake     optional intake CSV vN: per line `new_productid`, else `copy_source_productid` on EXISTS / RETIRED_MATCH,
-               `create_name_FINAL`, `tags`, `lane_Cost`. Rows pair to product lines by `invoice_line` == description.
+  --intake     optional intake CSV vN: per line `new_productid`, else `copy_source_productid` on EXISTS / RETIRED_MATCH.
+               Rows pair to product lines by `invoice_line` == description, each row at most once. The intake gives the
+               ITEM ID only: once an item id is known (`--item`, `new_productid`, the EXISTS / RETIRED_MATCH source),
+               catalog Cost and the item's tags come from `--catalog` by ProductId, never from the intake's `lane_Cost`
+               or `tags` cells. An intake row that pairs to no product line is INTAKE_ROW_UNPAIRED; a product line no
+               intake row pairs to (and no `--item`) is LINE_NO_INTAKE_ROW. Both STOP; neither reads as ITEM_PENDING.
   --manifest   optional; the READ-ONLY Metrc manifest read typed to CSV (SKILL.md "Metrc manifest read"):
                package_id, line, metrc_item, qty, ship_cost [, vendor_batch, expiry, map_basis]. `line` is the reader's
-               mapping from the PO / SO / invoice / manifest; blank = the runner PROPOSES one (a STOP to confirm).
-               Without a manifest the sheet has one row per product line and a blank package id.
+               mapping from the PO / SO / invoice / manifest: the product `line_no` (6 on BOTH packages of a line that
+               ships as two; the runner labels the rows 6a / 6b itself). A typed `6a` / `6b` reads as line 6; an `<n><letter>`
+               whose `<n>` is not a product line stays MANIFEST_PACKAGE_UNMAPPED. Blank = the runner PROPOSES a line (a
+               STOP to confirm). Without a manifest the sheet has one row per product line and a blank package id.
   --item <line>=<ProductId>   the item a line receives against (beats the intake CSV).
   --program <line>=<value>    the disposition the invoice or the vendor's email states (R127): `sample`, `display`,
-               `deal`, `tier <n>`, `none`, `cost change`. Beats every default.
+               `deal`, `tier <n>`, `none`, `cost change`. Beats every default. A sample the vendor states only in an
+               email is `--program <line>=sample`.
+  --vendor-record / --txn-id  the receive-form header values (below); default the lines' `vendor` / `invoice_no` cells.
+
+Receive form header (printed at the top of the questions file; platform KB "Receive inventory from a pending Metrc
+transfer [PROBE 2026-10-09]" in dutchie-bi-looker/references/dutchie-platform-kb.md):
+  * Vendor and Room (`Intake`, R126) are header values that flow down to every row.
+  * Transaction ID (Operator ruling 2026-10-09): the vendor's final invoice number when it exists, else the sales-order
+    number until one arrives; the mapping that lands in the accounting system is open. The receive form has no
+    Transaction ID field (same KB section): a record value on this sheet, never a form field.
+  * Count (Operator ruling 2026-10-09): staff verify the drop against Metrc and fix any count issue BEFORE the transfer
+    lands as pending in Dutchie. The sheet defaults `physical_count` = manifest qty and `qty_match` = Y on every
+    mapped package; no count question is asked.
+  * Expiry (Operator ruling 2026-10-09): blank on entry. Staff add each package's expiration date as a confirmation
+    step after the pending receipt is saved (why the save allows it: the same KB section). The `expiry` column is what
+    the manifest read or the lines carried, for reference only.
 
 Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
   * room: `Intake` on every package (R126). On-hand by room from the snapshot is FIFO guidance, never a room write.
@@ -32,11 +54,15 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     tag; a marked display -> the display tag; a printed line discount, or `--program deal` -> the vendor deal tag;
     `tier <n>` -> `PKG - Tier <n>` (R84, R72). An unmarked price <= SAMPLE_MAX, or an unmarked price below catalog Cost,
     is a STOP question; its proposed default is the deal tag on a tiered master category (flower / pre-roll), else a
-    catalog cost change (no tag). A price above catalog Cost is a STOP: the catalog keeps the highest cost.
+    catalog cost change (no tag). A price above catalog Cost is a STOP: the catalog keeps the highest cost. An on-hand
+    package cost ABOVE the new unit cost is never a question when the new cost equals catalog Cost: price compression
+    is normal (R62 keeps the highest cost on the catalog; only an unmarked LOWER price is asked). `on_hand_pkg_costs`
+    is information only. With no item id yet, no price is compared (the pending flag carries the line).
   * strip (R47): every `ITM - ` tag the item carries, except the new-line tag on a SELLABLE package. A sample or display
     package (the sample / display tag) strips the new-line tag too: it never carries it (R47, R83).
-  * flip (R83, R126): a new-line item flips to the active tag after the receipt only when the receipt holds at least one
-    SELLABLE package of that item; a sample-only receipt flips nothing and the sheet says "no flip - sample-only
+  * flip (R83, R126): read from the item's CURRENT catalog tags (only an item carrying the new-line tag can flip; an
+    intake row's `tags` cell is never read). A new-line item flips to the active tag after the receipt only when the
+    receipt holds at least one SELLABLE package of that item; a sample-only receipt flips nothing and the sheet says "no flip - sample-only
     receipt" (a note, never a write here).
   * credit (R126): entered once in the receipt header; Dutchie blends it EQUALLY across the receipt's packages. The
     sheet prints that blend per package (and the R103 extended-cost landed unit for reference).
@@ -78,6 +104,7 @@ FLAGS = {
     "DEAL_PRINTED": ("R127 (R62 R84)", "INFO"), "TIER_RULED": ("R84 (R72)", "INFO"),
     "PENNY_UNMARKED": ("R127", "STOP"), "PRICE_DROP_UNMARKED": ("R127 (R62 R84)", "STOP"),
     "CATALOG_COST_RAISE": ("R127", "STOP"), "COST_UNKNOWN": ("R127", "STOP"), "ITEM_PENDING": ("R126", "STOP"),
+    "INTAKE_ROW_UNPAIRED": ("R126", "STOP"), "LINE_NO_INTAKE_ROW": ("R126", "STOP"),
     "CREDIT_TRIPS_R62": ("R62 (R126)", "STOP"), "CREDIT_BLEND_NEGATIVE": ("R126", "STOP"),
     "LANDED_UNRECONCILED": ("R103", "DEFECT"),
 }
@@ -92,6 +119,8 @@ QUESTION = {
     "CATALOG_COST_RAISE": "Invoice price above catalog Cost. The catalog keeps the highest cost: raise the item's Cost (a PL-grain change, not this lane's write).",
     "COST_UNKNOWN": "No catalog Cost to compare against. Settle the item's agreed Cost first.",
     "ITEM_PENDING": "No Dutchie item for this line yet. Create it (or give `--item <line>=<ProductId>`) before the receipt.",
+    "INTAKE_ROW_UNPAIRED": "This intake row's `invoice_line` matches no product line. Is it the intake for another invoice / SO, or does its line read differently? Fix the pairing or drop `--intake`, then re-run.",
+    "LINE_NO_INTAKE_ROW": "No intake row pairs to this line, so no item id is known. Give `--item <line>=<ProductId>` (or an intake row whose `invoice_line` equals the line), then re-run.",
     "CREDIT_TRIPS_R62": "The blended credit lands this package at or below 0.90 x catalog Cost with no `PKG - ` tag (R62 would flag it). Tag it, or settle the credit another way.",
     "CREDIT_BLEND_NEGATIVE": "Dutchie's equal blend makes this package's cost negative. Enter the credit another way (vendor bill or a reissued invoice).",
 }
@@ -101,6 +130,9 @@ PREP_COLS = ["row", "line", "invoice_item", "dutchie_productid", "dutchie_sku", 
              "manifest_ship_cost", "map_basis", "expiry", "receive_room", "pkg_tags_to_apply", "tag_rule",
              "itm_tags_to_strip", "new_line_tag_on_package", "item_tag_flip", "on_hand_snapshot", "vendor_batch",
              "flags"]
+TENANT_OPTIONAL = ["Sample tag", "Display tag", "New line tag", "Active tag"]   # the pointers --prep reads when present
+KB_RECEIVE = ('platform KB "Receive inventory from a pending Metrc transfer [PROBE 2026-10-09]" '
+              '(dutchie-bi-looker/references/dutchie-platform-kb.md)')
 STOPWORDS = {"mg", "g", "ct", "10ct", "100mg", "gummies", "gummy", "the", "and", "pk", "pack", "x", "1g", "thc", "cbd"}
 
 
@@ -180,14 +212,37 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
         if (ln.get("order_level_kind") or "") == "discount" and (ln.get("is_order_level") or "").upper() != "Y":
             disc[ln["line_no"]] = disc.get(ln["line_no"], 0.0) + abs(num(ln.get("ext_cost")) or 0)
     by_pid = {r["ProductId"]: r for r in catalog}
-    ib = {}
-    for r in intake or []:
-        ib.setdefault(norm(r.get("invoice_line")), r)
     exc = []
 
     def add(flag, row, line, detail):
         rule, cls = FLAGS[flag]
         exc.append({"flag": flag, "rule": rule, "class": cls, "row": row, "line": line, "detail": detail})
+
+    # 0. intake rows -> product lines by description, each row at most once. The intake gives the ITEM ID only.
+    pair, taken = {}, set()
+    for ln in sorted(prod, key=lambda x: sort_key(x["line_no"])):
+        key = norm(ln.get("description"))
+        for i, r in enumerate(intake or []):
+            if i not in taken and norm(r.get("invoice_line")) == key:
+                pair[ln["line_no"]] = r
+                taken.add(i)
+                break
+    for i, r in enumerate(intake or []):
+        if i not in taken:
+            add("INTAKE_ROW_UNPAIRED", "", "", f"intake row {r.get('invoice_line')!r} (verdict {r.get('verdict') or '?'}) "
+                                              "pairs to no product line by description; nothing is read from it")
+
+    def resolve(no):
+        """(ProductId, source): --item > intake new_productid > the EXISTS / RETIRED_MATCH source; ('', '') = none."""
+        ir = pair.get(no, {})
+        if items.get(no):
+            return items[no], "--item"
+        if ir.get("new_productid"):
+            return ir["new_productid"], "intake new_productid"
+        if ir.get("verdict") in ("EXISTS", "RETIRED_MATCH") and ir.get("copy_source_productid"):
+            return ir["copy_source_productid"], f"intake {ir['verdict']} match"
+        return "", ""
+    pids = {ln["line_no"]: resolve(ln["line_no"])[0] for ln in prod}
 
     # 1. packages -> lines (the reader's `line` cell; else a proposal)
     pk_by_line, used_qty, mapped = {}, {}, []
@@ -196,6 +251,9 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
         p = dict(p)
         line = (p.get("line") or "").strip()
         basis = p.get("map_basis") or ("reader" if line else "")
+        m = re.fullmatch(r"(\d+)\s*[A-Za-z]", line)
+        if line and line not in known and m and m.group(1) in known:
+            line = m.group(1)   # a typed `6a` / `6b` is line 6: the runner labels a split line's rows itself
         if line and line not in known:
             add("MANIFEST_PACKAGE_UNMAPPED", "", line, f"package {p['package_id']} names line {line}, which is not a product line")
             continue
@@ -223,14 +281,14 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     for ln in sorted(prod, key=lambda x: sort_key(x["line_no"])):
         no, desc = ln["line_no"], ln.get("description", "")
         units, unit, ext = num(ln.get("units_total")) or 0, num(ln.get("unit_cost")), num(ln.get("ext_cost")) or 0
-        ir = ib.get(norm(desc), {})
-        pid = items.get(no) or ir.get("new_productid") or (
-            ir.get("copy_source_productid") if ir.get("verdict") in ("EXISTS", "RETIRED_MATCH") else "")
+        ir = pair.get(no, {})
+        pid = pids[no]
         cat = by_pid.get(pid, {}) if pid else {}
         if pid and not cat:
             abort(f"line {no}: ProductId {pid} is not in the Active export (retired or mistyped)")
-        cost = num(cat.get("Cost")) if cat else num(ir.get("lane_Cost"))
-        tags = tag_set(cat.get("Tags")) if cat else tag_set(ir.get("tags"))
+        # catalog Cost and the item's CURRENT tags come from the catalog by ProductId, never from intake lane cells
+        cost = num(cat.get("Cost")) if cat else None
+        tags = tag_set(cat.get("Tags")) if cat else set()
         mc = cat.get("Master category", "")
         prog = (programs.get(no) or programs.get("*") or "").strip().lower()
         mk = marker(desc)
@@ -263,9 +321,9 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
         elif unit is not None and unit <= SAMPLE_MAX + 1e-9:
             rule = "R127: disposition owed"
             lflag("PENNY_UNMARKED", f"unit {unit:.2f} <= {SAMPLE_MAX:.2f} and neither the invoice nor a direction says sample, display or deal")
-        if not prog and not pkg_tag and unit is not None and unit > SAMPLE_MAX + 1e-9:
+        if pid and not prog and not pkg_tag and unit is not None and unit > SAMPLE_MAX + 1e-9:
             if cost is None:
-                lflag("COST_UNKNOWN", "no catalog Cost (and no intake lane_Cost) to compare the invoice price with")
+                lflag("COST_UNKNOWN", f"item {pid} has no catalog Cost to compare the invoice price with")
             elif unit < cost - 0.005:
                 tiered = mc in TIERED_MASTER
                 pkg_tag = deal_tag if tiered else ""
@@ -274,8 +332,14 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                                              f"default {'`' + deal_tag + '`' if tiered else 'a catalog cost change, no tag'} ({mc or 'master category unknown'})")
         if unit is not None and cost is not None and unit > cost + 0.005 and prog != "cost change" and pkg_tag not in (sample_tag, display_tag):
             lflag("CATALOG_COST_RAISE", f"unit {unit:.2f} > catalog Cost {cost:g}: the catalog keeps the highest cost")
-        if not pid:
-            lflag("ITEM_PENDING", "no Dutchie ProductId for this line (create first, or --item)")
+        if not pid and intake is not None and not ir:
+            lflag("LINE_NO_INTAKE_ROW", f"no intake row's invoice_line pairs to {desc!r} and no --item: no item id, so no "
+                                        "catalog Cost, tag or flip is read for this line")
+        elif not pid:
+            why = (f"its intake row reads verdict {ir.get('verdict') or '?'} with no new_productid" if ir
+                   else "no --item and no intake CSV")
+            lflag("ITEM_PENDING", f"no Dutchie ProductId for this line ({why}); catalog Cost, tags and the flip are read "
+                                  "once the item is known (create first, or --item)")
         sample_pkg = pkg_tag in (sample_tag, display_tag)   # a sample or display package is never sellable stock
         strip = sorted(t for t in tags if t.startswith(ITEM_PREFIX) and (t != new_line_tag or sample_pkg))
         new_line = new_line_tag in tags
@@ -306,7 +370,7 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                     for other in prod:
                         if other["line_no"] == no:
                             continue
-                        opid = items.get(other["line_no"]) or ib.get(norm(other.get("description")), {}).get("new_productid")
+                        opid = pids.get(other["line_no"])
                         same = (opid and opid == pid) or norm(re.sub(r"\(?sample[^)]*\)?", "", desc)) == norm(other.get("description"))
                         if not same:
                             continue
@@ -350,7 +414,9 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                      metrc_package_id=(p or {}).get("package_id", ""), metrc_item=(p or {}).get("metrc_item", ""),
                      manifest_qty=(p or {}).get("qty", ""), manifest_ship_cost=(p or {}).get("ship_cost", ""),
                      map_basis=(p or {}).get("map_basis", ""), vendor_batch=(p or {}).get("vendor_batch", ""),
-                     expiry=(p or {}).get("expiry") or common["expiry"])
+                     expiry=(p or {}).get("expiry") or common["expiry"],
+                     # staff settle the count against Metrc before the transfer lands as pending (Operator 2026-10-09)
+                     physical_count=(p or {}).get("qty", ""), qty_match="Y" if p else "")
             rflags = list(line_flags)
             if order and blend is not None:
                 if pext + share < -0.005:
@@ -382,19 +448,44 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     return rows, exc, summary
 
 
-def questions(exc, summary, stem):
+def header_values(lines, vendor=None, txn=None):
+    """The receive-form header values: Vendor (`--vendor-record`, else the lines' `vendor` cell), Room (R126) and the
+    Transaction ID (`--txn-id`, else the lines' `invoice_no` cell: the final invoice no., else the SO no.)."""
+    first = lambda col: next((ln.get(col, "").strip() for ln in lines if (ln.get(col) or "").strip()), "")  # noqa: E731
+    return {"vendor": vendor or first("vendor"), "room": RECEIVE_ROOM, "txn": txn or first("invoice_no")}
+
+
+def header_block(h):
+    """The receive form header, printed before any question (KB_RECEIVE; Operator rulings 2026-10-09)."""
+    return ["## Receive form header", "",
+            f"- Vendor: {h.get('vendor') or 'NOT READ - give --vendor-record <the Dutchie vendor record>'}"
+            " (set once in the header; it flows down to every row)",
+            f"- Room: {h.get('room') or RECEIVE_ROOM} (R126; set once in the header; it flows down to every row)",
+            f"- Transaction ID: {h.get('txn') or 'NOT READ - give --txn-id'} - the vendor's final invoice number when it "
+            "exists, else the sales-order number until one arrives (the mapping that lands in the accounting system is "
+            "open). The receive form has no Transaction ID field: a record value, never a form field.",
+            "- Count: staff verify the drop against Metrc and fix any count issue BEFORE the transfer lands as pending; "
+            "the sheet sets physical_count = manifest qty and qty_match = Y on every mapped package. No count question.",
+            "- Expiry: blank on entry. Staff add each package's expiration date as a confirmation step after the pending "
+            "receipt is saved. The `expiry` column is reference only.",
+            f"- Source: {KB_RECEIVE}.", ""]
+
+
+def questions(exc, summary, stem, header=None):
     stops = [e for e in exc if e["class"] in ("STOP", "DEFECT")]
     out = [f"# Receipt prep - questions before the receipt ({stem})", "",
            f"Product lines {summary['product_lines']} · packages {summary['packages']}"
            + ("" if summary["manifest"] else " (no Metrc manifest yet: package ids blank; re-run when it is read)")
-           + f" · order-level {summary['order_level']:+.2f}", "",
-           "Nothing is entered in Dutchie until every row below is settled. A DEFECT means the receipt is not entered.", ""]
+           + f" · order-level {summary['order_level']:+.2f}", ""]
+    if header is not None:
+        out += header_block(header)
+    out += ["Nothing is entered in Dutchie until every row below is settled. A DEFECT means the receipt is not entered.", ""]
     if summary.get("flips"):
         out += [f"New-line items (R83 R126): packages carrying `{summary['new_line_tag']}` "
                 f"{summary['new_line_packages']} (sellable packages only; R47)."]
         out += [f"- item {k}: {v}" for k, v in summary["flips"].items()] + [""]
     if not stops:
-        return "\n".join(out + ["No STOP and no DEFECT. The sheet is ready for the receiver's physical count.", ""])
+        return "\n".join(out + ["No STOP and no DEFECT. The sheet is ready for entry.", ""])
     out += ["| # | Flag | Class | Rule | Row / line | Detail | Question |", "|---|---|---|---|---|---|---|"]
     for i, e in enumerate(stops, 1):
         out.append(f"| {i} | {e['flag']} | {e['class']} | {e['rule']} | {e['row'] or e['line']} | "
@@ -411,7 +502,8 @@ def run_prep(argv):
     new_line_tag, active_tag = DEFAULT_NEW_LINE_TAG, DEFAULT_ACTIVE_TAG
     if tenant:
         import intake_pointers
-        ptr = intake_pointers.load(tenant)["intake"]
+        # --prep reads the tag pointers only: a gap there ABORTs, any other gap is a WARNING line
+        ptr = intake_pointers.load_for(tenant, [] if deal_tag else ["Vendor deal tag"], TENANT_OPTIONAL)["intake"]
         deal_tag = deal_tag or ptr.get("Vendor deal tag")
         sample_tag = ptr.get("Sample tag") or sample_tag
         display_tag = ptr.get("Display tag") or display_tag
@@ -430,7 +522,8 @@ def run_prep(argv):
     out = next_version(out_dir, f"{s}-receipt-prep-{get_flag(argv, '--asof') or date.today().isoformat()}")
     write_csv(out, PREP_COLS, rows)
     qpath = new_path(out_dir, os.path.splitext(os.path.basename(out))[0] + "-questions", ".md")
-    text = questions(exc, summary, os.path.basename(out))
+    text = questions(exc, summary, os.path.basename(out),
+                     header_values(lines, get_flag(argv, "--vendor-record"), get_flag(argv, "--txn-id")))
     with open(qpath, "w", encoding="utf-8") as f:
         f.write(text)
     counts = {}
@@ -668,6 +761,92 @@ def selftest():
     qtext = questions(base[1], base[2], "x")
     t.check("the questions file prints the new-line flip and the package count",
             "packages carrying `ITM - New PL` 1" in qtext and "item 13: ITM - New PL -> ITM - Active" in qtext)
+
+    # manifest `line` cell: the product line_no; a typed `<n><letter>` reads as line <n> (the runner labels rows itself)
+    def split_typed(c, i, l, m, it):
+        m[0]["line"], m[1]["line"] = "1a", "1b"
+    c = copy.deepcopy((cat, inv, lines, man, items))
+    split_typed(*c)
+    rs = _run(*c)
+    t.check("a typed `1a` / `1b` manifest line reads as line 1: rows 1a / 1b, no MANIFEST_PACKAGE_UNMAPPED",
+            {"1a", "1b"} <= {x["row"] for x in rs[0]} and not any(e["flag"] == "MANIFEST_PACKAGE_UNMAPPED" for e in rs[1]),
+            str(_flags(rs)))
+
+    def split_bad(c, i, l, m, it):
+        m[0]["line"] = "9a"
+    rb = fires("MANIFEST_PACKAGE_UNMAPPED", "9a", split_bad, "a typed `9a` whose 9 is not a product line")
+    t.check("an `<n><letter>` whose <n> is not a line stays a DEFECT",
+            any(e["flag"] == "MANIFEST_PACKAGE_UNMAPPED" and e["class"] == "DEFECT" for e in rb[1]))
+    t.check("physical_count = manifest qty and qty_match = Y on every mapped package (count settled against Metrc)",
+            all(r["physical_count"] == r["manifest_qty"] and r["qty_match"] == "Y" for r in base[0] if r.get("metrc_package_id"))
+            and rows["1a"]["physical_count"] == "20")
+
+    # the intake gives the item id only: catalog Cost and the CURRENT tags come from the catalog by ProductId
+    def intake_of(lines_, verdict="EXISTS", pid_of=None, **cells):
+        pid_of = pid_of if pid_of is not None else items
+        return [dict({"invoice_line": x["description"], "verdict": verdict, "new_productid": "",
+                      "copy_source_productid": pid_of.get(x["line_no"], ""), "create_name_FINAL": "", "tags": "",
+                      "lane_Cost": ""}, **cells) for x in lines_ if x["line_no"] in pid_of]
+
+    def via_intake(cat_=None, intake_=None, items_=None, lines_=None):
+        lines_ = lines_ or lines
+        return prep(lines_, cat_ or cat, inv, intake_ if intake_ is not None else intake_of(lines_, lane_Cost="99",
+                    tags="ITM - New PL"), man, items_ if items_ is not None else {}, None, "PKG - Vendor Deal")
+    ri = via_intake()
+    r1a = next(x for x in ri[0] if x["row"] == "1a")
+    t.check("an EXISTS intake row resolves the item; catalog_cost is the catalog's, never the intake lane_Cost",
+            r1a["dutchie_productid"] == "11" and r1a["catalog_cost"] == "10"
+            and not any(e["flag"] in ("PRICE_DROP_UNMARKED", "CATALOG_COST_RAISE") for e in ri[1]), str(_flags(ri)))
+    cat12 = copy.deepcopy(cat)
+    cat12[0]["Cost"] = "12"
+    t.check("FIRES: the catalog Cost (not the lane cell) is what the price is compared with [breaker: catalog Cost 12]",
+            any(e["flag"] == "PRICE_DROP_UNMARKED" and e["line"] == "1" for e in via_intake(cat12)[1]))
+    t.check("an intake `tags` cell never flips an item: the flip reads the item's CURRENT catalog tags (R83)",
+            r1a["item_tag_flip"] == "" and set(ri[2]["flips"]) == {"13"}, str(ri[2]["flips"]))
+    catnl = copy.deepcopy(cat)
+    catnl[0]["Tags"] = "ITM - New PL"
+    t.check("FIRES: an item the catalog tags new-line flips [breaker: catalog item 11 carries the new-line tag]",
+            "11" in via_intake(catnl)[2]["flips"])
+    pend = via_intake(intake_=intake_of(lines, verdict="NEW_PL", lane_Cost="12", tags="ITM - New PL"))
+    t.check("a pending line (intake row, no item id) reads no lane_Cost and no tag: ITEM_PENDING names the verdict, "
+            "no PRICE_DROP_UNMARKED, no flip",
+            any(e["flag"] == "ITEM_PENDING" and "verdict NEW_PL" in e["detail"] for e in pend[1])
+            and not any(e["flag"] == "PRICE_DROP_UNMARKED" for e in pend[1]) and set(pend[2]["flips"]) <= {"13"},
+            str(_flags(pend)))
+    stray = intake_of(lines) + [{"invoice_line": "Some Other Vendor Item 1g", "verdict": "EXISTS", "new_productid": "",
+                                 "copy_source_productid": "12", "create_name_FINAL": "", "tags": "", "lane_Cost": ""}]
+    ru = via_intake(intake_=stray)
+    t.check("INTAKE_ROW_UNPAIRED: an intake row pairing to no product line is its own STOP, printed in the questions",
+            any(e["flag"] == "INTAKE_ROW_UNPAIRED" and e["class"] == "STOP" for e in ru[1])
+            and "INTAKE_ROW_UNPAIRED" in questions(ru[1], ru[2], "x")
+            and not any(e["flag"] == "INTAKE_ROW_UNPAIRED" for e in via_intake(intake_=intake_of(lines))[1]))
+    short = [x for x in intake_of(lines) if x["invoice_line"] != lines[1]["description"]]
+    rl = via_intake(intake_=short)
+    t.check("LINE_NO_INTAKE_ROW: a product line no intake row pairs to is its own STOP, never ITEM_PENDING",
+            ("LINE_NO_INTAKE_ROW", "2") in _flags(rl) and ("ITEM_PENDING", "2") not in _flags(rl)
+            and "LINE_NO_INTAKE_ROW" in questions(rl[1], rl[2], "x")
+            and ("LINE_NO_INTAKE_ROW", "2") not in _flags(via_intake(intake_=short, items_={"2": "12"})))
+
+    # R62: an on-hand package cost ABOVE the new unit cost is price compression when new cost == catalog Cost
+    inv_hi = copy.deepcopy(inv) + [{"SKU": "9013", "Room": "Order Fulfillment", "Available": "3", "Cost": "22"}]
+    rh = prep(lines, cat, inv_hi, None, man, items, None, "PKG - Vendor Deal")
+    t.check("QUIET: an on-hand pkg cost above the new cost (new == catalog Cost) raises no question",
+            next(x for x in rh[0] if x["row"] == "3")["on_hand_pkg_costs"] == "22"
+            and not any(e["line"] == "3" and e["class"] in ("STOP", "DEFECT") for e in rh[1]), str(_flags(rh)))
+    l18 = copy.deepcopy(lines)
+    l18[2].update(unit_cost="18.00", ext_cost="180.00")
+    m18 = copy.deepcopy(man)
+    m18[3]["ship_cost"] = "180.00"
+    t.check("FIRES: the same shape with the new cost BELOW catalog Cost and no deal marked is PRICE_DROP_UNMARKED",
+            ("PRICE_DROP_UNMARKED", "3") in _flags(prep(l18, cat, inv_hi, None, m18, items, None, "PKG - Vendor Deal")))
+
+    hq = questions(base[1], base[2], "x", header_values([dict(lines[0], vendor="Acme Supply", invoice_no="SO-1001")]))
+    t.check("the questions header prints Vendor, Room and the Transaction ID (receive form header values)",
+            "- Vendor: Acme Supply" in hq and "- Room: Intake" in hq and "- Transaction ID: SO-1001" in hq
+            and "physical_count = manifest qty" in hq and "Expiry: blank on entry" in hq)
+    t.check("FIRES: an unread vendor / transaction id is named, never blank",
+            "Vendor: NOT READ" in questions(base[1], base[2], "x", header_values(lines))
+            and "- Transaction ID: INV-9" in questions(base[1], base[2], "x", header_values(lines, txn="INV-9")))
 
     t.check("stub paths still refuse with exit 2",
             all(main([m]) == EXIT_ABORT for m in ("--enter", "--check", "--vendor")) and main([]) == EXIT_ABORT)
