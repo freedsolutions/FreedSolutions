@@ -1470,3 +1470,19 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   a merged card. A linked Global (brand catalog) product shows under the catalog's name, not the Online Title.
 - The age gate's "Yes" agrees to terms, so do not click it. The products render behind it.
 
+
+## Receive inventory from a pending Metrc transfer [PROBE 2026-10-09, first lane-entered receipt]
+
+- **Path:** Products › Inventory › `Receive inventory` › Source `Pending transfer`, then pick the transfer
+  (`<date> - <shipper> - <manifest no>`). A received or saved order is not in `Receive history` until it is received.
+  The transfer loads one row per Metrc package with the Metrc item name, qty and package id; no catalog item, cost or brand.
+- **Header:** Vendor and Room must be set. Both flow down to every row. Vendor license, order title and Delivered on come
+  from the transfer. The header has no Transaction ID field.
+- **Row form (`Receive package`):** opens on the row's product cell. Picking the Catalog product fills Cost and Price per
+  unit, grams, flower equiv and Strain from the item, and ticks the ITEM's tags on the package (an `ITM - ` tag carries
+  through). Untick them in the row form to strip at package grain before the receipt. Expiration date turns required
+  once a product is picked; `Save package` still stages the row without it, and the row keeps a red status icon.
+- **`Save package` stages the row into the order; the page `Save` persists the order as a `Saved order`** (Source
+  dropdown › `Saved order`). `Receive` stays disabled while any row lacks a required field (expiry).
+- **Header Room reads blank on reload of a saved pending order; every row keeps its room.** Re-set it only when a row
+  is added.
