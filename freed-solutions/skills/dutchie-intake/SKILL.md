@@ -59,7 +59,8 @@ the second is the `bi-change` block the tenant already has.
 - Vendor deal tag: <PKG - tag>
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 - Market center / Market radius mi / Own store (+ optional Market box, Market archive, MSRP anchor, MSRP floor x cost)
-- FL EQ classes: <abs path to the tenant's fl_eq class map .toml>   (optional; R1-R3, R6 - see "derived" below)
+- FL EQ classes: <abs path to the tenant's fl_eq class map .toml>   (optional; R1-R3, R6 - see "derived" below;
+  R130: the same map carries each master's market limits - `package_cap_mg` is the dose read's cap)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
@@ -169,11 +170,17 @@ through connector bodies only.
    classes `product_g_x<k>`, `thc_g_x<k>` on an mg line, `composite`, `sentinel_<v>`, `none`); Servings per Unit
    from the pack count the line prints (R34); CBD content blank off the CBD master (R66); the name's dose segment
    `Ng` / `Nmg` / `N x Mpk` with the unit by class (R7, R42). **The vendor dose read is R129's:** an mg figure
-   beside a count is PER PIECE when piece x count fits the package THC cap (the skill's generic default, or the
-   tenant pointer `Package THC cap mg:` / `--package-cap-mg`), else it is the PACKAGE TOTAL and the piece is
-   total / count (`100mg - 10ct` = 10 mg x 10, 0.1 g); the row's `derived` cell cites the read taken and why
-   (`Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)`),
-   a package-total read is flagged `DOSE_READ_TOTAL` (INFO) for the COA check at the stop, and the grams read
+   beside a count is PER PIECE when piece x count fits the TARGET Master category's package cap, else it is the
+   PACKAGE TOTAL and the piece is total / count (`100mg - 10ct` = 10 mg x 10, 0.1 g). **The cap is R130's:** the
+   master's `package_cap_mg` in the class map the `FL EQ classes:` pointer names (a master with no cap reads per
+   piece); the master is read before the grams (the operator's Category direction, else the matched items' master,
+   else the line's placement) and a new line re-reads under its final master. The skill's generic constant is the
+   no-map fallback only (no map, a map with no `package_cap_mg`, or a master the map does not list;
+   `--package-cap-mg` overrides it); the single `Package THC cap mg:` pointer is RETIRED and the parser refuses it.
+   The row's `derived` cell cites the read taken, the master and its cap (`Product grams: 0.1g (R129: package total:
+   a per-piece read would be 900 mg over the Edible 100 mg package cap (R130); 10 mg x 10)`); a package-total read
+   on a CREATE row is flagged `DOSE_READ_TOTAL` (INFO) for the COA check at the stop - quiet on EXISTS and
+   RETIRED_MATCH, whose item the catalog already holds - and the grams read
    (`0.5g x 3pk` = 1.5 g) is untouched. An mg figure with NO count on a THC-grams-class new line leaves the package
    total unsettled: `DOSE_UNREAD` (STOP), and Product grams, Flower equiv and the name's dose stay at the stop. A
    field the line gives the lane no fact for stays at
@@ -390,10 +397,11 @@ check, item 5), plus a fourth printed by
    the dose segment - the row's `derived` column) are not retyped. The flags are INFO: `MSRP_THIN`, `MSRP_SPREAD` (the number is
    more than 20 % from a market read that did not set it), `MSRP_FLOOR_RAISED`, `MSRP_MARGIN_LOW`,
    `MSRP_ARCHIVE_ONLY`, `MSRP_NO_EVIDENCE` (price it by hand with the business).
-5. **The dose read, checked against the COA (R129).** A row flagged `DOSE_READ_TOTAL` read its mg figure as the
-   package total (per piece x count would break the package cap); the Operator confirms it against the COA before
-   replying: a COA mg per serving or mg per package settles the read; a COA stating mg/g settles nothing, because the
-   grams per piece are unknown. The lane reads no COA file: this is the Operator's check, and the COA stays filed
+5. **The dose read, checked against the COA (R129, R130).** A create row flagged `DOSE_READ_TOTAL` read its mg
+   figure as the package total (per piece x count would break its Master category's package cap, named in the
+   `derived` cite); the Operator confirms it against the COA before replying: a COA mg per serving or mg per package
+   settles the read; a COA stating mg/g settles nothing, because the grams per piece are unknown. A COA may test
+   within the market's tolerance of the label (the class map's `[market]` block): a callout, never a hit. The lane reads no COA file: this is the Operator's check, and the COA stays filed
    beside the invoice (R104). A `DOSE_UNREAD` on an mg line with no count means the package total is unsettled:
    set Product grams and Servings per Unit in the lane cells from the label / COA and write the name's dose.
 

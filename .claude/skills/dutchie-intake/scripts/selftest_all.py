@@ -76,6 +76,7 @@ BASE = {
     "categories": rows_of("categories.csv"), "brands": rows_of("brands.csv"),
     "notice": open(os.path.join(os.path.dirname(HERE), "templates", "notice.md"), encoding="utf-8").read(),
     "fl_eq": ID.load_classes(fx("fl-eq-classes.toml")),   # the synthetic class map the fixture tenant points at
+    "caps": PTR.load_caps(fx("fl-eq-classes.toml")),      # R130: the same map's per-master package caps
 }
 
 
@@ -104,7 +105,7 @@ def matched(c):
                     categories=c.get("categories"), brands=c.get("brands"), line_brands=c.get("line_brands"),
                     line_categories=c.get("line_categories"), strain_types=c.get("strain_types"),
                     fl_eq_classes=c.get("fl_eq"), conc_grams=c.get("conc_grams"),
-                    package_cap_mg=c.get("cap_mg", C.DEFAULT_PACKAGE_THC_CAP_MG))[0]
+                    package_cap_mg=c.get("cap_mg", C.DEFAULT_PACKAGE_THC_CAP_MG), package_caps=c.get("caps"))[0]
 
 
 def verdict_count(c, v):
@@ -465,6 +466,35 @@ def gummy_ctx(desc="Cedar Co Mango gummies 100mg 10pk", brand=True, **over):
     return c
 
 
+def caps_with(**mc_caps):
+    """The fixture map's package caps with named masters replaced (R130 breakers): caps_with(edible=50)."""
+    return dict(BASE["caps"], **mc_caps)
+
+
+MC_SRC = {   # R130: one synthetic source item + its taxonomy row per mg master the per-MC dose read is tested on
+    "Tincture": ("Tinctures", "tinctures", "Tincture"),
+    "Beverage": ("Drinks", "drinks", "Drink"),
+    "Topical": ("Balms", "balms", "Balm"),
+}
+
+
+def mc_line_ctx(desc, mc, **over):
+    """Line 6 re-described as a NEW_BRAND (Cedar Co) line in Master category `mc`, with a Birch Labs source item
+    there to copy across brands; the dose read takes `mc`'s package cap from the fixture class map (R130)."""
+    cat, gsc, form = MC_SRC[mc]
+    src = dict(GUMMY_SRC, SKU="3201", ProductId="721", Product=f"Birch Labs | {form} | Lime | 100mg", Category=cat,
+               **{"Master category": mc, "Global SubCategory": gsc})
+    tax_row = dict(BASE["categories"][0], **{"Master category": mc, "Category": cat, "Global Subcategories": gsc})
+    c = ctx(active=BASE["active"] + [src], categories=BASE["categories"] + [tax_row], **over)
+    c["line_brands"] = {"6": "Cedar Co"}
+    c["lines"] = [dict(ln, description=desc) if ln["line_no"] == "6" else ln for ln in c["lines"]]
+    return c
+
+
+def line6_row(c):
+    return next(r for r in matched(c) if r["invoice_line"].startswith("Cedar Co"))
+
+
 def gummy_row(c):
     return next(r for r in matched(c) if r["invoice_line"].split(" | ")[0].lower().endswith("gummies") or "gummies" in r["invoice_line"].lower())
 
@@ -652,13 +682,13 @@ CHECKS = [
     ("R129: `100mg 10pk` on a THC-grams class is the PACKAGE total - 0.1 g, Servings 10, `10mg x 10pk`, Flower equiv 5.6g, DOSE_READ_TOTAL + the cite",
      lambda c: (lambda r: r["lane_ProductGrams"] == "0.1g" and r["lane_ServingsPerUnit"] == "10" and r["lane_FlowerEquiv"] == "5.6g"
                 and "Dose: 10mg x 10pk (R7 R42 R34)" in r["derived"] and "DOSE_READ_TOTAL" in r["flags"].split(";")
-                and "Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)" in r["derived"])(gummy_row(c)),
+                and "Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the Edible 100 mg package cap (R130); 10 mg x 10)" in r["derived"])(gummy_row(c)),
      gummy_ctx(), gummy_ctx("Cedar Co Mango gummies 10mg x 10pk"), "the figure fits the cap: per piece, no flag, no package-total cite"),
     ("R129: an mg figure that fits the cap is per piece (`10mg x 10pk`): 0.1 g, no flag, the fit cited",
      lambda c: (lambda r: r["lane_ProductGrams"] == "0.1g" and "DOSE_READ_TOTAL" not in r["flags"].split(";")
-                and "Product grams: 0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap)" in r["derived"])(gummy_row(c)),
-     gummy_ctx("Cedar Co Mango gummies 10mg x 10pk"), gummy_ctx("Cedar Co Mango gummies 10mg x 10pk", cap_mg=50),
-     "the tenant's cap is 50 mg (`Package THC cap mg:`): the same line reads as the package total"),
+                and "Product grams: 0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the Edible 100 mg package cap (R130))" in r["derived"])(gummy_row(c)),
+     gummy_ctx("Cedar Co Mango gummies 10mg x 10pk"), gummy_ctx("Cedar Co Mango gummies 10mg x 10pk", caps=caps_with(edible=50)),
+     "the class map's Edible cap is 50 mg (R130): the same line reads as the package total"),
     ("R129: `5mg - 10ct` is per piece - 0.05 g, `5mg x 10pk`, Flower equiv 2.8g",
      lambda c: (lambda r: r["lane_ProductGrams"] == "0.05g" and "Dose: 5mg x 10pk" in r["derived"] and r["lane_FlowerEquiv"] == "2.8g")(gummy_row(c)),
      gummy_ctx("Cedar Co Mango gummies 5mg - 10ct"), gummy_ctx("Cedar Co Mango gummies 500mg - 10ct"),
@@ -669,11 +699,40 @@ CHECKS = [
      gummy_ctx("Cedar Co Mango gummies 100mg"), gummy_ctx(), "the line prints the count (10pk): the read settles, no STOP"),
     ("R129 leaves the grams read alone: `0.5g 3-pack` is per piece, 1.5 g, no cap test, no Product grams cite",
      lambda c: (lambda r: r["lane_ProductGrams"] == "1.5g" and "Product grams:" not in r["derived"] and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(new_line_row(c)),
-     pack_line_ctx(), mg_pack_ctx(), "the same pack printed in mg (500mg 3-pack) is under the cap test: package total 0.5 g, flagged"),
+     pack_line_ctx(), mg_pack_ctx(), "the same pack printed in mg (500mg 3-pack) is an mg read, cited (Vape carries no cap, R130)"),
     ("R129 repairs the EXISTS read: `Birch Labs Lime gummies 100mg 10pk` matches the 0.1 g catalog item (the per-piece read, 1 g, could not)",
      lambda c: (lambda r: r["verdict"] == "EXISTS" and r["copy_source_sku"] == "3101")(gummy_row(c)),
-     gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False), gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False, cap_mg=2000),
-     "a 2000 mg cap reads the line per piece (1 g): no 1 g item exists"),
+     gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False), gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False, caps=caps_with(edible=2000)),
+     "a 2000 mg Edible cap reads the line per piece (1 g): no 1 g item exists"),
+    # --- R130: the dose read's cap is the TARGET Master category's, from the class map (R129 amended) ---
+    ("R130: Edible `100mg - 10ct` is the package total against Edible's cap - 0.1 g, `10mg x 10pk`, the cite names Edible",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "0.1g" and "Dose: 10mg x 10pk" in r["derived"]
+                and "over the Edible 100 mg package cap (R130)" in r["derived"] and "DOSE_READ_TOTAL" in r["flags"].split(";"))(gummy_row(c)),
+     gummy_ctx("Cedar Co Mango gummies 100mg - 10ct"), gummy_ctx("Cedar Co Mango gummies 100mg - 10ct", caps=caps_with(edible=None)),
+     "Edible carries no cap in the map: per piece, 1 g, no flag"),
+    ("R130: Tincture `500mg 2pk` is per piece - 1 g fits Tincture's cap; `500mg x 2pk`, no flag, the cite names Tincture",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "1g" and "Dose: 500mg x 2pk" in r["derived"]
+                and "fits the Tincture 1000 mg package cap (R130)" in r["derived"] and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
+     mc_line_ctx("Cedar Co Lime tincture 500mg 2pk", "Tincture"), mc_line_ctx("Cedar Co Lime tincture 500mg 2pk", "Tincture", caps=caps_with(tincture=100)),
+     "a 100 mg Tincture cap: the same line reads as the package total, 0.5 g, flagged"),
+    ("R130: Beverage `5mg - 4ct` is per piece - 0.02 g fits Beverage's multipack cap; `5mg x 4pk`",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "0.02g" and "Dose: 5mg x 4pk" in r["derived"]
+                and "fits the Beverage 100 mg package cap (R130)" in r["derived"] and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
+     mc_line_ctx("Cedar Co Lime drink 5mg - 4ct", "Beverage"), mc_line_ctx("Cedar Co Lime drink 5mg - 4ct", "Beverage", caps=caps_with(beverage=5)),
+     "the Beverage cap set to its unit cap (5 mg): 5 mg x 4 breaks it, package total"),
+    ("R130: Topical `250mg - 2ct` is per piece - Topical carries no cap; 0.5 g, `250mg x 2pk`, no flag",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "0.5g" and "Topical carries no package cap (R130)" in r["derived"]
+                and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(line6_row(c)),
+     mc_line_ctx("Cedar Co Lime balm 250mg - 2ct", "Topical"), mc_line_ctx("Cedar Co Lime balm 250mg - 2ct", "Topical", caps=caps_with(topical=100)),
+     "give Topical a 100 mg cap: package total 0.25 g, flagged"),
+    ("R129 amended: an EXISTS gummy read as the package total carries NO DOSE_READ_TOTAL (quiet on an existing item)",
+     lambda c: (lambda r: r["verdict"] == "EXISTS" and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(gummy_row(c)),
+     gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False), gummy_ctx("Cedar Co Mango gummies 100mg 10pk"),
+     "the same read on a NEW_BRAND create row: flagged for the COA check"),
+    ("R130 no-map fallback: a class map with no caps (or none at all) reads every mg line against the generic default",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "0.1g" and "cap (generic fallback: no class-map cap)" in r["derived"]
+                and "DOSE_READ_TOTAL" in r["flags"].split(";"))(gummy_row(c)),
+     gummy_ctx(caps=None), gummy_ctx(caps=None, cap_mg=2000), "the fallback raised to 2000 mg (`--package-cap-mg`): per piece, 1 g"),
     ("notice marks a created NEW_PL item for review", lambda rows: "NEW LINE, tagged `ITM - New PL`" in notice_text(rows)[0],
      new_line_created(matched(new_line_ctx())), new_line_created(matched(new_line_ctx(lane=True))), "the line has a sibling"),
     ("NEW_BRAND fires once", lambda c: verdict_count(c, "NEW_BRAND") == 1,

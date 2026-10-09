@@ -61,6 +61,12 @@ def fmt_g(x):
     return f"{x:.6f}".rstrip("0").rstrip(".") + "g"
 
 
+def cap_name(rd):
+    """How a dose-read cite names its cap: the target Master category's (R130) or the generic no-map fallback."""
+    cap = fmt_mg(rd["cap_mg"])
+    return f"{rd['mc']} {cap} package cap (R130)" if rd.get("mc") else f"{cap} cap (generic fallback: no class-map cap)"
+
+
 def load_classes(path):
     """{norm(Master category): class string}. Raises ValueError on an unreadable file or a table with no fl_eq."""
     with open(path, "rb") as f:
@@ -124,10 +130,11 @@ def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_
                                   f"per piece, set grams = piece x count and Servings per Unit from the label / COA (R129)")
     elif g is not None and rd.get("reading") == "package total":
         cite["Product grams"] = (f"{fmt_g(g)} (R129: package total: a per-piece read would be {fmt_mg(rd['over_mg'])} over the "
-                                 f"{fmt_mg(rd['cap_mg'])} cap; {fmt_mg(rd['piece_mg'])[:-3]} mg x {rd['count']})")
+                                 f"{cap_name(rd)}; {fmt_mg(rd['piece_mg'])[:-3]} mg x {rd['count']})")
     elif g is not None and rd.get("reading") == "per piece" and rd.get("unit") == "mg":
         cite["Product grams"] = (f"{fmt_g(g)} (R129: per piece: {fmt_mg(rd['piece_mg'])[:-3]} mg x {rd['count']} = "
-                                 f"{fmt_mg(g * 1000.0)} fits the {fmt_mg(rd['cap_mg'])} cap)")
+                                 f"{fmt_mg(g * 1000.0)} " + (f"fits the {cap_name(rd)})" if rd.get("cap_mg") is not None
+                                                             else f"- {rd.get('mc')} carries no package cap (R130))"))
     # --- Flower equiv (R1-R3, R6) --------------------------------------------------------------------------
     if classes is None:
         stops["Flower equiv"] = "no `FL EQ classes` pointer: the lane cannot derive it"
@@ -309,11 +316,18 @@ def selftest():
     tot = {"total": 0.1, "reading": "package total", "unit": "mg", "count": 10, "piece_mg": 10.0, "cap_mg": 100, "over_mg": 900.0}
     r = derive("Gamma", 0.1, "mg", 10, cl, read=tot)
     t.check("R129: a package-total read is cited on Product grams, and the THC class derives on that total (0.1 g x 56)",
-            r["cite"]["Product grams"] == "0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)"
+            r["cite"]["Product grams"] == "0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap (generic fallback: no class-map cap); 10 mg x 10)"
             and r["values"]["lane_FlowerEquiv"] == "5.6g" and r["values"]["dose_segment"] == "10mg x 10pk" and not r["flags"], str(r))
     pp = dict(tot, reading="per piece", over_mg=None)
     r = derive("Gamma", 0.1, "mg", 10, cl, read=pp)
-    t.check("R129: a per-piece read is cited with the fit", r["cite"]["Product grams"] == "0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap)", str(r["cite"]))
+    t.check("R129: a per-piece read is cited with the fit", r["cite"]["Product grams"] == "0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap (generic fallback: no class-map cap))", str(r["cite"]))
+    r3 = derive("Gamma", 0.1, "mg", 10, cl, read=dict(tot, mc="Gamma"))
+    t.check("R130: a package-total read under a class-map cap names the Master category and its cap",
+            r3["cite"]["Product grams"] == "0.1g (R129: package total: a per-piece read would be 900 mg over the Gamma 100 mg package cap (R130); 10 mg x 10)", str(r3["cite"]))
+    r3 = derive("Gamma", 0.5, "mg", 2, cl, read={"total": 0.5, "reading": "per piece", "unit": "mg", "count": 2, "piece_mg": 250.0,
+                                                "cap_mg": None, "over_mg": None, "mc": "Gamma"})
+    t.check("R130: a master with no cap reads per piece and the cite says the master carries none",
+            r3["cite"]["Product grams"] == "0.5g (R129: per piece: 250 mg x 2 = 500 mg - Gamma carries no package cap (R130))", str(r3["cite"]))
     d2, fields2, _ = describe(r)
     t.check("describe: Product grams leads the cell when the read is cited", d2.startswith("Product grams: 0.1g (R129") and fields2[0] == "Product grams"
             and parse_derived(d2)["Product grams"].startswith("0.1g (R129: per piece"), d2)

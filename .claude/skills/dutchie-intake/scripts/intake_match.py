@@ -28,8 +28,10 @@ by intake_plan for the plan row's provenance and its re-derivation; blank on eve
                                        fact (R2; label / COA); absent, 30 % by default + STOP CONC_GRAMS_TO_SET
            --fl-eq-classes <toml>      the fl_eq class map (default: the tenant pointer `FL EQ classes:`);
                                        with neither, Flower equiv stays at the stop on every new line
-           --package-cap-mg <n>        the package THC cap the vendor dose read tests piece x count against (R129;
-                                       default: the tenant pointer `Package THC cap mg:`, else the generic default)
+           --package-cap-mg <n>        the NO-MAP FALLBACK cap for the vendor dose read (R129): used only when the
+                                       class map carries no `package_cap_mg`, or names no rule for the line's Master
+                                       category (default: the skill's generic constant). With a map, the cap is the
+                                       target Master category's `package_cap_mg` (R130; none = per piece)
            --new-line-tag "<tag>"      the R83 tag a NEW_PL create carries (default `ITM - New PL`;
                                        tenant: `New line tag:` in `## Intake Pointers`)
            --active-tag "<tag>"        the R96 standard state (default `ITM - Active`; tenant: `Active tag:`)
@@ -108,9 +110,10 @@ Flag table (flags column; none fails the run):
                                     figure with NO count on a THC-grams-class new line: the package total is unsettled,
                                     so Product grams, Flower equiv and the name's dose stay at the stop
   DOSE_READ_TOTAL       R129  INFO  the mg figure beside the count was read as the PACKAGE total (per piece x count
-                                    would break the package cap); the piece is total / count. The Operator checks it
-                                    against the COA at the stop: mg per serving or per package confirms it; mg/g settles
-                                    nothing (grams per piece unknown)
+                                    would break the target Master category's package cap, R130); the piece is total /
+                                    count. The Operator checks it against the COA at the stop: mg per serving or per
+                                    package confirms it; mg/g settles nothing (grams per piece unknown). Create rows
+                                    only: quiet on EXISTS and RETIRED_MATCH (the catalog already holds the item)
   FLAVOR_TO_SET         R101  STOP  the sibling carries a Flavor: set the new item's own at create
   OT_TEMPLATE_MISS      R101  INFO  the sibling's Online title does not contain its strain; write it by hand
   NEW_LINE_FIELDS       R101  STOP  a NEW_PL copy inherits a different lane: confirm or edit the name's body,
@@ -245,9 +248,11 @@ def pack_count_of(desc):
     return None if not m else int(m.group(1) or m.group(2))
 
 
-def dose_read(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
+def dose_read(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG, mc=None):
     """The vendor dose read: {'total': grams | None, 'reading': how, 'unit': 'g' | 'mg' | None, 'count': n | None,
-    'piece_mg': float | None, 'cap_mg': cap_mg, 'over_mg': float | None}. `total` is the line's TOTAL grams, the grain
+    'piece_mg': float | None, 'cap_mg': cap_mg, 'over_mg': float | None, 'mc': mc}. `cap_mg` is the target Master
+    category's package cap (R130, cap_for); None = that master carries no cap and an mg figure reads per piece.
+    `mc` names the master the cap came from (None = the generic no-map fallback), for the cite. `total` is the line's TOTAL grams, the grain
     the catalog's `Product grams` carries. `reading`:
       None             no weight printed (DOSE_UNREAD)
       'single'         one weight, no count (or a count of 1): the weight is the total
@@ -261,7 +266,7 @@ def dose_read(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
     ws = [a / 1000.0 if u == "mg" else a for a, u in pairs]
     unit = pairs[0][1] if pairs else None
     out = {"total": None, "reading": None, "unit": unit, "count": pack_count_of(desc), "piece_mg": None,
-           "cap_mg": cap_mg, "over_mg": None}
+           "cap_mg": cap_mg, "over_mg": None, "mc": mc}
     if not ws:
         return out
     n = out["count"]
@@ -284,6 +289,30 @@ def dose_read(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
 def dose_of(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
     """The line's TOTAL grams (dose_read(...)['total']); None when the line prints no weight."""
     return dose_read(desc, cap_mg)["total"]
+
+
+def cap_for(mc, package_caps, fallback=DEFAULT_PACKAGE_THC_CAP_MG):
+    """(cap mg | None, the master it came from | None) for the vendor dose read (R130). `package_caps` =
+    intake_pointers.load_caps (None = no per-master caps: the fallback for every line). A master the map lists
+    takes its own `package_cap_mg` (None = no cap, per piece); a master the map does not list - or no master
+    read at all - takes the fallback, and the cite says so."""
+    if package_caps is None or not mc or norm(mc) not in package_caps:
+        return fallback, None
+    return package_caps[norm(mc)], mc
+
+
+def line_mc(rows_live, rows_old, brand, brand_is_new, desc_n, dtoks, fl, stated, rkey, cat_dir, tax):
+    """The Master category the line is read against BEFORE its grams are known (R130: the dose read's cap is the
+    target master's). In order: the operator's Category direction; the master of the items brand + body + form hit
+    at any grams (active, then retired) when they agree on one; the line's placement by form word (place_line)."""
+    if cat_dir and tax.get(norm(cat_dir)):
+        return tax[norm(cat_dir)][0]
+    if brand and not brand_is_new:
+        for rows in (rows_live, rows_old):
+            mcs = {r.get("Master category", "") for r in body_hits(rows, brand, desc_n, dtoks, None, fl, stated, rkey)}
+            if len(mcs) == 1 and next(iter(mcs)):
+                return next(iter(mcs))
+    return place_line(rows_live, brand, dtoks)[0]
 
 
 def dose_unit_of(desc):
@@ -736,10 +765,13 @@ def direction(table, line_no):
 def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEFAULT_NEW_LINE_TAG,
           dead_tag=DEFAULT_DEAD_TAG, drop_tags=(), active_tag=DEFAULT_ACTIVE_TAG, prefix=ITEM_PREFIX,
           tag_overrides=None, categories=None, brands=None, line_brands=None, line_categories=None,
-          strain_types=None, fl_eq_classes=None, conc_grams=None, package_cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
+          strain_types=None, fl_eq_classes=None, conc_grams=None, package_cap_mg=DEFAULT_PACKAGE_THC_CAP_MG,
+          package_caps=None):
     """Pure: (intake rows, defects). `fl_eq_classes` = {norm(Master category): fl_eq class} (intake_derive;
     None = no pointer, Flower equiv stays at the stop); `conc_grams` = {line_no or '*': grams} directions (R2);
-    `package_cap_mg` = the package THC cap the vendor dose read tests piece x count against (R129, dose_read).
+    `package_caps` = {norm(Master category): package cap mg | None} from the class map (R130,
+    intake_pointers.load_caps): the vendor dose read (R129) tests piece x count against the TARGET master's cap;
+    `package_cap_mg` = the no-map fallback (no caps in the map, or a master the map does not list).
     `strains` = {name: {'type':..., 'id':...}}. `tag_overrides` =
     {line_no or '*': tag} - the business's direction for a sibling copy's decision tag (R96).
     `categories` = the taxonomy rows (None: the catalog's own stand in); `brands` = the Brand records
@@ -755,6 +787,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                      if (b.get("Display name") or "").strip()}
     tax = taxonomy_of(categories, live, old)
     out, defects = [], []
+    reads = []   # (index of the line's row in `out`, its dose read): DOSE_READ_TOTAL lands on create rows only
     for ln in lines:
         if (ln.get("order_level_kind") or "").strip():
             continue
@@ -764,15 +797,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             defects.append(f"BAD_LINE line {ln.get('line_no')}: {ln.get('description')!r}")
         desc = ln.get("description", "")
         desc_n, dtoks = norm(desc), set(canon(desc).split())
-        rd = dose_read(desc, package_cap_mg)   # R129: per piece when piece x count fits the cap, else the package total
-        g = rd["total"]
         fl = flavor_led(desc, vocab)
-        if g is None:
-            flags.append("DOSE_UNREAD")
-        elif rd["reading"] == "package total":
-            flags.append("DOSE_READ_TOTAL")
         vend = ln.get("vendor", "")
-        at = f"{'?' if g is None else format(g, 'g')}g"
         vb = sorted({r["Brand"] for r in everything if r.get("Brand")
                      and (vendor_match(r.get("Vendor"), vend) or vendor_match(r["Brand"], vend))})
         named = [b for b in brands_items if has_phrase(desc_n, b)]
@@ -782,6 +808,16 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         if brand_is_new and norm(brand) in brand_records:
             brand, brand_is_new = brand_records[norm(brand)], False   # a Brand record with no item yet
         stated0, rkey0 = line_type(desc), ratio_key(desc)
+        # R129 + R130: per piece when piece x count fits the TARGET Master category's package cap, else the package
+        # total. The master is read first (line_mc); a new line re-reads below if its final master differs.
+        mc0 = line_mc(live, old, brand, brand_is_new, desc_n, dtoks, fl, stated0, rkey0,
+                      direction(line_categories, ln.get("line_no")), tax)
+        rd = dose_read(desc, *cap_for(mc0, package_caps, package_cap_mg))
+        g = rd["total"]
+        if g is None:
+            flags.append("DOSE_UNREAD")
+        reads.append((len(out), rd))
+        at = f"{'?' if g is None else format(g, 'g')}g"
         hits = body_hits(live, brand, desc_n, dtoks, g, fl, stated0, rkey0) if brand and not brand_is_new else []
         if hits:
             if len(hits) > 1:
@@ -921,6 +957,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                     fs_note += ": the line prints Cured (R79)"
             if cat_dir:
                 row.update(lane_Category=cat, lane_MasterCategory=mc, lane_GlobalSubCategory=gsc or row.get("lane_GlobalSubCategory", ""))
+            mc_final = row.get("lane_MasterCategory") or mc
+            if g is not None and cap_for(mc_final, package_caps, package_cap_mg) != (rd["cap_mg"], rd["mc"]):
+                rd = dose_read(desc, *cap_for(mc_final, package_caps, package_cap_mg))
+                g = rd["total"]
+                reads[-1] = (reads[-1][0], rd)
             src_brand = near.get("Brand", "")
             stated = line_type(desc)
             strain, fbody = line_strain(fl, live, brand or src_brand, desc_n, strains,
@@ -1099,6 +1140,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                    tags=copy_tags(sib, drop_tags, prefix, decision))
         row["flags"] = ";".join(flags)
         out.append(row)
+    # R129 as amended 2026-10-09: DOSE_READ_TOTAL is the COA check at the CREATE stop - quiet on a line the catalog
+    # already holds (EXISTS) or brings back whole (RETIRED_MATCH).
+    for i, rd in reads:
+        if i < len(out) and rd["reading"] == "package total" and out[i]["verdict"] not in ("EXISTS", "RETIRED_MATCH"):
+            out[i]["flags"] = ";".join([f for f in out[i]["flags"].split(";") if f] + ["DOSE_READ_TOTAL"])
     return out, defects
 
 
@@ -1196,10 +1242,25 @@ def load_fl_eq_classes(argv, ptr):
         abort(f"fl_eq class map {p}: {e}")
 
 
-def package_cap_mg(argv, ptr):
-    """The package THC cap (mg) for the vendor dose read (R129): `--package-cap-mg <n>`, else the tenant pointer
-    `Package THC cap mg:`, else the skill's generic default. A value that is not a positive number ABORTs."""
-    v = get_flag(argv, "--package-cap-mg") or ((ptr or {}).get("intake", {}) or {}).get("Package THC cap mg")
+def load_package_caps(argv, ptr):
+    """R130: the per-master package caps from the class map (`--fl-eq-classes <toml>`, else the tenant pointer
+    `FL EQ classes:`) - intake_pointers.load_caps. None when no map is named or the map carries no
+    `package_cap_mg` (the no-map fallback stands). A named map that does not read is an ABORT."""
+    p = get_flag(argv, "--fl-eq-classes") or ((ptr or {}).get("intake", {}) or {}).get("FL EQ classes")
+    if not p or re.fullmatch(r"<[^>]*>", p.strip()):
+        return None
+    import intake_pointers
+    try:
+        return intake_pointers.load_caps(p)
+    except (OSError, ValueError, intake_pointers.tomllib.TOMLDecodeError) as e:
+        abort(f"class map {p}: {e}")
+
+
+def package_cap_mg(argv, ptr=None):
+    """The NO-MAP FALLBACK cap (mg) for the vendor dose read (R129): `--package-cap-mg <n>`, else the skill's generic
+    default. The tenant pointer `Package THC cap mg:` is RETIRED (R130: the cap is the Master category's, in the
+    class map) and is not read. A value that is not a positive number ABORTs."""
+    v = get_flag(argv, "--package-cap-mg")
     if v is None or re.fullmatch(r"<[^>]*>", str(v).strip()):
         return DEFAULT_PACKAGE_THC_CAP_MG
     try:
@@ -1241,6 +1302,7 @@ def main(argv):
     overrides = parse_overrides(get_all(argv, "--tag-override"), new_line_tag, get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG))
     classes = load_fl_eq_classes(argv, ptr)
     cap_mg = package_cap_mg(argv, ptr)
+    caps = load_package_caps(argv, ptr)
     rows, defects = match(lines, active, retired, strains, get_flag(argv, "--brand"), new_line_tag,
                           get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG), get_all(argv, "--drop-tag"),
                           active_tag, ITEM_PREFIX, overrides, categories=cats, brands=brs,
@@ -1249,7 +1311,7 @@ def main(argv):
                           strain_types=parse_directions(get_all(argv, "--strain-type"), "--strain-type"),
                           fl_eq_classes=classes,
                           conc_grams=parse_directions(get_all(argv, "--conc-grams"), "--conc-grams"),
-                          package_cap_mg=cap_mg)
+                          package_cap_mg=cap_mg, package_caps=caps)
     if classes is None:
         print("WARNING: no fl_eq class map (--fl-eq-classes or the tenant pointer `FL EQ classes:`): Flower equiv "
               "stays at the stop on every new line")
@@ -1513,13 +1575,13 @@ def selftest():
             "R129 reads 100mg 10pk as the package total: 0.1 g, 10mg x 10pk, Flower equiv 5.6g, DOSE_READ_TOTAL",
             r["lane_ProductGrams"] == "0.1g" and r["lane_FlowerEquiv"] == "5.6g" and "R3 R5: thc_g_x56" in r["derived"]
             and "Dose: 10mg x 10pk (R7 R42 R34)" in r["derived"] and r["lane_ServingsPerUnit"] == "10"
-            and "Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)" in r["derived"]
+            and "Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap (generic fallback: no class-map cap); 10 mg x 10)" in r["derived"]
             and "DOSE_READ_TOTAL" in r["flags"].split(";"),
             f"{r['lane_FlowerEquiv']} {r['lane_ProductGrams']} {r['derived']!r} {r['flags']}")
     r = run("Acme Mango gummy 10mg x 10ct", act=vape, fl_eq_classes=classes)
     t.check("R129: an mg figure that fits the cap is per piece - 0.1 g total, no flag, cited",
             r["lane_ProductGrams"] == "0.1g" and "DOSE_READ_TOTAL" not in r["flags"].split(";") and "Dose: 10mg x 10pk" in r["derived"]
-            and "Product grams: 0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap)" in r["derived"],
+            and "Product grams: 0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap (generic fallback: no class-map cap))" in r["derived"],
             f"{r['lane_ProductGrams']} {r['derived']!r} {r['flags']}")
     r = run("Acme Mango gummy 5mg - 10ct", act=vape, fl_eq_classes=classes)
     t.check("R129: 5mg - 10ct is per piece: 0.05 g, `5mg x 10pk`, Flower equiv 2.8g",
@@ -1537,11 +1599,27 @@ def selftest():
             and "name (dose unread)" in r["sibling_reason"] and r["lane_ProductGrams"] == "0.1g",
             f"{r['flags']} {r['derived']!r} {r['sibling_reason'][-300:]}")
     pt = {"intake": {"Package THC cap mg": "50"}}
-    t.check("package_cap_mg: the flag beats the pointer, the pointer beats the generic default, a placeholder is the default",
-            package_cap_mg(["--package-cap-mg", "75"], pt) == 75.0 and package_cap_mg([], pt) == 50.0
-            and package_cap_mg([], None) == DEFAULT_PACKAGE_THC_CAP_MG and package_cap_mg([], {"intake": {"Package THC cap mg": "<mg>"}}) == DEFAULT_PACKAGE_THC_CAP_MG)
+    t.check("package_cap_mg (the no-map fallback): the flag beats the generic default; the RETIRED pointer is not read (R130)",
+            package_cap_mg(["--package-cap-mg", "75"], pt) == 75.0 and package_cap_mg([], pt) == DEFAULT_PACKAGE_THC_CAP_MG
+            and package_cap_mg([], None) == DEFAULT_PACKAGE_THC_CAP_MG)
     t.check("FIRES: a cap that is not a positive number ABORTs", _aborts(lambda: package_cap_mg(["--package-cap-mg", "none"], None))
-            and _aborts(lambda: package_cap_mg([], {"intake": {"Package THC cap mg": "0"}})))
+            and _aborts(lambda: package_cap_mg(["--package-cap-mg", "0"], None)))
+    # R130: the cap is the TARGET Master category's (class map); a master with no cap reads per piece
+    caps = {"edible": 100.0, "vape": None, "pre-roll": None, "cbd": None}
+    r = run("Acme Mango gummy 100mg - 10ct", act=vape, fl_eq_classes=classes, package_caps=caps)
+    t.check("R130: the Edible line is read against Edible's package cap - package total 0.1 g, the cite names Edible",
+            r["lane_ProductGrams"] == "0.1g" and "over the Edible 100 mg package cap (R130)" in r["derived"]
+            and "DOSE_READ_TOTAL" in r["flags"].split(";"), f"{r['lane_ProductGrams']} {r['derived']!r} {r['flags']}")
+    r = run("Acme Mango gummy 100mg - 10ct", act=vape, fl_eq_classes=classes, package_caps=dict(caps, edible=None))
+    t.check("FIRES (breaker): an Edible with NO cap in the map reads the same line per piece - 1 g, no flag",
+            r["lane_ProductGrams"] == "1g" and "DOSE_READ_TOTAL" not in r["flags"].split(";")
+            and "Edible carries no package cap (R130)" in r["derived"], f"{r['lane_ProductGrams']} {r['derived']!r}")
+    t.check("cap_for: a listed master takes its own cap; an unlisted master or no map takes the fallback",
+            cap_for("Edible", caps) == (100.0, "Edible") and cap_for("Vape", caps) == (None, "Vape")
+            and cap_for("Tincture", caps, 70) == (70, None) and cap_for("Edible", None, 70) == (70, None))
+    r = run("Bolt Mango gummy 100mg 10pk", vendor="Bolt Wholesale", act=vape, fl_eq_classes=classes, package_caps=caps)
+    t.check("R129 amended: an EXISTS row read as the package total carries NO DOSE_READ_TOTAL (quiet on an existing item)",
+            r["verdict"] == "EXISTS" and "DOSE_READ_TOTAL" not in r["flags"].split(";"), f"{r['verdict']} {r['flags']}")
     t.check("QUIET: the no-count STOP is the THC-grams class's alone (a g-line single derives as before)",
             "DOSE_UNREAD" not in run("Acme Gelato cart 0.5g", act=vape, fl_eq_classes=classes)["flags"].split(";"))
     r = run("Acme Mango gummy 1g 10pk", act=vape, fl_eq_classes=classes)

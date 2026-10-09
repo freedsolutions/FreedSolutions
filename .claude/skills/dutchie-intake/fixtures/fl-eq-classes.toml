@@ -1,6 +1,9 @@
 # Synthetic fl_eq class map (selftest fixture; not a tenant's). The tenant's own map is the file its
 # `FL EQ classes:` pointer names: one [master.<Master category>] table per master, `fl_eq = "<class>"`.
 # Class vocabulary: intake_derive.py (product_g_x<k>, thc_g_x<k>, composite, sentinel_<v>, none).
+# R130 market limits (fixture numbers; a tenant's real limits live only in its own class map): `package_cap_mg` is the vendor dose read's cap per master
+# (intake_pointers.load_caps); `unit_cap_mg` and `txn_allotment` ride beside it and the lane does not read them.
+# A master with no `package_cap_mg` reads an mg figure per piece.
 [master."Pre-Roll"]
 fl_eq = "product_g_x1"
 
@@ -9,6 +12,19 @@ fl_eq = "product_g_x5.6"   # the concentrate factor the composite class reads
 
 [master.Edible]
 fl_eq = "thc_g_x56"
+unit_cap_mg = 100
+package_cap_mg = 100
+txn_allotment = "1000mg"
+
+[master.Beverage]
+fl_eq = "thc_g_x56"
+unit_cap_mg = 5
+package_cap_mg = 100        # a multipack may carry more than one unit's cap
+
+[master.Tincture]
+fl_eq = "thc_g_x5.6"
+unit_cap_mg = 1000
+package_cap_mg = 1000
 
 [master.Infused]
 fl_eq = "composite"

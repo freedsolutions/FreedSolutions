@@ -18,10 +18,11 @@ import json
 import os
 import re
 import sys
+import tomllib
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import EXIT_ABORT, EXIT_OK, PKG_PREFIX, Selftest, get_flag  # noqa: E402
+from intake_common import EXIT_ABORT, EXIT_OK, PKG_PREFIX, Selftest, get_flag, norm  # noqa: E402
 
 INTAKE_HEAD, BI_HEAD = "## Intake Pointers", "## BI Change Pointers"
 REQUIRED_INTAKE = ["Operator", "Mail label", "Drive invoices folder", "Intake dir", "Exports dir",
@@ -35,9 +36,13 @@ OPTIONAL_TAG_KEYS = ["New line tag", "Active tag"]   # R83 / R96; absent = the s
 # R1-R3, R6: the tenant's fl_eq class map (a TOML of [master.<MC>] tables); optional - absent, Flower equiv stays
 # at the create stop on every new line (intake_derive.py).
 OPTIONAL_CLASS_KEY = "FL EQ classes"
-# R129: the package THC cap (mg) the vendor dose read tests piece x count against; optional - absent, the skill's
-# generic default (intake_common.DEFAULT_PACKAGE_THC_CAP_MG) stands.
-OPTIONAL_CAP_KEY = "Package THC cap mg"
+# Keys a tenant contract may no longer carry, with the reason. A stale line is a contract gap, never silently read.
+# R130: the package THC cap is per Master Category in the class map (`package_cap_mg`, read by load_caps below),
+# not one tenant-wide pointer.
+RETIRED_KEYS = {"Package THC cap mg": "RETIRED by R130: the dose read's cap is the Master Category's `package_cap_mg` "
+                                      "in the class map the `FL EQ classes:` pointer names - delete the line"}
+# R130: the per-master market limits the class map may carry beside `fl_eq` (all optional, absent = none).
+CAP_KEYS = ("unit_cap_mg", "package_cap_mg")
 # The MSRP read (intake_msrp.py). Optional here; intake_msrp ABORTs without center, radius and own store.
 OPTIONAL_MARKET_KEYS = ["Market center", "Market radius mi", "Market box", "Market archive", "Own store",
                         "MSRP anchor", "MSRP floor x cost"]
@@ -143,13 +148,40 @@ def validate(res):
     fl = res["intake"].get(OPTIONAL_CLASS_KEY)
     if fl is not None and not is_placeholder(fl) and not fl.lower().endswith(".toml"):
         probs.append(f"`{OPTIONAL_CLASS_KEY}` must name a .toml class map, got {fl!r}")
-    cap = res["intake"].get(OPTIONAL_CAP_KEY)
-    if cap is not None and not is_placeholder(cap) and not (re.fullmatch(r"\d+(?:\.\d+)?", cap) and float(cap) > 0):
-        probs.append(f"`{OPTIONAL_CAP_KEY}` must be a positive number of mg (R129), got {cap!r}")
+    for k, why in RETIRED_KEYS.items():
+        if k in res["intake"]:
+            probs.append(f"`{k}` is {why}")
     wc = res["bi"].get("Write channel")
     if wc is not None and not is_placeholder(wc) and not ladder(res["raw"].get("bi:Write channel", wc)):
         probs.append(f"`Write channel` names no known channel {CHANNELS}")
     return probs
+
+
+def load_caps(path):
+    """R130: {norm(Master category): package cap mg | None} from the tenant's class map (the TOML the
+    `FL EQ classes:` pointer names). None = a master with no cap (the dose read reads it per piece). Returns
+    None - no per-master caps, the generic fallback stands - when NO master carries `package_cap_mg` (a map that
+    predates R130). Raises ValueError on a cap that is not a positive number, or on a package cap below the
+    master's own unit cap (a package holds at least one unit)."""
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    masters = data.get("master")
+    if not isinstance(masters, dict) or not masters:
+        raise ValueError(f"{path}: no [master.<Master category>] tables")
+    if not any(isinstance(b, dict) and "package_cap_mg" in b for b in masters.values()):
+        return None
+    out = {}
+    for mc, body in masters.items():
+        body = body if isinstance(body, dict) else {}
+        for k in CAP_KEYS:
+            v = body.get(k)
+            if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0):
+                raise ValueError(f"{path}: [master.{mc}] {k} = {v!r} is not a positive number of mg (R130)")
+        u, p = body.get("unit_cap_mg"), body.get("package_cap_mg")
+        if u is not None and p is not None and p < u:
+            raise ValueError(f"{path}: [master.{mc}] package_cap_mg {p} is below unit_cap_mg {u} (R130)")
+        out[norm(mc)] = float(p) if p is not None else None
+    return out
 
 
 def load(path, strict=True):
@@ -258,13 +290,31 @@ def selftest():
             validate(rf) == [] and rf["intake"][OPTIONAL_CLASS_KEY] == "./category-qc/intent.toml", str(rf["intake"].get(OPTIONAL_CLASS_KEY)))
     t.check("FIRES: a class map that is not a .toml is refused",
             any("class map" in p for p in validate(parse_text(fl.replace("intent.toml", "intent.csv")))))
-    t.check("QUIET: the package cap key is optional (the generic default stands, R129)", OPTIONAL_CAP_KEY not in r["intake"] and validate(r) == [])
     cp = SAMPLE.replace("## Change log", "- Package THC cap mg: 100   # R129: the adult-use cap per package\n\n## Change log", 1)
-    rc = parse_text(cp)
-    t.check("the package cap parses as a number with its comment stripped", validate(rc) == [] and rc["intake"][OPTIONAL_CAP_KEY] == "100", str(validate(rc)))
-    t.check("FIRES: a cap that is not a positive number is refused",
-            any("positive number" in p for p in validate(parse_text(cp.replace("cap mg: 100", "cap mg: one hundred"))))
-            and any("positive number" in p for p in validate(parse_text(cp.replace("cap mg: 100", "cap mg: 0")))))
+    t.check("FIRES (R130): the retired `Package THC cap mg:` pointer is a contract gap that names the class map",
+            any("RETIRED by R130" in p and "package_cap_mg" in p for p in validate(parse_text(cp))), str(validate(parse_text(cp))))
+    t.check("QUIET: without the retired line the contract is whole", validate(r) == [])
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        def caps_of(body):
+            p = os.path.join(td, "m.toml")
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(body)
+            try:
+                return load_caps(p)
+            except ValueError as e:
+                return ("ValueError", str(e))
+        good = ('[master.Edible]\nfl_eq = "thc_g_x56"\nunit_cap_mg = 7\npackage_cap_mg = 70\n'
+                '[master.Topical]\nfl_eq = "none"\n')
+        t.check("load_caps (R130): a master's package cap reads as mg; a master with none reads None (per piece)",
+                caps_of(good) == {"edible": 70.0, "topical": None}, str(caps_of(good)))
+        t.check("load_caps: a map with no package_cap_mg anywhere is None (the generic fallback stands)",
+                caps_of('[master.Edible]\nfl_eq = "thc_g_x56"\n') is None)
+        t.check("FIRES: a cap that is not a positive number is refused",
+                caps_of(good.replace("package_cap_mg = 70", "package_cap_mg = 0"))[0] == "ValueError"
+                and caps_of(good.replace("package_cap_mg = 70", 'package_cap_mg = "70"'))[0] == "ValueError")
+        t.check("FIRES: a package cap below the unit cap is refused",
+                caps_of(good.replace("package_cap_mg = 70", "package_cap_mg = 5"))[0] == "ValueError")
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()

@@ -42,8 +42,10 @@ DEFAULT_DEAD_TAG = "ITM - Do Not Use"    # R81: a dead record is never a sibling
 PKG_PREFIX = "PKG - "                    # R62 / R72 tag family
 # R129: the vendor dose read. An mg figure beside a count on a vendor line is PER PIECE when piece x count fits
 # this cap (mg THC per package, the market's adult-use limit), else it is the PACKAGE TOTAL and the piece is
-# total / count. The cap is a derivation input, never a product fact. Generic default; a tenant overrides it with
-# the pointer `Package THC cap mg:` (intake_pointers) or `--package-cap-mg` (intake_match).
+# total / count. The cap is a derivation input, never a product fact. R130: the cap is the target Master
+# Category's `package_cap_mg` in the tenant's class map (the file the `FL EQ classes:` pointer names; a master with
+# no cap reads per piece). This generic default is the NO-MAP FALLBACK only: no class map, a map that carries no
+# `package_cap_mg` at all, or a Master Category the map does not list. `--package-cap-mg` (intake_match) overrides it.
 DEFAULT_PACKAGE_THC_CAP_MG = 100
 # R101: the only verdicts `create` writes, on approved = Y. NEW_BRAND creates the Brand record first (R30, R121).
 # A RETIRED_MATCH is an un-retire, never a create; a row with no copy source or no brand is never created as it stands.
