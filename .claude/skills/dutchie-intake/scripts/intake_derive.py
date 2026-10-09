@@ -1,4 +1,4 @@
-"""intake_derive.py - the create-stop fields canon DERIVES, so the Operator never types them (R1-R3, R6, R7, R34, R42, R66).
+"""intake_derive.py - the create-stop fields canon DERIVES, so the Operator never types them (R1-R3, R6, R7, R34, R42, R66, R129).
 
   python intake_derive.py --classes <fl-eq-classes.toml> [--mc <Master category>] [--grams <g>] [--unit g|mg] [--pack <n>]
   python intake_derive.py --selftest
@@ -31,6 +31,10 @@ and stays at the stop.
 The name's {Dose} segment (R42: `Ng`, `Nmg` or `N x Mpk`) takes its unit from the class (R7: the g-list is the
 product-grams classes and the composite class; the THC-grams and sentinel classes are mg; `none` keeps the
 unit the line printed) and its pack from the pack count (R34).
+The vendor dose read (R129, `intake_match.dose_read`) rides in as `read`: a per-piece or package-total read of an mg
+figure beside a count is cited on the row (`Product grams: 0.1g (R129: ...)`), and an mg figure with NO count on a
+THC-grams-class line leaves the package total unsettled - Product grams, Flower equiv and the dose segment stay at the
+stop (flag DOSE_UNREAD). The plan re-derives with no `read`: by then the Operator has settled the count.
 """
 import os
 import re
@@ -43,8 +47,9 @@ from intake_common import EXIT_ABORT, EXIT_OK, Selftest, get_flag, grams_of, nor
 
 CBD_MC = "CBD"             # R66 keys on the Master category named CBD; a tenant may override via `--cbd-mc`
 DEFAULT_CONC_SHARE = 0.3   # R2: absent a label / COA value, 30 % concentrate to 70 % flower
-FIELDS = ("Flower equiv", "Servings per Unit", "CBD content", "Dose")   # the derivable create-stop fields
+FIELDS = ("Product grams", "Flower equiv", "Servings per Unit", "CBD content", "Dose")   # the derivable create-stop fields
 STOP_FLAG = "CONC_GRAMS_TO_SET"   # R2 STOP: the composite class needs the concentrate grams
+DOSE_STOP_FLAG = "DOSE_UNREAD"    # R129 STOP: an mg figure with no count on a THC-grams-class line - the total is unsettled
 
 _PRODUCT = re.compile(r"^product_g_x(\d+(?:\.\d+)?)$")
 _THC = re.compile(r"^thc_g_x(\d+(?:\.\d+)?)$")
@@ -91,10 +96,16 @@ def conc_factor(classes):
     return ks[0] if len(ks) == 1 else None
 
 
-def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_MC):
+def fmt_mg(x):
+    """`10 mg`, `2.5 mg` - the spelling the cites use."""
+    return f"{x:.4f}".rstrip("0").rstrip(".") + " mg"
+
+
+def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_MC, read=None):
     """Pure. mc = the target Master category; grams = total Product grams (float or '1g'); unit = the unit the
     line printed ('g' | 'mg' | None); pack = the pack count the line printed (int or None); classes = the
-    class map (None = no pointer); conc = concentrate grams the operator supplied (float / '0.3g' / None).
+    class map (None = no pointer); conc = concentrate grams the operator supplied (float / '0.3g' / None);
+    read = the vendor dose read (intake_match.dose_read's dict; None = the plan's re-derive, the count settled).
 
     -> {"values": {lane column: value}, "cite": {field: text}, "stops": {field: why}, "flags": [...], "class": cls}
     A field in `values` is DERIVED and leaves the stop; a field in `stops` stays at the stop with its reason.
@@ -104,6 +115,19 @@ def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_
     values, cite, stops, flags = {}, {}, {}, []
     cls = (classes or {}).get(norm(mc)) if mc else None
     kind, k = class_kind(cls) if cls else (None, None)
+    # --- the vendor dose read (R129) -----------------------------------------------------------------------
+    rd = read or {}
+    unsettled = kind == "thc" and rd.get("reading") == "single" and rd.get("unit") == "mg" and g is not None
+    if unsettled:
+        flags.append(DOSE_STOP_FLAG)
+        stops["Product grams"] = (f"an mg figure with no pack count: {fmt_g(g)} is the figure read as the package total; if it is "
+                                  f"per piece, set grams = piece x count and Servings per Unit from the label / COA (R129)")
+    elif g is not None and rd.get("reading") == "package total":
+        cite["Product grams"] = (f"{fmt_g(g)} (R129: package total: a per-piece read would be {fmt_mg(rd['over_mg'])} over the "
+                                 f"{fmt_mg(rd['cap_mg'])} cap; {fmt_mg(rd['piece_mg'])[:-3]} mg x {rd['count']})")
+    elif g is not None and rd.get("reading") == "per piece" and rd.get("unit") == "mg":
+        cite["Product grams"] = (f"{fmt_g(g)} (R129: per piece: {fmt_mg(rd['piece_mg'])[:-3]} mg x {rd['count']} = "
+                                 f"{fmt_mg(g * 1000.0)} fits the {fmt_mg(rd['cap_mg'])} cap)")
     # --- Flower equiv (R1-R3, R6) --------------------------------------------------------------------------
     if classes is None:
         stops["Flower equiv"] = "no `FL EQ classes` pointer: the lane cannot derive it"
@@ -123,7 +147,9 @@ def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_
         values["lane_FlowerEquiv"] = fmt_g(g * k)
         cite["Flower equiv"] = f"{values['lane_FlowerEquiv']} ({'R1 R3' if k != 1 else 'R3'}: {cls}, grams {fmt_g(g)})"
     elif kind == "thc":
-        if unit != "mg":
+        if unsettled:
+            stops["Flower equiv"] = "the package total is unsettled: an mg figure with no count (R129)"
+        elif unit != "mg":
             stops["Flower equiv"] = f"class {cls} needs THC mg and the line prints none (R3 R5)"
         else:
             values["lane_FlowerEquiv"] = fmt_g(g * k)
@@ -156,7 +182,7 @@ def derive(mc, grams, unit=None, pack=None, classes=None, conc=None, cbd_mc=CBD_
     elif mc:
         values["lane_CBDContent"], cite["CBD content"] = "", f"blank (R66: Master category is not {cbd_mc})"
     # --- the name's {Dose} segment (R42 grammar, R7 unit by class, R34 pack) -------------------------------
-    seg = dose_segment(kind, g, unit, pack)
+    seg = None if unsettled else dose_segment(kind, g, unit, pack)
     if seg:
         values["dose_segment"], cite["Dose"] = seg, f"{seg} (R7 R42{' R34' if pack and pack > 1 else ''})"
     return {"values": values, "cite": cite, "stops": stops, "flags": flags, "class": cls}
@@ -279,6 +305,31 @@ def selftest():
     d, fields, stops = describe(derive("Delta", 1.0, "g", 2, cl))
     t.check("describe: the derived cell names each field with its cite", d.startswith("Flower equiv: 2.38g (R1 R2 R3") and "Servings per Unit: 2 (R34" in d
             and fields == ["Flower equiv", "Servings per Unit", "CBD content", "Dose"], d)
+    # the vendor dose read (R129)
+    tot = {"total": 0.1, "reading": "package total", "unit": "mg", "count": 10, "piece_mg": 10.0, "cap_mg": 100, "over_mg": 900.0}
+    r = derive("Gamma", 0.1, "mg", 10, cl, read=tot)
+    t.check("R129: a package-total read is cited on Product grams, and the THC class derives on that total (0.1 g x 56)",
+            r["cite"]["Product grams"] == "0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)"
+            and r["values"]["lane_FlowerEquiv"] == "5.6g" and r["values"]["dose_segment"] == "10mg x 10pk" and not r["flags"], str(r))
+    pp = dict(tot, reading="per piece", over_mg=None)
+    r = derive("Gamma", 0.1, "mg", 10, cl, read=pp)
+    t.check("R129: a per-piece read is cited with the fit", r["cite"]["Product grams"] == "0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap)", str(r["cite"]))
+    d2, fields2, _ = describe(r)
+    t.check("describe: Product grams leads the cell when the read is cited", d2.startswith("Product grams: 0.1g (R129") and fields2[0] == "Product grams"
+            and parse_derived(d2)["Product grams"].startswith("0.1g (R129: per piece"), d2)
+    sg = {"total": 0.1, "reading": "single", "unit": "mg", "count": None, "piece_mg": None, "cap_mg": 100, "over_mg": None}
+    r = derive("Gamma", 0.1, "mg", None, cl, read=sg)
+    t.check("FIRES (R129 STOP): an mg figure with no count on the THC class - DOSE_UNREAD, Product grams + Flower equiv at the stop, no dose segment",
+            DOSE_STOP_FLAG in r["flags"] and "Product grams" in r["stops"] and "unsettled" in r["stops"]["Flower equiv"]
+            and "lane_FlowerEquiv" not in r["values"] and "dose_segment" not in r["values"] and "Product grams" not in r["cite"], str(r))
+    t.check("QUIET: the same read on a product-grams class derives as before (the cap is an mg-class test)",
+            "lane_FlowerEquiv" in derive("Beta", 0.1, "mg", None, cl, read=sg)["values"] and not derive("Beta", 0.1, "mg", None, cl, read=sg)["flags"])
+    t.check("QUIET: the plan's re-derive (no read) on the THC class derives from the row's grams - the count is settled by then",
+            derive("Gamma", 0.1, "mg", None, cl)["values"]["lane_FlowerEquiv"] == "5.6g" and "Product grams" not in derive("Gamma", 0.1, "mg", None, cl)["cite"])
+    t.check("QUIET: a grams read carries no Product grams cite (R129 is an mg-line rule)",
+            "Product grams" not in derive("Alpha Flower", 1.5, "g", 3, cl, read={"total": 1.5, "reading": "per piece", "unit": "g", "count": 3,
+                                                                                    "piece_mg": None, "cap_mg": 100, "over_mg": None})["cite"])
+    t.check("fmt_mg spells the mg cites", fmt_mg(10.0) == "10 mg" and fmt_mg(2.5) == "2.5 mg" and fmt_mg(900) == "900 mg")
     t.check("conc_of reads the concentrate grams back from the derived cell", conc_of(d) == 0.3 and conc_of("Flower equiv: 5.6g (R1 R3)") is None)
     pd = parse_derived(d)
     t.check("parse_derived splits the cell back into its fields", set(pd) == {"Flower equiv", "Servings per Unit", "CBD content", "Dose"}

@@ -28,6 +28,8 @@ by intake_plan for the plan row's provenance and its re-derivation; blank on eve
                                        fact (R2; label / COA); absent, 30 % by default + STOP CONC_GRAMS_TO_SET
            --fl-eq-classes <toml>      the fl_eq class map (default: the tenant pointer `FL EQ classes:`);
                                        with neither, Flower equiv stays at the stop on every new line
+           --package-cap-mg <n>        the package THC cap the vendor dose read tests piece x count against (R129;
+                                       default: the tenant pointer `Package THC cap mg:`, else the generic default)
            --new-line-tag "<tag>"      the R83 tag a NEW_PL create carries (default `ITM - New PL`;
                                        tenant: `New line tag:` in `## Intake Pointers`)
            --active-tag "<tag>"        the R96 standard state (default `ITM - Active`; tenant: `Active tag:`)
@@ -102,7 +104,13 @@ Flag table (flags column; none fails the run):
                                     such items, or a line that names another form word, is not EXISTS.
                                     No vendor word is added to FORM_SYNONYMS for this: the test is generic.
   LANE_AMBIGUOUS        R50   STOP  two or more lanes fit equally; no sibling chosen
-  DOSE_UNREAD           R50   STOP  no grams / mg read from the line; the lane test ran without it
+  DOSE_UNREAD           R50   STOP  no grams / mg read from the line; the lane test ran without it - or (R129) an mg
+                                    figure with NO count on a THC-grams-class new line: the package total is unsettled,
+                                    so Product grams, Flower equiv and the name's dose stay at the stop
+  DOSE_READ_TOTAL       R129  INFO  the mg figure beside the count was read as the PACKAGE total (per piece x count
+                                    would break the package cap); the piece is total / count. The Operator checks it
+                                    against the COA at the stop: mg per serving or per package confirms it; mg/g settles
+                                    nothing (grams per piece unknown)
   FLAVOR_TO_SET         R101  STOP  the sibling carries a Flavor: set the new item's own at create
   OT_TEMPLATE_MISS      R101  INFO  the sibling's Online title does not contain its strain; write it by hand
   NEW_LINE_FIELDS       R101  STOP  a NEW_PL copy inherits a different lane: confirm or edit the name's body,
@@ -155,7 +163,7 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import (CATALOG_REQUIRED, COL_RETIRED, DEFAULT_ACTIVE_TAG, DEFAULT_DEAD_TAG,  # noqa: E402
+from intake_common import (CATALOG_REQUIRED, COL_RETIRED, DEFAULT_ACTIVE_TAG, DEFAULT_DEAD_TAG, DEFAULT_PACKAGE_THC_CAP_MG,  # noqa: E402
                            DEFAULT_NEW_LINE_TAG, ITEM_PREFIX, BRANDS_REQUIRED, CATEGORIES_REQUIRED,
                            EXIT_ABORT, EXIT_DEFECT, EXIT_OK, STRAINS_REQUIRED, Selftest, abort, body_of,
                            form_word, freshest, get_all, get_flag, grams_eq, grams_of, has_phrase, lane_key,
@@ -184,7 +192,8 @@ V6_COLS = V5_COLS + V6_NEW
 INTAKE_COLS = V6_COLS   # what this script writes; every reader requires V3_COLS, so a v3, v4 or v5 file still reads
 VERDICTS = ["EXISTS", "RETIRED_MATCH", "NEW_ITEM_WITH_SIBLING", "STRAIN_MISSING", "NEW_PL", "NEW_CATEGORY", "NEW_BRAND"]
 FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), ("LANE_AMBIGUOUS", "R50", "STOP"),
-         ("DOSE_UNREAD", "R50", "STOP"), ("FLAVOR_TO_SET", "R101", "STOP"), ("OT_TEMPLATE_MISS", "R101", "INFO"),
+         ("DOSE_UNREAD", "R50", "STOP"), ("DOSE_READ_TOTAL", "R129", "INFO"), ("FLAVOR_TO_SET", "R101", "STOP"),
+         ("OT_TEMPLATE_MISS", "R101", "INFO"),
          ("NEW_LINE_FIELDS", "R101", "STOP"), ("UNRETIRE_FIELDS", "R101", "STOP"), ("UNRETIRE_FIRST", "R101", "STOP"),
          ("CROSS_BRAND_COPY", "R101", "STOP"), ("CATEGORY_UNREAD", "R101", "STOP"), ("CATEGORY_DIRECTED", "R33", "STOP"),
          ("CATEGORY_INFERRED", "R33", "STOP"), ("OIL_LIVE_DEFAULT", "R79", "INFO"), ("ROUTE_RESIN_DEFAULT", "R33", "INFO"), ("BRAND_NAME_UNREAD", "R121", "STOP"),
@@ -236,21 +245,45 @@ def pack_count_of(desc):
     return None if not m else int(m.group(1) or m.group(2))
 
 
-def dose_of(desc):
-    """The line's TOTAL grams, the grain the catalog's `Product grams` carries. A pack line prints the
-    per-piece weight (`0.5g x 3pk`), so the total is weight x count unless the line also prints the
-    total itself (`1.5g (3 x 0.5g)`), in which case that printed total wins."""
-    ws = [float(a) / 1000.0 if u.lower() == "mg" else float(a)
-          for a, u in re.findall(r"(\d+(?:\.\d+)?)\s*(mg|g)\b", desc or "", re.I)]
+def dose_read(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
+    """The vendor dose read: {'total': grams | None, 'reading': how, 'unit': 'g' | 'mg' | None, 'count': n | None,
+    'piece_mg': float | None, 'cap_mg': cap_mg, 'over_mg': float | None}. `total` is the line's TOTAL grams, the grain
+    the catalog's `Product grams` carries. `reading`:
+      None             no weight printed (DOSE_UNREAD)
+      'single'         one weight, no count (or a count of 1): the weight is the total
+      'printed total'  the line prints both the piece and the total (`1.5g (3 x 0.5g)`): the printed total wins
+      'per piece'      weight x count (`0.5g x 3pk` = 1.5 g; `10mg x 10ct` = 100 mg): the grams read, and the mg read
+                       when piece x count fits the package cap (R129)
+      'package total'  R129: an mg figure beside a count whose per-piece read would put the package over the cap
+                       (`100mg - 10ct`: 1000 mg > 100 mg) is the package total; the piece is total / count (10 mg).
+    The grams read is unchanged by R129: the cap is an mg-line test (a 0.5 g x 3 pack is not a dosed package)."""
+    pairs = [(float(a), u.lower()) for a, u in re.findall(r"(\d+(?:\.\d+)?)\s*(mg|g)\b", desc or "", re.I)]
+    ws = [a / 1000.0 if u == "mg" else a for a, u in pairs]
+    unit = pairs[0][1] if pairs else None
+    out = {"total": None, "reading": None, "unit": unit, "count": pack_count_of(desc), "piece_mg": None,
+           "cap_mg": cap_mg, "over_mg": None}
     if not ws:
-        return None
-    n = pack_count_of(desc)
+        return out
+    n = out["count"]
     if not n or n < 2:
-        return ws[0]
+        out.update(total=ws[0], reading="single")
+        return out
     for w in ws:
         if any(abs(w - v * n) < 1e-6 for v in ws if v != w):
-            return w
-    return round(min(ws) * n, 4)
+            out.update(total=w, reading="printed total")
+            return out
+    piece = min(ws)
+    if unit == "mg" and cap_mg is not None and piece * n * 1000.0 > cap_mg + 1e-9:
+        out.update(total=round(piece, 4), reading="package total", piece_mg=round(piece * 1000.0 / n, 4),
+                   over_mg=round(piece * n * 1000.0 - cap_mg, 4))
+        return out
+    out.update(total=round(piece * n, 4), reading="per piece", piece_mg=round(piece * 1000.0, 4) if unit == "mg" else None)
+    return out
+
+
+def dose_of(desc, cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
+    """The line's TOTAL grams (dose_read(...)['total']); None when the line prints no weight."""
+    return dose_read(desc, cap_mg)["total"]
 
 
 def dose_unit_of(desc):
@@ -703,9 +736,11 @@ def direction(table, line_no):
 def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEFAULT_NEW_LINE_TAG,
           dead_tag=DEFAULT_DEAD_TAG, drop_tags=(), active_tag=DEFAULT_ACTIVE_TAG, prefix=ITEM_PREFIX,
           tag_overrides=None, categories=None, brands=None, line_brands=None, line_categories=None,
-          strain_types=None, fl_eq_classes=None, conc_grams=None):
+          strain_types=None, fl_eq_classes=None, conc_grams=None, package_cap_mg=DEFAULT_PACKAGE_THC_CAP_MG):
     """Pure: (intake rows, defects). `fl_eq_classes` = {norm(Master category): fl_eq class} (intake_derive;
-    None = no pointer, Flower equiv stays at the stop); `conc_grams` = {line_no or '*': grams} directions (R2). `strains` = {name: {'type':..., 'id':...}}. `tag_overrides` =
+    None = no pointer, Flower equiv stays at the stop); `conc_grams` = {line_no or '*': grams} directions (R2);
+    `package_cap_mg` = the package THC cap the vendor dose read tests piece x count against (R129, dose_read).
+    `strains` = {name: {'type':..., 'id':...}}. `tag_overrides` =
     {line_no or '*': tag} - the business's direction for a sibling copy's decision tag (R96).
     `categories` = the taxonomy rows (None: the catalog's own stand in); `brands` = the Brand records
     (Display name); `line_brands` / `line_categories` / `strain_types` = {line_no or '*': value} directions,
@@ -729,10 +764,13 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             defects.append(f"BAD_LINE line {ln.get('line_no')}: {ln.get('description')!r}")
         desc = ln.get("description", "")
         desc_n, dtoks = norm(desc), set(canon(desc).split())
-        g = dose_of(desc)
+        rd = dose_read(desc, package_cap_mg)   # R129: per piece when piece x count fits the cap, else the package total
+        g = rd["total"]
         fl = flavor_led(desc, vocab)
         if g is None:
             flags.append("DOSE_UNREAD")
+        elif rd["reading"] == "package total":
+            flags.append("DOSE_READ_TOTAL")
         vend = ln.get("vendor", "")
         at = f"{'?' if g is None else format(g, 'g')}g"
         vb = sorted({r["Brand"] for r in everything if r.get("Brand")
@@ -934,7 +972,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             # The fields canon derives (R1-R3, R6, R7, R34, R42, R66): computed from the line's facts and the target
             # Master category's class; each leaves the stop and is cited in `derived`. What cannot be derived stays.
             dv = intake_derive.derive(mc, g, dose_unit_of(desc), pack_count_of(desc), fl_eq_classes,
-                                      conc=direction(conc_grams, ln.get("line_no")))
+                                      conc=direction(conc_grams, ln.get("line_no")), read=rd)
             derived_txt, derived_fields, derived_stops = intake_derive.describe(dv)
             flags += [f for f in dv["flags"] if f not in flags]
             dose = dv["values"].get("dose_segment") or ("" if g is None else f"{g:g}g")
@@ -1158,6 +1196,21 @@ def load_fl_eq_classes(argv, ptr):
         abort(f"fl_eq class map {p}: {e}")
 
 
+def package_cap_mg(argv, ptr):
+    """The package THC cap (mg) for the vendor dose read (R129): `--package-cap-mg <n>`, else the tenant pointer
+    `Package THC cap mg:`, else the skill's generic default. A value that is not a positive number ABORTs."""
+    v = get_flag(argv, "--package-cap-mg") or ((ptr or {}).get("intake", {}) or {}).get("Package THC cap mg")
+    if v is None or re.fullmatch(r"<[^>]*>", str(v).strip()):
+        return DEFAULT_PACKAGE_THC_CAP_MG
+    try:
+        cap = float(v)
+    except (TypeError, ValueError):
+        cap = 0.0
+    if cap <= 0:
+        abort(f"package THC cap {v!r} is not a positive number of mg (R129)")
+    return cap
+
+
 def parse_directions(specs, flag):
     """`<line_no>=<value>` / `*=<value>` -> {key: value}; an empty side ABORTs."""
     out = {}
@@ -1187,6 +1240,7 @@ def main(argv):
     new_line_tag, active_tag = tag_options(argv, ptr)
     overrides = parse_overrides(get_all(argv, "--tag-override"), new_line_tag, get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG))
     classes = load_fl_eq_classes(argv, ptr)
+    cap_mg = package_cap_mg(argv, ptr)
     rows, defects = match(lines, active, retired, strains, get_flag(argv, "--brand"), new_line_tag,
                           get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG), get_all(argv, "--drop-tag"),
                           active_tag, ITEM_PREFIX, overrides, categories=cats, brands=brs,
@@ -1194,7 +1248,8 @@ def main(argv):
                           line_categories=parse_directions(get_all(argv, "--line-category"), "--line-category"),
                           strain_types=parse_directions(get_all(argv, "--strain-type"), "--strain-type"),
                           fl_eq_classes=classes,
-                          conc_grams=parse_directions(get_all(argv, "--conc-grams"), "--conc-grams"))
+                          conc_grams=parse_directions(get_all(argv, "--conc-grams"), "--conc-grams"),
+                          package_cap_mg=cap_mg)
     if classes is None:
         print("WARNING: no fl_eq class map (--fl-eq-classes or the tenant pointer `FL EQ classes:`): Flower equiv "
               "stays at the stop on every new line")
@@ -1252,6 +1307,14 @@ def _aborts(fn):
     return False
 
 
+def _aborts(fn):
+    try:
+        fn()
+    except SystemExit:
+        return True
+    return False
+
+
 def selftest():
     t = Selftest("intake_match")
     active = [_item("1", "Acme | Pre-Roll | Blue Dream | 1g", pid="11", **{"Image URL": "a.jpg"}),
@@ -1273,7 +1336,22 @@ def selftest():
     t.check("dose_of: count before weight", dose_of("Acme Blue Dream 3-pack Pre-Roll 0.5g") == 1.5)
     t.check("dose_of: 10 ct", dose_of("Acme Blue Dream Pre-Roll 0.5g 10 ct") == 5.0)
     t.check("dose_of: printed total wins", dose_of("Acme Blue Dream Pre-Roll 1.5g (3 x 0.5g)") == 1.5)
-    t.check("dose_of: mg dose, no pack", dose_of("Acme Gummy 100mg 10pk") == 0.1 * 10)
+    t.check("R129 dose_of: an mg figure beside a count that breaks the cap is the PACKAGE total (100mg - 10ct = 0.1 g, not 1 g)",
+            dose_of("Acme Gummy 100mg - 10ct") == 0.1 and dose_of("Acme Gummy 100mg 10pk") == 0.1)
+    t.check("R129 dose_of: an mg figure that fits the cap is per piece (10mg x 10ct = 0.1 g; 5mg - 10ct = 0.05 g)",
+            dose_of("Acme Gummy 10mg x 10ct") == 0.1 and dose_of("Acme Gummy 5mg - 10ct") == 0.05)
+    t.check("R129 dose_of: the boundary fits (10mg x 10 = the 100 mg cap); one piece over does not (11mg x 10)",
+            dose_read("Acme Gummy 10mg x 10ct")["reading"] == "per piece" and dose_read("Acme Gummy 11mg x 10ct")["reading"] == "package total")
+    rd = dose_read("Acme Gummy 100mg - 10ct")
+    t.check("R129 dose_read: a package-total read names the piece and the overshoot",
+            rd["reading"] == "package total" and rd["piece_mg"] == 10 and rd["over_mg"] == 900 and rd["count"] == 10 and rd["unit"] == "mg", str(rd))
+    t.check("R129 dose_read: the cap is a parameter (cap 50: 10mg x 10 reads as the package total, piece 1 mg)",
+            dose_read("Acme Gummy 10mg x 10ct", cap_mg=50)["reading"] == "package total" and dose_read("Acme Gummy 10mg x 10ct", cap_mg=50)["piece_mg"] == 1)
+    t.check("R129 dose_read: the grams read is unchanged (0.5g x 3pk = 1.5 g per piece; no cap test on grams)",
+            dose_read("Acme Blue Dream Pre-Roll 0.5g x 3pk")["reading"] == "per piece" and dose_of("Acme Pre-Roll 50g x 3pk") == 150.0)
+    t.check("R129 dose_read: a single mg figure with no count is 'single' (the total; the count is unsettled)",
+            dose_read("Acme Gummy 100mg")["reading"] == "single" and dose_read("Acme Gummy 100mg")["total"] == 0.1
+            and dose_read("Acme Gummy 10ct")["reading"] is None)
     t.check("dose_of: '1 x' is not a pack", dose_of("Acme Blue Dream 1 x 3.5g") == 3.5)
     t.check("pack_count_of: none on a single", pack_count_of("Acme Blue Dream Pre-Roll 1g") is None)
     # --- RETIRED_MATCH = the un-retire path (R101: the line comes back WHOLE) ---
@@ -1431,10 +1509,41 @@ def selftest():
             and r["create_name_FINAL"].endswith("| 0.5g x 3pk") and "Servings per Unit: 3 (R34" in r["derived"],
             f"{r['lane_ServingsPerUnit']} {r['lane_ProductGrams']} {r['lane_FlowerEquiv']} {r['create_name_FINAL']!r}")
     r = run("Acme Mango gummy 100mg 10pk", act=vape, fl_eq_classes=classes)
-    t.check("a THC-grams class on an mg line: Flower equiv = the row's THC grams x 56 (R3 R5), dose segment in mg (R7)",
-            grams_eq(r["lane_FlowerEquiv"], f"{grams_of(r['lane_ProductGrams']) * 56:g}g") and "R3 R5: thc_g_x56" in r["derived"]
-            and "Dose: 100mg x 10pk (R7 R42 R34)" in r["derived"] and r["lane_ServingsPerUnit"] == "10",
-            f"{r['lane_FlowerEquiv']} {r['lane_ProductGrams']} {r['create_name_FINAL']!r}")
+    t.check("a THC-grams class on an mg line: Flower equiv = the row's THC grams x 56 (R3 R5), dose segment in mg (R7); "
+            "R129 reads 100mg 10pk as the package total: 0.1 g, 10mg x 10pk, Flower equiv 5.6g, DOSE_READ_TOTAL",
+            r["lane_ProductGrams"] == "0.1g" and r["lane_FlowerEquiv"] == "5.6g" and "R3 R5: thc_g_x56" in r["derived"]
+            and "Dose: 10mg x 10pk (R7 R42 R34)" in r["derived"] and r["lane_ServingsPerUnit"] == "10"
+            and "Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)" in r["derived"]
+            and "DOSE_READ_TOTAL" in r["flags"].split(";"),
+            f"{r['lane_FlowerEquiv']} {r['lane_ProductGrams']} {r['derived']!r} {r['flags']}")
+    r = run("Acme Mango gummy 10mg x 10ct", act=vape, fl_eq_classes=classes)
+    t.check("R129: an mg figure that fits the cap is per piece - 0.1 g total, no flag, cited",
+            r["lane_ProductGrams"] == "0.1g" and "DOSE_READ_TOTAL" not in r["flags"].split(";") and "Dose: 10mg x 10pk" in r["derived"]
+            and "Product grams: 0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap)" in r["derived"],
+            f"{r['lane_ProductGrams']} {r['derived']!r} {r['flags']}")
+    r = run("Acme Mango gummy 5mg - 10ct", act=vape, fl_eq_classes=classes)
+    t.check("R129: 5mg - 10ct is per piece: 0.05 g, `5mg x 10pk`, Flower equiv 2.8g",
+            r["lane_ProductGrams"] == "0.05g" and r["lane_FlowerEquiv"] == "2.8g" and "Dose: 5mg x 10pk" in r["derived"],
+            f"{r['lane_ProductGrams']} {r['lane_FlowerEquiv']} {r['derived']!r}")
+    r = run("Acme Mango gummy 10mg x 10ct", act=vape, fl_eq_classes=classes, package_cap_mg=50)
+    t.check("R129: the cap is the tenant's (cap 50: 10mg x 10ct reads as the package total, piece 1 mg, flagged)",
+            r["lane_ProductGrams"] == "0.01g" and "DOSE_READ_TOTAL" in r["flags"].split(";") and "Dose: 1mg x 10pk" in r["derived"],
+            f"{r['lane_ProductGrams']} {r['derived']!r} {r['flags']}")
+    r = run("Acme Mango gummy 100mg", act=vape, fl_eq_classes=classes)
+    t.check("R129 STOP: an mg figure with NO count on a THC-grams-class new line keeps DOSE_UNREAD; Product grams, Flower "
+            "equiv and the name's dose stay at the stop, named",
+            "DOSE_UNREAD" in r["flags"].split(";") and "Product grams (an mg figure with no pack count" in r["sibling_reason"]
+            and "Flower equiv:" not in r["derived"] and "Dose:" not in r["derived"] and r["create_name_FINAL"] == ""
+            and "name (dose unread)" in r["sibling_reason"] and r["lane_ProductGrams"] == "0.1g",
+            f"{r['flags']} {r['derived']!r} {r['sibling_reason'][-300:]}")
+    pt = {"intake": {"Package THC cap mg": "50"}}
+    t.check("package_cap_mg: the flag beats the pointer, the pointer beats the generic default, a placeholder is the default",
+            package_cap_mg(["--package-cap-mg", "75"], pt) == 75.0 and package_cap_mg([], pt) == 50.0
+            and package_cap_mg([], None) == DEFAULT_PACKAGE_THC_CAP_MG and package_cap_mg([], {"intake": {"Package THC cap mg": "<mg>"}}) == DEFAULT_PACKAGE_THC_CAP_MG)
+    t.check("FIRES: a cap that is not a positive number ABORTs", _aborts(lambda: package_cap_mg(["--package-cap-mg", "none"], None))
+            and _aborts(lambda: package_cap_mg([], {"intake": {"Package THC cap mg": "0"}})))
+    t.check("QUIET: the no-count STOP is the THC-grams class's alone (a g-line single derives as before)",
+            "DOSE_UNREAD" not in run("Acme Gelato cart 0.5g", act=vape, fl_eq_classes=classes)["flags"].split(";"))
     r = run("Acme Mango gummy 1g 10pk", act=vape, fl_eq_classes=classes)
     t.check("FIRES: a THC-grams class on a g-only line keeps Flower equiv at the stop, named",
             "needs THC mg" in r["sibling_reason"] and "Flower equiv:" not in r["derived"], r["sibling_reason"][-200:])

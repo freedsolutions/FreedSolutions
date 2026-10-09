@@ -35,6 +35,9 @@ OPTIONAL_TAG_KEYS = ["New line tag", "Active tag"]   # R83 / R96; absent = the s
 # R1-R3, R6: the tenant's fl_eq class map (a TOML of [master.<MC>] tables); optional - absent, Flower equiv stays
 # at the create stop on every new line (intake_derive.py).
 OPTIONAL_CLASS_KEY = "FL EQ classes"
+# R129: the package THC cap (mg) the vendor dose read tests piece x count against; optional - absent, the skill's
+# generic default (intake_common.DEFAULT_PACKAGE_THC_CAP_MG) stands.
+OPTIONAL_CAP_KEY = "Package THC cap mg"
 # The MSRP read (intake_msrp.py). Optional here; intake_msrp ABORTs without center, radius and own store.
 OPTIONAL_MARKET_KEYS = ["Market center", "Market radius mi", "Market box", "Market archive", "Own store",
                         "MSRP anchor", "MSRP floor x cost"]
@@ -140,6 +143,9 @@ def validate(res):
     fl = res["intake"].get(OPTIONAL_CLASS_KEY)
     if fl is not None and not is_placeholder(fl) and not fl.lower().endswith(".toml"):
         probs.append(f"`{OPTIONAL_CLASS_KEY}` must name a .toml class map, got {fl!r}")
+    cap = res["intake"].get(OPTIONAL_CAP_KEY)
+    if cap is not None and not is_placeholder(cap) and not (re.fullmatch(r"\d+(?:\.\d+)?", cap) and float(cap) > 0):
+        probs.append(f"`{OPTIONAL_CAP_KEY}` must be a positive number of mg (R129), got {cap!r}")
     wc = res["bi"].get("Write channel")
     if wc is not None and not is_placeholder(wc) and not ladder(res["raw"].get("bi:Write channel", wc)):
         probs.append(f"`Write channel` names no known channel {CHANNELS}")
@@ -252,6 +258,13 @@ def selftest():
             validate(rf) == [] and rf["intake"][OPTIONAL_CLASS_KEY] == "./category-qc/intent.toml", str(rf["intake"].get(OPTIONAL_CLASS_KEY)))
     t.check("FIRES: a class map that is not a .toml is refused",
             any("class map" in p for p in validate(parse_text(fl.replace("intent.toml", "intent.csv")))))
+    t.check("QUIET: the package cap key is optional (the generic default stands, R129)", OPTIONAL_CAP_KEY not in r["intake"] and validate(r) == [])
+    cp = SAMPLE.replace("## Change log", "- Package THC cap mg: 100   # R129: the adult-use cap per package\n\n## Change log", 1)
+    rc = parse_text(cp)
+    t.check("the package cap parses as a number with its comment stripped", validate(rc) == [] and rc["intake"][OPTIONAL_CAP_KEY] == "100", str(validate(rc)))
+    t.check("FIRES: a cap that is not a positive number is refused",
+            any("positive number" in p for p in validate(parse_text(cp.replace("cap mg: 100", "cap mg: one hundred"))))
+            and any("positive number" in p for p in validate(parse_text(cp.replace("cap mg: 100", "cap mg: 0")))))
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()
