@@ -168,7 +168,15 @@ through connector bodies only.
    category's `fl_eq` class (R1-R3, R6 - the class map is the tenant's own file, pointer `FL EQ classes:`;
    classes `product_g_x<k>`, `thc_g_x<k>` on an mg line, `composite`, `sentinel_<v>`, `none`); Servings per Unit
    from the pack count the line prints (R34); CBD content blank off the CBD master (R66); the name's dose segment
-   `Ng` / `Nmg` / `N x Mpk` with the unit by class (R7, R42). A field the line gives the lane no fact for stays at
+   `Ng` / `Nmg` / `N x Mpk` with the unit by class (R7, R42). **The vendor dose read is R129's:** an mg figure
+   beside a count is PER PIECE when piece x count fits the package THC cap (the skill's generic default, or the
+   tenant pointer `Package THC cap mg:` / `--package-cap-mg`), else it is the PACKAGE TOTAL and the piece is
+   total / count (`100mg - 10ct` = 10 mg x 10, 0.1 g); the row's `derived` cell cites the read taken and why
+   (`Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)`),
+   a package-total read is flagged `DOSE_READ_TOTAL` (INFO) for the COA check at the stop, and the grams read
+   (`0.5g x 3pk` = 1.5 g) is untouched. An mg figure with NO count on a THC-grams-class new line leaves the package
+   total unsettled: `DOSE_UNREAD` (STOP), and Product grams, Flower equiv and the name's dose stay at the stop. A
+   field the line gives the lane no fact for stays at
    the stop and the STOP text names it with the reason (no pointer; a THC-grams class on a g-only line; no pack
    count printed; the CBD dose on a CBD item). The composite (infused) class derives at the 30 % default and
    STOPS on the concentrate grams - a product fact (R2) - as `CONC_GRAMS_TO_SET`; `--conc-grams <line_no>=<g>`
@@ -363,7 +371,8 @@ The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt D
 ## The ONE human stop (pre-create)
 
 Nothing is created before the Operator's reply. Everything that needs no ruling and no login runs
-first. The message has three parts printed by `intake_exceptions.py`, plus a fourth printed by
+first. The message has three parts printed by `intake_exceptions.py` (its flag notes carry the R129 dose
+check, item 5), plus a fourth printed by
 `intake_msrp.py` whenever the intake carries a new line:
 
 1. **Verdict table** - `# | Invoice line | Verdict | Sibling / match | Final name | Landed unit |
@@ -381,6 +390,12 @@ first. The message has three parts printed by `intake_exceptions.py`, plus a fou
    the dose segment - the row's `derived` column) are not retyped. The flags are INFO: `MSRP_THIN`, `MSRP_SPREAD` (the number is
    more than 20 % from a market read that did not set it), `MSRP_FLOOR_RAISED`, `MSRP_MARGIN_LOW`,
    `MSRP_ARCHIVE_ONLY`, `MSRP_NO_EVIDENCE` (price it by hand with the business).
+5. **The dose read, checked against the COA (R129).** A row flagged `DOSE_READ_TOTAL` read its mg figure as the
+   package total (per piece x count would break the package cap); the Operator confirms it against the COA before
+   replying: a COA mg per serving or mg per package settles the read; a COA stating mg/g settles nothing, because the
+   grams per piece are unknown. The lane reads no COA file: this is the Operator's check, and the COA stays filed
+   beside the invoice (R104). A `DOSE_UNREAD` on an mg line with no count means the package total is unsettled:
+   set Product grams and Servings per Unit in the lane cells from the label / COA and write the name's dose.
 
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
 Under R124 the plan summary (`intake_plan.py`) rides this stop: the Operator's approval of the plan
@@ -444,7 +459,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 ## Scripts and proofs
 
 `scripts/`: `intake_pointers.py` · `intake_parse.py` (+ `parsers/`) · `intake_match.py` ·
-`intake_derive.py` (the derived create-stop fields: R1-R3, R6, R7, R34, R42, R66) ·
+`intake_derive.py` (the derived create-stop fields: R1-R3, R6, R7, R34, R42, R66; the R129 dose-read cite and no-count STOP) ·
 `intake_exceptions.py` · `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.

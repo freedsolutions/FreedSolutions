@@ -40,6 +40,11 @@ DEFAULT_NEW_LINE_TAG = "ITM - New PL"   # R83: rides a NEW-LINE create (verdict 
 DEFAULT_ACTIVE_TAG = "ITM - Active"     # R96: the standard state; a sibling copy of a mixed line reads it
 DEFAULT_DEAD_TAG = "ITM - Do Not Use"    # R81: a dead record is never a sibling
 PKG_PREFIX = "PKG - "                    # R62 / R72 tag family
+# R129: the vendor dose read. An mg figure beside a count on a vendor line is PER PIECE when piece x count fits
+# this cap (mg THC per package, the market's adult-use limit), else it is the PACKAGE TOTAL and the piece is
+# total / count. The cap is a derivation input, never a product fact. Generic default; a tenant overrides it with
+# the pointer `Package THC cap mg:` (intake_pointers) or `--package-cap-mg` (intake_match).
+DEFAULT_PACKAGE_THC_CAP_MG = 100
 # R101: the only verdicts `create` writes, on approved = Y. NEW_BRAND creates the Brand record first (R30, R121).
 # A RETIRED_MATCH is an un-retire, never a create; a row with no copy source or no brand is never created as it stands.
 CREATE_VERDICTS = ("NEW_ITEM_WITH_SIBLING", "NEW_PL", "NEW_BRAND")

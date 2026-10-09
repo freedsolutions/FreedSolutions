@@ -69,7 +69,8 @@ from intake_match import V3_COLS  # noqa: E402
 import intake_derive  # noqa: E402
 
 # plan field -> (the derived-cell field name, the intake column it re-derives from)
-DERIVED_FIELDS = {"FlowerEquivalent": "Flower equiv", "ServingSizePerUnit": "Servings per Unit", "CBDContent": "CBD content"}
+DERIVED_FIELDS = {"FlowerEquivalent": "Flower equiv", "ServingSizePerUnit": "Servings per Unit", "CBDContent": "CBD content",
+                  "Grams": "Product grams"}   # R129: the vendor dose read (per piece / package total) rides the Grams row
 
 PLAN_COLS = ["seq", "step", "line_no", "product_key", "field", "before", "target", "channel", "depends_on",
              "provenance", "row_sha1"]
@@ -685,6 +686,12 @@ def selftest():
             f"{ref_d} {fe}")
     t.check("a derived Servings per Unit cites R34 in the provenance",
             "R34" in byf[("new:3", "ServingSizePerUnit")]["provenance"] and byf[("new:3", "ServingSizePerUnit")]["target"] == "10")
+    fd["intake"][2]["derived"] = ("Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10); "
+                                  + fd["intake"][2]["derived"])
+    rows_g, _, _ = _build(fd, guard=_probed(), fl_eq_classes=classes)
+    gr = next((r for r in rows_g if r["product_key"] == "new:3" and r["field"] == "Grams"), None)
+    t.check("the Grams row carries the vendor dose read with its cite (R129: per piece / package total)",
+            gr is not None and gr["target"] == "0.1" and "derived Product grams 0.1g (R129: package total" in gr["provenance"], str(gr))
     fd["intake"][2]["lane_ProductGrams"] = "0.05g"   # the Operator corrected the grams at the stop; FE cell is stale
     rows_d, ref_d, _ = _build(fd, guard=_probed(), fl_eq_classes=classes)
     fe = next(r for r in rows_d if r["product_key"] == "new:3" and r["field"] == "FlowerEquivalent")

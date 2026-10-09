@@ -103,7 +103,8 @@ def matched(c):
     return IM.match(c["lines"], c["active"], c["retired"], c["strains"], drop_tags=DROP,
                     categories=c.get("categories"), brands=c.get("brands"), line_brands=c.get("line_brands"),
                     line_categories=c.get("line_categories"), strain_types=c.get("strain_types"),
-                    fl_eq_classes=c.get("fl_eq"), conc_grams=c.get("conc_grams"))[0]
+                    fl_eq_classes=c.get("fl_eq"), conc_grams=c.get("conc_grams"),
+                    package_cap_mg=c.get("cap_mg", C.DEFAULT_PACKAGE_THC_CAP_MG))[0]
 
 
 def verdict_count(c, v):
@@ -451,6 +452,30 @@ GUMMY_SRC = dict(BASE["active"][3], SKU="3101", ProductId="711", Brand="Birch La
                  **{"Master category": "Edible", "Global SubCategory": "gummies", "Product grams": "0.1g",
                     "Online title": "Lime Gummies 100mg", "Online description": "Birch's lime gummies."})
 
+
+
+def gummy_ctx(desc="Cedar Co Mango gummies 100mg 10pk", brand=True, **over):
+    """Line 6 re-described, with the Edible gummy source in the catalog: a NEW_BRAND copy (brand=True spells
+    Cedar Co) or whatever the line's own brand words match (brand=False). The THC-grams class is the fixture map's
+    Edible -> thc_g_x56; R129's vendor dose read is tested here."""
+    c = ctx(active=BASE["active"] + [GUMMY_SRC], **over)
+    if brand:
+        c["line_brands"] = {"6": "Cedar Co"}
+    c["lines"] = [dict(ln, description=desc) if ln["line_no"] == "6" else ln for ln in c["lines"]]
+    return c
+
+
+def gummy_row(c):
+    return next(r for r in matched(c) if r["invoice_line"].split(" | ")[0].lower().endswith("gummies") or "gummies" in r["invoice_line"].lower())
+
+
+def mg_pack_ctx():
+    """pack_line_ctx with line 5 printed in mg (`500mg 3-pack`): the same pack under the cap test."""
+    c = new_line_ctx()
+    c["lines"] = [dict(ln, description=ln["description"].replace("0.5g", "500mg") + " 3-pack") if ln["line_no"] == "5" else ln for ln in c["lines"]]
+    return c
+
+
 # (name, predicate(ctx-or-arg) , clean arg, broken arg, what the breaker does)
 # ---- R124: the plan file and the one certify (synthetic batch: fixtures/plan-*.csv) -------------------------
 PFX = IC.plan_fixture()
@@ -623,6 +648,32 @@ CHECKS = [
     ("certify A-population: a created item's Flower equiv must equal the DERIVED target (grams compare)",
      lambda c: not any("MISMATCH Flower equiv:" in line for line in cert_derived(c)["rep"]),
      new_line_ctx(), "break", "the post export prints the source's 1.2g instead of the derived 2.8g"),
+    # --- the vendor dose read (R129): per piece when piece x count fits the package cap, else the package total ---
+    ("R129: `100mg 10pk` on a THC-grams class is the PACKAGE total - 0.1 g, Servings 10, `10mg x 10pk`, Flower equiv 5.6g, DOSE_READ_TOTAL + the cite",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "0.1g" and r["lane_ServingsPerUnit"] == "10" and r["lane_FlowerEquiv"] == "5.6g"
+                and "Dose: 10mg x 10pk (R7 R42 R34)" in r["derived"] and "DOSE_READ_TOTAL" in r["flags"].split(";")
+                and "Product grams: 0.1g (R129: package total: a per-piece read would be 900 mg over the 100 mg cap; 10 mg x 10)" in r["derived"])(gummy_row(c)),
+     gummy_ctx(), gummy_ctx("Cedar Co Mango gummies 10mg x 10pk"), "the figure fits the cap: per piece, no flag, no package-total cite"),
+    ("R129: an mg figure that fits the cap is per piece (`10mg x 10pk`): 0.1 g, no flag, the fit cited",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "0.1g" and "DOSE_READ_TOTAL" not in r["flags"].split(";")
+                and "Product grams: 0.1g (R129: per piece: 10 mg x 10 = 100 mg fits the 100 mg cap)" in r["derived"])(gummy_row(c)),
+     gummy_ctx("Cedar Co Mango gummies 10mg x 10pk"), gummy_ctx("Cedar Co Mango gummies 10mg x 10pk", cap_mg=50),
+     "the tenant's cap is 50 mg (`Package THC cap mg:`): the same line reads as the package total"),
+    ("R129: `5mg - 10ct` is per piece - 0.05 g, `5mg x 10pk`, Flower equiv 2.8g",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "0.05g" and "Dose: 5mg x 10pk" in r["derived"] and r["lane_FlowerEquiv"] == "2.8g")(gummy_row(c)),
+     gummy_ctx("Cedar Co Mango gummies 5mg - 10ct"), gummy_ctx("Cedar Co Mango gummies 500mg - 10ct"),
+     "500 mg x 10 breaks the cap: package total 0.5 g, `50mg x 10pk`, Flower equiv 28g"),
+    ("R129 STOP: an mg figure with NO count on a THC-grams-class new line keeps DOSE_UNREAD; Product grams, Flower equiv and the dose stay at the stop, named",
+     lambda c: (lambda r: "DOSE_UNREAD" in r["flags"].split(";") and "Product grams (an mg figure with no pack count" in r["sibling_reason"]
+                and "Flower equiv:" not in r["derived"] and "Dose:" not in r["derived"] and r["lane_ProductGrams"] == "0.1g")(gummy_row(c)),
+     gummy_ctx("Cedar Co Mango gummies 100mg"), gummy_ctx(), "the line prints the count (10pk): the read settles, no STOP"),
+    ("R129 leaves the grams read alone: `0.5g 3-pack` is per piece, 1.5 g, no cap test, no Product grams cite",
+     lambda c: (lambda r: r["lane_ProductGrams"] == "1.5g" and "Product grams:" not in r["derived"] and "DOSE_READ_TOTAL" not in r["flags"].split(";"))(new_line_row(c)),
+     pack_line_ctx(), mg_pack_ctx(), "the same pack printed in mg (500mg 3-pack) is under the cap test: package total 0.5 g, flagged"),
+    ("R129 repairs the EXISTS read: `Birch Labs Lime gummies 100mg 10pk` matches the 0.1 g catalog item (the per-piece read, 1 g, could not)",
+     lambda c: (lambda r: r["verdict"] == "EXISTS" and r["copy_source_sku"] == "3101")(gummy_row(c)),
+     gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False), gummy_ctx("Birch Labs Lime gummies 100mg 10pk", brand=False, cap_mg=2000),
+     "a 2000 mg cap reads the line per piece (1 g): no 1 g item exists"),
     ("notice marks a created NEW_PL item for review", lambda rows: "NEW LINE, tagged `ITM - New PL`" in notice_text(rows)[0],
      new_line_created(matched(new_line_ctx())), new_line_created(matched(new_line_ctx(lane=True))), "the line has a sibling"),
     ("NEW_BRAND fires once", lambda c: verdict_count(c, "NEW_BRAND") == 1,
