@@ -363,6 +363,18 @@ if (ARGS[0] === '--stale') {
   let pins = 0;
   const PIN_KEYS = ['lsp_location.lsp_name', 'lsp_location.is_sandbox'];
   const asObj = (v) => { if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return {}; } } return v && typeof v === 'object' ? v : {}; };
+  // The product-grain pin [PROBE 2026-10-11, dutchie-bi-looker KB 3d]: on the `products` explore `lsp_location`
+  // joins INNER through `transaction_items`, so the name pin drops every never-sold product. There the tenant pin is
+  // `products.lsp_id` = ONE bare id (one LSP = one tenant, and the sandbox flag lives on the LSP), with NO
+  // `lsp_location.` field anywhere in the query. A list, a negation, a blank, or any lsp_location field fails it.
+  const productsLspPin = (q) => {
+    if (q.view !== 'products') return false;
+    const f = asObj(q.filters), v = String(f['products.lsp_id'] == null ? '' : f['products.lsp_id']).trim();
+    if (!/^\d+$/.test(v)) return false;
+    const touched = [...(q.fields || []), ...Object.keys(f), ...(q.sorts || [])].join(' ') + ' ' + (q.filter_expression || '');
+    return !/lsp_location\./.test(touched);
+  };
+  let lspPinned = 0;
   for (const [dash, file] of Object.entries(ESTATES)) {
     const { est } = loadEstate(file);
     const byQid = {}, byMid = {};
@@ -382,16 +394,19 @@ if (ARGS[0] === '--stale') {
       }
     }
     let bad = 0, unread = 0;
+    lspPinned = 0;
     for (const [qid, els] of reach) {
       const q = (est.queries || {})[qid];
       if (!q) { unread++; continue; }
       const missing = PIN_KEYS.filter(k => !(k in asObj(q.filters)));
       if (!missing.length) continue;
+      if (productsLspPin(q)) { lspPinned++; continue; }
       bad++; pins++;
       const owners = els.map(el => `${el.id} "${el.title || '(untitled)'}"`).join(', ') || '(no live tile)';
       console.log(`** TENANT PIN ** [${dash}] query ${qid} (${q.view || q.model || '?'}) missing ${missing.join(' + ')} -> tiles: ${owners}`);
     }
-    if (!bad) console.log(`ok         [${dash}] all ${reach.size - unread} readable reachable quer${reach.size - unread === 1 ? 'y' : 'ies'} carry both tenant pins${unread ? ` (${unread} reachable id(s) not in this harvest — NOT judged)` : ''}`);
+    const viaLsp = lspPinned ? ` (${lspPinned} of them pinned on products.lsp_id, the products-explore product-grain pin)` : '';
+    if (!bad) console.log(`ok         [${dash}] all ${reach.size - unread} readable reachable quer${reach.size - unread === 1 ? 'y' : 'ies'} carry the tenant pin${viaLsp}${unread ? ` (${unread} reachable id(s) not in this harvest — NOT judged)` : ''}`);
     else if (unread) console.log(`           [${dash}] plus ${unread} reachable id(s) not in this harvest — NOT judged`);
   }
 
