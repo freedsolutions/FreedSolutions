@@ -39,6 +39,7 @@ ITEM_PREFIX = "ITM - "                  # R47: the item decision-tag namespace
 DEFAULT_NEW_LINE_TAG = "ITM - New PL"   # R83: rides a NEW-LINE create (verdict NEW_PL), read back after create
 DEFAULT_ACTIVE_TAG = "ITM - Active"     # R96: the standard state; a sibling copy of a mixed line reads it
 DEFAULT_DEAD_TAG = "ITM - Do Not Use"    # R81: a dead record is never a sibling
+DEFAULT_DISCONTINUE_TAG = "ITM - Discontinue"   # R48 R68: stop buying; a buy into it is a recorded exception
 PKG_PREFIX = "PKG - "                    # R62 / R72 tag family
 # R129: the vendor dose read. An mg figure beside a count on a vendor line is PER PIECE when piece x count fits
 # this cap (mg THC per package, the market's adult-use limit), else it is the PACKAGE TOTAL and the piece is

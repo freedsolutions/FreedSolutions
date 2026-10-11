@@ -378,6 +378,11 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      information only (Operator ruling 2026-10-09).
    - Credit: entered once in the receipt header. Dutchie blends it EQUALLY across the packages; the sheet prints that
      blend per package, and `CREDIT_BLEND_NEGATIVE` / `CREDIT_TRIPS_R62` are STOPs.
+   - Discontinued buy (R68, R48): a line whose item carries the discontinue tag (pointer `Discontinue tag`, default
+     `ITM - Discontinue`) is `DISCONTINUED_BUY`, an INFO note. A buy into a discontinued item or line (an MOQ, a
+     high-testing batch) is a RECORDED EXCEPTION: the item keeps its tag, the sheet's `exception_reason` cell reads
+     `OWED: ...` until the Operator writes the reason, and the PO names it too. A sample or display package is not a
+     buy and stays quiet. The questions file lists every such line; it never blocks the receipt.
    - Manifest: a line whose summed ship $ differs from its ext is `MANIFEST_COST_MISMATCH`, a DEFECT (exit 1; the line is not entered). A qty
      gap is `MANIFEST_QTY_MISMATCH` (PO > Invoice > Physical: the vendor reissues or the package is rejected whole). A
      sample inside its paid package is `SAMPLE_MERGED` (STOP).

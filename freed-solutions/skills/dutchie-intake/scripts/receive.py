@@ -64,6 +64,11 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     intake row's `tags` cell is never read). A new-line item flips to the active tag after the receipt only when the
     receipt holds at least one SELLABLE package of that item; a sample-only receipt flips nothing and the sheet says "no flip - sample-only
     receipt" (a note, never a write here).
+  * discontinued buy (R68, R48): a line whose item carries the discontinue tag (pointer `Discontinue tag`, default
+    `ITM - Discontinue`) is DISCONTINUED_BUY, an INFO note: a buy into a discontinued item or line (an MOQ, a
+    high-testing batch) is a RECORDED EXCEPTION. The item keeps its tag; the operator writes the reason in the
+    sheet's `exception_reason` cell (pre-filled `OWED: ...`) and on the PO. A sample or display package is not a buy
+    and stays quiet. The questions file lists every such line; it never blocks the receipt.
   * credit (R126): entered once in the receipt header; Dutchie blends it EQUALLY across the receipt's packages. The
     sheet prints that blend per package (and the R103 extended-cost landed unit for reference).
   * manifest (R126): per line, sum of ship $ == invoice ext, else DEFECT; sum of qty == invoice qty, else STOP unless
@@ -79,7 +84,7 @@ from datetime import date
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from intake_common import (EXIT_ABORT, EXIT_DEFECT, EXIT_OK, ITEM_PREFIX, PKG_PREFIX, DEFAULT_ACTIVE_TAG,  # noqa: E402
-                           DEFAULT_NEW_LINE_TAG, Selftest, abort, fmt_money, get_all, get_flag, money_eq, new_path,
+                           DEFAULT_DISCONTINUE_TAG, DEFAULT_NEW_LINE_TAG, Selftest, abort, fmt_money, get_all, get_flag, money_eq, new_path,
                            next_version, norm, num, read_csv, slug, tag_set, write_csv)
 
 CHECK_JOIN_KEY = "package_id"   # the `--check` join key: an intake CSV v3 column, carried onto the prep sheet
@@ -106,7 +111,7 @@ FLAGS = {
     "CATALOG_COST_RAISE": ("R127", "STOP"), "COST_UNKNOWN": ("R127", "STOP"), "ITEM_PENDING": ("R126", "STOP"),
     "INTAKE_ROW_UNPAIRED": ("R126", "STOP"), "LINE_NO_INTAKE_ROW": ("R126", "STOP"),
     "CREDIT_TRIPS_R62": ("R62 (R126)", "STOP"), "CREDIT_BLEND_NEGATIVE": ("R126", "STOP"),
-    "LANDED_UNRECONCILED": ("R103", "DEFECT"),
+    "LANDED_UNRECONCILED": ("R103", "DEFECT"), "DISCONTINUED_BUY": ("R68 (R48)", "INFO"),
 }
 QUESTION = {
     "MANIFEST_QTY_MISMATCH": "The manifest quantity differs from the invoice. The vendor adjusts and reissues the invoice, or the package is rejected whole. Which?",
@@ -129,8 +134,9 @@ PREP_COLS = ["row", "line", "invoice_item", "dutchie_productid", "dutchie_sku", 
              "on_hand_pkg_costs", "physical_count", "qty_match", "metrc_package_id", "metrc_item", "manifest_qty",
              "manifest_ship_cost", "map_basis", "expiry", "receive_room", "pkg_tags_to_apply", "tag_rule",
              "itm_tags_to_strip", "new_line_tag_on_package", "item_tag_flip", "on_hand_snapshot", "vendor_batch",
-             "flags"]
-TENANT_OPTIONAL = ["Sample tag", "Display tag", "New line tag", "Active tag"]   # the pointers --prep reads when present
+             "exception_reason", "flags"]
+EXCEPTION_OWED = "OWED: why this discontinued item was bought (MOQ, a high-testing batch, ...) - also on the PO (R68)"
+TENANT_OPTIONAL = ["Sample tag", "Display tag", "New line tag", "Active tag", "Discontinue tag"]   # the pointers --prep reads when present
 KB_RECEIVE = ('platform KB "Receive inventory from a pending Metrc transfer [PROBE 2026-10-09]" '
               '(dutchie-bi-looker/references/dutchie-platform-kb.md)')
 STOPWORDS = {"mg", "g", "ct", "10ct", "100mg", "gummies", "gummy", "the", "and", "pk", "pack", "x", "1g", "thc", "cbd"}
@@ -200,7 +206,7 @@ def on_hand(inv, sku):
 
 def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, programs=None, deal_tag=None,
          sample_tag=DEFAULT_SAMPLE_TAG, display_tag=DEFAULT_DISPLAY_TAG, new_line_tag=DEFAULT_NEW_LINE_TAG,
-         active_tag=DEFAULT_ACTIVE_TAG):
+         active_tag=DEFAULT_ACTIVE_TAG, discontinue_tag=DEFAULT_DISCONTINUE_TAG):
     """Pure. Returns (rows, exceptions, summary). exceptions: dicts flag, rule, class, row, line, detail."""
     if not deal_tag:
         abort("the vendor deal tag is ruled per tenant (pointer `Vendor deal tag`); none given")
@@ -341,6 +347,11 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             lflag("ITEM_PENDING", f"no Dutchie ProductId for this line ({why}); catalog Cost, tags and the flip are read "
                                   "once the item is known (create first, or --item)")
         sample_pkg = pkg_tag in (sample_tag, display_tag)   # a sample or display package is never sellable stock
+        disc_buy = bool(pid) and discontinue_tag in tags and not sample_pkg
+        if disc_buy:
+            lflag("DISCONTINUED_BUY", f"item {pid} carries `{discontinue_tag}`: a buy into a discontinued item is a recorded "
+                                      "exception (R68). The item keeps the tag; write the reason in `exception_reason` "
+                                      "and on the PO")
         strip = sorted(t for t in tags if t.startswith(ITEM_PREFIX) and (t != new_line_tag or sample_pkg))
         new_line = new_line_tag in tags
         item_key = pid or f"line {no}"
@@ -356,7 +367,8 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                   "landed_unit_cost": "" if landed_r103 is None else f"{landed_r103:.4f}", "on_hand_pkg_costs": pk_costs,
                   "receive_room": RECEIVE_ROOM, "pkg_tags_to_apply": pkg_tag or "none", "tag_rule": rule,
                   "itm_tags_to_strip": "; ".join(strip) or "none", "new_line_tag_on_package": on_pkg,
-                  "on_hand_snapshot": snap, "expiry": ln.get("expiry_date", ""), "_item": item_key if new_line else ""}
+                  "on_hand_snapshot": snap, "expiry": ln.get("expiry_date", ""), "_item": item_key if new_line else "",
+                  "exception_reason": EXCEPTION_OWED if disc_buy else ""}
 
         # manifest tie (R126)
         pks = pk_by_line.get(no, [])
@@ -444,7 +456,8 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     summary = {"packages": len(mapped), "product_lines": len(prod), "order_level": o_all, "share": share,
                "manifest": manifest is not None, "product_ext": base, "new_line_tag": new_line_tag,
                "new_line_packages": sum(1 for r in rows if r.get("new_line_tag_on_package", "").startswith("yes")),
-               "flips": dict(sorted(flips.items()))}
+               "flips": dict(sorted(flips.items())), "discontinue_tag": discontinue_tag,
+               "discontinued_buys": [e for e in exc if e["flag"] == "DISCONTINUED_BUY"]}
     return rows, exc, summary
 
 
@@ -484,6 +497,11 @@ def questions(exc, summary, stem, header=None):
         out += [f"New-line items (R83 R126): packages carrying `{summary['new_line_tag']}` "
                 f"{summary['new_line_packages']} (sellable packages only; R47)."]
         out += [f"- item {k}: {v}" for k, v in summary["flips"].items()] + [""]
+    if summary.get("discontinued_buys"):
+        out += [f"Discontinued buys (R68): these lines receive an item tagged `{summary['discontinue_tag']}`. Each is a "
+                "RECORDED EXCEPTION, never a block: the item keeps the tag; fill `exception_reason` on the sheet and "
+                "name the reason on the PO."]
+        out += [f"- line {e['line']}: {e['detail']}" for e in summary["discontinued_buys"]] + [""]
     if not stops:
         return "\n".join(out + ["No STOP and no DEFECT. The sheet is ready for entry.", ""])
     out += ["| # | Flag | Class | Rule | Row / line | Detail | Question |", "|---|---|---|---|---|---|---|"]
@@ -499,7 +517,7 @@ def run_prep(argv):
         abort("--prep needs --lines, --catalog and --inventory")
     tenant = get_flag(argv, "--tenant")
     deal_tag, sample_tag, display_tag = get_flag(argv, "--deal-tag"), DEFAULT_SAMPLE_TAG, DEFAULT_DISPLAY_TAG
-    new_line_tag, active_tag = DEFAULT_NEW_LINE_TAG, DEFAULT_ACTIVE_TAG
+    new_line_tag, active_tag, discontinue_tag = DEFAULT_NEW_LINE_TAG, DEFAULT_ACTIVE_TAG, DEFAULT_DISCONTINUE_TAG
     if tenant:
         import intake_pointers
         # --prep reads the tag pointers only: a gap there ABORTs, any other gap is a WARNING line
@@ -509,13 +527,15 @@ def run_prep(argv):
         display_tag = ptr.get("Display tag") or display_tag
         new_line_tag = ptr.get("New line tag") or new_line_tag
         active_tag = ptr.get("Active tag") or active_tag
+        discontinue_tag = ptr.get("Discontinue tag") or discontinue_tag
     _, lines = read_csv(lines_p, LINE_REQ, "lines")
     _, catalog = read_csv(cat_p, CAT_REQ, "catalog")
     _, inv = read_csv(inv_p, INV_REQ, "inventory")
     intake = read_csv(get_flag(argv, "--intake"), INTAKE_REQ, "intake")[1] if get_flag(argv, "--intake") else None
     man = read_csv(get_flag(argv, "--manifest"), MAN_REQ, "manifest")[1] if get_flag(argv, "--manifest") else None
     rows, exc, summary = prep(lines, catalog, inv, intake, man, parse_directions(argv, "--item"),
-                              parse_directions(argv, "--program"), deal_tag, sample_tag, display_tag, new_line_tag, active_tag)
+                              parse_directions(argv, "--program"), deal_tag, sample_tag, display_tag, new_line_tag, active_tag,
+                              discontinue_tag)
     first = next((ln for ln in lines if ln.get("invoice_no")), {})
     s = get_flag(argv, "--slug") or slug(first.get("invoice_no") or os.path.splitext(os.path.basename(lines_p))[0])
     out_dir = get_flag(argv, "--out-dir") or os.path.dirname(os.path.abspath(lines_p))
@@ -586,6 +606,14 @@ def _fixture():
 def _run(cat, inv, lines, man, items, programs=None):
     rows, exc, summ = prep(lines, cat, inv, None, man, items, programs, "PKG - Vendor Deal")
     return rows, exc, summ
+
+
+def _mut(f):
+    """A deep copy of the fixture with one mutation applied: (cat, inv, lines, man, items)."""
+    import copy
+    c = copy.deepcopy(_fixture())
+    f(*c)
+    return c
 
 
 def _flags(res):
@@ -847,6 +875,38 @@ def selftest():
     t.check("FIRES: an unread vendor / transaction id is named, never blank",
             "Vendor: NOT READ" in questions(base[1], base[2], "x", header_values(lines))
             and "- Transaction ID: INV-9" in questions(base[1], base[2], "x", header_values(lines, txn="INV-9")))
+
+    # R68 (R48): a buy into a discontinued item is a recorded exception - an INFO note and an owed reason, never a block
+    def disc(c, i, l, m, it):
+        next(x for x in c if x["ProductId"] == "12")["Tags"] = "ITM - Discontinue"
+    rdb = fires("DISCONTINUED_BUY", "2", disc, "a line receiving an item tagged `ITM - Discontinue`")
+    t.check("DISCONTINUED_BUY is INFO: no STOP, no DEFECT, the receipt stays clean",
+            any(e["flag"] == "DISCONTINUED_BUY" and e["class"] == "INFO" for e in rdb[1])
+            and not [e for e in rdb[1] if e["class"] in ("STOP", "DEFECT")], str(_flags(rdb)))
+    t.check("the flagged row owes an exception_reason; the control rows leave it blank",
+            nl(rdb, "2")["exception_reason"].startswith("OWED") and "DISCONTINUED_BUY" in nl(rdb, "2")["flags"]
+            and all(r.get("exception_reason", "") == "" for r in base[0]))
+    t.check("the item keeps its tag: the item-flip column stays empty on a discontinued buy",
+            nl(rdb, "2")["item_tag_flip"] == "")
+    qd = questions(rdb[1], rdb[2], "x")
+    t.check("the questions file lists the discontinued buy (and the control lists none)",
+            "Discontinued buys (R68)" in qd and "- line 2: item 12 carries `ITM - Discontinue`" in qd
+            and "Discontinued buys" not in questions(base[1], base[2], "x"))
+
+    def disc13(c, i, l, m, it):
+        next(x for x in c if x["ProductId"] == "13")["Tags"] = "ITM - Discontinue"
+    g13 = _mut(disc13)
+    pair("a sample package of a discontinued item is not a buy: line 3 (sellable) fires, line 4 (sample) is quiet",
+         lambda res: ("DISCONTINUED_BUY", "3") in _flags(res) and ("DISCONTINUED_BUY", "4") not in _flags(res),
+         tuple(g13) + (None,), tuple(_mut(disc13)) + ({"4": "none"},), "the sample line is stated sellable (`none`)")
+    renamed = [dict(x, Tags="ITM - Stop Buy") if x["ProductId"] == "12" else x for x in cat]
+    t.check("FIRES: the tenant pointer renames the tag [breaker: the default name on a renamed tag is quiet]",
+            ("DISCONTINUED_BUY", "2") in _flags(prep(lines, renamed, inv, None, man, items, None, "PKG - Vendor Deal",
+                                                    discontinue_tag="ITM - Stop Buy"))
+            and ("DISCONTINUED_BUY", "2") not in _flags(prep(lines, renamed, inv, None, man, items, None, "PKG - Vendor Deal")))
+    t.check("a pending line (no item id) reads no tag, so never fires",
+            not any(e["flag"] == "DISCONTINUED_BUY" for e in
+                    prep(lines, [dict(x, Tags="ITM - Discontinue") for x in cat], inv, None, man, {}, None, "PKG - Vendor Deal")[1]))
 
     t.check("stub paths still refuse with exit 2",
             all(main([m]) == EXIT_ABORT for m in ("--enter", "--check", "--vendor")) and main([]) == EXIT_ABORT)

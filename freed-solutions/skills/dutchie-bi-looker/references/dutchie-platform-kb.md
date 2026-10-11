@@ -168,6 +168,30 @@ BI-invisible for tags~~ **SUPERSEDED same day: the newly-discovered
 qty-0 sold-out) WITH a working inventorytags join (numeric key)** — the historic tag
 lane exists; Adam's 59 historic Limited-tagged packages are queryable there.
 
+**`products` explore — the transaction gate is the TENANT PIN, not the tag join [PROBE 2026-10-11].**
+The `products` explore (label "Products") is based on the `products` table with `producttags` joined
+LEFT OUTER on `product_id` and `transaction_items` LEFT OUTER; `transactions` hangs off `transaction_items`,
+and `lsp_location` joins **INNER on `transaction_items.loc_id`**. The explore also carries an access filter
+on `products.lsp_id` (user attribute `lsp_id`, which can list several tenants). So the usual pin
+`lsp_location.lsp_name` pulls in the inner join and drops every product that has never sold: on the pilot
+tenant `products.count` read 2,958 with that pin against 3,094 catalog records, and a tag carrier pinned that
+way listed 168 of the 175 active items carrying a decision tag. Pinned instead on the HIDDEN
+`products.lsp_id = <lsp id>` (filterable through the API; read the id once from `lsp_location.lsp_id` with
+the name pin; no `lsp_location` field anywhere in the query), the same explore returned the catalog exactly
+(active / retired 906 / 2,188, equal to the Catalog export) and all 175 tagged items. The 7 extra items had
+NO `transaction_items` row at all (a `transaction_items` query on their ids returned 0 rows; `transaction_items.count`
+read 0 in the explore). **So a product tag IS BI-visible before the first sale** on this explore when the
+query is pinned on `products.lsp_id`; the "transaction-gated" reading of every `producttags` explore came
+from the `lsp_location` pin. Use: one tenant per `products.lsp_id` value, which is one LSP, so it is a
+single-tenant pin (the sandbox flag lives on the LSP; read `lsp_location.is_sandbox` once for the id).
+Merge it into a carrier on `product_id` or a product-line key exactly like any other source. Also proven the
+same day on this explore: a custom measure cannot be based on a custom dimension that reads two views
+("depends on fields from multiple views"), but a FILTERED custom measure can (`count_distinct` of
+`products.product_id` with `filters: {producttags.tag_name_list: "%<tag>%"}`, and `"-%<tag>%"` for the
+complement, null-safe), and either can be a server-side HAVING filter; a custom `max` / `min` measure must
+be numeric (a `max` on a date dimension 400s), so a last-date column is `min` of `diff_days(<date>, now())`
+plus a table calc `add_days(-1 * <days>, trunc_days(now()))`.
+
 **Feature-request ledger (ask Dutchie):**
 - `inventorytags` join on `transaction_items` (currently rejected — 'Invalid filter').
 - Fix the snapshot↔inventorytags join key (numeric packageid cast vs string Metrc id).

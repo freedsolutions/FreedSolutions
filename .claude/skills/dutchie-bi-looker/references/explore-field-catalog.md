@@ -56,6 +56,11 @@ Note `lsp_id` in the embed user attributes may list several ids (e.g. `"<lsp id>
 which is what permits the cross-tenant read in the first place. A single `logged_in_lsp_id`
 does **not** constrain what a query returns.
 
+**One exception, product grain on the `products` explore [PROBE 2026-10-11]:** there `lsp_location` joins
+INNER through `transaction_items`, so the name pin drops every never-sold product. Pin that explore on
+`products.lsp_id = <lsp id>` instead (one id = one tenant) and put no `lsp_location` field in the query.
+Details: `dutchie-platform-kb.md` §3d.
+
 ### 2. `lsp_location.is_sandbox = No`
 
 Excludes test/sandbox LSPs. Neither current tenant has sandbox rows today, so this filter
