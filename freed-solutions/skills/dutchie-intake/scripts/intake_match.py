@@ -170,7 +170,7 @@ from intake_common import (CATALOG_REQUIRED, COL_RETIRED, DEFAULT_ACTIVE_TAG, DE
                            DEFAULT_NEW_LINE_TAG, ITEM_PREFIX, BRANDS_REQUIRED, CATEGORIES_REQUIRED,
                            EXIT_ABORT, EXIT_DEFECT, EXIT_OK, STRAINS_REQUIRED, Selftest, abort, body_of,
                            form_word, freshest, get_all, get_flag, grams_eq, grams_of, has_phrase, lane_key,
-                           next_version, norm, num, read_csv, slug, tag_set, write_csv)
+                           next_version, norm, num, read_csv, slug, strain_name_col, tag_set, write_csv)
 import intake_derive  # noqa: E402
 
 LINES_REQUIRED = ["invoice_no", "invoice_date", "vendor", "line_no", "description", "cases", "units_total",
@@ -1161,9 +1161,10 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
 
 def load_strains(path):
     hdr, rows = read_csv(path, STRAINS_REQUIRED, "strains")
+    col = strain_name_col(hdr, f"strains {os.path.basename(path)}")    # `Strain name` | `Name` (platform rename)
     idc = next((c for c in ("StrainId", "Strain id", "Id", "ID") if c in hdr), None)
-    return {r["Strain name"]: {"type": r.get("Type", ""), "id": r.get(idc, "") if idc else ""}
-            for r in rows if r.get("Strain name")}
+    return {r[col]: {"type": r.get("Type", ""), "id": r.get(idc, "") if idc else ""}
+            for r in rows if r.get(col)}
 
 
 def load_exports(argv, pointers):

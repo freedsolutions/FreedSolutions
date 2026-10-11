@@ -63,8 +63,9 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from intake_common import (CATALOG_COLS, CATEGORIES_REQUIRED, CREATE_VERDICTS, DEFAULT_DEAD_TAG, EXIT_ABORT,  # noqa: E402
-                           EXIT_OK, ITEM_PREFIX, Selftest, abort, get_flag, grams_of, money_eq, new_path,
-                           next_version, norm, num, read_csv, stamp, tag_set, version_stem, write_csv)
+                           EXIT_OK, ITEM_PREFIX, STRAINS_REQUIRED, Selftest, abort, get_flag, grams_of, money_eq,
+                           new_path, next_version, norm, num, read_csv, stamp, strain_name_col, tag_set, version_stem,
+                           write_csv)
 from intake_match import V3_COLS  # noqa: E402
 import intake_derive  # noqa: E402
 
@@ -162,7 +163,6 @@ MONEY = {"Cost", "Price"}
 GRAMS = {"FlowerEquivalent", "Grams"}
 NUMBERS = {"ServingSizePerUnit", "CBDContent"}
 CATALOG_REQUIRED_PLAN = CATALOG_COLS          # the 27-column export WITH ProductId (the batch binds by record)
-STRAINS_REQUIRED = ["Strain name", "Type"]
 BRANDS_REQUIRED = ["Display name"]
 
 
@@ -238,7 +238,8 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
     both = sorted(set(act) & set(ret))
     if both:
         abort(f"ProductId(s) {both[:5]} sit in both the Active and the Retired export - not one freeze")
-    strain_names = {norm(s.get("Strain name")): (s.get("Strain name") or "").strip() for s in strains}
+    scol = strain_name_col(strains[0].keys(), "--strains") if strains else "Strain name"   # `Strain name` | `Name`
+    strain_names = {norm(s.get(scol)): (s.get(scol) or "").strip() for s in strains}
     mc_of = {norm(c.get("Category")): (c.get("Master category") or "").strip() for c in categories}
     brand_names = {norm(b.get("Display name")) for b in brands} | {norm(r.get("Brand")) for r in active + retired}
     rows, refusals, notes = [], [], []

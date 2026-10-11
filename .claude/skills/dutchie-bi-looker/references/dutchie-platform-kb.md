@@ -1469,6 +1469,9 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - **Row counts are business state.** A kind can fall hard for a known cause (an archive of expired discounts cut one
   list to a third in a morning); a row guard on the freeze step should abort, and the guard is widened only on the
   named cause.
+- **The Strains export's first column is now `Name` (was `Strain name`)** [PROBE 2026-10-11]. `Type`, `Abbreviation`
+  and `Description` are unchanged and in place: a rename, not a new column. Read either name (first present) and decide
+  the kind on the other three columns (`Name` also leads the Rooms export); a frozen file keeps the header as pulled.
 
 ## Session mechanics on a long Backoffice write run [PROBE 2026-10-01]
 

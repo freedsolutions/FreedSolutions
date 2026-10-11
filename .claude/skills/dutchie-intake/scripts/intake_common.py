@@ -30,7 +30,13 @@ CATALOG_COLS = [
 ]
 # What intake_match reads. `ProductId` is optional: the 26-column shape has none.
 CATALOG_REQUIRED = [c for c in CATALOG_COLS if c not in ("ProductId", "Available")]
-STRAINS_REQUIRED = ["Strain name", "Type"]
+# The Strains export's name column. Dutchie renamed it `Strain name` -> `Name` (platform KB [PROBE 2026-10-11]); the
+# frozen file keeps the header as pulled, so EVERY reader resolves the column through `strain_name_col` (first present).
+# `Name` alone proves nothing (Rooms, Discounts and the Item Names file carry one): it reads as the strain name only
+# beside the other three Strains columns, which are unchanged and decide whether a file IS a strains table.
+STRAIN_NAME_COLS = ("Strain name", "Name")
+STRAINS_SHAPE = ["Type", "Abbreviation", "Description"]
+STRAINS_REQUIRED = [STRAIN_NAME_COLS, "Type"]           # a tuple = one of; strain_name_col then decides the shape
 CATEGORIES_REQUIRED = ["Master category", "Category"]   # the categories export = the taxonomy NEW_CATEGORY reads
 BRANDS_REQUIRED = ["Display name"]                      # the brands export = the Brand records (a record may have no item)
 COL_RETIRED = "Is retired"
@@ -138,6 +144,24 @@ def lane_key(row):
             "" if g is None else f"{g:g}", norm(form_word(row.get("Product"))))
 
 
+def _lacks(required, hdr):
+    """The required columns a header lacks. A tuple entry is ONE OF its names (a renamed platform column)."""
+    return ["|".join(c) if isinstance(c, tuple) else c for c in required
+            if not (any(x in hdr for x in c) if isinstance(c, tuple) else c in hdr)]
+
+
+def strain_name_col(header, label="strains"):
+    """`Strain name` | `Name` - the Strains export's name column, first present. `Name` counts only beside the other
+    three Strains columns (STRAINS_SHAPE); neither = ABORT with the header printed, never a blank name."""
+    h = list(header or [])
+    if STRAIN_NAME_COLS[0] in h:
+        return STRAIN_NAME_COLS[0]
+    if STRAIN_NAME_COLS[1] in h and all(c in h for c in STRAINS_SHAPE):
+        return STRAIN_NAME_COLS[1]
+    abort(f"{label}: not a Strains export - no {STRAIN_NAME_COLS[0]!r}, and no {STRAIN_NAME_COLS[1]!r} beside "
+          f"{STRAINS_SHAPE}; header: {h}")
+
+
 def read_csv(path, required, label="input"):
     """Rows as dicts with unwrapped values. ABORT on a missing column or an empty file."""
     try:
@@ -147,7 +171,7 @@ def read_csv(path, required, label="input"):
             rows = [{k: unwrap(v) for k, v in r.items() if k is not None} for r in rdr]
     except OSError as e:
         abort(f"{label} {path} unreadable ({e.__class__.__name__})")
-    missing = [c for c in required if c not in hdr]
+    missing = _lacks(required, hdr)
     if missing:
         abort(f"{label} {os.path.basename(path)} lacks column(s) {missing}; present: {hdr}")
     return hdr, rows
@@ -159,7 +183,7 @@ def shape(path, required):
         with open(path, encoding="utf-8-sig", newline="") as f:
             rdr = csv.reader(f)
             hdr = next(rdr)
-            return sum(1 for _ in rdr), [c for c in required if c not in hdr]
+            return sum(1 for _ in rdr), _lacks(required, hdr)
     except (StopIteration, OSError, csv.Error):
         return 0, ["<unreadable>"]
 

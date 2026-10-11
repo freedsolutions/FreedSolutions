@@ -4,10 +4,12 @@
 A lane pulls the exports in the browser (the platform KB holds the pull recipe); the files land in a
 download folder under whatever name the platform gave them. This tool does everything after that:
 
-  1. CLASSIFY each file by its CSV header (never by its name). An unknown header is skipped and named.
+  1. CLASSIFY each file by its CSV header (never by its name). An unknown header is skipped and printed in full.
+     A kind may carry header ALIASES (a platform rename of a column): classification and the header guard compare
+     the CANONICAL header, the frozen file keeps the header AS PULLED, and MANIFEST.json records the variant.
   2. SPLIT the two catalog exports (same header) by ProductId overlap with the newest frozen active and
      retired files. A tie or a weak match ABORTS; pass --active / --retired to state it.
-  3. GUARD: the header must equal the newest frozen file of that kind exactly, and the row count must sit
+  3. GUARD: the header must equal the newest frozen file of that kind (alias-for-alias), and the row count must sit
      inside --row-guard of it (a filtered one-off export is the failure this catches).
   4. FREEZE a copy into the exports dir as `<date><letter>-<slug>.csv`. One letter per run; never overwrite.
      A file already frozen (same SHA-256) is not frozen twice.
@@ -45,6 +47,14 @@ KINDS = {
     "rooms":      ("rooms", "Rooms", ["Name", "Room Types", "External ID", "Location type"]),
     "tags":       ("tags", "Tags", ["Tag"]),
 }
+# kind -> {canonical column: [aliases]}. A platform RENAME of a column, never a new column. Classification and the
+# header guard read the canonical header, so the rename neither skips the file nor trips the guard; the frozen file
+# is never rewritten (it keeps the header as pulled) and MANIFEST.json says which variant each frozen file carries.
+# Readers resolve the column themselves (one normaliser per codebase). Platform KB [PROBE 2026-10-11]: the Strains
+# export's first column is now `Name` (was `Strain name`); the other three columns are unchanged and decide the kind.
+ALIASES = {
+    "strains": {"Strain name": ["Name"]},
+}
 CATALOG = {"active": ("catalog-active", "Catalog - Active"), "retired": ("catalog-retired", "Catalog - Retired")}
 DATED = re.compile(r"^(\d{4}-\d{2}-\d{2})([a-z]?)-(.+)\.csv$", re.I)
 LATEST, MANIFEST = "latest", "MANIFEST.json"
@@ -72,11 +82,23 @@ def row_count(p):
         return max(sum(1 for _ in csv.reader(f)) - 1, 0)
 
 
+def canonical(header, kind):
+    """The header with each of the kind's aliases read as its canonical column. An alias is read only under its own
+    kind, and the kind's OTHER identifying columns still decide: `Name` leading a Rooms export stays a Rooms column."""
+    amap = {a: c for c, al in ALIASES.get(kind, {}).items() for a in al}
+    return [amap.get(h, h) for h in header]
+
+
+def variant(header, kind):
+    """{canonical: as pulled} for every alias this header carries in place of its canonical column; {} = canonical."""
+    return {c: a for c, al in ALIASES.get(kind, {}).items() for a in al if a in header and c not in header}
+
+
 def classify(header):
     """Longest identifying prefix wins, so `Tag` (one column) cannot swallow a wider export."""
     best = None
     for kind, (_, _, sig) in KINDS.items():
-        if header[:len(sig)] == sig and (kind != "tags" or len(header) == 1):
+        if canonical(header, kind)[:len(sig)] == sig and (kind != "tags" or len(header) == 1):
             if best is None or len(sig) > len(KINDS[best][2]):
                 best = kind
     return best
@@ -142,6 +164,10 @@ def all_slugs():
     return [v[0] for v in CATALOG.values()] + [v[0] for v in KINDS.values() if v[0]]
 
 
+def kind_of_slug(slug):
+    return next((k for k, v in KINDS.items() if v[0] == slug), "catalog")
+
+
 def put_view(src, dst):
     """Copy CONTENT into a view file. A frozen file may be read-only; `copy2` would carry that bit onto the view and
     the NEXT refresh could not overwrite it (2026-10-01). So: clear the bit on an existing target, copy the bytes only,
@@ -164,9 +190,11 @@ def write_latest(exports_dir, mirror_dir=None, apply=True):
         f = newest_frozen(exports_dir, slug)
         if f:
             kinds[slug] = {"frozen": f.name, "rows": row_count(f), "sha256": sha256(f),
-                           "pulled_at": dt.datetime.fromtimestamp(f.stat().st_mtime).isoformat(timespec="seconds")}
+                           "pulled_at": dt.datetime.fromtimestamp(f.stat().st_mtime).isoformat(timespec="seconds"),
+                           "header_variant": variant(read_header(f), kind_of_slug(slug))}
     manifest = {"generated_at": dt.datetime.now().isoformat(timespec="seconds"),
-                "note": "latest/<slug>.csv is a copy of the frozen file named here; the frozen file is the record",
+                "note": "latest/<slug>.csv is a copy of the frozen file named here; the frozen file is the record. "
+                        "header_variant = {canonical column: the alias the frozen file carries}; {} = canonical",
                 "kinds": kinds}
     if not apply:
         return manifest
@@ -206,7 +234,7 @@ def plan(files, exports_dir, drop_dir, date, row_guard=(0.5, 2.0), forced=None, 
         header = read_header(p)
         kind = classify(header)
         if kind is None:
-            notes.append(f"SKIPPED {p.name}: header not recognised ({', '.join(header[:4])}…)")
+            notes.append(f"SKIPPED {p.name}: header not recognised: {header}")
             continue
         if kind == "catalog":
             which = split_catalog(p, exports_dir, forced.get(str(p)))
@@ -219,8 +247,12 @@ def plan(files, exports_dir, drop_dir, date, row_guard=(0.5, 2.0), forced=None, 
         prior = newest_frozen(exports_dir, slug)
         rows = row_count(p)
         if prior:
-            if read_header(prior) != header:
+            ph = read_header(prior)
+            if canonical(ph, kind) != canonical(header, kind):
                 raise Abort(f"{p.name}: header differs from the newest frozen {prior.name} — a column moved; stop and read it")
+            if ph != header:
+                notes.append(f"HEADER VARIANT {p.name}: {variant(header, kind) or 'canonical'} (newest frozen {prior.name}: "
+                             f"{variant(ph, kind) or 'canonical'}); frozen AS PULLED, readers take either")
             pr = row_count(prior)
             if pr and not (row_guard[0] * pr <= rows <= row_guard[1] * pr):
                 raise Abort(f"{p.name}: {rows} rows vs {pr} in {prior.name} — outside the row guard; a filtered export?")
@@ -432,6 +464,48 @@ def selftest():
         check("latest: the view never feeds back into the freeze history",
               newest_frozen(ex, "catalog-active").name == "2026-01-02a-catalog-active.csv"
               and not any(DATED.match(f.name) for f in lat.glob("*.csv")))
+
+        # Header ALIASES (2026-10-11): the platform renamed the Strains export's first column `Strain name` -> `Name`.
+        renamed = ["Name"] + KINDS["strains"][2][1:]
+        check("alias: the renamed Strains header classifies as strains", classify(renamed) == "strains")
+        check("alias: a `Name`-led Rooms header is still rooms, not strains (the other columns decide)",
+              classify(KINDS["rooms"][2]) == "rooms" and classify(["Name", "Kind", "Abbreviation", "Description"]) is None)
+        check("alias: the variant names the alias; a canonical header has none",
+              variant(renamed, "strains") == {"Strain name": "Name"} and variant(KINDS["strains"][2], "strains") == {})
+        new_name = dl / "strains-renamed.csv"
+        write(new_name, renamed, [["E", "Hybrid", "E", "E"]] * 14)
+        st_a, notes_a = plan([new_name], ex, None, "2026-01-05")
+        check("alias: the renamed file passes the header guard against a canonical frozen file and freezes",
+              [Path(s["to"]).name for s in st_a if s["do"] == "freeze"] == ["2026-01-05-strains.csv"])
+        check("alias: the plan names the header variant it froze",
+              any(n.startswith("HEADER VARIANT strains-renamed.csv") and "'Name'" in n for n in notes_a))
+        execute(st_a)
+        check("alias: the frozen file keeps the header AS PULLED (byte-identical, never rewritten)",
+              (ex / "2026-01-05-strains.csv").exists() and sha256(ex / "2026-01-05-strains.csv") == sha256(new_name)
+              and read_header(ex / "2026-01-05-strains.csv") == renamed)
+        m2 = write_latest(ex, mirror)
+        check("alias: MANIFEST.json records the variant each frozen file carries",
+              m2["kinds"]["strains"]["header_variant"] == {"Strain name": "Name"}
+              and m2["kinds"]["catalog-active"]["header_variant"] == {}
+              and json.loads((lat / MANIFEST).read_text(encoding="utf-8"))["kinds"]["strains"]["header_variant"]
+              == {"Strain name": "Name"})
+        moved = dl / "strains-moved.csv"
+        write(moved, ["Name", "Kind", "Abbreviation", "Description"], [["F", "Hybrid", "F", "F"]] * 14)
+        st_m, notes_m = plan([moved], ex, None, "2026-01-06")
+        check("alias: a header matching no kind is skipped with the FULL header it saw",
+              not st_m and any("['Name', 'Kind', 'Abbreviation', 'Description']" in n for n in notes_m))
+        back = dl / "strains-back.csv"
+        write(back, KINDS["strains"][2], [["G", "Hybrid", "G", "G"]] * 14)
+        st_b, notes_b = plan([back], ex, None, "2026-01-06")
+        check("alias: a pull back on the canonical header after an aliased one also passes the guard",
+              [s["do"] for s in st_b] == ["freeze"] and any("HEADER VARIANT" in n for n in notes_b))
+        extra = dl / "strains-extra.csv"
+        write(extra, renamed + ["Notes"], [["H", "Hybrid", "H", "H", ""]] * 14)
+        try:
+            plan([extra], ex, None, "2026-01-06")
+            check("alias: a genuinely moved column on an aliased kind still aborts", False)
+        except Abort as e:
+            check("alias: a genuinely moved column on an aliased kind still aborts", "header differs" in str(e))
     print(f"\n{'PASS' if not fails else 'FAIL'} — {len(ran) - len(fails)}/{len(ran)}.")
     return 1 if fails else 0
 

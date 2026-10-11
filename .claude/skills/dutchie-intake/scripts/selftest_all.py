@@ -520,9 +520,9 @@ def mg_pack_ctx():
 PFX = IC.plan_fixture()
 
 
-def plan_of(guard_probed=True, intake_edit=None, copy_source=None):
+def plan_of(guard_probed=True, intake_edit=None, copy_source=None, strains=None):
     """build_plan on the plan fixtures; `guard_probed=False` SIMULATES the pre-P2 map (the breaker; P2 proved
-    the retired guard read 2026-10-08, so the module's own map is the probed one)."""
+    the retired guard read 2026-10-08, so the module's own map is the probed one). `strains` replaces the table."""
     intake = copy.deepcopy(rows_of("plan-intake.csv"))
     if intake_edit:
         intake_edit(intake)
@@ -530,7 +530,52 @@ def plan_of(guard_probed=True, intake_edit=None, copy_source=None):
         intake[1]["copy_source_productid"] = copy_source
     kw = {"guard": PL._probed() if guard_probed else PL._unproven_retired()}
     return PL.build_plan(intake, rows_of("plan-pre-active.csv"), rows_of("plan-pre-retired.csv"),
-                         rows_of("plan-strains.csv"), rows_of("plan-categories.csv"), rows_of("plan-brands.csv"), **kw)
+                         rows_of("plan-strains.csv") if strains is None else strains, rows_of("plan-categories.csv"),
+                         rows_of("plan-brands.csv"), **kw)
+
+
+def strains_as(header):
+    """The strains fixture's rows written under `header` (positional: the same four columns, renamed), loaded through
+    the matcher's reader. ('ABORT', 2) when the reader refuses the file."""
+    d = tempfile.mkdtemp()
+    try:
+        p = os.path.join(d, "strains.csv")
+        old = hdr_of("strains.csv")
+        with open(p, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f, quoting=csv.QUOTE_ALL)
+            w.writerow(header)
+            w.writerows([r[c] for c in old] for r in rows_of("strains.csv"))
+        return quiet(IM.load_strains, p)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+STRAINS_OLD = ["Strain name", "Type", "Abbreviation", "Description"]
+STRAINS_NEW = ["Name", "Type", "Abbreviation", "Description"]       # the platform rename (KB [PROBE 2026-10-11])
+
+
+def plan_strains(name_col, blank=False, extra=()):
+    """The plan's strain table keyed on `name_col` (+ extra synthetic records); `blank` empties every name."""
+    rows = [{(name_col if k == "Strain name" else k): ("" if blank and k == "Strain name" else v) for k, v in r.items()}
+            for r in rows_of("plan-strains.csv")]
+    return rows + [{name_col: ("" if blank else n), "Type": t, "Abbreviation": "", "Description": ""} for n, t in extra]
+
+
+def plan_mints(strains):
+    p = plan_of(strains=strains)
+    return p if isinstance(p, tuple) and p and p[0] == "ABORT" else [r["product_key"] for r in p[0] if r["step"] == "MINT_STRAIN"]
+
+
+def pick_strains(header):
+    """True when `freshest` picks a one-row Strains file carrying `header` (the one-of required name column)."""
+    d = tempfile.mkdtemp()
+    try:
+        p = os.path.join(d, "s-strains.csv")
+        with open(p, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerows([header, ["a", "Hybrid", "a", "a"]])
+        return quiet(C.freshest, d, ["*strain*.csv"], 1, C.STRAINS_REQUIRED) == p
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def plan_flags(edit):
@@ -917,6 +962,32 @@ CHECKS = [
      None, lambda a, r, p: _pr(a, "601").update(Available="45"), "Available goes UP on the sibling"),
 ] + [(f"certify --plan: {flag} quiet on the clean batch, fires on its breaker",
       (lambda fl: (lambda e: fl not in plan_flags(e)))(flag), None, brk, how) for flag, how, brk in PLAN_BREAKERS]
+
+# The Strains export header (2026-10-11): Dutchie renamed `Strain name` -> `Name`. ONE normaliser
+# (intake_common.strain_name_col) resolves it for every reader; neither column = ABORT, never a blank name (R26 R75).
+CHECKS += [
+    ("STRAINS_HEADER: the old `Strain name` header loads the strain table",
+     lambda h: strains_as(h) == BASE["strains"], STRAINS_OLD, ["Strain", "Type", "Abbreviation", "Description"],
+     "misspell the name column `Strain`"),
+    ("STRAINS_HEADER: the new `Name` header (fixture strains-name-header.csv) loads to the SAME dict as the old one",
+     lambda p: (lambda got, hdr: hdr == STRAINS_NEW and got == BASE["strains"])(quiet(IM.load_strains, p), hdr_of(os.path.basename(p))),
+     fx("strains-name-header.csv"), fx("strains.csv"), "read the OLD-header fixture instead (the header check is the point)"),
+    ("STRAINS_HEADER: a file with NEITHER name column ABORTS (exit 2), never reads a blank name",
+     lambda h: strains_as(h) == ("ABORT", C.EXIT_ABORT), ["Title", "Type", "Abbreviation", "Description"], STRAINS_NEW,
+     "give the file the new `Name` header"),
+    ("STRAINS_HEADER: a `Name` column on a NON-strains file is not a strains table (the other three columns decide)",
+     lambda h: strains_as(h) == ("ABORT", C.EXIT_ABORT) and quiet(C.strain_name_col, h) == ("ABORT", C.EXIT_ABORT),
+     ["Name", "Type", "Status", "Code"], STRAINS_NEW, "restore Abbreviation + Description beside `Name`"),
+    ("STRAINS_HEADER: the freshest-file pick takes a `Name`-header Strains export (one-of required column)",
+     lambda h: pick_strains(h),
+     STRAINS_NEW, ["Title", "Type", "Abbreviation", "Description"], "a header with no name column at all"),
+    ("STRAINS_HEADER: intake_plan reads strain records from a `Name`-keyed table (no MINT_STRAIN for a known strain)",
+     lambda s: plan_mints(s) == [], plan_strains("Name", extra=[("Strain Q", "Sativa")]),
+     plan_strains("Name", blank=True, extra=[("Strain Q", "Sativa")]), "every name cell read as blank"),
+    ("STRAINS_HEADER: intake_plan ABORTS on a strain table with neither name column",
+     lambda s: plan_mints(s) == ("ABORT", C.EXIT_ABORT), plan_strains("Title"), plan_strains("Name"),
+     "key the table on `Name`"),
+]
 
 
 RCX = {"lines": rows_of("receive-lines.csv"), "catalog": rows_of("receive-catalog.csv"),

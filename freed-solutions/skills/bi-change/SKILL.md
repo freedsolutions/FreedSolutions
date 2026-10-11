@@ -291,7 +291,10 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   so the mirror is its backup). `--refresh-latest` rebuilds the view from the frozen history with no input.
   `--drop-dir` is optional and legacy: it also places `<date>-<Label>.csv` in a folder a person reads from
   and sends the previous version there to the Recycle Bin, only once a byte-identical frozen copy exists.
-  Dry-run by default; `--selftest` = 28 checks. The pointer's `Export refresh` line carries the tenant's
+  A kind may carry header ALIASES (a platform rename of a column, e.g. the Strains export's `Strain name` -> `Name`):
+  classification and the header guard read the canonical header, the frozen file keeps the header AS PULLED (never
+  rewritten), `MANIFEST.json` records each frozen file's `header_variant`, and readers resolve the column themselves.
+  Dry-run by default; `--selftest` = 38 checks. The pointer's `Export refresh` line carries the tenant's
   folders.
 - `scripts/publish_docs.py --estate <estate dir> --out <dir> [--reference] [--apply]` — keep ONE folder a
   person reads from equal to the estate's CURRENT documents, so nobody copies a PDF by hand or reads a
