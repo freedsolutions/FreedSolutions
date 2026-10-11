@@ -1415,6 +1415,14 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   in requirements", are stored on `Reward.Restrictions` with `Constraints` empty (the same shape as an older brand-wide
   deal). The wizard has no brand-funding (vendor-funded) field: `BrandFunded*` and `PromotionFundingLimitTypeId` stay
   null, so a vendor split is carried by the code.
+- **A vendor split: the code carries the share, reporting carries the credit.** [RULING PATTERN 2026-10-11] Dutchie
+  stores no funding, so a split code (a funding suffix such as `-V<nn>`) records only the NOMINAL share. A common
+  convention prices the split at KEYSTONE: credit per discounted unit = share × discount rate × keystone, with
+  keystone = 2 × the PURCHASED unit cost — the invoice line price before invoice-level credits. Neither cost field
+  in Dutchie is that number: the catalog Cost misses vendor deals and tiered pricing, and the package cost absorbs
+  top-line invoice credits. So the credit is computed in reporting from the invoice line, never read from the code
+  or a Dutchie cost. Program a split as a dated, monthly limited-time discount, never an evergreen one, even when
+  it repeats month after month. The tenant Dictionary rules the share, the base and the type.
 - **Typing a date and time.** [PROBE 2026-10-02] Typing the full `MM/DD/YYYY hh:mm AM` into an empty or fully selected
   field can keep the date and drop the time (it lands on 12:00 AM or the current clock time). Reliable: select the date
   part (`setSelectionRange(0, 10)`), type the date, Tab; then select the time part (`setSelectionRange(11, 19)`), type
