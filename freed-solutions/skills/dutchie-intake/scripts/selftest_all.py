@@ -994,6 +994,31 @@ CHECKS += [
 RCX = {"lines": rows_of("receive-lines.csv"), "catalog": rows_of("receive-catalog.csv"),
        "inventory": rows_of("receive-inventory.csv"), "manifest": rows_of("receive-manifest.csv")}
 RC_ITEMS = {"1": "11", "2": "12", "3": "13", "4": "13"}
+# R103 (amended 2026-10-11): a synthetic buy-4-get-1 - 4 paid cases of 10 at 18.37 (BG-1..4), the free case at 0.01
+# (BG-5, stated `deal`), and a marked 1-unit sample of the same item beside it (BG-S).
+BGX = {"lines": rows_of("receive-buyget-lines.csv"), "catalog": rows_of("receive-catalog.csv"),
+       "inventory": rows_of("receive-inventory.csv"), "manifest": rows_of("receive-buyget-manifest.csv"),
+       "items": {"1": "14", "2": "14", "3": "14"}, "programs": {"2": "deal"}}
+BG_ROWS = ("1a", "1b", "1c", "1d", "2")
+
+
+def bg_ctx(drop_line=None, programs=None):
+    c = copy.deepcopy(BGX)
+    if drop_line:
+        c["lines"] = [r for r in c["lines"] if r["line_no"] != drop_line]
+        c["manifest"] = [r for r in c["manifest"] if r["line"] != drop_line]
+    if programs is not None:
+        c["programs"] = programs
+    return c
+
+
+def bg_blended(rw):
+    """Every package of the deal at the blended unit (the remainder on the last), all tagged, the deal tied."""
+    if not all(k in rw for k in BG_ROWS):
+        return False
+    total = sum(float(rw[k]["cost_entered"]) * float(rw[k]["expected_qty"]) for k in BG_ROWS)
+    return ([rw[k]["cost_entered"] for k in BG_ROWS] == ["14.70"] * 4 + ["14.69"] and abs(total - 734.90) < 0.005
+            and all(rw[k]["pkg_tags_to_apply"] == "PKG - Vendor Deal" for k in BG_ROWS))
 
 
 def rc_prep(c):
@@ -1156,6 +1181,16 @@ RECEIVE_CHECKS = [
                       RC.header_values(ls))),
      RCX["lines"], [{k: v for k, v in r.items() if k not in ("vendor", "invoice_no")} for r in RCX["lines"]],
      "lines with no vendor / invoice_no cells"),
+    ("receive --prep R103: a buy-4-get-1 blends over EVERY package of the deal (14.70 x4, remainder 14.69 on the last; "
+     "734.90 ties to the invoice; all 5 `PKG - Vendor Deal`)",
+     lambda c: bg_blended(rc_prep(c)[0]), BGX, bg_ctx(drop_line="1"), "the paid cases are gone (a lone penny line)"),
+    ("receive --prep R103: the marked sample beside the deal stays `PKG - Employee` at its own price (R127)",
+     lambda c: (lambda rw: rw["3"]["pkg_tags_to_apply"] == "PKG - Employee" and rw["3"]["cost_entered"] == "0.01"
+                and rw["3"]["deal"] == "")(rc_prep(c)[0]),
+     BGX, bg_ctx(programs={"2": "deal", "3": "deal"}), "the sample line is stated part of the deal"),
+    ("receive --prep R103: an unmarked penny line inside a deal is still asked (PENNY_UNMARKED STOP), the blend proposed",
+     lambda c: ("PENNY_UNMARKED", "STOP", "2") in rc_prep(c)[1] and bg_blended(rc_prep(c)[0]),
+     bg_ctx(programs={}), BGX, "`--program 2=deal` states the deal"),
 ]
 
 
@@ -1321,6 +1356,19 @@ def cli_chain():
         mrows[2]["ship_cost"] = "480.00"
         C.write_csv(badman, list(mrows[0].keys()), mrows)
         step("receive --prep DEFECT (manifest ship $ does not tie)", rargs + ["--manifest", badman], 1)
+        bgargs = ["receive.py", "--prep", "--lines", fx("receive-buyget-lines.csv"), "--catalog", fx("receive-catalog.csv"),
+                  "--inventory", fx("receive-inventory.csv"), "--manifest", fx("receive-buyget-manifest.csv"), "--tenant",
+                  fx("tenant-CLAUDE.md"), "--out-dir", t, "--slug", "bg", "--asof", "2026-01-01", "--program", "2=deal"]
+        bgargs += sum([["--item", f"{k}={v}"] for k, v in BGX["items"].items()], [])
+        out = step("receive --prep R103 buy-4-get-1 (stated deal; no STOP)", bgargs, 0)
+        bgcsv = os.path.join(t, "bg-receipt-prep-2026-01-01-v1.csv")
+        with open(bgcsv, encoding="utf-8-sig", newline="") as fh:
+            bgrw = {r["row"]: r for r in csv.DictReader(fh)}
+        ok = (bg_blended(bgrw) and "remainder on BG-5 at $14.69" in out and "entered $734.90 = invoice $734.90" in out
+              and "No STOP and no DEFECT" in out)
+        print(f"  {'PASS' if ok else 'FAIL'}  the buy-get sheet enters 14.70 x4 + 14.69, ties 734.90 and prints the deal math")
+        if not ok:
+            bad.append("receive buy-get sheet")
         for label, phs, expect in (("an unrelated placeholder (WARNING, exit 0)", [DRIVE_PH], 0),
                                    ("a placeholder in the Vendor deal tag it reads (ABORT)", [DRIVE_PH, DEAL_PH], 2)):
             tdir = os.path.join(t, f"tenant-{expect}")

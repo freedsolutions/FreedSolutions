@@ -71,6 +71,17 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     and stays quiet. The questions file lists every such line; it never blocks the receipt.
   * credit (R126): entered once in the receipt header; Dutchie blends it EQUALLY across the receipt's packages. The
     sheet prints that blend per package (and the R103 extended-cost landed unit for reference).
+  * Buy-Get deal (R103, R84): the invoice prices a Buy-Get deal on ONE line (the free case at a penny). The lane reads a
+    deal when the same item sits on a paid line AND a penny line (<= SAMPLE_MAX), or a line discount names the deal
+    (`buy 4 get 1`, `b4g1`, `bogo`, `free case`). A sample or display line, and a line stated anything but `deal`,
+    stays out. It BLENDS: blended unit = (sum of the deal lines' ext - their line discounts) / (sum of the deal's
+    package units), rounded to the cent; every package of the deal gets `cost_entered` = that unit and the vendor
+    deal tag, and the LAST package takes the remainder so the deal ties to the invoice to the penny (a remainder that
+    will not divide to a 4-place unit is BUY_GET_UNTIED, a STOP). The questions file prints the deal math. A penny line with no paid line of its item is
+    never blended (a lone penny line keeps its own price and its R127 question). An unmarked penny line inside a deal
+    stays PENNY_UNMARKED (R127: asked before intake) with the blend as its proposed default; `--program <line>=deal`,
+    or a deal word on the invoice, settles it. The invoice total and catalog Cost are unchanged (R62).
+  * cost_entered: the unit cost typed on each package row - the deal's blended unit, else the package's invoice unit.
   * manifest (R126): per line, sum of ship $ == invoice ext, else DEFECT; sum of qty == invoice qty, else STOP unless
     qty is a whole multiple with the $ tied (APEX_UNIT_IS_CASE, INFO: a vendor "unit" was a case).
 
@@ -80,6 +91,7 @@ import os
 import re
 import sys
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -112,6 +124,7 @@ FLAGS = {
     "INTAKE_ROW_UNPAIRED": ("R126", "STOP"), "LINE_NO_INTAKE_ROW": ("R126", "STOP"),
     "CREDIT_TRIPS_R62": ("R62 (R126)", "STOP"), "CREDIT_BLEND_NEGATIVE": ("R126", "STOP"),
     "LANDED_UNRECONCILED": ("R103", "DEFECT"), "DISCONTINUED_BUY": ("R68 (R48)", "INFO"),
+    "BUY_GET_BLEND": ("R103 (R84)", "INFO"), "BUY_GET_UNTIED": ("R103", "STOP"),
 }
 QUESTION = {
     "MANIFEST_QTY_MISMATCH": "The manifest quantity differs from the invoice. The vendor adjusts and reissues the invoice, or the package is rejected whole. Which?",
@@ -127,10 +140,11 @@ QUESTION = {
     "INTAKE_ROW_UNPAIRED": "This intake row's `invoice_line` matches no product line. Is it the intake for another invoice / SO, or does its line read differently? Fix the pairing or drop `--intake`, then re-run.",
     "LINE_NO_INTAKE_ROW": "No intake row pairs to this line, so no item id is known. Give `--item <line>=<ProductId>` (or an intake row whose `invoice_line` equals the line), then re-run.",
     "CREDIT_TRIPS_R62": "The blended credit lands this package at or below 0.90 x catalog Cost with no `PKG - ` tag (R62 would flag it). Tag it, or settle the credit another way.",
+    "BUY_GET_UNTIED": "The deal's remainder does not divide to a 4-place unit on its last package, so the entered total misses the invoice. Enter the last package's cost so its total is the deal total less the other packages, or settle the remainder with the vendor.",
     "CREDIT_BLEND_NEGATIVE": "Dutchie's equal blend makes this package's cost negative. Enter the credit another way (vendor bill or a reissued invoice).",
 }
 PREP_COLS = ["row", "line", "invoice_item", "dutchie_productid", "dutchie_sku", "dutchie_name", "expected_qty",
-             "unit_cost_invoice", "ext_cost", "landed_unit_cost", "blended_unit_cost", "catalog_cost",
+             "unit_cost_invoice", "ext_cost", "landed_unit_cost", "blended_unit_cost", "cost_entered", "deal", "catalog_cost",
              "on_hand_pkg_costs", "physical_count", "qty_match", "metrc_package_id", "metrc_item", "manifest_qty",
              "manifest_ship_cost", "map_basis", "expiry", "receive_room", "pkg_tags_to_apply", "tag_rule",
              "itm_tags_to_strip", "new_line_tag_on_package", "item_tag_flip", "on_hand_snapshot", "vendor_batch",
@@ -139,6 +153,9 @@ EXCEPTION_OWED = "OWED: why this discontinued item was bought (MOQ, a high-testi
 TENANT_OPTIONAL = ["Sample tag", "Display tag", "New line tag", "Active tag", "Discontinue tag"]   # the pointers --prep reads when present
 KB_RECEIVE = ('platform KB "Receive inventory from a pending Metrc transfer [PROBE 2026-10-09]" '
               '(dutchie-bi-looker/references/dutchie-platform-kb.md)')
+# a line discount (or a line) whose words name a Buy-Get deal (R103): `buy 4 get 1`, `b4g1`, `bogo`, `free case`
+DEAL_WORDS = re.compile(r"\b(?:buy\s*\d*\s*[-,/]?\s*get\s*\d*(?:\s*free)?|b\d+g\d+|bogo|free\s+(?:case|unit|pack|item)s?)\b",
+                        re.IGNORECASE)
 STOPWORDS = {"mg", "g", "ct", "10ct", "100mg", "gummies", "gummy", "the", "and", "pk", "pack", "x", "1g", "thc", "cbd"}
 
 
@@ -192,6 +209,65 @@ def propose_line(pkg, prod, used_qty):
     return "", "ambiguous: lines " + ", ".join(c[1] for c in cands if c[0] == cands[0][0])
 
 
+def _dec(x):
+    return Decimal(str(x if x is not None else 0))
+
+
+def _cents(d):
+    return d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _unit_str(d):
+    """A unit cost to type: cents when the value is cent-exact, else 4 places (a remainder that does not divide)."""
+    return f"{_cents(d):.2f}" if d == _cents(d) else f"{d.quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP):.4f}"
+
+
+def buy_get_groups(prod, pids, programs, disc, disc_named, pk_by_line):
+    """R103: the Buy-Get deals on this invoice. Returns one dict per deal (lines, confirmed, gross, discount, total,
+    units, packages, basis, blended). A deal = the lines of ONE item (ProductId, else the description without its deal
+    words) that are neither a sample nor a display and are stated nothing but `deal`, when they hold a paid line AND a
+    penny line, or one of them carries a line discount naming the deal. Units are the deal's PACKAGE units (the
+    manifest qty, else the invoice units), so a vendor "unit" that is a case still blends per sellable unit."""
+    by_item = {}
+    for ln in sorted(prod, key=lambda x: sort_key(x["line_no"])):
+        no, desc = ln["line_no"], ln.get("description", "")
+        prog = (programs.get(no) or programs.get("*") or "").strip().lower()
+        mk = marker(desc)
+        if prog in ("sample", "display") or (not prog and mk in ("sample", "display")) or (prog and prog != "deal"):
+            continue
+        key = pids.get(no) or "desc:" + norm(DEAL_WORDS.sub(" ", desc))
+        by_item.setdefault(key, []).append(ln)
+    out = []
+    for key, lns in by_item.items():
+        units = [num(x.get("unit_cost")) for x in lns]
+        penny = any(u is not None and u <= SAMPLE_MAX + 1e-9 for u in units)
+        paid = any(u is not None and u > SAMPLE_MAX + 1e-9 for u in units)
+        named = [x["line_no"] for x in lns if x["line_no"] in disc_named]
+        if not ((penny and paid) or named):
+            continue
+        nos = [x["line_no"] for x in lns]
+        gross = sum((_dec(num(x.get("ext_cost"))) for x in lns), Decimal(0))
+        less = sum((_dec(disc.get(no, 0.0)) for no in nos), Decimal(0))
+        pk_units, n_pk = Decimal(0), 0
+        for x in lns:
+            pks = pk_by_line.get(x["line_no"]) or []
+            if pks:
+                pk_units += sum((_dec(num(p.get("qty")) or 0) for p in pks), Decimal(0))
+                n_pk += len(pks)
+            else:
+                pk_units += _dec(num(x.get("units_total")) or 0)
+                n_pk += 1
+        if pk_units <= 0:
+            continue
+        stated = [x["line_no"] for x in lns if (programs.get(x["line_no"]) or programs.get("*") or "").strip().lower() == "deal"]
+        worded = [x["line_no"] for x in lns if DEAL_WORDS.search(x.get("description") or "")]
+        basis = "a line discount names the deal" if named else "the same item on a paid line and a penny line"
+        out.append({"lines": nos, "item": key, "confirmed": bool(stated or named or worded), "gross": gross,
+                    "discount": less, "total": gross - less, "units": pk_units, "packages": n_pk, "basis": basis,
+                    "blended": _cents((gross - less) / pk_units)})
+    return out
+
+
 def on_hand(inv, sku):
     rooms, costs = {}, set()
     for r in inv:
@@ -213,10 +289,12 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     items, programs = items or {}, programs or {}
     prod = [ln for ln in lines if (ln.get("is_order_level") or "").upper() != "Y" and not (ln.get("order_level_kind") or "").strip()]
     order = [ln for ln in lines if (ln.get("is_order_level") or "").upper() == "Y" and (ln.get("order_level_kind") or "").strip()]
-    disc = {}
+    disc, disc_named = {}, set()
     for ln in lines:
         if (ln.get("order_level_kind") or "") == "discount" and (ln.get("is_order_level") or "").upper() != "Y":
             disc[ln["line_no"]] = disc.get(ln["line_no"], 0.0) + abs(num(ln.get("ext_cost")) or 0)
+            if DEAL_WORDS.search(ln.get("description") or ""):
+                disc_named.add(ln["line_no"])
     by_pid = {r["ProductId"]: r for r in catalog}
     exc = []
 
@@ -282,6 +360,14 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     share = o_all / n_pk if n_pk else 0.0
     base = sum(num(ln.get("ext_cost")) or 0 for ln in prod)
 
+    # 3. Buy-Get deals (R103): blended over every package of the deal, each tagged; the last package takes the remainder
+    deals = buy_get_groups(prod, pids, programs, disc, disc_named, pk_by_line)
+    deal_of = {}
+    for k, g in enumerate(deals, 1):
+        g.update(id=f"BG{k}", left=g["packages"], placed=Decimal(0), entered=Decimal(0), rows=[])
+        for no in g["lines"]:
+            deal_of[no] = g
+
     rows = []
     new_line_items = {}   # item key -> True once a SELLABLE package of a new-line item is on this receipt (R83 R126)
     for ln in sorted(prod, key=lambda x: sort_key(x["line_no"])):
@@ -299,7 +385,10 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
         prog = (programs.get(no) or programs.get("*") or "").strip().lower()
         mk = marker(desc)
         landed_r103 = None
-        if units and base > 0:
+        dg = deal_of.get(no)
+        if dg and base > 0:
+            landed_r103 = (float(dg["total"]) + float(dg["gross"]) / base * o_all) / float(dg["units"])
+        elif units and base > 0:
             landed_r103 = (ext - disc.get(no, 0.0) + ext / base * o_all) / units
         line_flags = []
 
@@ -324,9 +413,17 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             lflag("DEAL_PRINTED", f"{'stated deal' if prog else f'line discount {disc[no]:.2f} printed'} -> {deal_tag}")
         elif prog in ("none", "cost change"):
             rule = f"R127 stated: {prog}"
-        elif unit is not None and unit <= SAMPLE_MAX + 1e-9:
+        elif unit is not None and unit <= SAMPLE_MAX + 1e-9 and not (dg and dg["confirmed"]):
             rule = "R127: disposition owed"
-            lflag("PENNY_UNMARKED", f"unit {unit:.2f} <= {SAMPLE_MAX:.2f} and neither the invoice nor a direction says sample, display or deal")
+            lflag("PENNY_UNMARKED", f"unit {unit:.2f} <= {SAMPLE_MAX:.2f} and neither the invoice nor a direction says sample, display or deal"
+                  + (f"; the same item is on line(s) {', '.join(x for x in dg['lines'] if x != no)} at a paid price, so the "
+                     f"sheet PROPOSES a Buy-Get blend (R103): confirm `--program {no}=deal`, or state `sample`" if dg else ""))
+        if dg:
+            pkg_tag = deal_tag
+            rule = ("R103 Buy-Get blend (R84)" if dg["confirmed"] else "R103 PROPOSED: Buy-Get blend (R84) - confirm the penny line")
+            lflag("BUY_GET_BLEND", f"{dg['id']} lines {'+'.join(dg['lines'])} ({dg['basis']}): {float(dg['units']):g} units, deal total "
+                                   f"${dg['total']:.2f}, blended unit ${dg['blended']:.2f} over {dg['packages']} package(s), "
+                                   f"each `{deal_tag}`; the last package takes the remainder")
         if pid and not prog and not pkg_tag and unit is not None and unit > SAMPLE_MAX + 1e-9:
             if cost is None:
                 lflag("COST_UNKNOWN", f"item {pid} has no catalog Cost to compare the invoice price with")
@@ -419,9 +516,27 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             pext = num(p.get("ship_cost")) if p else ext
             pext = ext if pext is None else pext
             u = pext / q if q else None
-            blend = (pext + share) / q if q else None
+            entered_unit = u if (p and case) else unit
+            entered_ext = pext
+            deal_cell = ""
+            if dg and q:
+                dg["left"] -= 1
+                qd = _dec(q)
+                if dg["left"] == 0:   # the remainder rides the deal's last package so the deal ties to the penny
+                    eu = (dg["total"] - dg["placed"]) / qd
+                    deal_cell = f"{dg['id']}: lines {'+'.join(dg['lines'])}, blended {dg['blended']:.2f}; REMAINDER package"
+                else:
+                    eu = dg["blended"]
+                    deal_cell = f"{dg['id']}: lines {'+'.join(dg['lines'])}, blended {dg['blended']:.2f}"
+                dg["placed"] += dg["blended"] * qd
+                eu_s = _unit_str(eu)
+                dg["entered"] += Decimal(eu_s) * qd
+                dg["rows"].append((rid, (p or {}).get("package_id", ""), f"{q:g}", eu_s))
+                entered_unit, entered_ext = float(eu_s), float(Decimal(eu_s) * qd)
+            blend = (entered_ext + share) / q if q else None
             r = dict(common, row=rid, expected_qty=f"{q:g}", ext_cost=fmt_money(pext),
                      unit_cost_invoice=fmt_money(u if (p and case) else unit),
+                     cost_entered=(dg["rows"][-1][3] if dg and q else fmt_money(entered_unit)), deal=deal_cell,
                      blended_unit_cost="" if blend is None or not order else f"{blend:.4f}",
                      metrc_package_id=(p or {}).get("package_id", ""), metrc_item=(p or {}).get("metrc_item", ""),
                      manifest_qty=(p or {}).get("qty", ""), manifest_ship_cost=(p or {}).get("ship_cost", ""),
@@ -431,9 +546,9 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                      physical_count=(p or {}).get("qty", ""), qty_match="Y" if p else "")
             rflags = list(line_flags)
             if order and blend is not None:
-                if pext + share < -0.005:
+                if entered_ext + share < -0.005:
                     rflags.append("CREDIT_BLEND_NEGATIVE")
-                    add("CREDIT_BLEND_NEGATIVE", rid, no, f"package ext {pext:.2f} + equal share {share:+.2f} = {pext + share:+.2f}")
+                    add("CREDIT_BLEND_NEGATIVE", rid, no, f"package ext {entered_ext:.2f} + equal share {share:+.2f} = {entered_ext + share:+.2f}")
                 elif cost and pkg_tag == "" and blend <= R62_RATIO * cost + 1e-9:
                     rflags.append("CREDIT_TRIPS_R62")
                     add("CREDIT_TRIPS_R62", rid, no, f"blended unit {blend:.4f} <= {R62_RATIO:.2f} x catalog Cost {cost:g} and no `{PKG_PREFIX}` tag")
@@ -453,11 +568,18 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                               f"equally across {n_pk} package(s) ({share:+.4f} each) (R126)"})
     if base <= 0 and abs(o_all) >= 0.005:
         add("LANDED_UNRECONCILED", "", "", f"order-level lines total {o_all:+.2f} but no product line carries ext_cost")
+    for g in deals:
+        if abs(g["entered"] - g["total"]) >= Decimal("0.005"):
+            add("BUY_GET_UNTIED", "", "+".join(g["lines"]), f"{g['id']}: entered ${g['entered']:.4f} vs the deal's invoice "
+                                                              f"${g['total']:.2f} - the last package's 4-place unit cannot carry the remainder")
     summary = {"packages": len(mapped), "product_lines": len(prod), "order_level": o_all, "share": share,
                "manifest": manifest is not None, "product_ext": base, "new_line_tag": new_line_tag,
                "new_line_packages": sum(1 for r in rows if r.get("new_line_tag_on_package", "").startswith("yes")),
                "flips": dict(sorted(flips.items())), "discontinue_tag": discontinue_tag,
-               "discontinued_buys": [e for e in exc if e["flag"] == "DISCONTINUED_BUY"]}
+               "discontinued_buys": [e for e in exc if e["flag"] == "DISCONTINUED_BUY"],
+               "buy_get": [{k: g[k] for k in ("id", "lines", "basis", "confirmed", "gross", "discount", "total", "units",
+                                              "packages", "blended", "entered", "rows")} for g in deals],
+               "deal_tag": deal_tag}
     return rows, exc, summary
 
 
@@ -502,6 +624,18 @@ def questions(exc, summary, stem, header=None):
                 "RECORDED EXCEPTION, never a block: the item keeps the tag; fill `exception_reason` on the sheet and "
                 "name the reason on the PO."]
         out += [f"- line {e['line']}: {e['detail']}" for e in summary["discontinued_buys"]] + [""]
+    if summary.get("buy_get"):
+        out += [f"Buy-Get deals (R103): blended over every package of the deal, each `{summary.get('deal_tag', '')}`; "
+                "`cost_entered` is what each package row takes. The invoice total and catalog Cost do not change."]
+        for g in summary["buy_get"]:
+            last = g["rows"][-1] if g["rows"] else ("", "", "", "")
+            out.append(f"- {g['id']} lines {'+'.join(g['lines'])} ({g['basis']}"
+                       + ("" if g["confirmed"] else "; PROPOSED until the penny line is confirmed") + f"): units {float(g['units']):g} · "
+                       f"ext ${g['gross']:.2f}" + (f" - line discount ${g['discount']:.2f}" if g["discount"] else "")
+                       + f" = ${g['total']:.2f} · blended unit ${g['blended']:.2f} · packages {g['packages']} · remainder on "
+                       f"{last[1] or 'row ' + str(last[0])} at ${last[3]} · entered ${g['entered']:.2f} = invoice ${g['total']:.2f}")
+            out += [f"  - row {r[0]} {r[1] or '(no package id yet)'}: {r[2]} x ${r[3]}" for r in g["rows"]]
+        out.append("")
     if not stops:
         return "\n".join(out + ["No STOP and no DEFECT. The sheet is ready for entry.", ""])
     out += ["| # | Flag | Class | Rule | Row / line | Detail | Question |", "|---|---|---|---|---|---|---|"]
@@ -907,6 +1041,121 @@ def selftest():
     t.check("a pending line (no item id) reads no tag, so never fires",
             not any(e["flag"] == "DISCONTINUED_BUY" for e in
                     prep(lines, [dict(x, Tags="ITM - Discontinue") for x in cat], inv, None, man, {}, None, "PKG - Vendor Deal")[1]))
+
+    # R103 (amended 2026-10-11): a Buy-Get deal priced on ONE invoice line is BLENDED over every package of the deal,
+    # each tagged; the last package takes the remainder so the deal ties to the invoice to the penny. Synthetic
+    # buy-4-get-1: 4 paid cases of 10 at 18.37 + 1 free case of 10 at 0.01 (+ a marked 1-unit sample beside it).
+    bg_cat = cat + [{"ProductId": "14", "SKU": "9014", "Product": "Acme | Flower | Kush | 3.5g", "Master category": "Flower",
+                     "Cost": "18.37", "Tags": "ITM - Active"}]
+
+    def bg_ln(no, desc, units, unit, **kw):
+        return dict({"line_no": no, "description": desc, "units_total": str(units), "unit_cost": f"{unit:.2f}",
+                     "ext_cost": f"{units * unit:.2f}", "is_order_level": "N", "order_level_kind": "", "expiry_date": ""}, **kw)
+
+    def bg(paid=18.37, programs=None, drop_paid=False, extra=()):
+        ls = [bg_ln("1", "Acme Kush Flower 3.5g", 40, paid), bg_ln("2", "Acme Kush Flower 3.5g", 10, 0.01),
+              bg_ln("3", "Acme Kush Flower 3.5g (sample)", 1, 0.01)] + list(extra)
+        mf = [{"package_id": f"BG-{k}", "line": "1", "metrc_item": "Kush Flower", "qty": "10", "ship_cost": f"{10 * paid:.2f}"}
+              for k in range(1, 5)]
+        mf += [{"package_id": "BG-5", "line": "2", "metrc_item": "Kush Flower", "qty": "10", "ship_cost": "0.10"},
+               {"package_id": "BG-S", "line": "3", "metrc_item": "Kush Flower sample", "qty": "1", "ship_cost": "0.01"}]
+        if drop_paid:
+            ls = [x for x in ls if x["line_no"] != "1"]
+            mf = [p for p in mf if p["line"] != "1"]
+        return prep(ls, bg_cat, inv, None, mf, {"1": "14", "2": "14", "3": "14"},
+                    {"2": "deal"} if programs is None else programs, "PKG - Vendor Deal")
+
+    DEAL_ROWS = ("1a", "1b", "1c", "1d", "2")
+
+    def rows_of(res):
+        return {x["row"]: x for x in res[0]}
+
+    def entered_total(rw):
+        return sum(Decimal(rw[k]["cost_entered"]) * Decimal(rw[k]["expected_qty"]) for k in DEAL_ROWS if k in rw)
+
+    def bg_ok(res):
+        rw = rows_of(res)
+        if not all(k in rw for k in DEAL_ROWS + ("3",)):
+            return False
+        return ([rw[k]["cost_entered"] for k in DEAL_ROWS] == ["14.70"] * 4 + ["14.69"]
+                and all(rw[k]["pkg_tags_to_apply"] == "PKG - Vendor Deal" for k in DEAL_ROWS)
+                and entered_total(rw) == Decimal("734.90")
+                and rw["3"]["pkg_tags_to_apply"] == DEFAULT_SAMPLE_TAG and rw["3"]["cost_entered"] == "0.01"
+                and not [e for e in res[1] if e["class"] in ("STOP", "DEFECT")])
+
+    def bpair(label, pred, good, broken, how):
+        g, b = pred(good), pred(broken)
+        t.check(f"{label} [breaker: {how}]", g and not b, f"clean={g} broken={b}")
+
+    bg_clean = bg()
+    bpair("BUY-4-GET-1: 5 packages at the blended 14.70, the remainder 14.69 on the last, 734.90 ties to the invoice, all 5 "
+          "`PKG - Vendor Deal`; the sample beside it stays `PKG - Employee` at 0.01", bg_ok, bg_clean, bg(drop_paid=True),
+          "the paid line is gone (a lone penny line)")
+    bpair("a lone penny line is never blended: PENNY_UNMARKED (R127) at its own price, no BUY_GET_BLEND",
+          lambda res: (("PENNY_UNMARKED", "2") in _flags(res) and not any(e["flag"] == "BUY_GET_BLEND" for e in res[1])
+                       and rows_of(res)["2"]["cost_entered"] == "0.01" and rows_of(res)["2"]["pkg_tags_to_apply"] == "none"),
+          bg(drop_paid=True, programs={}), bg(programs={}), "a paid line of the same item beside it")
+    bpair("a lone penny line stated `deal` keeps its own price (nothing to blend over)",
+          lambda res: (("DEAL_PRINTED", "2") in _flags(res) and rows_of(res)["2"]["cost_entered"] == "0.01"
+                       and not any(e["flag"] == "BUY_GET_BLEND" for e in res[1])),
+          bg(drop_paid=True), bg_clean, "the paid line is back")
+
+    def one_remainder(res):
+        rw = rows_of(res)
+        diff = [k for k in DEAL_ROWS if rw[k]["cost_entered"] != res[2]["buy_get"][0]["blended"].to_eng_string()]
+        return diff == ["2"] and rw["2"]["deal"].endswith("REMAINDER package") and entered_total(rw) == res[2]["buy_get"][0]["total"]
+    bpair("the remainder lands on ONE package, the deal's last, and the deal still ties", one_remainder, bg_clean,
+          bg(paid=18.36), "a deal whose blend divides to the cent (18.36: 734.50 / 50 = 14.69, no remainder)")
+    t.check("CONTROL: a cent-exact deal ties with every package at the blended unit",
+            [rows_of(bg(paid=18.36))[k]["cost_entered"] for k in DEAL_ROWS] == ["14.69"] * 5
+            and entered_total(rows_of(bg(paid=18.36))) == Decimal("734.50"))
+    bpair("the tag rides EVERY package of the deal, never only the penny one",
+          lambda res: all(rows_of(res)[k]["pkg_tags_to_apply"] == "PKG - Vendor Deal" for k in DEAL_ROWS), bg_clean,
+          bg(programs={"2": "sample"}), "the penny line is stated a sample (no deal: the paid cases carry no tag)")
+    bpair("an unmarked penny line inside a deal is still asked: PENNY_UNMARKED, the blend PROPOSED",
+          lambda res: (any(e["flag"] == "PENNY_UNMARKED" and e["line"] == "2" and "PROPOSES a Buy-Get blend" in e["detail"]
+                           for e in res[1]) and rows_of(res)["2"]["tag_rule"].startswith("R103 PROPOSED")
+                       and rows_of(res)["1a"]["cost_entered"] == "14.70"),
+          bg(programs={}), bg_clean, "`--program 2=deal` settles it")
+    t.check("a deal word on the penny line itself confirms the deal (no question)",
+            not any(e["flag"] == "PENNY_UNMARKED" for e in
+                    prep([bg_ln("1", "Acme Kush Flower 3.5g", 40, 18.37), bg_ln("2", "Acme Kush Flower 3.5g - buy 4 get 1", 10, 0.01)],
+                         bg_cat, inv, None, None, {"1": "14", "2": "14"}, {}, "PKG - Vendor Deal")[1]))
+
+    def named(words):
+        ls = [bg_ln("1", "Acme Kush Flower 3.5g", 50, 18.37),
+              {"line_no": "1", "description": words, "units_total": "", "unit_cost": "", "ext_cost": "-183.70",
+               "is_order_level": "N", "order_level_kind": "discount"}]
+        mf = [{"package_id": f"ND-{k}", "line": "1", "metrc_item": "Kush Flower", "qty": "10", "ship_cost": "183.70"}
+              for k in range(1, 6)]
+        return prep(ls, bg_cat, inv, None, mf, {"1": "14"}, None, "PKG - Vendor Deal")
+    bpair("a line discount NAMING the deal blends the line over its 5 packages (14.70 x4 + 14.68, ties 734.80)",
+          lambda res: ([x["cost_entered"] for x in res[0]] == ["14.70"] * 4 + ["14.68"]
+                       and ("BUY_GET_BLEND", "1") in _flags(res)
+                       and all(x["pkg_tags_to_apply"] == "PKG - Vendor Deal" for x in res[0])),
+          named("Buy 4 Get 1 free case"), named("Promo discount"), "the discount names no deal (package-specific, R62)")
+    t.check("DEAL_WORDS reads `b4g1`, `BOGO`, `Buy 4, Get 1 Free`, `free case`; not `sugar free` or `buyer`",
+            all(DEAL_WORDS.search(w) for w in ("b4g1", "BOGO promo", "Buy 4, Get 1 Free", "1 free case"))
+            and not any(DEAL_WORDS.search(w) for w in ("Sugar Free Gummies", "buyer credit", "Getaway 1g")))
+    def untied(last_qty):
+        ls = [bg_ln("1", "Acme Kush Flower 3.5g", 7, 10.0), bg_ln("2", "Acme Kush Flower 3.5g", last_qty, 0.01)]
+        mf = [{"package_id": "U-1", "line": "1", "metrc_item": "Kush Flower", "qty": "7", "ship_cost": "70.00"},
+              {"package_id": "U-2", "line": "2", "metrc_item": "Kush Flower", "qty": str(last_qty), "ship_cost": f"{last_qty * 0.01:.2f}"}]
+        return prep(ls, bg_cat, inv, None, mf, {"1": "14", "2": "14"}, {"2": "deal"}, "PKG - Vendor Deal")
+    bpair("BUY_GET_UNTIED (STOP) fires when the remainder cannot divide on a big last package (1,000 units: 79.96 vs 80.00)",
+          lambda res: any(e["flag"] == "BUY_GET_UNTIED" and e["class"] == "STOP" for e in res[1]),
+          untied(1000), untied(10), "a 10-unit last package: 41.26 / 10 = 4.126, ties")
+    qbg = questions(bg_clean[1], bg_clean[2], "x")
+    t.check("the questions file prints the deal math (lines, units, ext, blended unit, packages, remainder, the tie)",
+            "Buy-Get deals (R103)" in qbg and "BG1 lines 1+2" in qbg and "units 50 " in qbg and "ext $734.90" in qbg
+            and "blended unit $14.70" in qbg and "packages 5" in qbg and "remainder on BG-5 at $14.69" in qbg
+            and "entered $734.90 = invoice $734.90" in qbg and "Buy-Get deals" not in questions(base[1], base[2], "x"))
+    t.check("CONTROL: a package outside any deal enters its own invoice unit (cost_entered = unit_cost_invoice, deal blank)",
+            all(r["cost_entered"] == r["unit_cost_invoice"] and r["deal"] == "" for r in base[0] if r.get("metrc_package_id")))
+    t.check("CONTROL: the credit blend reads the entered (blended) ext on a deal package",
+            (lambda res: rows_of(res)["1a"]["blended_unit_cost"] == f"{(147.0 - 60 / 6) / 10:.4f}")(
+                bg(extra=[{"line_no": "90", "description": "Credit", "units_total": "", "unit_cost": "", "ext_cost": "-60.00",
+                           "is_order_level": "Y", "order_level_kind": "credit"}])))
 
     t.check("stub paths still refuse with exit 2",
             all(main([m]) == EXIT_ABORT for m in ("--enter", "--check", "--vendor")) and main([]) == EXIT_ABORT)

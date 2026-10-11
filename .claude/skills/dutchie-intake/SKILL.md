@@ -394,6 +394,18 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      information only (Operator ruling 2026-10-09).
    - Credit: entered once in the receipt header. Dutchie blends it EQUALLY across the packages; the sheet prints that
      blend per package, and `CREDIT_BLEND_NEGATIVE` / `CREDIT_TRIPS_R62` are STOPs.
+   - Buy-Get deal (R103, R84): the invoice often prices the free case of a Buy-Get deal on ONE line at a penny. The
+     lane reads a deal when the same item sits on a paid line AND a penny line, or a line discount names the deal
+     (`buy 4 get 1`, `b4g1`, `bogo`, `free case`). A sample or display line, or a line stated anything but `deal`, stays
+     out. The lane BLENDS: blended unit = (the deal lines' ext - their line discounts) / (the deal's package units),
+     rounded to the cent. Every package of the deal gets `cost_entered` = that unit and the vendor deal tag; the last
+     package takes the remainder, so the deal ties to the invoice to the penny. A remainder that will not divide to a
+     4-place unit is `BUY_GET_UNTIED` (STOP). The questions file prints the deal math. Never one package at a penny:
+     the blend is entered per package from the sheet, never as a header credit (R126 is for order-level credits).
+     A penny line with no paid line of its item is never blended. An unmarked penny line inside a deal stays
+     `PENNY_UNMARKED` (R127) with the blend as the proposed default; `--program <line>=deal`, or a deal word on the
+     invoice, settles it. The invoice total and catalog Cost do not change (R62). `cost_entered` is the unit cost each
+     package row takes: the deal's blended unit, else the package's invoice unit.
    - Discontinued buy (R68, R48): a line whose item carries the discontinue tag (pointer `Discontinue tag`, default
      `ITM - Discontinue`) is `DISCONTINUED_BUY`, an INFO note. A buy into a discontinued item or line (an MOQ, a
      high-testing batch) is a RECORDED EXCEPTION: the item keeps its tag, the sheet's `exception_reason` cell reads
@@ -524,7 +536,7 @@ The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_wr
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 138 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 141 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

@@ -1,0 +1,4 @@
+line_no,description,units_total,unit_cost,ext_cost,is_order_level,order_level_kind,expiry_date,invoice_no,vendor
+1,Acme Kush Flower 3.5g,40,18.37,734.80,N,,,SO-2002,Acme Supply
+2,Acme Kush Flower 3.5g,10,0.01,0.10,N,,,SO-2002,Acme Supply
+3,Acme Kush Flower 3.5g (sample),1,0.01,0.01,N,,,SO-2002,Acme Supply
