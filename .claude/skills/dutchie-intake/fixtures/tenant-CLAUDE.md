@@ -30,3 +30,4 @@ Not a real tenant. Relative paths resolve against this file's folder.
 - MSRP anchor: own lanes
 - MSRP floor x cost: 2
 - FL EQ classes: ./fl-eq-classes.toml   # R1-R3, R6: the fl_eq class per Master Category; the lane derives Flower equiv from it
+- PL key: ./pl_key_example.py:pl_of     # R68: the tenant's product-line key; a create into a wholly-discontinued line takes the tag

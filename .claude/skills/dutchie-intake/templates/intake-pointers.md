@@ -28,6 +28,11 @@ record that ruled it in the tenant's DECISIONS.
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 - New line tag: <ITM - tag>              # OPTIONAL (R83): the tag a NEW_PL create carries; default `ITM - New PL`
 - Active tag: <ITM - tag>                # OPTIONAL (R96): the standard state a mixed lane's copy reads; default `ITM - Active`
+- Discontinue tag: <ITM - tag>           # OPTIONAL (R48 R68): the stop-buying tag; default `ITM - Discontinue`
+- PL key: <abs path .py>:<function>      # OPTIONAL (R68): the tenant's PRODUCT LINE key - a function in the tenant's own
+                                         # scripts, one Catalog row in, one key out. A create into a line whose every
+                                         # active item carries the discontinue tag is tagged with it at create.
+                                         # Absent: the generic `Category | <dose> | Brand` (intake_common.pl_key_default)
 - Market center: <lat,lng>               # MSRP read (intake_msrp.py): the centre of the comparables set
 - Market radius mi: <n>                  # MSRP read: the comparables radius in miles
 - Market box: <S,W,N,E>                  # OPTIONAL: the live-feed listing box; default = twice the radius

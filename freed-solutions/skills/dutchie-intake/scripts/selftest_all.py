@@ -105,7 +105,8 @@ def matched(c):
                     categories=c.get("categories"), brands=c.get("brands"), line_brands=c.get("line_brands"),
                     line_categories=c.get("line_categories"), strain_types=c.get("strain_types"),
                     fl_eq_classes=c.get("fl_eq"), conc_grams=c.get("conc_grams"),
-                    package_cap_mg=c.get("cap_mg", C.DEFAULT_PACKAGE_THC_CAP_MG), package_caps=c.get("caps"))[0]
+                    package_cap_mg=c.get("cap_mg", C.DEFAULT_PACKAGE_THC_CAP_MG), package_caps=c.get("caps"),
+                    pl_key_fn=c.get("pl_key_fn", C.pl_key_default))[0]
 
 
 def verdict_count(c, v):
@@ -1158,6 +1159,55 @@ RECEIVE_CHECKS = [
 ]
 
 
+# R68 (amended 2026-10-11): a create into a PRODUCT LINE whose every active item carries the discontinue tag is tagged
+# with it at create and flagged PL_DISCONTINUED_CREATE (INFO); a mixed, an untagged and a NEW line print nothing. Line 3
+# (Gelato) copies into the Acme pre-roll line (live 501 + 502; 503 is a dead record, R81, in no line); line 5 is a
+# NEW_PL cartridge whose `Cartridge | 0.5g | Acme Farms` line has no sibling.
+DISC = C.DEFAULT_DISCONTINUE_TAG
+
+
+def r68_line(*tags):
+    """The fixture with the two live Acme pre-roll siblings' decision tags set (Status - Live kept beside them)."""
+    c = ctx()
+    for sku, tg in zip(("1001", "1002"), tags):
+        mut(c, "active", lambda r, s=sku: r["SKU"] == s, Tags=", ".join(x for x in ("Status - Live", tg) if x))
+    return c
+
+
+def r68_row(c, prefix):
+    r = row_for(c, prefix)
+    return "PL_DISCONTINUED_CREATE" in r["flags"].split(";"), r["tags"]
+
+
+def acme_cart(c, grams="1g", tag=DISC):
+    """Add a live Acme Farms cartridge of `grams` carrying `tag` (same Category as line 5's NEW_PL placement)."""
+    base = next(r for r in c["active"] if r["SKU"] == "2001")
+    c["active"].append(dict(base, ProductId="611", SKU="2011", Product=f"Acme Farms | Distillate Cart | Blue Dream | {grams}",
+                            Brand="Acme Farms", Strain="Blue Dream", **{"Product grams": grams, "Tags": tag}))
+    return c
+
+
+CHECKS += [
+    ("R68 FIRES: a create into a wholly-discontinued line takes the discontinue tag + PL_DISCONTINUED_CREATE (INFO)",
+     lambda c: r68_row(c, "Acme Farms Gelato") == (True, DISC),
+     r68_line(DISC, DISC), r68_line(DISC, C.DEFAULT_ACTIVE_TAG), "one sibling on the Active tag (a MIXED line)"),
+    ("R68 QUIET: a MIXED line (one sibling tagged) prints nothing and the create reads the Active tag",
+     lambda c: r68_row(c, "Acme Farms Gelato") == (False, C.DEFAULT_ACTIVE_TAG),
+     r68_line(DISC, C.DEFAULT_ACTIVE_TAG), r68_line(DISC, DISC), "tag the other sibling too (a wholly-discontinued line)"),
+    ("R68 QUIET: an UNTAGGED line (no sibling carries the tag) prints nothing",
+     lambda c: r68_row(c, "Acme Farms Gelato")[0] is False,
+     ctx(), r68_line(DISC, DISC), "tag both siblings"),
+    ("R68 QUIET: a NEW line (no sibling under its key) keeps the new-line tag, even beside a discontinued line of the brand",
+     lambda c: r68_row(c, "Acme Farms Northern Lights") == (False, C.DEFAULT_NEW_LINE_TAG),
+     acme_cart(r68_line(DISC, DISC), "1g"), acme_cart(r68_line(DISC, DISC), "0.5g"),
+     "the brand's discontinued cartridge is 0.5g, the same line as the create"),
+    ("R68: the tenant's `PL key:` function decides the line, not the skill's default (Category | Brand reads the 1g cart)",
+     lambda fn: r68_row(dict(acme_cart(ctx(), "1g"), pl_key_fn=fn), "Acme Farms Northern Lights")[0] is True,
+     IM.line_options([], PTR.load(fx("tenant-CLAUDE.md")))[1], C.pl_key_default,
+     "the skill's default key (it reads the dose: 0.5g is a NEW line)"),
+]
+
+
 def run_checks():
     bad = []
     for name, pred, good, broken, how in CHECKS + RECEIVE_CHECKS:
@@ -1206,6 +1256,16 @@ def cli_chain():
                        "--brands", fx("brands.csv"), "--out-dir", t, "--slug", "example", "--drop-tag", DROP[0],
                        "--fl-eq-classes", fx("fl-eq-classes.toml")], 0)
         v1 = next(os.path.join(t, n) for n in os.listdir(t) if n.endswith("-v1.csv"))
+        td = os.path.join(t, "tenant-key")
+        out = step("match --tenant (R68: the `PL key:` pointer names the line key)",
+                   ["intake_match.py", "--lines", lines, "--active", fx("catalog-active.csv"), "--retired",
+                    fx("catalog-retired.csv"), "--strains", fx("strains.csv"), "--tenant", fx("tenant-CLAUDE.md"),
+                    "--out-dir", td, "--slug", "example", "--drop-tag", DROP[0]], 0)
+        if "R68 line state: PL key" not in out or "pl_key_example.py:pl_of" not in out:
+            bad.append("match PL key pointer")
+            print("  FAIL  match --tenant must print the R68 line key it read from the `PL key:` pointer")
+        else:
+            print("  PASS  match --tenant prints the R68 line key from the `PL key:` pointer")
         with open(v1, encoding="utf-8") as f:
             hdr = next(csv.reader(f))
         if (hdr != IM.INTAKE_COLS or len(hdr) != 57 or hdr[-5:] != ["parse_source", "package_id", "unretire_set", "image_source", "derived"]

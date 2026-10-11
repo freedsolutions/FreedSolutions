@@ -33,10 +33,15 @@ REQUIRED_INTAKE = ["Operator", "Mail label", "Drive invoices folder", "Intake di
                    "Standard cost", "Expiry threshold days", "PO source", "Watermark",
                    "Notice template", "Floor sheet", "Vendor deal tag"]
 REQUIRED_BI = ["Backoffice login", "Write channel"]
-PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir", "Market archive", "FL EQ classes"]
+PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir", "Market archive", "FL EQ classes",
+             "PL key"]
 CHANNELS = ["neo", "playwright", "pane"]
 PO_SOURCES = ["apex", "vendor pdf", "none"]
-OPTIONAL_TAG_KEYS = ["New line tag", "Active tag"]   # R83 / R96; absent = the skill's generic default
+OPTIONAL_TAG_KEYS = ["New line tag", "Active tag", "Discontinue tag"]   # R83 / R96 / R48 R68; absent = the generic default
+# R68 (amended 2026-10-11): the tenant's PRODUCT LINE key, `<file.py>:<function>` (one Catalog row -> a key). Optional:
+# absent, intake_common.pl_key_default reads the line. A create into a line whose every active item carries the
+# discontinue tag is tagged with it at create (intake_match, intake_plan).
+OPTIONAL_PL_KEY = "PL key"
 # R1-R3, R6: the tenant's fl_eq class map (a TOML of [master.<MC>] tables); optional - absent, Flower equiv stays
 # at the create stop on every new line (intake_derive.py).
 OPTIONAL_CLASS_KEY = "FL EQ classes"
@@ -152,6 +157,9 @@ def problems_keyed(res):
         probs.append(("MSRP anchor", f"`MSRP anchor` must be one of {MSRP_ANCHORS}, got {mk['MSRP anchor']!r}"))
     if "MSRP floor x cost" in mk and not re.fullmatch(r"\d+(?:\.\d+)?", mk["MSRP floor x cost"]):
         probs.append(("MSRP floor x cost", f"`MSRP floor x cost` must be a number (2 = keystone), got {mk['MSRP floor x cost']!r}"))
+    plk = res["intake"].get(OPTIONAL_PL_KEY)
+    if plk is not None and not is_placeholder(plk) and not re.fullmatch(r".+\.py:[A-Za-z_]\w*", plk.strip()):
+        probs.append((OPTIONAL_PL_KEY, f"`{OPTIONAL_PL_KEY}` must name `<file.py>:<function>`, got {plk!r}"))
     fl = res["intake"].get(OPTIONAL_CLASS_KEY)
     if fl is not None and not is_placeholder(fl) and not fl.lower().endswith(".toml"):
         probs.append((OPTIONAL_CLASS_KEY, f"`{OPTIONAL_CLASS_KEY}` must name a .toml class map, got {fl!r}"))
@@ -316,6 +324,17 @@ def selftest():
             any("item decision tag" in p for p in validate(parse_text(tg.replace("`ITM - New PL`", "`PKG - New PL`")))))
     t.check("FIRES: one tag named for both keys is refused",
             any("same tag" in p for p in validate(parse_text(tg.replace("`ITM - New PL`", "`ITM - Active`")))))
+    t.check("QUIET (R68): the PL key and the Discontinue tag are optional",
+            OPTIONAL_PL_KEY not in r["intake"] and "Discontinue tag" not in r["intake"] and validate(r) == [])
+    pk = SAMPLE.replace("## Change log", "- PL key: `./scripts/lines.py:pl_of`   # R68 line state\n"
+                        "- Discontinue tag: `ITM - Discontinue`\n\n## Change log", 1)
+    rp = parse_text(pk)
+    t.check("the PL key parses as <file.py>:<function> and validates",
+            validate(rp) == [] and rp["intake"][OPTIONAL_PL_KEY] == "./scripts/lines.py:pl_of", str(validate(rp)))
+    t.check("FIRES: a PL key that names no function is refused",
+            any("PL key" in p for p in validate(parse_text(pk.replace("lines.py:pl_of", "lines.py")))))
+    t.check("FIRES: a package tag as the Discontinue tag is refused",
+            any("Discontinue tag" in p for p in validate(parse_text(pk.replace("`ITM - Discontinue`", "`PKG - Discontinue`")))))
     t.check("QUIET: the market keys are optional", "Market center" not in r["intake"] and validate(r) == [])
     mkt = SAMPLE.replace("## Change log", "- Market center: 42.36,-71.06\n- Market radius mi: 15\n"
                          "- Market box: 41.4,-72.1,42.9,-69.9\n- Own store: exampleco\n\n## Change log", 1)

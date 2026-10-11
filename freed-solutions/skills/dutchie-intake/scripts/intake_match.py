@@ -38,6 +38,10 @@ by intake_plan for the plan row's provenance and its re-derivation; blank on eve
            --tag-override <line_no>=<tag>  the business's direction for one line's copy (`*=` for every
                                        line); beats the line's own tag (R96). Repeatable.
            --dead-tag "<tag>"          the R81 dead-record tag; such rows are never matched or copied
+           --discontinue-tag "<tag>"   the R48 / R68 stop-buying tag (default `ITM - Discontinue`; tenant:
+                                       `Discontinue tag:`); a create into a line every active item carries it in takes it
+           --pl-key <file.py>:<function>  the tenant's PRODUCT LINE key (one Catalog row -> a key; tenant: `PL key:`);
+                                       absent, intake_common.pl_key_default (`Category | <dose> | Brand`)
            --drop-tag "<tag>"          a tag the copy must NOT keep (repeatable), e.g. a status tag
   python intake_match.py --selftest
 
@@ -96,6 +100,14 @@ carries; a mixed lane, or a member with none, reads the Active tag. The new-line
 a sibling copy (R83). `--tag-override` is the business's direction and beats both. Every other
 item-namespace tag the sibling carries is dropped from the copy. Anything brought back from retirement,
 and a copy of it, reads the Active tag.
+R68 (amended 2026-10-11): a CREATE row (NEW_ITEM_WITH_SIBLING, NEW_PL, NEW_BRAND) is read against its PRODUCT
+LINE - the active, live items under the same line key (`--pl-key <file.py>:<function>`, else the tenant pointer
+`PL key:`, else intake_common.pl_key_default `Category | <dose> | Brand`), keyed on the row's lane cells and final
+name. When EVERY such sibling (>= 1) carries the discontinue tag (`--discontinue-tag`, pointer `Discontinue tag:`,
+default `ITM - Discontinue`), the row is flagged PL_DISCONTINUED_CREATE and an undecided tag (the Active or the
+new-line tag, a `--tag-override` to either included) becomes the discontinue tag: `ITM - Protect` is the deliberate
+single-item keep (R48) and stands, as does the discontinue tag itself. A mixed line, an untagged line and a new line
+(no sibling) print nothing. intake_plan re-reads the line on the pre-batch freeze.
 
 Flag table (flags column; none fails the run):
   AMBIGUOUS_MATCH       R101  STOP  two or more items match equally; the operator picks
@@ -158,6 +170,9 @@ Flag table (flags column; none fails the run):
                                     record `<Name> (<Type>)`: Strain names are unique (R26)
   STRAIN_TYPE_RESEARCHED R33  INFO  the Strain Type came from `--strain-type` with its source; it rides the
                                     STOP as a finding with a source, never as a fact the line printed
+  PL_DISCONTINUED_CREATE R68 INFO  a create into a product line whose every active item (>= 1) carries the
+                                    discontinue tag: the create is tagged with it (R68 R96, an undecided tag only);
+                                    the line is discontinued and the buy is a recorded exception - the PO reason is owed
   BAD_LINE              R103  DEFECT a product line with no units or unit cost (exit 1)
 """
 import os
@@ -166,8 +181,10 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import (CATALOG_REQUIRED, COL_RETIRED, DEFAULT_ACTIVE_TAG, DEFAULT_DEAD_TAG, DEFAULT_PACKAGE_THC_CAP_MG,  # noqa: E402
-                           DEFAULT_NEW_LINE_TAG, ITEM_PREFIX, BRANDS_REQUIRED, CATEGORIES_REQUIRED,
+from intake_common import (CATALOG_COLS, CATALOG_REQUIRED, COL_RETIRED, CREATE_VERDICTS, DEFAULT_ACTIVE_TAG,  # noqa: E402
+                           DEFAULT_DEAD_TAG, DEFAULT_DISCONTINUE_TAG, DEFAULT_PACKAGE_THC_CAP_MG,
+                           DEFAULT_NEW_LINE_TAG, ITEM_PREFIX, line_state, load_pl_key, pl_index, pl_key_default,
+                           swap_decision, BRANDS_REQUIRED, CATEGORIES_REQUIRED,
                            EXIT_ABORT, EXIT_DEFECT, EXIT_OK, STRAINS_REQUIRED, Selftest, abort, body_of,
                            form_word, freshest, get_all, get_flag, grams_eq, grams_of, has_phrase, lane_key,
                            next_version, norm, num, read_csv, slug, strain_name_col, tag_set, write_csv)
@@ -201,7 +218,7 @@ FLAGS = [("AMBIGUOUS_MATCH", "R101", "STOP"), ("FORM_UNREAD", "R101", "STOP"), (
          ("CROSS_BRAND_COPY", "R101", "STOP"), ("CATEGORY_UNREAD", "R101", "STOP"), ("CATEGORY_DIRECTED", "R33", "STOP"),
          ("CATEGORY_INFERRED", "R33", "STOP"), ("OIL_LIVE_DEFAULT", "R79", "INFO"), ("ROUTE_RESIN_DEFAULT", "R33", "INFO"), ("BRAND_NAME_UNREAD", "R121", "STOP"),
          ("STRAIN_TYPE_CONFLICT", "R128", "STOP"), ("STRAIN_TYPE_RESEARCHED", "R33", "INFO"),
-         ("CONC_GRAMS_TO_SET", "R2", "STOP"), ("BAD_LINE", "R103", "DEFECT")]
+         ("CONC_GRAMS_TO_SET", "R2", "STOP"), ("PL_DISCONTINUED_CREATE", "R68", "INFO"), ("BAD_LINE", "R103", "DEFECT")]
 LANE_MAP = {"lane_Category": "Category", "lane_Type": "Type", "lane_IsCannabis": "Is cannabis",
             "lane_MasterCategory": "Master category", "lane_GlobalCategory": "Global Category",
             "lane_GlobalSubCategory": "Global SubCategory", "lane_ProductGrams": "Product grams",
@@ -775,7 +792,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
           dead_tag=DEFAULT_DEAD_TAG, drop_tags=(), active_tag=DEFAULT_ACTIVE_TAG, prefix=ITEM_PREFIX,
           tag_overrides=None, categories=None, brands=None, line_brands=None, line_categories=None,
           strain_types=None, fl_eq_classes=None, conc_grams=None, package_cap_mg=DEFAULT_PACKAGE_THC_CAP_MG,
-          package_caps=None):
+          package_caps=None, pl_key_fn=pl_key_default, discontinue_tag=DEFAULT_DISCONTINUE_TAG):
     """Pure: (intake rows, defects). `fl_eq_classes` = {norm(Master category): fl_eq class} (intake_derive;
     None = no pointer, Flower equiv stays at the stop); `conc_grams` = {line_no or '*': grams} directions (R2);
     `package_caps` = {norm(Master category) | CAT_PREFIX + norm(Category): package cap mg | None} from the class map
@@ -786,7 +803,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
     {line_no or '*': tag} - the business's direction for a sibling copy's decision tag (R96).
     `categories` = the taxonomy rows (None: the catalog's own stand in); `brands` = the Brand records
     (Display name); `line_brands` / `line_categories` / `strain_types` = {line_no or '*': value} directions,
-    a strain type as `<Type>@<source>`."""
+    a strain type as `<Type>@<source>`. `pl_key_fn` = the PRODUCT LINE key (R68 line state; None skips the read)."""
     tag_overrides = tag_overrides or {}
     live = [r for r in active if not is_dead(r, dead_tag)]
     old = [r for r in retired if not is_dead(r, dead_tag)]
@@ -1156,7 +1173,47 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
     for i, rd in reads:
         if i < len(out) and rd["reading"] == "package total" and out[i]["verdict"] not in ("EXISTS", "RETIRED_MATCH"):
             out[i]["flags"] = ";".join([f for f in out[i]["flags"].split(";") if f] + ["DOSE_READ_TOTAL"])
+    if pl_key_fn is not None:
+        discontinued_line(out, pl_index(live, pl_key_fn, dead_tag), pl_key_fn, discontinue_tag, active_tag,
+                          new_line_tag, prefix)
     return out, defects
+
+
+def planned_item(row):
+    """The item a create row will make, as a Catalog row: its lane cells, its final name, Strain and tags."""
+    it = {c: "" for c in CATALOG_COLS}
+    for k, c in LANE_MAP.items():
+        it[c] = row.get(k, "") or ""
+    it.update({"Product": row.get("create_name_FINAL", "") or "", "Strain": row.get("strain", "") or "",
+               "Tags": row.get("tags", "") or ""})
+    return it
+
+
+def discontinued_line(rows, index, key_fn, discontinue_tag=DEFAULT_DISCONTINUE_TAG, active_tag=DEFAULT_ACTIVE_TAG,
+                      new_line_tag=DEFAULT_NEW_LINE_TAG, prefix=ITEM_PREFIX):
+    """R68 (amended 2026-10-11): in place. A CREATE row whose product line's every active sibling (>= 1) carries the
+    discontinue tag is flagged PL_DISCONTINUED_CREATE (INFO) and, when its decision tag is undecided (the Active or the
+    new-line tag, a direction to either included), takes the discontinue tag; `ITM - Protect` (the deliberate keep,
+    R48) stands. A mixed, untagged or new line: nothing. The same test export_qc's PL_DISCONTINUE_GAP runs after
+    the fact, so the lane never creates what that leg reports."""
+    for row in rows:
+        if row.get("verdict") not in CREATE_VERDICTS:
+            continue
+        st = line_state(planned_item(row), index, key_fn, discontinue_tag)
+        if st["state"] != "discontinued":
+            continue
+        row["flags"] = ";".join([f for f in (row.get("flags") or "").split(";") if f] + ["PL_DISCONTINUED_CREATE"])
+        cur = sorted(t for t in tag_set(row.get("tags")) if t.startswith(prefix))
+        why = (f"; line `{st['key']}` is discontinued: all {st['siblings']} active sibling(s) carry `{discontinue_tag}` "
+               f"(R68) - the buy is a recorded exception, the PO reason is owed")
+        if cur == [discontinue_tag]:
+            why += f"; the create carries `{discontinue_tag}`"
+        elif set(cur) <= {active_tag, new_line_tag}:
+            row["tags"] = swap_decision(row.get("tags"), discontinue_tag, prefix)
+            why += f"; the create is tagged `{discontinue_tag}` at create, not {', '.join(f'`{t}`' for t in cur) or 'none'}"
+        else:
+            why += f"; the create keeps {', '.join(f'`{t}`' for t in cur)} (a decided tag: the deliberate keep, R48)"
+        row["sibling_reason"] = (row.get("sibling_reason") or "") + why
 
 
 def load_strains(path):
@@ -1227,6 +1284,16 @@ def tag_options(argv, ptr):
     pv = lambda k: (ptr or {}).get("intake", {}).get(k)  # noqa: E731
     return (get_flag(argv, "--new-line-tag") or pv("New line tag") or DEFAULT_NEW_LINE_TAG,
             get_flag(argv, "--active-tag") or pv("Active tag") or DEFAULT_ACTIVE_TAG)
+
+
+def line_options(argv, ptr):
+    """(discontinue tag, PL key function, where the key came from): the flag, else the tenant pointer, else the default."""
+    pv = lambda k: (ptr or {}).get("intake", {}).get(k)  # noqa: E731
+    spec = get_flag(argv, "--pl-key") or pv("PL key")
+    if spec and re.fullmatch(r"<[^>]*>", spec.strip()):
+        spec = None
+    return (get_flag(argv, "--discontinue-tag") or pv("Discontinue tag") or DEFAULT_DISCONTINUE_TAG,
+            load_pl_key(spec) if spec else pl_key_default, spec or "intake_common.pl_key_default (no `PL key:` pointer)")
 
 
 def parse_overrides(specs, new_line_tag, dead_tag, prefix=ITEM_PREFIX):
@@ -1311,6 +1378,7 @@ def main(argv):
     _, lines = read_csv(lines_p, LINES_REQUIRED, "--lines")
     paths, active, retired, strains, cats, brs = load_exports(argv, ptr)
     new_line_tag, active_tag = tag_options(argv, ptr)
+    discontinue_tag, pl_key_fn, pl_key_src = line_options(argv, ptr)
     overrides = parse_overrides(get_all(argv, "--tag-override"), new_line_tag, get_flag(argv, "--dead-tag", DEFAULT_DEAD_TAG))
     classes = load_fl_eq_classes(argv, ptr)
     cap_mg = package_cap_mg(argv, ptr)
@@ -1323,7 +1391,9 @@ def main(argv):
                           strain_types=parse_directions(get_all(argv, "--strain-type"), "--strain-type"),
                           fl_eq_classes=classes,
                           conc_grams=parse_directions(get_all(argv, "--conc-grams"), "--conc-grams"),
-                          package_cap_mg=cap_mg, package_caps=caps)
+                          package_cap_mg=cap_mg, package_caps=caps, pl_key_fn=pl_key_fn,
+                          discontinue_tag=discontinue_tag)
+    print(f"R68 line state: PL key {pl_key_src}; discontinue tag `{discontinue_tag}`")
     if classes is None:
         print("WARNING: no fl_eq class map (--fl-eq-classes or the tenant pointer `FL EQ classes:`): Flower equiv "
               "stays at the stop on every new line")
@@ -1523,6 +1593,64 @@ def selftest():
     rows_o, _ = match([{"description": "Acme Gelato preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",
                         "line_no": "4"}], tagged, retired, strains, tag_overrides={"3": "ITM - Discontinue"})
     t.check("QUIET: a direction for another line leaves this one on its lane's tag", rows_o[0]["tags"] == "ITM - Protect")
+    # --- R68 (amended 2026-10-11): a create into a wholly-discontinued PRODUCT LINE is tagged with it at create ---
+    disc = [dict(x, Tags=x["Tags"] or DEFAULT_DISCONTINUE_TAG) for x in active]
+    r = run("Acme Gelato preroll 1g", act=disc)
+    t.check("R68 FIRES: a create into a line whose every active item carries the discontinue tag -> PL_DISCONTINUED_CREATE",
+            "PL_DISCONTINUED_CREATE" in r["flags"].split(";") and r["tags"] == DEFAULT_DISCONTINUE_TAG
+            and "recorded exception" in r["sibling_reason"] and "PO reason is owed" in r["sibling_reason"],
+            f"{r['flags']} {r['tags']}")
+    t.check("R68: PL_DISCONTINUED_CREATE is INFO (it never blocks the stop)", ("PL_DISCONTINUED_CREATE", "R68", "INFO") in FLAGS)
+    rows_d, _ = match([{"description": "Acme Gelato preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",
+                        "line_no": "5"}], disc, retired, strains, tag_overrides={"5": DEFAULT_ACTIVE_TAG})
+    t.check("R68 FIRES: a direction to the Active tag is still swapped - an undecided tag never sits in a discontinued line",
+            rows_d[0]["tags"] == DEFAULT_DISCONTINUE_TAG and "PL_DISCONTINUED_CREATE" in rows_d[0]["flags"],
+            f"{rows_d[0]['tags']} {rows_d[0]['flags']}")
+    rows_n, _ = match([{"description": "Acme Gelato preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",
+                        "line_no": "5"}], disc, retired, strains, tag_overrides={"5": DEFAULT_ACTIVE_TAG}, pl_key_fn=None)
+    t.check("R68 breaker: with the line read switched off the same direction lands the Active tag, no flag",
+            rows_n[0]["tags"] == DEFAULT_ACTIVE_TAG and "PL_DISCONTINUED_CREATE" not in rows_n[0]["flags"], rows_n[0]["tags"])
+    rows_p, _ = match([{"description": "Acme Gelato preroll 1g", "vendor": "x", "units_total": "1", "unit_cost": "4.5",
+                        "line_no": "5"}], disc, retired, strains, tag_overrides={"5": "ITM - Protect"})
+    t.check("R68: `ITM - Protect` (the deliberate keep, R48) stands; the line is still flagged",
+            rows_p[0]["tags"] == "ITM - Protect" and "PL_DISCONTINUED_CREATE" in rows_p[0]["flags"], rows_p[0]["tags"])
+    half = [dict(x, Tags=(DEFAULT_DISCONTINUE_TAG if x["SKU"] == "1" else x["Tags"] or DEFAULT_ACTIVE_TAG)) for x in active]
+    r = run("Acme Gelato preroll 1g", act=half)
+    t.check("R68 QUIET: a MIXED line (some siblings tagged) prints nothing; the create reads the Active tag",
+            "PL_DISCONTINUED_CREATE" not in r["flags"] and r["tags"] == DEFAULT_ACTIVE_TAG, f"{r['flags']} {r['tags']}")
+    r = run("Acme Gelato preroll 1g")
+    t.check("R68 QUIET: an UNTAGGED line prints nothing", "PL_DISCONTINUED_CREATE" not in r["flags"], r["flags"])
+    dl = [{"verdict": "NEW_PL", "tags": DEFAULT_NEW_LINE_TAG, "flags": "NEW_LINE_FIELDS", "sibling_reason": "x",
+           "lane_Category": "Pre-Roll Single", "lane_Brand": "Acme", "lane_ProductGrams": "1g",
+           "create_name_FINAL": "Acme | Pre-Roll | Gelato | 1g"},
+          {"verdict": "NEW_PL", "tags": DEFAULT_NEW_LINE_TAG, "flags": "NEW_LINE_FIELDS", "sibling_reason": "x",
+           "lane_Category": "Pre-Roll Pack", "lane_Brand": "Acme", "lane_ProductGrams": "2.5g",
+           "create_name_FINAL": "Acme | Pre-Roll | Gelato | 0.5g x 5pk"},
+          {"verdict": "EXISTS", "tags": DEFAULT_ACTIVE_TAG, "flags": "", "sibling_reason": "x",
+           "lane_Category": "Pre-Roll Single", "lane_Brand": "Acme", "lane_ProductGrams": "1g",
+           "create_name_FINAL": ""}]
+    discontinued_line(dl, pl_index(disc), pl_key_default)
+    t.check("R68 FIRES: a NEW_PL row whose line key lands in a discontinued line swaps the new-line tag",
+            dl[0]["tags"] == DEFAULT_DISCONTINUE_TAG and "PL_DISCONTINUED_CREATE" in dl[0]["flags"], dl[0]["tags"])
+    t.check("R68 QUIET: a NEW line (no sibling under its key) keeps the new-line tag, no flag",
+            dl[1]["tags"] == DEFAULT_NEW_LINE_TAG and "PL_DISCONTINUED_CREATE" not in dl[1]["flags"], dl[1]["flags"])
+    t.check("R68 QUIET: an EXISTS row is never a create, never re-tagged", dl[2]["tags"] == DEFAULT_ACTIVE_TAG and not dl[2]["flags"])
+    t.check("pl_key_default: `Category | <dose> | Brand` from the name's dose segment (a pack reads its total)",
+            pl_key_default({"Category": "Pre-Roll Pack", "Brand": "Acme", "Product": "Acme | Pre-Roll | X | 0.5g x 5pk",
+                            "Product grams": ""}) == "Pre-Roll Pack | 2.5g | Acme"
+            and pl_key_default({"Category": "Gummy", "Brand": "Bolt", "Product": "Bolt | Gummy | Mango | 10mg x 10pk",
+                                "Product grams": "0.1g", "CBD content": ""}) == "Gummy | 100mg | Bolt"
+            and pl_key_default({"Category": "Lighter", "Brand": "Acme", "Product": "Acme Lighter"}) == "Lighter | Acme")
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        mp = os.path.join(td, "lines_example.py")
+        with open(mp, "w", encoding="utf-8") as f:
+            f.write("def by_brand(r):\n    return r['Brand']\n")
+        fn = load_pl_key(mp + ":by_brand")
+        t.check("load_pl_key: `<file.py>:<function>` loads the tenant's key function",
+                fn({"Brand": "Acme"}) == "Acme" and line_state({"Brand": "Acme"}, pl_index(disc, fn), fn)["state"] == "discontinued")
+        t.check("FIRES: a PL key naming a function the file lacks ABORTs", _aborts(lambda: load_pl_key(mp + ":nope")))
+        t.check("FIRES: a PL key that is not <file.py>:<function> ABORTs", _aborts(lambda: load_pl_key(mp)))
     t.check("FIRES: a direction naming the new-line tag ABORTs",
             _aborts(lambda: parse_overrides(["3=" + DEFAULT_NEW_LINE_TAG], DEFAULT_NEW_LINE_TAG, DEFAULT_DEAD_TAG)))
     t.check("QUIET: a decision-tag direction parses",

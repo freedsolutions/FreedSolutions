@@ -274,6 +274,10 @@ def stop_message(rows, exc, summary, operator, intake_path):
             "- NEW_BRAND + Y: the lane creates the Brand record first (a live Global Brand read, R30; display name per R121, "
             "as spelled by --line-brand), then the item as a NEW_PL cross-brand copy. BRAND_NAME_UNREAD: no spelling yet - "
             "re-run with --line-brand <line_no>=<Display name>; nothing is created as it stands.",
+            "- PL_DISCONTINUED_CREATE (R68, INFO; create rows): the line is discontinued - every active item of the "
+            "item's product line carries the discontinue tag - so the create is tagged with it at create (an Active or "
+            "new-line tag is swapped; `ITM - Protect`, the deliberate keep, stands). The buy is a recorded exception: "
+            "write the reason on the PO (an MOQ, a strong batch). Never a block.",
             "- NEW_CATEGORY: the Category or Master category is not in the taxonomy (R101). A new category is a "
             "configuration decision - rule it outside the run, then re-run.",
             "- Any row + N: skipped. A STOP flag stays on the row for the notice and the vendor thread."]

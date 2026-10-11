@@ -57,6 +57,9 @@ the second is the `bi-change` block the tenant already has.
 - Expiry threshold days: <n>       - PO source: <apex | vendor pdf | none>
 - Watermark: <product_id>          - Notice template: <abs path>     - Floor sheet: <command>
 - Vendor deal tag: <PKG - tag>
+- Discontinue tag: <ITM - tag>      (optional; R48 R68, default `ITM - Discontinue`)
+- PL key: <abs path .py>:<function> (optional; R68 - the tenant's product-line key, one Catalog row -> a key;
+  absent, the generic `Category | <dose> | Brand` - see "the line's tag state" below)
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 - Market center / Market radius mi / Own store (+ optional Market box, Market archive, MSRP anchor, MSRP floor x cost)
 - FL EQ classes: <abs path to the tenant's fl_eq class map .toml>   (optional; R1-R3, R6 - see "derived" below;
@@ -158,7 +161,15 @@ through connector bodies only.
    the last two are `parse_source` and `package_id`.
    **Tags (R96, R83).** A sibling copy carries its lane's decision tag: the ONE item-namespace tag every
    active member carries; a mixed lane reads the Active tag; `--tag-override <line_no>=<tag>` (or `*=`) is
-   the business's direction and beats both. **NEW_PL** - a line that fits no lane under a brand we carry
+   the business's direction and beats both. **The line's tag state (R68, amended 2026-10-11):** every create row
+   (NEW_ITEM_WITH_SIBLING, NEW_PL, NEW_BRAND) is then read against its PRODUCT LINE - the live active items under the
+   same line key (pointer `PL key:`, a function in the tenant's own scripts; absent, `intake_common.pl_key_default`:
+   `Category | <dose> | Brand`, the dose from the name's {Dose} segment as a package total), keyed on the row's lane
+   cells and final name. When EVERY such sibling (>= 1) carries the discontinue tag (pointer `Discontinue tag`), the
+   row is flagged `PL_DISCONTINUED_CREATE` (INFO: the line is discontinued; the buy is a recorded exception - PO reason
+   owed) and an undecided tag (the Active or the new-line tag, a direction to either included) becomes the discontinue
+   tag; `ITM - Protect` (the deliberate keep, R48) stands. A mixed line, an untagged line and a new line (no sibling)
+   print nothing. `intake_plan` re-reads the line on the pre-batch freeze (below). **NEW_PL** - a line that fits no lane under a brand we carry
    (an item or a Brand record) - is a CREATE from the brand's nearest active item in the Master category its
    form word places it in (same form word first, then the closest grams) or, when the brand has none there,
    from the CLOSEST active item by subcategory in the whole catalog (same Global SubCategory, then Category,
@@ -245,6 +256,9 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    <CLAUDE.md>` writes a NEW `<stem>-plan-vN.csv`, one row per write: `seq, step, line_no, product_key, field,
    before, target, channel, depends_on, provenance, row_sha1`. Steps run in this order, which is the
    dependency: MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK.
+   Each create's Tags row re-reads its product line (R68, the same test as `intake` step 2) on the freeze as the plan
+   leaves it - this plan's un-retires count as active - and the summary prints `PL_DISCONTINUED_CREATE` for a
+   wholly-discontinued line (the PO reason is owed; the create takes the discontinue tag).
    A record-bound field (Strain, Brand, Category, Vendor) is planned by name and bound to ONE live record id
    at run time. A row whose channel or guard read is UNPROVEN in the write-path map is REFUSED: no plan file,
    a refusals CSV, exit 2. An UNPROVEN row is a logged-in probe, never an assumption (probes P2-P7 landed
@@ -508,7 +522,7 @@ The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_wr
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 126 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 138 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

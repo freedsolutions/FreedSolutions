@@ -144,6 +144,95 @@ def lane_key(row):
             "" if g is None else f"{g:g}", norm(form_word(row.get("Product"))))
 
 
+# R68 (amended 2026-10-11) + R96: the PRODUCT LINE a create lands in, and that line's tag state. A new item created
+# into a line whose every active item carries the discontinue tag is tagged with it at create; the buy is a recorded
+# exception. The line key is the TENANT's (pointer `PL key: <file.py>:<function>`, a function of one Catalog row);
+# `pl_key_default` is the generic fallback: `Category | <dose> | Brand`, the dose read from the name's {Dose} segment
+# (R42: `Ng`, `Nmg`, `N x Mpk` -> the package total), Product grams on a g segment and CBD content on an mg segment
+# when the record carries one, else the record's own CBD content (mg) or Product grams (g); no dose = `Category | Brand`.
+PL_DOSE = re.compile(r"^(\d+(?:\.\d+)?)\s*(g|mg)(?:\s*x\s*(\d+)\s*pk)?$", re.I)
+LINE_STATES = ("discontinued", "mixed", "untagged", "new")
+
+
+def _fmt2(x):
+    return ("%.2f" % x).rstrip("0").rstrip(".")
+
+
+def pl_dose(row):
+    """The PL key's dose: the package total the item's name and record state, `1g` / `100mg`; '' when none."""
+    p = segs(row.get("Product"))
+    m = PL_DOSE.match(p[3]) if len(p) > 3 else None
+    g, mg = grams_of(row.get("Product grams")), num(re.sub(r"[^0-9.]", "", unwrap(row.get("CBD content"))) or None)
+    if m is None:
+        return _fmt2(mg) + "mg" if mg is not None else _fmt2(g) + "g" if g is not None else ""
+    total = float(m.group(1)) * (int(m.group(3)) if m.group(3) else 1)
+    if m.group(2).lower() == "g":
+        return _fmt2(g if g is not None else total) + "g"
+    return _fmt2(mg if mg is not None else total) + "mg"
+
+
+def pl_key_default(row):
+    """The generic PRODUCT LINE key (R68 line state): `Category | <dose> | Brand`, `Category | Brand` with no dose."""
+    d, c, b = pl_dose(row), unwrap(row.get("Category")), unwrap(row.get("Brand"))
+    return f"{c} | {d} | {b}" if d else f"{c} | {b}"
+
+
+def load_pl_key(spec):
+    """`<file.py>:<function>` -> the tenant's PL key function (one Catalog row -> a key). ABORT on a bad spec, a missing
+    file or a missing function: a line key the run cannot read is never replaced by a guess."""
+    m = re.fullmatch(r"(.+\.py):([A-Za-z_]\w*)", (spec or "").strip())
+    if not m:
+        abort(f"PL key {spec!r}: want <file.py>:<function>")
+    path, fn = m.group(1), m.group(2)
+    if not os.path.isfile(path):
+        abort(f"PL key {spec!r}: {path} is not a file")
+    import importlib.util
+    sp = importlib.util.spec_from_file_location("tenant_pl_key_" + re.sub(r"\W", "_", os.path.basename(path)[:-3]), path)
+    mod = importlib.util.module_from_spec(sp)
+    try:
+        sp.loader.exec_module(mod)
+    except Exception as e:  # noqa: BLE001 - a tenant module that does not import is an ABORT, named
+        abort(f"PL key {spec!r}: {path} does not import ({e.__class__.__name__}: {e})")
+    f = getattr(mod, fn, None)
+    if not callable(f):
+        abort(f"PL key {spec!r}: {os.path.basename(path)} has no function {fn!r}")
+    return f
+
+
+def pl_index(catalog, key_fn=pl_key_default, dead_tag=DEFAULT_DEAD_TAG):
+    """{line key: [active rows]} over the LIVE rows of a Catalog export (a dead record, R81, is in no line)."""
+    idx = {}
+    for r in catalog:
+        if dead_tag in tag_set(r.get("Tags")):
+            continue
+        try:
+            k = key_fn(r)
+        except Exception as e:  # noqa: BLE001
+            abort(f"PL key function failed on {r.get('SKU') or r.get('ProductId')!r} ({e.__class__.__name__}: {e})")
+        idx.setdefault(k, []).append(r)
+    return idx
+
+
+def line_state(target, index, key_fn=pl_key_default, discontinue_tag=DEFAULT_DISCONTINUE_TAG, exclude=()):
+    """R68: the tag state of the line `target` lands in, read from its ACTIVE siblings (the index's rows under the same
+    key, minus `exclude` ProductIds). `discontinued` = every sibling (>= 1) carries the discontinue tag; `mixed` = some
+    do; `untagged` = none does; `new` = no sibling. Returns {key, siblings, tagged, state}."""
+    try:
+        k = key_fn(target)
+    except Exception as e:  # noqa: BLE001
+        abort(f"PL key function failed on the planned item ({e.__class__.__name__}: {e})")
+    sibs = [r for r in index.get(k, []) if (r.get("ProductId") or "").strip() not in set(exclude) or not r.get("ProductId")]
+    tagged = sum(1 for r in sibs if discontinue_tag in tag_set(r.get("Tags")))
+    state = "new" if not sibs else "discontinued" if tagged == len(sibs) else "mixed" if tagged else "untagged"
+    return {"key": k, "siblings": len(sibs), "tagged": tagged, "state": state}
+
+
+def swap_decision(tags_cell, decision, prefix=ITEM_PREFIX):
+    """The Tags cell with its item-namespace tag(s) replaced by the ONE decision tag (R96); other namespaces kept."""
+    keep = sorted(t for t in tag_set(tags_cell) if not t.startswith(prefix))
+    return ", ".join(keep + [decision])
+
+
 def _lacks(required, hdr):
     """The required columns a header lacks. A tuple entry is ONE OF its names (a renamed platform column)."""
     return ["|".join(c) if isinstance(c, tuple) else c for c in required

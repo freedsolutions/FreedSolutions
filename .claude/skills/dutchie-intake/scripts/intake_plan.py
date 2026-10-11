@@ -3,6 +3,8 @@
   python intake_plan.py --intake <intake-vN.csv> --active <f> --retired <f> --strains <f>
                         --categories <f> --brands <f> [--out-dir <dir> | --tenant <CLAUDE.md>] [--dry-run]
                         [--fl-eq-classes <toml>]   (default: the tenant pointer `FL EQ classes:`)
+                        [--pl-key <file.py>:<function>] [--discontinue-tag <tag>]   (default: the tenant pointers
+                        `PL key:` / `Discontinue tag:`, else the generic key and `ITM - Discontinue`; R68)
   python intake_plan.py --selftest
 
 R124: the Operator approves one plan file that names every write - item, field, before-value, target. The
@@ -48,6 +50,13 @@ the stop moves it; a row cell that disagrees is superseded and the provenance sa
 over a source value plans the clear - which the grid refuses (CBDContent UNPROVEN, P7): the refusal is the plan
 telling the Operator the item form must clear it.
 
+R68 (amended 2026-10-11): the Tags row of every create re-reads the item's PRODUCT LINE on the pre-batch freeze - the
+active, live items under the same line key (the tenant's `PL key:` function, else intake_common.pl_key_default), with
+this plan's un-retires counted as active and the copy keyed on its planned cells. When EVERY sibling (>= 1) carries the
+discontinue tag, an undecided decision tag (Active or new-line) becomes the discontinue tag and the summary prints
+PL_DISCONTINUED_CREATE (INFO): the line is discontinued; the buy is a recorded exception - PO reason owed. A mixed,
+untagged or new line prints nothing; `ITM - Protect` (the deliberate keep, R48) stands.
+
 A dead record (R81, the dead tag) is never a copy source and never un-retired. A RETIRED_MATCH (and an
 UNRETIRE_FIRST copy) brings back its whole `unretire_set` (R101, the R50 lane): Cost = `lane_Cost` (the invoice),
 Price = `lane_Price` (confirmed current at the STOP), the ONE decision tag (R96), then the un-retire.
@@ -62,8 +71,9 @@ import sys
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake_common import (CATALOG_COLS, CATEGORIES_REQUIRED, CREATE_VERDICTS, DEFAULT_DEAD_TAG, EXIT_ABORT,  # noqa: E402
-                           EXIT_OK, ITEM_PREFIX, STRAINS_REQUIRED, Selftest, abort, get_flag, grams_of, money_eq,
+from intake_common import (CATALOG_COLS, CATEGORIES_REQUIRED, CREATE_VERDICTS, DEFAULT_ACTIVE_TAG, DEFAULT_DEAD_TAG,  # noqa: E402
+                           DEFAULT_DISCONTINUE_TAG, DEFAULT_NEW_LINE_TAG, EXIT_ABORT, EXIT_OK, ITEM_PREFIX,
+                           line_state, pl_index, pl_key_default, STRAINS_REQUIRED, Selftest, abort, get_flag, grams_of, money_eq,
                            new_path, next_version, norm, num, read_csv, stamp, strain_name_col, tag_set, version_stem,
                            write_csv)
 from intake_match import V3_COLS  # noqa: E402
@@ -228,10 +238,13 @@ def is_dead(r, dead_tag=DEFAULT_DEAD_TAG):
 
 
 def build_plan(intake, active, retired, strains, categories, brands, channels=None, grid_fields=None,
-               form_fields=None, guard=None, dead_tag=DEFAULT_DEAD_TAG, prefix=ITEM_PREFIX, fl_eq_classes=None):
+               form_fields=None, guard=None, dead_tag=DEFAULT_DEAD_TAG, prefix=ITEM_PREFIX, fl_eq_classes=None,
+               pl_key_fn=pl_key_default, discontinue_tag=DEFAULT_DISCONTINUE_TAG, active_tag=DEFAULT_ACTIVE_TAG,
+               new_line_tag=DEFAULT_NEW_LINE_TAG):
     """Pure. (plan rows, refusals, notes). The four maps default to this module's; a selftest passes a copy
     to simulate a probe result - the CLI has no flag that widens them. `fl_eq_classes` = the tenant's class map
-    (intake_derive.load_classes); None = no re-derivation, the row's cells stand."""
+    (intake_derive.load_classes); None = no re-derivation, the row's cells stand. `pl_key_fn` = the PRODUCT LINE key
+    for the R68 line read on each create's Tags row (None skips it)."""
     channels, grid_fields = channels or CHANNELS, grid_fields or GRID_FIELDS
     form_fields, guard = form_fields or FORM_FIELDS, guard or GUARD
     act, ret = keyed(active, "--active"), keyed(retired, "--retired")
@@ -390,6 +403,13 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
         state[key] = {c: eff(src_id, c) for c in CATALOG_COLS}
         copies[n] = (key, src_id, emit("COPY", n, key, "_copy", src_id, name, "ui_copy", deps, "active"))
     # 6 ALIGN ------------------------------------------------------------------------------------------------
+    # R68: the line index over the freeze AS THIS PLAN LEAVES IT - every active item plus every planned un-retire, each
+    # with its planned cells (an un-retired member reads its planned tag), dead records out (pl_index).
+    line_idx = None
+    if pl_key_fn is not None:
+        live = [{c: eff(pid, c) for c in CATALOG_COLS} for pid in act]
+        live += [{c: eff(pid, c) for c in CATALOG_COLS} for pid in ret if (state.get(pid) or {}).get("_state") == "active"]
+        line_idx = pl_index(live, pl_key_fn, dead_tag)
     for n, r in creates:
         if n not in copies:
             continue
@@ -399,10 +419,26 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                 tag = one_tag(n, r, "ALIGN", key)
                 if tag is None:
                     continue
+                line_cite = ""
+                if line_idx is not None:
+                    it = {c: eff(key, c) for c in CATALOG_COLS}
+                    it["Master category"] = mc_of.get(norm(it.get("Category")), it.get("Master category", ""))
+                    st = line_state(it, line_idx, pl_key_fn, discontinue_tag)
+                    if st["state"] == "discontinued":
+                        was = tag
+                        if tag in (active_tag, new_line_tag):
+                            tag = discontinue_tag
+                        line_cite = (f"R68: line `{st['key']}` is discontinued (all {st['siblings']} active sibling(s) carry "
+                                     f"`{discontinue_tag}`); the create takes `{tag}`"
+                                     + (f", not `{was}`" if was != tag else ""))
+                        notes.append(f"PL_DISCONTINUED_CREATE (R68, INFO) line {n} {(r.get('create_name_FINAL') or '').strip()!r}: "
+                                     f"line is discontinued; the buy is a recorded exception - PO reason owed. "
+                                     f"Line `{st['key']}`: all {st['siblings']} active sibling(s) carry `{discontinue_tag}`; "
+                                     f"the create's decision tag is `{tag}`" + (f" (the intake row named `{was}`)" if was != tag else ""))
                 bef = eff(src_id, "Tags")
                 tgt = tag_target(bef, tag, prefix)
                 if not same("Tags", bef, tgt):
-                    emit("ALIGN", n, key, "Tags", bef, tgt, channel, [cseq], "active")
+                    emit("ALIGN", n, key, "Tags", bef, tgt, channel, [cseq], "active", line_cite)
                 continue
             bef, _ = plan_value(field, eff(src_id, col))
             tgt, ok = plan_value(field, r.get(icol))
@@ -551,9 +587,13 @@ def main(argv):
     if tenant:
         import intake_pointers
         ptr = intake_pointers.load(tenant)
-    from intake_match import load_fl_eq_classes
+    from intake_match import line_options, load_fl_eq_classes, tag_options
+    new_line_tag, active_tag = tag_options(argv, ptr)
+    discontinue_tag, pl_key_fn, pl_key_src = line_options(argv, ptr)
+    print(f"R68 line state: PL key {pl_key_src}; discontinue tag `{discontinue_tag}`")
     rows, refusals, notes = build_plan(intake, active, retired, strains, categories, brands,
-                                       fl_eq_classes=load_fl_eq_classes(argv, ptr))
+                                       fl_eq_classes=load_fl_eq_classes(argv, ptr), pl_key_fn=pl_key_fn,
+                                       discontinue_tag=discontinue_tag, active_tag=active_tag, new_line_tag=new_line_tag)
     print("\n".join(summary(rows, refusals, notes)))
     if "--dry-run" in argv:
         print("\ndry run: nothing written")
@@ -671,6 +711,45 @@ def selftest():
             and ("new:3", "_images") in by and ("new:3", "_global_link") in by)
     t.check("the sibling copy plans no residue clears", ("new:2", "_images") not in by and ("new:2", "Online description") not in by)
     t.check("an EXISTS row plans no write", not any(r["line_no"] == "4" for r in rows))
+    # --- R68 (amended 2026-10-11): the create re-reads its PRODUCT LINE on the freeze as the plan leaves it ---
+    t.check("R68 QUIET on the base fixture: no line is wholly discontinued, no PL_DISCONTINUED_CREATE",
+            not any("PL_DISCONTINUED_CREATE" in x for x in notes))
+
+    def r68(active_tags, drop_unretire=True, intake_tag="ITM - Active", **kw):
+        fx = _fixture()
+        if drop_unretire:
+            fx["intake"] = fx["intake"][1:]          # line 1 then is the sibling copy (no un-retire in the batch)
+        fx["intake"][0]["tags"] = intake_tag
+        fx["active"] = [dict(a, Tags=active_tags[i]) if i < len(active_tags) else a for i, a in enumerate(fx["active"])]
+        fx["active"] += [_item(str(610 + i), f"Brand A | Pre-Roll | Strain S{i} | 1g", Tags=tg)
+                         for i, tg in enumerate(active_tags[2:])]
+        out = _build(fx, guard=_probed(), **kw)
+        k = "new:1" if drop_unretire else "new:2"
+        return out, {(r["product_key"], r["field"]): r for r in out[0]}.get((k, "Tags")), k
+    (rw, rf, nt), tg, _ = r68(["ITM - Discontinue", "ITM - Active", "ITM - Discontinue"])
+    t.check("R68 FIRES: every active sibling of the copy's line carries the discontinue tag -> the create takes it, "
+            "no Tags write (the copy inherits it), PL_DISCONTINUED_CREATE printed with the owed PO reason",
+            rf == [] and tg is None and any(x.startswith("PL_DISCONTINUED_CREATE (R68, INFO) line 1")
+                                            and "the buy is a recorded exception - PO reason owed" in x
+                                            and "(the intake row named `ITM - Active`)" in x for x in nt), str(nt))
+    (rw, rf, nt), tg, _ = r68(["ITM - Discontinue", "ITM - Active", "ITM - Discontinue"], pl_key_fn=None)
+    t.check("R68 breaker: the line read off, the same plan writes the stale Active tag over the copy's inherited one",
+            tg is not None and tg["target"] == "ITM - Active" and not any("PL_DISCONTINUED_CREATE" in x for x in nt), str(tg))
+    (rw, rf, nt), tg, _ = r68(["ITM - Active", "ITM - Active", "ITM - Discontinue"], intake_tag="ITM - Active")
+    t.check("R68 QUIET: a MIXED line (one sibling tagged) prints nothing; the create keeps the Active tag",
+            tg is None and not any("PL_DISCONTINUED_CREATE" in x for x in nt), str(nt))
+    (rw, rf, nt), tg, _ = r68(["ITM - Active", "ITM - Active"])
+    t.check("R68 QUIET: an UNTAGGED line prints nothing", not any("PL_DISCONTINUED_CREATE" in x for x in nt))
+    (rw, rf, nt), tg, _ = r68(["ITM - Discontinue", "ITM - Active", "ITM - Discontinue"], intake_tag="ITM - Protect")
+    t.check("R68: `ITM - Protect` (the deliberate keep, R48) stands - the Tags write targets it; the line is still printed",
+            tg is not None and tg["target"] == "ITM - Protect" and "R68: line" in tg["provenance"]
+            and any("PL_DISCONTINUED_CREATE" in x for x in nt), str(tg))
+    (rw, rf, nt), tg, k = r68(["ITM - Discontinue", "ITM - Active"], drop_unretire=False)
+    t.check("R68 QUIET: this plan's un-retires count as ACTIVE siblings (they come back on the Active tag): the line is mixed",
+            not any("PL_DISCONTINUED_CREATE" in x for x in nt), str(nt))
+    t.check("R68 QUIET: a NEW line (no sibling under its key) prints nothing - the cross-brand NEW_PL keeps the new-line tag",
+            not any("line 3" in x and "PL_DISCONTINUED_CREATE" in x for x in nt)
+            and any(r["product_key"] == "new:3" and r["field"] == "Tags" and "ITM - New PL" in r["target"] for r in rw))
     t.check("every row carries its provenance cite and a 40-hex row_sha1",
             all(r["provenance"] and re.fullmatch(r"[0-9a-f]{40}", r["row_sha1"]) for r in rows))
     # --- derived fields (R1-R3, R6, R34, R66): the cite rides the plan row; Flower equiv re-derives from the final grams
