@@ -198,6 +198,17 @@ complement, null-safe), and either can be a server-side HAVING filter; a custom 
 be numeric (a `max` on a date dimension 400s), so a last-date column is `min` of `diff_days(<date>, now())`
 plus a table calc `add_days(-1 * <days>, trunc_days(now()))`.
 
+**`inventory_historical` carries the package tag on SOLD-OUT packages; a true receipt has a receive-history id [PROBE 2026-10-11].**
+The explore joins `inventorytags` LEFT OUTER, one-to-one, on the numeric `inventory_id`, so a tag test on a historical package works
+whatever its quantity: on the pilot tenant 611 of 5,939 package records carried a `PKG - ` disposition tag and 603 of them were sold
+out. So a sample or display package that has sold out can be kept out of a "first sellable receipt" in Looker, which a receipt export
+cannot do (it carries no tags). A package can also have more than one record: a room split shares the receipt's
+`ReceiveInventoryHistoryId`, while a POS return or other re-created record has it NULL and its own date (120 records on the read);
+filter `inventory_historical.ReceiveInventoryHistoryId` = `NOT NULL` for a receipt date. The explore reads each package under its
+CURRENT product, so a package moved by Change product dates the new record's first receipt (an export keyed on the receipt line may
+not). A line-grain query can carry both "first receipt inside the window" and "last receipt before it" as custom `max` / `min` measures
+of `diff_days(<date>, now())`, each filtered on the date (`89 days ago for 90 days`, `before 89 days ago`); the same works for sales.
+
 **Feature-request ledger (ask Dutchie):**
 - `inventorytags` join on `transaction_items` (currently rejected — 'Invalid filter').
 - Fix the snapshot↔inventorytags join key (numeric packageid cast vs string Metrc id).
