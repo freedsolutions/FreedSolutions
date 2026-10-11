@@ -1375,6 +1375,18 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   whole `CustomerType` restriction block.
 - **Order sources** map to `PlatformTypeRestrictions`: 1 Mobile App (iOS), 2 Online Menu, 3 Kiosk, 4 In Store (POS);
   empty = all. Order types are 1-5; empty = all.
+- **Setting the order sources.** [PROBE 2026-10-11, 7 edits certified] Details › the "Restrict by Order Source:" box
+  (`#input-input_Restrict by Order Source:`) opens a checkbox menu; read its labels live (In Store (POS), Kiosk, Mobile
+  App (iOS), Online Menu), tick by label with a real click, close it on the "Where will it be offered" heading, then
+  "Done". Guard the Summary line `Order source(s):` before "Update discount" (it reads "All order sources" when the
+  list is empty). The save writes the INCLUSION form, one entry per ticked source, ascending by id:
+  `[{"DiscountId":<id>,<tenant key>,"PlatformTypeId":1,"IsExclusion":false}, … 3 …, … 4 …]` for everything but the
+  Online Menu; nothing else on the config moves (raw diff = one insert inside `PlatformTypeRestrictions`).
+  "Available online" only shows or hides the deal on the menu; the order source decides which orders receive it, so a
+  deal can stay visible online while no Online Menu order gets it. Where a tenant rule keeps price-off deals off the
+  public web menu (a strikethrough rule), the usual split is: percent-off and amount-off on In Store + Kiosk + Mobile
+  App; a set price for a quantity or per item on every source; a customer-group deal may keep the Online Menu (the
+  shopper must log in). The tenant Dictionary rules which deals and which sources.
 - **Conditions.** "Cart contains" offers At least / Every / Exactly / Between, stored on the item-count threshold
   (`ThresholdTypeId` 1; 2 = spend, 3 = weight): Every N = `ThresholdMin` N, `ThresholdMax` null; At least N =
   `ThresholdMin` N, `ThresholdMax` 10000; Exactly N = both N. With no requirement block the condition lives on
