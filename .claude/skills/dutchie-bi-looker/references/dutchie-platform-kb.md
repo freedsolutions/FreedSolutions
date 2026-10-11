@@ -69,6 +69,10 @@ snapshots, no backfill-vs-new-inventory divergence possible.
   confirms the PROBE 2026-08-26 finding that batch strain lags catalog repoints].
 - **Inheritance triggers**: Receive / Convert / Create package → inherit from catalog.
   Sublot / Create lab sample → inherit from SOURCE PACKAGE.
+- **[PROBE 2026-10-11] A POS return creates a SEPARATE inventory record of the package** in the return room
+  (Quarantine on the tenant read), with NO tag carried from the original record and the RETURN time as its inventory
+  date; the package history shows `Return` right after the sale. A package-grain tag test therefore scopes to the
+  on-hand room allowlist, or every return reads as an untagged package.
 
 ## 2. Automatic flower equivalency calculations [DOC 2026-08-27]
 
