@@ -15,7 +15,7 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 
 ```
 /dutchie-intake pull                                  mail label -> Drive + inbox/manifest.jsonl
-/dutchie-intake intake <invoice.pdf | lines.csv>      parse -> match -> exceptions -> MSRP read -> the ONE STOP
+/dutchie-intake intake <invoice.pdf | lines.csv>      parse -> match -> exceptions -> Apex cost -> MSRP read -> the ONE STOP
 /dutchie-intake create <intake-vN.csv>                freeze -> ONE plan file -> approval -> ONE paced batch (R124)
 /dutchie-intake certify --plan <plan.csv> <pre-active> <pre-retired> <post-active> <post-retired>
 /dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
@@ -54,7 +54,8 @@ the second is the `bi-change` block the tenant already has.
 ## Intake Pointers
 - Operator: <name>                 - Mail label: <Gmail label>       - Drive invoices folder: <folder id>
 - Intake dir: <abs path>           - Exports dir: <abs path>         - Standard cost: lane Cost (R50)
-- Expiry threshold days: <n>       - PO source: <apex | vendor pdf | none>
+- Expiry threshold days: <n>       - PO source: <apex | vendor pdf | none>   (apex: also where a sample-only
+  new line's Cost is read - the vendor's Apex PO, else its Apex catalog listing; R125, intake step 4)
 - Watermark: <product_id>          - Notice template: <abs path>     - Floor sheet: <command>
 - Vendor deal tag: <PKG - tag>
 - Discontinue tag: <ITM - tag>      (optional; R48 R68, default `ITM - Discontinue`)
@@ -78,7 +79,8 @@ The Operator's name comes from `Operator:`, never from this file.
 ```
 mail label --pull--> Drive <Client>/Invoices/<Vendor>/<YYYY>/ + <Intake dir>/inbox/ + manifest.jsonl
 invoice.pdf --intake_parse--> lines.csv --intake_match--> intake-v1.csv --intake_exceptions--> intake-v2.csv
-   + -exceptions-<ts>.csv --intake_msrp--> -msrp-<ts>.md (new lines only)
+   + -exceptions-<ts>.csv --(Apex read in the write channel)--> -apex-read-<date>-vN.csv
+   --intake_apex_cost--> intake-v3.csv (sample-only new lines only) --intake_msrp--> -msrp-<ts>.md (new lines only)
    + the STOP message (MSRP pending business confirmation)  ==> Operator fills `approved`, resolves every STOP flag
    --lane pulls the pre-batch freeze (Active, Retired, Strains, Categories, Brands; export_refresh --apply)
    --intake_plan--> <stem>-plan-vN.csv + plan summary  ==> Operator approves the plan (the ONE STOP)
@@ -225,7 +227,22 @@ through connector bodies only.
    program - PO `program` column or `--program <line>=<program>` - whether or not a discount line is
    printed; may co-fire with `COST_DRIFT`), `EXPIRY_NEAR`, `PO_MISMATCH`; the R62 INFO read
    `PKG_TAG_DUE`; R103 `landed_unit_cost`. Writes `-v2` + `-exceptions-<ts>.csv`, prints the STOP.
-4. **MSRP read (R125)** - a standard step whenever v2 carries a new line (NEW_PL, NEW_BRAND, NEW_CATEGORY, a
+4. **Cost on a sample-only new line (R125)** - when EVERY package of a new line on the invoice is a sample or display
+   (a `--program <row>=sample|display` direction, the invoice's `sample` / `display` marker, or the sample price shape:
+   invoice unit <= 0.05; rows grouped by product line as the MSRP read groups them), the invoice price is not the Cost
+   and the copy source's Cost - another brand's on a cross-brand copy - is NEVER the fallback. The lane reads Apex in
+   the write channel on the Operator's login, READ ONLY (no cart, no order; a password field is the login stop): the
+   vendor's Apex PO when one exists (`PO source: apex`), else the vendor's Apex catalog listing for the same item (brand +
+   product line + size; the marketplace list view names the seller). It types what Apex prints into a NEW
+   `<stem>-apex-read-<date>-vN.csv` (`row, source, ref, item, read_date, price, per, units_per_case, unit_shown`; platform KB
+   "Apex Trading: reading a wholesale cost" - an Apex "Unit" can be a case: read the pack before dividing), then
+   `intake_apex_cost.py --intake <v2> --apex <apex-read.csv> [--program <row>=...] [--cost <row>=<unit>]` writes v3:
+   `lane_Cost` = the unit cost (case price / units per case; a PO read beats a catalog read), the INFO flag
+   `COST_FROM_APEX`, and the `derived` cell's `Cost:` entry naming `apex:po <no>` or `apex:catalog <listing>` and the
+   read date. No PO and no listing (`source = none`), or no read yet: `COST_UNKNOWN` (STOP), `lane_Cost` blank - the
+   Operator types it (`--cost <row>=<unit>`, cited as typed). `APEX_UNIT_IS_CASE` (INFO), `APEX_PACK_UNREAD` and
+   `APEX_UNIT_MISMATCH` (STOP) guard the division. An intake with no sample-only new line passes through unchanged.
+5. **MSRP read (R125)** - a standard step whenever v2 carries a new line (NEW_PL, NEW_BRAND, NEW_CATEGORY, a
    `NEW_LINE_FIELDS` or `CROSS_BRAND_COPY` row, or a STRAIN_MISSING row whose reason names a new line):
    `intake_msrp.py --intake <v2> --tenant <CLAUDE.md> [--cost <line_no|*>=<catalog cost>]`. Read-only, no
    login. One recommendation per product line (brand + form + size + process words), from two families of
@@ -235,8 +252,10 @@ through connector bodies only.
    cost, else interpolated between the nearest cost groups). The tenant's `MSRP anchor:` says which family
    sets the number; the other is printed beside it as the sanity check. `MSRP floor x cost:` is a floor
    (2 = keystone). The nearest $5 price point, never under the floor. Cost: the catalog Cost the business will
-   set (`--cost`, when the invoice price is a case deal), else the landed unit cost - never `lane_Cost`, which
-   on a new line is the copy source's. Sources: the live public listing feed (cached per day under
+   set (`--cost`, when the invoice price is a case deal), else the Apex Cost step 4 settled (its `derived` `Cost:`
+   entry), else the landed unit cost - never an invoice price at the sample price shape (a sample-only line with no
+   settled Cost reads `MSRP_COST_UNKNOWN`: no floor, no shelf) and never `lane_Cost` otherwise, which on a new line
+   is the copy source's. Sources: the live public listing feed (cached per day under
    `<Intake dir>/market/`) and the dated `Market archive:`; dutchie.com scripted reads hit a Cloudflare
    challenge since 2026-09-23 - read the archive only, never work around the challenge. The tenant's own
    store (`Own store:`) is dropped BEFORE matching and the report asserts zero own-store rows (else DEFECT).
@@ -244,7 +263,7 @@ through connector bodies only.
    counts, flags) and prints the STOP block. It writes no Price: the Operator sets the confirmed number in the
    lane cells at the stop (the confirmed number is the lane Price, R50). R125 states the rule; the $5 points,
    the radius and the 20 % `MSRP_SPREAD` are this script's parameters.
-5. Send the STOP message (below), with the MSRP block, and stop.
+6. Send the STOP message (below), with the Apex cost block and the MSRP block, and stop.
 
 **`create`** - the only Dutchie write, run as ONE batch from ONE approved plan file (R124). Operator's login.
 Rows: `approved = Y` creates (`NEW_ITEM_WITH_SIBLING`, `NEW_PL`, `NEW_BRAND`) and un-retires (`RETIRED_MATCH`,
@@ -256,6 +275,10 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    <CLAUDE.md>` writes a NEW `<stem>-plan-vN.csv`, one row per write: `seq, step, line_no, product_key, field,
    before, target, channel, depends_on, provenance, row_sha1`. Steps run in this order, which is the
    dependency: MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK.
+   A create row of a sample-only new line plans its Cost only from a `Cost:` entry in its `derived` cell (intake step 4:
+   the Apex PO or listing, or the Operator's typed Cost); with none - or flagged `COST_UNKNOWN` - the Cost row is REFUSED
+   (`COST_UNKNOWN`), because the copy would keep its source's Cost. The entry rides the Cost row's provenance, and the one
+   certify reads that cell as planned (A), the source's Cost surviving as `PLAN_NOT_APPLIED`.
    Each create's Tags row re-reads its product line (R68, the same test as `intake` step 2) on the freeze as the plan
    leaves it - this plan's un-retires count as active - and the summary prints `PL_DISCONTINUED_CREATE` for a
    wholly-discontinued line (the PO reason is owed; the create takes the discontinue tag).
@@ -439,7 +462,8 @@ The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt D
 Nothing is created before the Operator's reply. Everything that needs no ruling and no login runs
 first. The message has three parts printed by `intake_exceptions.py` (its flag notes carry the R129 dose
 check, item 5), plus a fourth printed by
-`intake_msrp.py` whenever the intake carries a new line:
+`intake_msrp.py` whenever the intake carries a new line, and a sixth printed by `intake_apex_cost.py` whenever a new
+line is sample-only:
 
 1. **Verdict table** - `# | Invoice line | Verdict | Sibling / match | Final name | Landed unit |
    Flags | approved`, one row per product line, plus the verdict counts.
@@ -463,6 +487,9 @@ check, item 5), plus a fourth printed by
    within the market's tolerance of the label (the class map's `[market]` block): a callout, never a hit. The lane reads no COA file: this is the Operator's check, and the COA stays filed
    beside the invoice (R104). A `DOSE_UNREAD` on an mg line with no count means the package total is unsettled:
    set Product grams and Servings per Unit in the lane cells from the label / COA and write the name's dose.
+6. **Cost on a sample-only new line (R125)** - `# | Line | Invoice line | Sample price | Cost | Source | Flags`, printed by
+   `intake_apex_cost.py`: the Cost read from the vendor's Apex PO or catalog listing, named with its read date. A row at
+   `COST_UNKNOWN` is a question: Apex has no PO and no listing, so the Operator types the Cost (never a sibling's).
 
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
 Under R124 the plan summary (`intake_plan.py`) rides this stop: the Operator's approval of the plan
@@ -527,14 +554,15 @@ output · exit 1 only on DEFECT · abort on a missing column.
 
 `scripts/`: `intake_pointers.py` · `intake_parse.py` (+ `parsers/`) · `intake_match.py` ·
 `intake_derive.py` (the derived create-stop fields: R1-R3, R6, R7, R34, R42, R66; the R129 dose-read cite and no-count STOP) ·
-`intake_exceptions.py` · `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
+`intake_exceptions.py` · `intake_apex_cost.py` (R125: a sample-only new line's Cost from the Apex PO / listing) ·
+`intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_write.js`.
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 141 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 147 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

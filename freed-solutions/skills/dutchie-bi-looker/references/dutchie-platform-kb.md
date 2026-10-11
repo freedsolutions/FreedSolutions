@@ -1515,3 +1515,34 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   dropdown › `Saved order`). `Receive` stays disabled while any row lacks a required field (expiry).
 - **Header Room reads blank on reload of a saved pending order; every row keeps its room.** Re-set it only when a row
   is added.
+
+## Apex Trading: reading a wholesale cost (PO and catalog listing) [PROBE 2026-10-11, read only, buyer login]
+
+Apex Trading is the wholesale marketplace a tenant may order through (`PO source: apex`). It is not Dutchie, but the
+intake lane reads it for one rule: a sample-only new line's Cost (`dutchie-intake` `intake_apex_cost.py`). Read only:
+never add to a cart, never place, edit or receive an order. A "What's new" modal can cover the left nav on first load;
+its close control dismisses it.
+
+- **Orders (the PO).** Nav `Orders` -> `/orders`, heading `Receiving Orders`, one row per order: `INVOICE #`, `ORDER DATE`,
+  `SELLER`, `SELLER OPERATION`, `BUYER OPERATION`, `STATUS`, `TOTAL`, `PAYMENT STATUS`, `DELIVERY DATE`, `MEDIA`. The invoice
+  number cell opens `/orders/receiving/<order uuid>`: an `Invoice` page with the header (`INVOICE #`, `DATE`, `STATUS`,
+  `FROM`, licenses, `Ship TO`) and one table `Name | Details | Price | Quantity | Line`.
+  - `Price` is the price of ONE of the ordered thing in `Quantity`. `Quantity` reads `1 Case 40 Units total 100 Milligrams
+    Per Unit` (price per case; units per case = the Units total / cases) or `1 Unit` (price per Apex unit).
+  - **An Apex "Unit" can be a case.** A line can read `1 Unit` at a case-sized price while its siblings read
+    `1 Case 40 Units total` at the same price. Divide by the pack the manifest proves, never by 1.
+  - `Details` carries `Batch:` and sometimes `Potency:`. The footer prints `Total Units`, `Total Cases`, `Subtotal`, `Total`.
+  - A vendor SO or invoice billed outside Apex has no row here: that order has no Apex PO, so the read falls to the catalog.
+- **Catalog listing.** `Marketplace` -> `/marketplace`; the search box puts the words in the URL (`/marketplace?q=<words>`).
+  - **Grid view card:** brand, product title, category, then `Price: $<case price>/ Case` (or `/ Unit`), `Available`,
+    `Size: <n> U /case at $<unit price>` (a unit-sold item reads `1 Unit Per Unit`), `Batch`.
+  - **List view** (the toggle beside grid) is the better read: columns `Brand | Product | Batch | Category | Product Type |
+    Potency | Quantity Available | Price`. `Brand` prints `<Vendor> (<Brand>)`, which names the SELLER - the vendor
+    whose listing it is. `Quantity Available` prints `<n> Cases <k> units per case Weight: <mg> Milligrams Per Unit`.
+    `Price` prints the case price and the per-unit price together (`$300.00 $10/unit`).
+  - The card and the list agree: per-unit = case price / units per case. The view toggle is a display preference;
+    put it back to grid after the read.
+- **How the lane binds the read** (`dutchie-intake` SKILL.md, the create stop): one typed row per sample-only intake
+  row - `source` (`po` | `catalog` | `none`), `ref`, `item`, `read_date`, `price`, `per` (`case` | `unit`, as printed),
+  `units_per_case`, `unit_shown` (the per-unit figure Apex prints beside the price: a cross-check). A PO read beats
+  a catalog read. No PO and no listing is `COST_UNKNOWN` (STOP).

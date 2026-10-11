@@ -27,6 +27,7 @@ sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 FX = os.path.join(os.path.dirname(HERE), "fixtures")
 sys.path.insert(0, HERE)
+import intake_apex_cost as AC  # noqa: E402
 import intake_certify as IC  # noqa: E402
 import intake_derive as ID  # noqa: E402
 import intake_common as C  # noqa: E402
@@ -40,7 +41,7 @@ import receive as RC  # noqa: E402
 
 SCRIPTS = ["intake_pointers.py", "intake_parse.py", "intake_match.py", "intake_exceptions.py",
            "intake_plan.py", "intake_certify.py", "intake_notice.py", "intake_ui_run.py", "receive.py",
-           "intake_msrp.py", "intake_derive.py"]
+           "intake_msrp.py", "intake_derive.py", "intake_apex_cost.py"]
 # The batch runner lives in the sibling skill (one allowlist, one refusal set for every lane): its batch
 # cases run here too, so the whole R124 chain - plan, gridBatch, certify - is proven by one command.
 GRID_SELFTEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "dutchie-bi-looker", "scripts",
@@ -56,6 +57,11 @@ def fx(name):
 
 def rows_of(name):
     with open(fx(name), encoding="utf-8-sig", newline="") as f:
+        return [dict(r) for r in csv.DictReader(f)]
+
+
+def rows_of_path(path):
+    with open(path, encoding="utf-8-sig", newline="") as f:
         return [dict(r) for r in csv.DictReader(f)]
 
 
@@ -1243,6 +1249,75 @@ CHECKS += [
 ]
 
 
+# R125 (amended 2026-10-11): a SAMPLE-ONLY new line takes its Cost from the vendor's Apex PO, else the Apex catalog listing;
+# neither = COST_UNKNOWN (STOP), and a sibling brand's Cost is never the fallback. Plan fixture row 3 is a NEW_PL cross-brand
+# copy of Brand B's 701 (Cost 9); here its invoice price is the sample price shape (0.05), so the line is sample-only.
+APEX_PO = dict(source="po", ref="T-77", item="Brand A Lime Gummies 10pk", price="330", per="case", units_per_case="30",
+               unit_shown="")                                                     # -> 11.00
+APEX_CAT = dict(source="catalog", ref="Brand A Wholesale", item="Lime Gummies - 100mg - 10ct", price="300", per="case",
+                units_per_case="30", unit_shown="10.00")                          # -> 10.00
+APEX_NONE = dict(source="none", ref="marketplace search `Brand A Lime`", item="", price="", per="", units_per_case="",
+                 unit_shown="")
+
+
+def apex_intake(*reads, unit="0.05"):
+    """The plan fixture's intake with row 3 at `unit`, run through intake_apex_cost.settle with the typed `reads`."""
+    rows = copy.deepcopy(rows_of("plan-intake.csv"))
+    rows[2]["unit_cost"] = unit
+    apex = {"3": [dict(a, row="3", read_date="2026-10-11") for a in reads]} if reads else {}
+    return AC.settle(rows, apex)[0]
+
+
+def plan_on(intake):
+    return PL.build_plan(intake, rows_of("plan-pre-active.csv"), rows_of("plan-pre-retired.csv"), rows_of("plan-strains.csv"),
+                         rows_of("plan-categories.csv"), rows_of("plan-brands.csv"), guard=PL._probed())
+
+
+def apex_cost_row(intake):
+    """(the create's planned Cost row or None, COST_UNKNOWN refused on row 3) for an intake."""
+    rows, ref, _ = plan_on(intake)
+    return (next((r for r in rows if r["product_key"] == "new:3" and r["field"] == "Cost"), None),
+            any(f["reason"] == "COST_UNKNOWN" and str(f["line_no"]) == "3" for f in ref))
+
+
+def apex_planned(target, *needles):
+    def pred(intake):
+        row, refused = apex_cost_row(intake)
+        return (row is not None and not refused and row["target"] == target
+                and all(n in row["provenance"] for n in needles))
+    return pred
+
+
+def apex_certify(post_cost):
+    """The ONE certify on a plan whose create Cost came from Apex (PO, 11.00): post item 802 carries `post_cost`."""
+    fx_ = IC.plan_fixture()
+    fx_["plan"] = plan_on(apex_intake(APEX_PO))[0]
+    _pr(fx_["qa"], "802")["Cost"] = post_cost
+    return IC.run_plan(fx_)[1]
+
+
+CHECKS += [
+    ("R125 PO: an Apex PO at $330 / case of 30 plans the create's Cost at 11, its provenance naming apex:po + the read date",
+     apex_planned("11", "derived Cost 11.00 (R125: apex:po T-77", "read 2026-10-11; $330.00 / case of 30"),
+     apex_intake(APEX_PO), apex_intake(), "no Apex read: the plan refuses the Cost (COST_UNKNOWN)"),
+    ("R125 PO beats catalog: with both read, the PO's 11 is the Cost, never the listing's 10",
+     apex_planned("11", "apex:po T-77"), apex_intake(APEX_CAT, APEX_PO), apex_intake(APEX_CAT), "the PO read dropped"),
+    ("R125 CATALOG: no PO - the vendor's listing at $300 / case of 30 ($10.00 / unit printed) plans Cost 10, apex:catalog",
+     apex_planned("10", "R125: apex:catalog Lime Gummies - 100mg - 10ct, read 2026-10-11"),
+     apex_intake(APEX_CAT), apex_intake(dict(APEX_CAT, unit_shown="11.00")),
+     "Apex prints $11.00 / unit beside it: APEX_UNIT_MISMATCH, nothing settled"),
+    ("R125 NONE: no PO and no listing -> COST_UNKNOWN (STOP) on the row, lane_Cost blank, the plan refuses the create's Cost "
+     "(never the sample price, never Brand B's 9)",
+     lambda i: ("COST_UNKNOWN" in i[2]["flags"].split(";") and i[2]["lane_Cost"] == ""
+                and apex_cost_row(i) == (None, True)),
+     apex_intake(APEX_NONE), apex_intake(APEX_NONE, APEX_CAT), "a listing found beside the empty PO search"),
+    ("R125 guard: a sample-only create row that never ran the Apex step is REFUSED by the plan (COST_UNKNOWN)",
+     lambda i: apex_cost_row(i)[1], [dict(r, unit_cost="0.05") if k == 2 else r for k, r in enumerate(rows_of("plan-intake.csv"))],
+     rows_of("plan-intake.csv"), "row 3 is a paid line (invoice 8): not sample-only"),
+    ("R125 certify: the Apex Cost is a PLANNED cell (certify GREEN); the copy source's Cost surviving is PLAN_NOT_APPLIED",
+     lambda c: apex_certify(c) == [], "11", "9", "the created item kept Brand B's Cost 9"),
+]
+
 def run_checks():
     bad = []
     for name, pred, good, broken, how in CHECKS + RECEIVE_CHECKS:
@@ -1423,6 +1498,29 @@ def cli_chain():
         step("certify --plan RED on a post pull where nothing landed", ["intake_certify.py", "--plan", planf,
              "--pre-active", fx("plan-pre-active.csv"), "--pre-retired", fx("plan-pre-retired.csv"),
              "--post-active", fx("plan-pre-active.csv"), "--post-retired", fx("plan-pre-retired.csv"), "--out-dir", t], 1)
+        # R125: intake_apex_cost.py as a user runs it - the typed Apex read in, a NEW intake version out
+        ad = os.path.join(t, "apex")
+        os.makedirs(ad)
+        arows = [dict(r, unit_cost="0.05") if k == 2 else r for k, r in enumerate(rows_of("plan-intake.csv"))]
+        ain = os.path.join(ad, "plan-intake-v1.csv")
+        C.write_csv(ain, list(arows[0].keys()), arows)
+        aread = os.path.join(ad, "apex-read.csv")
+        C.write_csv(aread, AC.APEX_COLS, [dict(APEX_PO, row="3", read_date="2026-10-11")])
+        out = step("apex cost (R125: the PO read settles the sample-only line)",
+                   ["intake_apex_cost.py", "--intake", ain, "--apex", aread], 0)
+        v2 = os.path.join(ad, "plan-intake-v2.csv")
+        r3 = rows_of_path(v2)[2] if os.path.isfile(v2) else {}
+        if r3.get("lane_Cost") == "11.00" and "COST_FROM_APEX" in r3.get("flags", "") and "apex:po T-77" in out:
+            print("  PASS  the Apex step wrote -v2 with Cost 11.00, COST_FROM_APEX, and printed the source")
+        else:
+            bad.append("apex cost CLI")
+            print(f"  FAIL  the Apex step must write -v2 with Cost 11.00 + COST_FROM_APEX: {r3.get('lane_Cost')!r} {r3.get('flags')!r}")
+        out = step("apex cost (R125: no read -> COST_UNKNOWN, still exit 0)", ["intake_apex_cost.py", "--intake", ain], 0)
+        if "COST_UNKNOWN (STOP) 1" not in out:
+            bad.append("apex cost unknown CLI")
+            print("  FAIL  no Apex read must print COST_UNKNOWN (STOP) 1")
+        else:
+            print("  PASS  no Apex read prints COST_UNKNOWN (STOP) 1")
         stray = [n for n in os.listdir(FX) if n not in FIXTURE_FILES]
         if stray:
             bad.append("wrote into fixtures/")

@@ -47,7 +47,8 @@ from intake_common import EXIT_ABORT, EXIT_OK, Selftest, get_flag, grams_of, nor
 
 CBD_MC = "CBD"             # R66 keys on the Master category named CBD; a tenant may override via `--cbd-mc`
 DEFAULT_CONC_SHARE = 0.3   # R2: absent a label / COA value, 30 % concentrate to 70 % flower
-FIELDS = ("Product grams", "Flower equiv", "Servings per Unit", "CBD content", "Dose")   # the derivable create-stop fields
+FIELDS = ("Product grams", "Flower equiv", "Servings per Unit", "CBD content", "Dose",   # the derivable create-stop fields
+          "Cost")   # R125: a sample-only new line's Cost, written by intake_apex_cost.py with its Apex source
 STOP_FLAG = "CONC_GRAMS_TO_SET"   # R2 STOP: the composite class needs the concentrate grams
 DOSE_STOP_FLAG = "DOSE_UNREAD"    # R129 STOP: an mg figure with no count on a THC-grams-class line - the total is unsettled
 

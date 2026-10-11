@@ -38,8 +38,10 @@ number (default `market`); the other is printed beside it as the sanity check.
   Rounding: to the nearest $5 shelf price point, a half rounds up ($27.50 -> $30, $27.40 -> $25), never
   under the floor.
   COST: the catalog Cost the business will set, `--cost <line_no|*>=<cost>` (a case-deal invoice price is
-  not the catalog Cost: R62 / the vendor deal tag), else the landed unit cost, else the invoice unit cost.
-  Never lane_Cost: on a new-line row that is the copy source's Cost. The report names the cost and its source.
+  not the catalog Cost: R62 / the vendor deal tag), else the Cost intake_apex_cost.py settled on a SAMPLE-ONLY
+  line (its `derived` cell names the Apex PO or listing, R125), else the landed unit cost, else the invoice unit
+  cost. An invoice price at the sample price shape (<= 0.05) is never the cost. Never lane_Cost otherwise: on a
+  new-line row that is the copy source's Cost. The report names the cost and its source.
   Regular prices only: an archive special price and a live on-sale price are never read as the price.
   One physical store counts once; the live read beats the archive for that store. The live feed rarely
   tags a brand, so in a store the brand is already found in, an untagged live row of the same form and
@@ -72,6 +74,9 @@ Flags (R125, INFO - they never fail the run):
   MSRP_MARGIN_LOW    the margin at cost is below the lowest margin among the own lanes read
   MSRP_ARCHIVE_ONLY  no live source contributed to the basis
   MSRP_NO_EVIDENCE   no basis had any evidence: the Operator prices the line with the business
+  MSRP_COST_UNKNOWN  a SAMPLE-ONLY line (every row at the sample price, or flagged COST_UNKNOWN) has no Cost yet: no
+                     floor, no shelf position, no margin - run intake_apex_cost.py first (R125: the Cost comes from the
+                     vendor's Apex PO or catalog listing, never the sample price, never a sibling brand's Cost)
 DEFECT (exit 1): OWN_STORE_IN_MARKET (R125: our own store excluded) - an own-store row reached the market detail.
 ABORT (exit 2): a missing column, a missing pointer, an export under its row floor. An intake with no
 new line is not an abort: exit 0 and says so.
@@ -100,6 +105,7 @@ ACTIVE_REQUIRED = ["Product", "Master category", "Category", "Global SubCategory
 NEW_LINE_VERDICTS = ("NEW_PL", "NEW_BRAND", "NEW_CATEGORY")
 NEW_LINE_FLAGS = ("NEW_LINE_FIELDS", "CROSS_BRAND_COPY")
 MIN_SAME, MIN_COMPS, MIN_THIN, SPREAD, PACE = 2, 3, 3, 0.20, 0.4
+SAMPLE_MAX = 0.05   # the sample price shape (R127): an invoice price at or below it is never a Cost (R125)
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"
 WM_API = "https://api-g.weedmaps.com/discovery/v1"
 
@@ -418,16 +424,27 @@ def group_lines(rows, alias_specs, cost_specs=()):
             if C.norm(a) not in [C.norm(x) for x in g["aliases"]]:
                 g["aliases"].append(a)
         given = [v for k, v in cost_specs if k in ("*", str(i), r.get("line_no", ""))]
-        # lane_Cost is NOT read: on a new-line row it is the copy source's Cost, another lane's number.
-        for src, c in (("--cost", C.num(given[-1]) if given else None), ("landed unit cost", C.num(r.get("landed_unit_cost"))), ("invoice unit cost", C.num(r.get("unit_cost")))):
+        # lane_Cost is NOT read: on a new-line row it is the copy source's Cost, another lane's number - EXCEPT the Cost
+        # intake_apex_cost.py settled on a sample-only line (R125), which the row's `derived` cell names with its source.
+        flags = set(filter(None, (r.get("flags") or "").split(";")))
+        settled = re.search(r"(?:^|; )Cost: [^(]*\((R125: [^;]*)", r.get("derived") or "")
+        apex = C.num(r.get("lane_Cost")) if settled else None
+        g["unknown"] = g.get("unknown", 0) + ("COST_UNKNOWN" in flags and not given)
+        for src, c in (("--cost", C.num(given[-1]) if given else None),
+                       (settled.group(1).split(",")[0] if settled else "", apex),
+                       ("landed unit cost", C.num(r.get("landed_unit_cost")) if "COST_UNKNOWN" not in flags else None),
+                       ("invoice unit cost", C.num(r.get("unit_cost")) if "COST_UNKNOWN" not in flags else None)):
             if c:
                 g["costs"].append((c, src))
                 break
     for g in groups.values():
         top = max((c for c, _ in g["costs"]), default=0)
-        real = [(c, src) for c, src in g["costs"] if c >= 0.05 * top]   # a sample line ($0.01) is not the cost
+        # a sample line ($0.01) is not the cost; neither is an invoice price at the sample price shape (R125, R127)
+        real = [(c, src) for c, src in g["costs"] if c >= 0.05 * top
+                and not (c <= SAMPLE_MAX + 1e-9 and src in ("landed unit cost", "invoice unit cost"))]
         g["samples"], g["cost"] = len(g["costs"]) - len(real), med([c for c, _ in real])
         g["cost_src"] = ", ".join(sorted({src for _, src in real})) or "none"
+        g["unknown"] = g.get("unknown", 0)
     return list(groups.values())
 
 
@@ -567,6 +584,8 @@ def read_line(g, market, active, radius, own, anchor="market", keystone=None):
             flags.append("MSRP_FLOOR_RAISED")
         rec = float(5 * math.ceil(floor_px / 5 - 1e-9))
     market_ref = sp_med if len(sp_st) >= MIN_SAME else cp_med if len(cp_st) >= MIN_COMPS else None
+    if g["cost"] is None and (g.get("unknown") or g.get("samples")):
+        flags.append("MSRP_COST_UNKNOWN")   # R125: a sample-only line with no Apex Cost - no floor, no shelf, no margin
     if basis == "none":
         flags.append("MSRP_NO_EVIDENCE")
     else:
@@ -905,6 +924,26 @@ def selftest():
     t.check("--cost sets the catalog cost and names its source",
             [g for g in group_lines(rows, [], [("*", "15")]) if g["form"] == "vape:cart"][0]["cost"] == 15.0)
     t.check("brand words: lane_Brand + the line's first segment", cart_g.get("aliases") == ["Zeta", "Zeta Diamonds"])
+    # R125 (amended 2026-10-11): a SAMPLE-ONLY line's invoice price is never the cost; the Apex Cost is
+    so_rows = [dict(r) for r in rows]
+    so_rows[6].update(unit_cost="0.05", lane_Cost="12")   # the tincture line at the sample price; a sibling's Cost on the row
+    so_g = [g for g in group_lines(so_rows, []) if g["form"] == "tincture"][0]
+    so_r = read_line(so_g, [], [], 15.0, [], "own lanes", 2.0)
+    t.check("R125 FIRES: a sample-only line (every row at the sample price) has NO cost - no floor, MSRP_COST_UNKNOWN",
+            so_g["cost"] is None and "MSRP_COST_UNKNOWN" in so_r["flags"] and so_r["rec"] is None and so_r["floor"] is None,
+            f"{so_g['cost']} {so_r['flags']} {so_r['rec']}")
+    so_rows[6].update(lane_Cost="18.00", flags="COST_FROM_APEX",
+                      derived="Cost: 18.00 (R125: apex:catalog Newco Tincture 300mg, read 2026-10-11; $180.00 / case of 10)")
+    ap_g = [g for g in group_lines(so_rows, []) if g["form"] == "tincture"][0]
+    ap_r = read_line(ap_g, [], [], 15.0, [], "own lanes", 2.0)
+    t.check("R125: the Apex Cost intake_apex_cost.py settled is the cost and names its source; the keystone floor reads it",
+            ap_g["cost"] == 18.0 and ap_g["cost_src"].startswith("R125: apex:catalog") and ap_r["rec"] == 40.0
+            and "MSRP_COST_UNKNOWN" not in ap_r["flags"], f"{ap_g['cost']} {ap_g['cost_src']} {ap_r['rec']}")
+    so_rows[6].update(lane_Cost="", flags="COST_UNKNOWN", derived="", unit_cost="9")
+    t.check("R125: a row flagged COST_UNKNOWN never reads its invoice price as the cost",
+            [g for g in group_lines(so_rows, []) if g["form"] == "tincture"][0]["cost"] is None)
+    t.check("R125: --cost still sets the catalog cost on a COST_UNKNOWN line",
+            [g for g in group_lines(so_rows, [], [("7", "17")]) if g["form"] == "tincture"][0]["cost"] == 17.0)
     t.check("brand words: --alias adds one", "Zeta Gas" in group_lines(rows, [("*", "Zeta Gas")])[0]["aliases"])
     own = ["ownco"]
     params = {"center": CENTER, "radius": 15.0, "box": None, "archive": None, "own": own}

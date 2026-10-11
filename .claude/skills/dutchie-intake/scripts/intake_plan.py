@@ -78,10 +78,12 @@ from intake_common import (CATALOG_COLS, CATEGORIES_REQUIRED, CREATE_VERDICTS, D
                            write_csv)
 from intake_match import V3_COLS  # noqa: E402
 import intake_derive  # noqa: E402
+import intake_apex_cost  # noqa: E402
 
 # plan field -> (the derived-cell field name, the intake column it re-derives from)
 DERIVED_FIELDS = {"FlowerEquivalent": "Flower equiv", "ServingSizePerUnit": "Servings per Unit", "CBDContent": "CBD content",
-                  "Grams": "Product grams"}   # R129: the vendor dose read (per piece / package total) rides the Grams row
+                  "Grams": "Product grams",   # R129: the vendor dose read (per piece / package total) rides the Grams row
+                  "Cost": "Cost"}   # R125: a sample-only new line's Cost and its Apex source (intake_apex_cost.py)
 
 PLAN_COLS = ["seq", "step", "line_no", "product_key", "field", "before", "target", "channel", "depends_on",
              "provenance", "row_sha1"]
@@ -289,6 +291,9 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
             state.setdefault(key, {})[col] = target
         return r["seq"]
 
+    # R125: the rows of a SAMPLE-ONLY new line (every package a sample or display) - their Cost must be SETTLED (a `Cost:`
+    # entry in the row's derived cell: the Apex PO / listing, or the Operator's typed Cost), never the copy source's.
+    sample_only = intake_apex_cost.sample_only_rows(intake)
     approved = [(i + 1, r) for i, r in enumerate(intake) if (r.get("approved") or "").strip().upper() == "Y"]
     creates = [(n, r) for n, r in approved if r.get("verdict") in CREATE_VERDICTS]
     unret = [(n, r) for n, r in approved if r.get("verdict") == "RETIRED_MATCH"
@@ -446,6 +451,12 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                 refuse("VALUE_NOT_NUMERIC", "ALIGN", n, key, field, channel, "", f"target {r.get(icol)!r}")
                 continue
             dcell = intake_derive.parse_derived(r.get("derived"))
+            if field == "Cost" and (n in sample_only or "COST_UNKNOWN" in (r.get("flags") or "").split(";"))                     and ("Cost" not in dcell or "COST_UNKNOWN" in (r.get("flags") or "").split(";")):
+                refuse("COST_UNKNOWN", "ALIGN", n, key, field, channel, "",
+                       f"R125: line `{sample_only.get(n, '')}` is sample-only - its Cost comes from the vendor's Apex PO or "
+                       f"catalog listing (intake_apex_cost.py --apex) or the Operator's typed Cost (--cost), never the "
+                       f"invoice's sample price {r.get('unit_cost')!r} and never the copy source's Cost {bef!r}")
+                continue
             cite_extra = ""
             if field in DERIVED_FIELDS and DERIVED_FIELDS[field] in dcell:
                 cite_extra = f"derived {DERIVED_FIELDS[field]} {dcell[DERIVED_FIELDS[field]]}"

@@ -34,7 +34,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 | Mode | Script | Login | Output |
 |---|---|---|---|
 | `pull` | session procedure (Gmail + Drive connectors) | connector only | Drive copy, inbox mirror, `manifest.jsonl` |
-| `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` -> `intake_msrp.py` (new lines only) | none | lines CSV, intake v1 + v2, exceptions CSV, `-msrp-<ts>.md`, STOP message |
+| `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` -> `intake_apex_cost.py` (sample-only new lines; the Apex read is read-only, in the write channel) -> `intake_msrp.py` (new lines only) | none (Apex: read only) | lines CSV, intake v1 + v2 (+ v3), exceptions CSV, apex-read CSV, `-msrp-<ts>.md`, STOP message |
 | `create` | `intake_plan.py`, then `gridBatch` + `intake_ui_run.py` (UI rows) in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL, the keyMap |
 | `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
 | `notice` | `intake_notice.py` | none | `-notice-<ts>.md` (a draft; the Operator sends) |
@@ -52,6 +52,7 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 | `scripts/intake_derive.py` | the create-stop fields canon derives (Flower equiv, Servings per Unit, CBD content, the dose segment) from the line's facts and the tenant's `fl_eq` class map; cited by rule id |
 | `fixtures/fl-eq-classes.toml` | the synthetic class map the fixture tenant points at (`FL EQ classes:`), with per-master `package_cap_mg` for the dose read (R130) |
 | `scripts/intake_exceptions.py` | R102 flags, R62 read, R103 landed cost; the STOP message |
+| `scripts/intake_apex_cost.py` | R125: a sample-only new line's Cost from the vendor's Apex PO, else its Apex catalog listing; neither = `COST_UNKNOWN` STOP |
 | `scripts/intake_msrp.py` | the recommended MSRP per new line (market + own shelf + floor), pending business confirmation |
 | `scripts/intake_plan.py` | approved intake + the freeze -> the R124 plan file (refuses an UNPROVEN channel) |
 | `scripts/intake_certify.py` | `--plan`: the ONE batch certify on the Active + Retired union; single-pair mode for hand writes |
