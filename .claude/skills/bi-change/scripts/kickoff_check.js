@@ -4,7 +4,7 @@
 //   node kickoff_check.js <kickoff.md>                 build-phase gate (default): the change is complete
 //   node kickoff_check.js <kickoff.md> --phase plan    plan-phase gate: header sane, rules registered
 //   node kickoff_check.js <kickoff.md> --seal          plan lane only: write rule-text hashes into the header
-//   node kickoff_check.js --pointer <tenant dir>       scaffold caps only (C3–C8), no kickoff needed
+//   node kickoff_check.js --pointer <tenant dir>       scaffold caps only (C3–C10), no kickoff needed
 //                                                      fails outright if the dir is not a tenant
 //   ... --caps info|fail                               override every per-cap default at once,
 //                                                      for fixtures; some caps refuse to be silenced
@@ -49,7 +49,7 @@ const VALUED = new Set(['--phase', '--caps', '--pointer']);
 const consumedArg = new Set();
 args.forEach((a, i) => { if (VALUED.has(a)) consumedArg.add(i + 1); });
 const kickoff = args.find((a, i) => !a.startsWith('--') && !consumedArg.has(i));
-// `--pointer <tenant dir>` scores the SCAFFOLD caps (C3–C8) with no kickoff at all. Every other
+// `--pointer <tenant dir>` scores the SCAFFOLD caps (C3–C10) with no kickoff at all. Every other
 // mode reaches the caps only through a change; a tenant whose pointer file or root has drifted
 // while no change is in flight was therefore unmeasurable between kickoffs, which is exactly when
 // drift accumulates. Exit 1 on any fail, so it is usable as a standing check.
@@ -65,7 +65,11 @@ const seal = args.includes('--seal');
 const CAP_MODE = args.includes('--caps') ? args[args.indexOf('--caps') + 1] : null;
 if (CAP_MODE && !['info', 'fail'].includes(CAP_MODE)) { console.log('--caps must be info|fail, got: ' + CAP_MODE); process.exit(1); }
 // Caps in chars / lines, ruled 2026-09-08.
-const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readmeStamp: 200, looseFiles: 10, stateBullet: 2 };
+const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readmeStamp: 200, looseFiles: 10, stateBullet: 2, stateBullets: 8 };
+// The tenant pointer's line terminator, by convention (SKILL.md, "The client pointer block"). C9
+// measures against this one constant and always names what it FOUND, so a tenant whose convention is
+// ever LF changes this value, not the check.
+const POINTER_EOL = 'CRLF';
 // ENFORCEMENT IS PER CAP, not global (scaffold-cleanup §6 step 5).
 //   C3 CLAUDE.md · C4 README stamp · C5 guide change logs -> 'fail'. P4 brought them under the
 //     caps in Phase A, so a breach from here is new drift and should redden.
@@ -89,7 +93,10 @@ const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readm
 //   C8 template conformance -> 'info' for Phase C, the step that introduces both the template and
 //     the check. It is flipped in the step that brings a reference tenant to zero missing, exactly
 //     as C1-C7 were; until then a red C8 would be reporting work the running step is doing.
-const CAP_ENFORCE = { rule: 'fail', preamble: 'fail', claude: 'fail', readme: 'fail', guides: 'fail', loose: 'fail', bullet: 'fail', template: 'info' };
+//   C9 pointer line endings · C10 Current-state bullet count -> 'fail' from the change that adds
+//     them (2026-10-12, ruled 2026-10-11: the pointer stays hand-folded and the gate holds its
+//     shape). The reference pointer is already CRLF with 8 bullets, so they land under the cap.
+const CAP_ENFORCE = { rule: 'fail', preamble: 'fail', claude: 'fail', readme: 'fail', guides: 'fail', loose: 'fail', bullet: 'fail', template: 'info', eol: 'fail', stateCount: 'fail' };
 
 const KICK = kickoff ? path.resolve(kickoff) : null;
 // In pointer mode there is no kickoff to fix the estate dir, so it is found by CONTENT, not by a
@@ -135,7 +142,7 @@ function sha1(s) { return crypto.createHash('sha1').update(s.replace(/\s+/g, ' '
 function norm(s) { return s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' '); }
 
 // ---------- pointer mode ----------
-// C3–C8 only: no kickoff, no header, no register, no estate scan — so a tenant can be scored at any
+// C3–C10 only: no kickoff, no header, no register, no estate scan — so a tenant can be scored at any
 // time, not only when a change happens to be in flight. Exit 1 on any fail, per its enforcement.
 if (POINTER) {
   if (!fs.existsSync(TENANT)) { console.log('--pointer: no such directory: ' + TENANT); process.exit(1); }
@@ -445,7 +452,7 @@ const DEC = path.join(EST_DIR, 'DECISIONS.md');
   }
 }
 
-// ---------- C3–C8: the SCAFFOLD caps ----------
+// ---------- C3–C10: the SCAFFOLD caps ----------
 // These measure the tenant pointer file, the estate README, the guides, the tenant root and the
 // Current-state bullets — surfaces that drift BETWEEN changes rather than because of one. They are
 // factored out of the caps block so `--pointer` can score exactly this set with no kickoff in hand;
@@ -567,6 +574,59 @@ function scaffoldCaps() {
   // reddening because a folder the change never touched is absent. Keeping it here would also put a
   // new line on all 45 kickoffs in the estate sweep for a condition none of them can fix.
   if (POINTER) templateConformance();
+  // C9 and C10 run in POINTER mode only, for the same reason as C8: they measure the pointer file's
+  // SHAPE, which is a standing scaffold question, not something one change owns.
+  if (POINTER) pointerShape();
+}
+
+// C9 — POINTER LINE ENDINGS = POINTER_EOL. Every other check splits on /\r?\n/ and so cannot see a
+// terminator at all: a peer rewrote the pointer with LF endings and the gate passed (review
+// 2026-10-11, F-D4). Counted from the RAW text, each terminator classed once as CRLF, bare LF or
+// bare CR, so a mixed file names every count and the first offending line. A missing final newline
+// is not a terminator and is not counted.
+// C10 — CURRENT-STATE BULLET COUNT ≤ CAPS.stateBullets. C7 bounds each bullet's LENGTH; nothing
+// bounded HOW MANY, so the section the template caps at 8 carried 9 and passed (F-F3). Top-level
+// bullets only — a line opening `- ` or `* ` at column 0 — because a nested line belongs to its parent.
+function pointerShape() {
+  const eolLabel = 'cap: pointer line endings = ' + POINTER_EOL;
+  const cntLabel = 'cap: Current-state ≤ ' + CAPS.stateBullets + ' bullets';
+  if (!fs.existsSync(CLAUDE_MD)) {
+    info(eolLabel, 'no pointer file at ' + CLAUDE_MD);
+    info(cntLabel, 'no pointer file at ' + CLAUDE_MD);
+    return;
+  }
+  const raw = read(CLAUDE_MD);
+
+  const kinds = { CRLF: 0, LF: 0, CR: 0 };
+  let firstBad = 0, lineNo = 1;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c !== '\r' && c !== '\n') continue;
+    const k = c === '\n' ? 'LF' : (raw[i + 1] === '\n' ? 'CRLF' : 'CR');
+    kinds[k]++;
+    if (k !== POINTER_EOL && !firstBad) firstBad = lineNo;
+    if (k === 'CRLF') i++;
+    lineNo++;
+  }
+  const total = kinds.CRLF + kinds.LF + kinds.CR;
+  const found = Object.entries(kinds).filter(([, n]) => n);
+  const what = !total ? 'no line terminator at all' :
+    found.length === 1 ? found[0][0] + ' throughout (' + total + ' terminators)' :
+    'MIXED — ' + found.map(([k, n]) => n + ' ' + k).join(', ') + ' of ' + total + ' terminators';
+  if (total && kinds[POINTER_EOL] !== total) cap('eol', eolLabel,
+    what + ', first non-' + POINTER_EOL + ' at line ' + firstBad + ' — the pointer is ' + POINTER_EOL +
+    ' by convention; convert the endings, change nothing else');
+  else ok(eolLabel, what);
+
+  const cl = raw.split(/\r\n|\r|\n/);
+  const start = cl.findIndex(l => /^##\s+Current state\b/i.test(l));
+  if (start < 0) { info(cntLabel, 'no `## Current state` heading in ' + path.basename(CLAUDE_MD) + ' — cannot measure'); return; }
+  let end = cl.slice(start + 1).findIndex(l => /^## /.test(l));
+  end = end < 0 ? cl.length : start + 1 + end;
+  const tops = cl.slice(start + 1, end).filter(l => /^[-*] /.test(l)).length;
+  if (tops > CAPS.stateBullets) cap('stateCount', cntLabel,
+    tops + ' top-level bullet(s), ' + (tops - CAPS.stateBullets) + ' over — fold or retire one; its record keeps the detail');
+  else ok(cntLabel, tops + ' top-level bullet(s)');
 }
 
 // C8 — TEMPLATE CONFORMANCE. Every other cap measures a surface against a number; this one measures
@@ -914,7 +974,7 @@ report();
 function report() {
   const fails = results.filter(r => r[0] === '✘').length;
   console.log(POINTER
-    ? 'bi-change check — --pointer ' + path.basename(TENANT) + ' — scaffold caps C3–C8'
+    ? 'bi-change check — --pointer ' + path.basename(TENANT) + ' — scaffold caps C3–C10'
     : 'bi-change check — ' + path.basename(KICK) + ' — phase ' + phase + (seal ? ' (seal)' : ''));
   for (const [m, l, d] of results) console.log('  ' + m + ' ' + l + (d ? ' — ' + d : ''));
   console.log(fails ? '\n' + fails + ' check(s) failed.' : '\nAll checks passed.');

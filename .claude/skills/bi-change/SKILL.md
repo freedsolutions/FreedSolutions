@@ -132,6 +132,9 @@ worktrees do not contain `clients/`):
 - Canon: Dictionary > rule patterns reference > skill > memory; runbook = BI-SOP.md §2
 ```
 
+**The tenant pointer is hand-folded and CRLF by convention** (ruled 2026-10-11): rewrite it in place
+keeping CRLF endings, and keep "Current state" at ≤ 8 top-level bullets. `--pointer` fails either breach.
+
 `kickoff_check.js` needs none of this: the kickoff's own folder is the estate dir, and the
 shared tools (`bi_impact_scan.js`, `render_docs.sh`, `explore_catalog_*.js`) ship in this
 skill's own `scripts/` and are handed `--estate <that dir>`. `../scripts` beside the estate
@@ -272,10 +275,12 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   tenant from `templates/client/` and verify it. See "The client pointer block" above.
 - `scripts/template_diff.js --instance <tenant dir> --map <map.json>` — prove the template's lifted
   process sections still round-trip byte-identical to that tenant's copies.
-- `scripts/kickoff_check.js --pointer <tenant dir>` — the SCAFFOLD caps alone (C3-C8), no kickoff.
+- `scripts/kickoff_check.js --pointer <tenant dir>` — the SCAFFOLD caps alone (C3-C10), no kickoff.
   Every other mode reaches the caps only through a change, so a tenant was unmeasurable between
   kickoffs, which is exactly when scaffold drift accumulates. Run it after any move, and any time
   you touch the tenant `CLAUDE.md`. It finds the estate by the Dictionary, not by a folder name.
+  **C9** fails a pointer whose line endings are not all CRLF, and names what it found (LF, mixed, first bad line).
+  **C10** fails a "Current state" section with more than 8 top-level bullets (`- ` at column 0; nested lines do not count).
 - `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   `--stale` also reads `<estate>/onepagers.json` (the canonical business one-pagers: generator, delivered file, the rules it prints, a seal) and reports ONE-PAGER BEHIND; `--seal-onepager <key>|all` re-seals after a human confirms the document or a regeneration.
@@ -318,11 +323,11 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 152 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 167 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
   an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score
-  C3-C8 and nothing needing a register or header, redden on an enforced breach, and still find the
+  C3-C10 and nothing needing a register or header, redden on an enforced breach, and still find the
   estate when its folder is renamed, and must FAIL an existing directory that is not a tenant at all
   (no pointer file, no Dictionary below it) — absence of a surface is a failure of identity, not a
   cap breach, so `--caps info` cannot silence it. **C8 template conformance** must read zero on a

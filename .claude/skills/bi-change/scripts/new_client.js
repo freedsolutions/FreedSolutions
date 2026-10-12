@@ -116,6 +116,13 @@ function copyTree(src, dst) {
 
 console.log('new_client — scaffolding ' + CLIENT + '/' + TENANT);
 copyTree(SRC_TENANT, TENANT_DIR);
+// The tenant POINTER is CRLF by convention, and `--pointer` fails any other ending (C9). copyTree
+// normalises every text file to LF so the fill and the placeholder guard see one shape; the pointer
+// alone is written back CRLF here, or the scaffold could never pass its own gate run below.
+{
+  const ptr = path.join(TENANT_DIR, 'CLAUDE.md');
+  if (fs.existsSync(ptr)) fs.writeFileSync(ptr, fs.readFileSync(ptr, 'utf8').replace(/\r?\n/g, '\r\n'), 'utf8');
+}
 
 // The client roster: written once, never overwritten. A second tenant under an existing client
 // gets a line added by hand — the roster carries engagement facts a scaffold cannot know.

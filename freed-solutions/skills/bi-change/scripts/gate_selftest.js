@@ -21,7 +21,7 @@
 //   C. the per-cap DEFAULT enforcement, run with no flag at all. Group A passes an explicit
 //      `--caps`, which overrides the defaults, so it proves the mechanism but not the setting.
 //   D. `--pointer <tenant dir>` — the kickoff-free scaffold check: it runs with no kickoff, scores
-//      C3–C8 and nothing that needs a register or a header, still reddens on an enforced breach,
+//      C3–C10 and nothing that needs a register or a header, still reddens on an enforced breach,
 //      and finds the estate by the Dictionary rather than by the folder's name.
 //   E. the REGISTER HEADER shape — both the 5-column and the 8-column register parse, to the count
 //      their own header row declares, and NOT BUILT is read out of segment 2 and nowhere else.
@@ -189,7 +189,9 @@ const CLEAN_BULLETS = [
   '- **In flight:** two lines is legal, being exactly the cap.',
   '  Second line, still inside the cap — `bi-estate/fx-kickoff-2026-09-08.md`',
 ];
-function claudeMd(bullets) {
+// Joined CRLF, because the pointer is CRLF by convention and `--pointer` fails anything else (C9):
+// an LF clean fixture would redden every pointer-mode case on a terminator it never meant to test.
+function claudeMd(bullets, eol = '\r\n') {
   return [
     '# Fixture tenant', '',
     '## Current state (2026-09-08) — replace at close-out, never append', '',
@@ -197,7 +199,7 @@ function claudeMd(bullets) {
     ...bullets, '',
     '## Change log', '',
     '- 2026-09-08 — fx-kickoff-2026-09-08.md', '',
-  ].join('\n');
+  ].join(eol);
 }
 
 // ---- the clean baseline fixture -------------------------------------------------------------
@@ -460,7 +462,7 @@ for (const [n, wantMark, wantExit] of [[40, '✔', 0], [41, '✘', 1]]) {
 }
 
 // =============================================================================================
-// D. --pointer mode. It scores C3–C8 with NO kickoff, so it must (a) run at all with no kickoff
+// D. --pointer mode. It scores C3–C10 with NO kickoff, so it must (a) run at all with no kickoff
 // argument, (b) score exactly that set and nothing that needs a register or a header, (c) still
 // redden on an enforced breach, and (d) find the estate by CONTENT — the Dictionary — rather than
 // by a folder name, or the mode silently stops measuring C4/C5 on the next tenant that names its
@@ -472,12 +474,15 @@ function runPointer(dir, capsMode) {
   const r = spawnSync(process.execPath, a, { encoding: 'utf8' });
   return { status: r.status, out: ((r.stdout || '') + (r.stderr || '')).replace(/\r\n/g, '\n') };
 }
+const EOL_LABEL = 'cap: pointer line endings = CRLF';
+const COUNT_LABEL = 'cap: Current-state ≤ 8 bullets';
 const POINTER_LABELS = [
   'cap: CLAUDE.md ≤ 120 lines', 'cap: CLAUDE.md line ≤ 300 chars', 'cap: README stamp',
   'cap: guide change log', 'cap: tenant root ≤ 10 loose files', 'cap: Current-state bullet ≤ 2 lines',
+  EOL_LABEL, COUNT_LABEL,
 ];
 
-// D1 — clean tenant: runs with no kickoff, exits 0, and every C3–C8 line is present and green.
+// D1 — clean tenant: runs with no kickoff, exits 0, and every C3–C10 line is present and green.
 buildClean();
 {
   const r = runPointer(CLIENT);
@@ -488,7 +493,11 @@ buildClean();
   // Nothing that needs a header or a register may appear: those are the checks the mode drops.
   const leaked = ['cap: rule cell', 'cap: Dictionary preamble', 'ratified', 'done block', '--stale']
     .filter(l => line(r.out, l));
-  check('--pointer: scores C3–C8 ONLY (no register / header / scan checks)', leaked.length === 0, 'leaked: ' + (leaked.join(', ') || 'none'));
+  check('--pointer: scores C3–C10 ONLY (no register / header / scan checks)', leaked.length === 0, 'leaked: ' + (leaked.join(', ') || 'none'));
+  // C9/C10 are pointer-mode only, like C8: a kickoff run must not grow two lines it cannot fix.
+  const k = run('fx-kickoff-2026-09-08.md', 'fail');
+  check('kickoff mode: C9/C10 do not run outside --pointer', !line(k.out, EOL_LABEL) && !line(k.out, COUNT_LABEL),
+    (line(k.out, EOL_LABEL) || '(absent)').trim() + ' | ' + (line(k.out, COUNT_LABEL) || '(absent)').trim());
 }
 
 // D2 — an ENFORCED breach (C3, 'fail' by default) must redden pointer mode, or the standing check
@@ -555,6 +564,69 @@ buildClean();
   check('--pointer: --caps info cannot green a non-tenant dir', q.status === 1, 'exit ' + q.status);
   // C4 printed NOTHING when there was no estate; every branch must report.
   check('--pointer: C4 reports even with no README', line(r.out, 'cap: README stamp') !== '', line(r.out, 'cap: README stamp').trim() || '(absent)');
+}
+
+// D7 — C9 POINTER LINE ENDINGS (2026-10-12). A peer rewrote the pointer with LF endings and every
+// check above passed, because each one splits on /\r?\n/. The same content, re-terminated, must
+// redden on the shipped default and say WHAT it found; a mixed file must name both counts and the
+// first offending line; and `--caps info` must quiet it, because C9 is a cap, not identity.
+{
+  buildClean();
+  fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd(CLEAN_BULLETS, '\n'));
+  const r = runPointer(CLIENT);
+  check('C9: an all-LF pointer REDDENS on the shipped default (exit 1)', mark(r.out, EOL_LABEL) === '✘' && r.status === 1,
+    line(r.out, EOL_LABEL).trim() + ' | exit ' + r.status);
+  check('C9: the LF detail names what it found and where', /LF throughout \(\d+ terminators\), first non-CRLF at line 1\b/.test(line(r.out, EOL_LABEL)),
+    line(r.out, EOL_LABEL).trim());
+  // Nothing else may move: the content is the clean fixture's, so C9 must be the ONLY red line.
+  const reds = r.out.split('\n').filter(l => l.trim().startsWith('✘'));
+  check('C9: the LF pointer reddens C9 and nothing else', reds.length === 1, reds.map(l => l.trim()).join(' | '));
+  const q = runPointer(CLIENT, 'info');
+  check('C9: the same breach is `·` under --caps info (exit 0)', mark(q.out, EOL_LABEL) === '·' && q.status === 0,
+    line(q.out, EOL_LABEL).trim() + ' | exit ' + q.status);
+
+  // Mixed: CRLF throughout except ONE bare LF terminating line 3.
+  const mixed = claudeMd(CLEAN_BULLETS).split('\r\n');
+  fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), mixed.slice(0, 3).join('\r\n') + '\n' + mixed.slice(3).join('\r\n'));
+  const m = runPointer(CLIENT);
+  check('C9: a MIXED pointer reddens and names both counts and line 3',
+    mark(m.out, EOL_LABEL) === '✘' && m.status === 1 && /MIXED — \d+ CRLF, 1 LF of \d+ terminators, first non-CRLF at line 3\b/.test(line(m.out, EOL_LABEL)),
+    line(m.out, EOL_LABEL).trim() + ' | exit ' + m.status);
+
+  // The clean CRLF fixture is green and says so in the same words.
+  buildClean();
+  const g = runPointer(CLIENT);
+  check('C9: a CRLF pointer is ✔ "CRLF throughout"', mark(g.out, EOL_LABEL) === '✔' && /CRLF throughout \(\d+ terminators\)/.test(line(g.out, EOL_LABEL)),
+    line(g.out, EOL_LABEL).trim());
+}
+
+// D8 — C10 CURRENT-STATE BULLET COUNT ≤ 8 (2026-10-12). C7 bounds a bullet's LENGTH and never its
+// NUMBER, so a section capped at 8 carried 9 and passed. Proven at the boundary both ways — 8 is
+// legal, 9 is not — with a nested line under one bullet that must NOT count, and a bullet in a
+// LATER section that must not count either.
+{
+  const bullets = n => Array.from({ length: n }, (_, i) => '- **Thread ' + (i + 1) + ':** one line — `bi-estate/fx-kickoff-2026-09-08.md`');
+  buildClean();
+  fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd([...bullets(8).slice(0, 1), '  - nested, belongs to its parent', ...bullets(8).slice(1)]));
+  let r = runPointer(CLIENT);
+  check('C10: 8 top-level bullets (plus one nested line) is ✔', mark(r.out, COUNT_LABEL) === '✔' && /\b8 top-level bullet\(s\)/.test(line(r.out, COUNT_LABEL)) && r.status === 0,
+    line(r.out, COUNT_LABEL).trim() + ' | exit ' + r.status);
+
+  fs.writeFileSync(path.join(CLIENT, 'CLAUDE.md'), claudeMd(bullets(9)));
+  r = runPointer(CLIENT);
+  check('C10: 9 top-level bullets REDDENS on the shipped default (exit 1)', mark(r.out, COUNT_LABEL) === '✘' && r.status === 1,
+    line(r.out, COUNT_LABEL).trim() + ' | exit ' + r.status);
+  check('C10: the detail reports the COUNT and the overage', /\b9 top-level bullet\(s\), 1 over\b/.test(line(r.out, COUNT_LABEL)),
+    line(r.out, COUNT_LABEL).trim());
+  // C7 must still be green on the same file — every bullet is one line — so the red is C10's alone.
+  check('C10: C7 stays ✔ on the 9-bullet file (one line each)', mark(r.out, 'cap: Current-state bullet ≤ 2 lines') === '✔',
+    line(r.out, 'cap: Current-state bullet ≤ 2 lines').trim());
+  const q = runPointer(CLIENT, 'info');
+  check('C10: the same breach is `·` under --caps info (exit 0)', mark(q.out, COUNT_LABEL) === '·' && q.status === 0,
+    line(q.out, COUNT_LABEL).trim() + ' | exit ' + q.status);
+  // The change log below Current state carries its own bullet; it is outside the section.
+  check('C10: the change-log bullet below the section is not counted', !/\b10 top-level/.test(line(r.out, COUNT_LABEL)),
+    line(r.out, COUNT_LABEL).trim());
 }
 
 // =============================================================================================
@@ -1229,7 +1301,8 @@ if (bad) {
 } else {
   console.log('PASS — every cap fires and reddens on a broken fixture, stays quiet on a clean one,');
   console.log('       the seal grain still FAILS an open kickoff whose in-grain rule text moved, and');
-  console.log('       --pointer scores C3–C8 with no kickoff and reddens on an enforced breach;');
+  console.log('       --pointer scores C3–C10 with no kickoff and reddens on an enforced breach,');
+  console.log('       an LF or mixed pointer, or a Current state of more than 8 bullets;');
   console.log('       the scaffold stands a tenant up that passes its own gate runs, while');
   console.log('       refusing an unfilled placeholder and refusing to overwrite a live tenant;');
   console.log('       and a minted rule with no DECISIONS row — or one recorded against a SIBLING');
