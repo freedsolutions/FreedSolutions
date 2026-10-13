@@ -1545,8 +1545,10 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - **`Save package` stages the row into the order; the page `Save` persists the order as a `Saved order`** (Source
   dropdown › `Saved order`). `Receive` stays disabled while any row lacks a required field (expiry).
 - **Header Room reads blank on reload of a saved pending order; every row keeps its room.** Re-set it only when a row
-  is added. [PROBE 2026-10-13] The row FORM reads Room blank too after a reload, while the grid's ROOM column reads the
-  row's room. Check the form's Room before a row `Save package` on a reloaded order.
+  is added. [PROBE 2026-10-13, corrected by screenshot] The row FORM DISPLAYS the row's room after a reload, but its
+  `input-input_Room` element's `value` reads `""` to a script (an MUI select: the label renders, the input stays empty).
+  Read a row's room from the grid ROOM column or a screenshot, never from that input. Filed with the re-bind below
+  (draft ticket 2026-10-13).
 - **[PROBE 2026-10-13] A saved order can come back with a row bound to ANOTHER row's catalog product.** Ten rows were
   staged one by one (pick by SKU, each read back in its form), then the page `Save` (`save-receive`) ran. On the reloaded
   order one row (a 2g item) showed a later row's 1g catalog product while keeping its own cost, grams and strain. Re-picking
