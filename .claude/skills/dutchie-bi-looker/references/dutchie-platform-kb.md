@@ -1547,7 +1547,15 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - **`Save package` stages the row into the order; the page `Save` persists the order as a `Saved order`** (Source
   dropdown › `Saved order`). `Receive` stays disabled while any row lacks a required field (expiry).
 - **Header Room reads blank on reload of a saved pending order; every row keeps its room.** Re-set it only when a row
-  is added.
+  is added. [PROBE 2026-10-13] The row FORM reads Room blank too after a reload, while the grid's ROOM column reads the
+  row's room. Check the form's Room before a row `Save package` on a reloaded order.
+- **[PROBE 2026-10-13] A saved order can come back with a row bound to ANOTHER row's catalog product.** Ten rows were
+  staged one by one (pick by SKU, each read back in its form), then the page `Save` (`save-receive`) ran. On the reloaded
+  order one row (a 2g item) showed a later row's 1g catalog product while keeping its own cost, grams and strain. Re-picking
+  that row and saving again fixed it; one saved order exists (the second Save updates it). Cause unknown. After every page
+  Save: reload, open each row form, and read `Catalog product` against the plan before hand-off.
+- **Picker search takes the SKU.** Typing the item's SKU in the row form's `Catalog product` box lists exactly that item
+  (`<name> SKU: <sku> | Brand: ... | Strain: ...`); pick the option that carries the SKU.
 
 ## Apex Trading: reading a wholesale cost (PO and catalog listing) [PROBE 2026-10-11, read only, buyer login]
 

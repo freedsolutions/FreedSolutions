@@ -125,6 +125,7 @@ FLAGS = {
     "CREDIT_TRIPS_R62": ("R62 (R126)", "STOP"), "CREDIT_BLEND_NEGATIVE": ("R126", "STOP"),
     "LANDED_UNRECONCILED": ("R103", "DEFECT"), "DISCONTINUED_BUY": ("R68 (R48)", "INFO"),
     "BUY_GET_BLEND": ("R103 (R84)", "INFO"), "BUY_GET_UNTIED": ("R103", "STOP"),
+    "TIER_LIST_COST": ("R127 (R50)", "INFO"), "MANIFEST_COST_UNREAD": ("R126", "INFO"),
 }
 QUESTION = {
     "MANIFEST_QTY_MISMATCH": "The manifest quantity differs from the invoice. The vendor adjusts and reissues the invoice, or the package is rejected whole. Which?",
@@ -157,6 +158,8 @@ KB_RECEIVE = ('platform KB "Receive inventory from a pending Metrc transfer [PRO
 DEAL_WORDS = re.compile(r"\b(?:buy\s*\d*\s*[-,/]?\s*get\s*\d*(?:\s*free)?|b\d+g\d+|bogo|free\s+(?:case|unit|pack|item)s?)\b",
                         re.IGNORECASE)
 STOPWORDS = {"mg", "g", "ct", "10ct", "100mg", "gummies", "gummy", "the", "and", "pk", "pack", "x", "1g", "thc", "cbd"}
+# a parser's line-level price-tier row (parsers/fernway.py: "Price tier discount 20% (Price Class X): ...") - list cost
+TIER_DISC_RE = re.compile(r"^\s*price tier discount\b", re.I)
 
 
 def sort_key(n):
@@ -289,12 +292,27 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     items, programs = items or {}, programs or {}
     prod = [ln for ln in lines if (ln.get("is_order_level") or "").upper() != "Y" and not (ln.get("order_level_kind") or "").strip()]
     order = [ln for ln in lines if (ln.get("is_order_level") or "").upper() == "Y" and (ln.get("order_level_kind") or "").strip()]
-    disc, disc_named = {}, set()
+    disc, disc_named, tier = {}, set(), {}
     for ln in lines:
         if (ln.get("order_level_kind") or "") == "discount" and (ln.get("is_order_level") or "").upper() != "Y":
+            if TIER_DISC_RE.match(ln.get("description") or ""):
+                # a vendor's standing price-tier discount IS the list cost (Operator ruling 2026-10-13): it nets into the
+                # line's unit, and it is never a deal, never a deal tag
+                tier[ln["line_no"]] = tier.get(ln["line_no"], 0.0) + abs(num(ln.get("ext_cost")) or 0)
+                continue
             disc[ln["line_no"]] = disc.get(ln["line_no"], 0.0) + abs(num(ln.get("ext_cost")) or 0)
             if DEAL_WORDS.search(ln.get("description") or ""):
                 disc_named.add(ln["line_no"])
+    if tier:
+        net = []
+        for ln in prod:
+            t = tier.get(ln["line_no"])
+            if t:
+                units0, ext0 = num(ln.get("units_total")) or 0, num(ln.get("ext_cost")) or 0
+                ln = dict(ln, ext_cost=f"{ext0 - t:.2f}", _tier=f"{t:.2f}",
+                          unit_cost=f"{(ext0 - t) / units0:.4f}" if units0 else ln.get("unit_cost"))
+            net.append(ln)
+        prod = net
     by_pid = {r["ProductId"]: r for r in catalog}
     exc = []
 
@@ -396,6 +414,10 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             line_flags.append(flag)
             add(flag, "", no, detail)
 
+        if ln.get("_tier"):
+            lflag("TIER_LIST_COST", f"price-tier discount {ln['_tier']} netted into the line: unit {unit:.2f}, ext {ext:.2f} "
+                                    "(the tier price is the list cost; no deal tag)")
+
         # tag decision (R127): stated disposition > invoice marker > printed discount > price defaults
         pkg_tag, rule = "", ""
         if prog in ("sample",) or (not prog and mk == "sample"):
@@ -494,13 +516,17 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                 else:
                     lflag("MANIFEST_LINE_MISSING", f"no Metrc package maps to line {no} ({units:g} units)")
             else:
-                if abs(ss - ext) >= 0.005:
+                unread = any(num(p.get("ship_cost")) is None for p in pks)
+                if unread:
+                    lflag("MANIFEST_COST_UNREAD", f"manifest ship $ not read for {sum(1 for p in pks if num(p.get('ship_cost')) is None)} "
+                                                  f"package(s): the $ tie is not made; rows take the invoice unit")
+                elif abs(ss - ext) >= 0.005:
                     merged_in = any(e["flag"] == "SAMPLE_MERGED" and f"line {no}'s" in e["detail"] for e in exc)
                     lflag("MANIFEST_COST_MISMATCH", f"manifest ship ${ss:.2f} vs invoice ext ${ext:.2f} ({ss - ext:+.2f})"
                           + (" (explained: a sample merged in)" if merged_in else ""))
                 if abs(sq - units) >= 1e-9:
                     k = sq / units if units else 0
-                    if abs(ss - ext) < 0.005 and units and k > 1 and abs(k - round(k)) < 1e-9:
+                    if not unread and abs(ss - ext) < 0.005 and units and k > 1 and abs(k - round(k)) < 1e-9:
                         case = True
                         lflag("APEX_UNIT_IS_CASE", f"invoice {units:g} unit(s) = manifest {sq:g}: 1 unit = {k:g}; rows take the manifest qty")
                     else:
@@ -789,6 +815,28 @@ def selftest():
 
     r = fires("MANIFEST_COST_MISMATCH", "2", lambda c, i, l, m, it: ship(c, i, l, m, it, "PKG-C", "480.00"), "a $20 short ship $")
     t.check("MANIFEST_COST_MISMATCH is a DEFECT", any(e["flag"] == "MANIFEST_COST_MISMATCH" and e["class"] == "DEFECT" for e in r[1]))
+
+    def unread(c, i, l, m, it):
+        ship(c, i, l, m, it, "PKG-C", "")
+    r = fires("MANIFEST_COST_UNREAD", "2", unread, "a package whose ship $ was not read")
+    t.check("an unread ship $ is INFO, never a $0.00 MANIFEST_COST_MISMATCH; the row takes the invoice unit",
+            not any(e["flag"] == "MANIFEST_COST_MISMATCH" for e in r[1])
+            and {x["row"]: x for x in r[0]}["2"]["cost_entered"] == "5.00", str(_flags(r)))
+
+    # a vendor's standing price-tier discount is the LIST cost (Operator 2026-10-13): line 2 lists at 6.25, tier 20% -> 5.00
+    def tiered(c, i, l, m, it, label="Price tier discount 20% (Price Class P1): Acme Haze Pre-Roll 1g"):
+        l[1]["unit_cost"], l[1]["ext_cost"] = "6.25", "625.00"
+        l.append({"line_no": "2", "description": label, "units_total": "", "unit_cost": "", "ext_cost": "-125.00",
+                  "is_order_level": "N", "order_level_kind": "discount", "expiry_date": ""})
+    r = fires("TIER_LIST_COST", "2", tiered, "a printed price-tier discount")
+    r2 = {x["row"]: x for x in r[0]}["2"]
+    t.check("a price-tier discount nets into the unit: cost_entered 5.00 = catalog Cost, no tag, no raise, no deal, $ ties",
+            r2["cost_entered"] == "5.00" and r2["pkg_tags_to_apply"] == "none"
+            and not any(e["flag"] in ("CATALOG_COST_RAISE", "DEAL_PRINTED", "MANIFEST_COST_MISMATCH") for e in r[1]),
+            f"{r2['cost_entered']} {r2['pkg_tags_to_apply']} {_flags(r)}")
+    r = _run(*_mut(lambda c, i, l, m, it: tiered(c, i, l, m, it, "Line discount: Acme Haze Pre-Roll 1g")))
+    t.check("BREAKER: the same discount NOT labelled a price tier stays a printed deal (DEAL_PRINTED, deal tag)",
+            ("DEAL_PRINTED", "2") in _flags(r) and ("TIER_LIST_COST", "2") not in _flags(r), str(_flags(r)))
 
     def qty(c, i, l, m, it):
         next(p for p in m if p["package_id"] == "PKG-C")["qty"] = "90"
