@@ -1552,10 +1552,12 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   order one row (a 2g item) showed a later row's 1g catalog product while keeping its own cost, grams and strain. Re-picking
   that row and saving again fixed it; one saved order exists (the second Save updates it). Cause unknown. After every page
   Save: reload, open each row form, and read `Catalog product` against the plan before hand-off.
-- **[PROBE 2026-10-13] Re-saving a row re-ticks the ITEM's tags.** Ten rows were saved with no tag (read back after a
-  reload). Staff then re-opened each row to add its expiry and pressed `Save package`; every received package carries the
-  item's `ITM - Active` (Receive history TAGS column). A strip at package grain must be re-checked after ANY later row Save,
-  and on the received packages.
+- **[OBSERVED 2026-10-13, cause unproven] Item tags came back between a tag-free saved order and Receive.** Ten rows were
+  saved with no tag (read back after a reload); staff then added expiry and received, and every received package carries
+  the item's `ITM - Active` (Receive history TAGS column). On another receipt (10/9) staff did the same and the packages
+  kept NO item tag, so reopening a saved order does not by itself re-add tags. Picking a catalog product applies the
+  item's tags (automated); which later action re-applied them is under test. Until proven: re-check package tags on the
+  received packages and strip any `ITM - ` survivor.
 - **Picker search takes the SKU.** Typing the item's SKU in the row form's `Catalog product` box lists exactly that item
   (`<name> SKU: <sku> | Brand: ... | Strain: ...`); pick the option that carries the SKU.
 
