@@ -1558,6 +1558,8 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   Save: reload, open each row form, and read `Catalog product` against the plan before hand-off.
   **Reproduced 2026-10-13 on a second order (9 rows):** after the page Save, one gummy row came back bound to the product
   picked LAST in that session (a re-pick on another row), again keeping its own cost and expiry. Same fix held.
+  Both orders were entered by browser automation; NOT yet reproduced by hand, so a Dutchie defect is unproven (draft
+  ticket held until a manual repro).
 - **[PROBE 2026-10-13] Editing a row of a staff-started saved order without re-picking the product.** In the row form,
   set Room (type the room name, take the option), Cost per unit (real keystrokes; Total package cost follows), untick
   each `ITM - ` tag, then `Save package`. Expiry and Package ID the staff entered survive; the page Save persists it.
