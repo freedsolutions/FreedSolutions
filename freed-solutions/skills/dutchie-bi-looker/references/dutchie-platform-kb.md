@@ -1552,6 +1552,11 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   order one row (a 2g item) showed a later row's 1g catalog product while keeping its own cost, grams and strain. Re-picking
   that row and saving again fixed it; one saved order exists (the second Save updates it). Cause unknown. After every page
   Save: reload, open each row form, and read `Catalog product` against the plan before hand-off.
+  **Reproduced 2026-10-13 on a second order (9 rows):** after the page Save, one gummy row came back bound to the product
+  picked LAST in that session (a re-pick on another row), again keeping its own cost and expiry. Same fix held.
+- **[PROBE 2026-10-13] Editing a row of a staff-started saved order without re-picking the product.** In the row form,
+  set Room (type the room name, take the option), Cost per unit (real keystrokes; Total package cost follows), untick
+  each `ITM - ` tag, then `Save package`. Expiry and Package ID the staff entered survive; the page Save persists it.
 - **[OBSERVED 2026-10-13, cause unproven] Item tags came back between a tag-free saved order and Receive.** Ten rows were
   saved with no tag (read back after a reload); staff then added expiry and received, and every received package carries
   the item's `ITM - Active` (Receive history TAGS column). On another receipt (10/9) staff did the same and the packages
@@ -1560,6 +1565,22 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   received packages and strip any `ITM - ` survivor.
 - **Picker search takes the SKU.** Typing the item's SKU in the row form's `Catalog product` box lists exactly that item
   (`<name> SKU: <sku> | Brand: ... | Strain: ...`); pick the option that carries the SKU.
+
+## Package tags: the write path [PROBE 2026-10-13, 1 + 8 received packages]
+
+- **Path:** Products › Inventory › tick the packages (row checkboxes; tick by Package ID, never a filter's select-all,
+  because a prefix search matches other packages) › `Bulk actions (n)` › `Edit tags` › tick the target set › `Save`.
+- **It REPLACES the package tag set.** The dialog opens with NOTHING ticked, whatever the packages carry; Save with
+  nothing ticked CLEARS every package tag. Request: `POST /api/v2/inventory/edit-package-tags`
+  `{…ctx, PackageIds: [<inventory ids>], TagIds: [<tag ids>]}`. `PackageIds` are numeric inventory ids (the package
+  page is `/products/inventory/<id>`), not the Metrc tag.
+- **The response counts lie.** `Result: true` with `RequestedEntityCount 0`, `CommittedChanges 0` on a write that DID
+  commit. Read back on a fresh Inventory export: on the probe only `Tags` moved on the target rows.
+- **Keep a tag by ticking it.** To strip one tag and keep another, tick the kept ones; a package with several tags needs
+  its own call (or a group that shares the kept set).
+- **The package page's Tags box is not the state.** On `/products/inventory/<id>` the Tags dropdown showed nothing
+  ticked for a package whose export read `ITM - Active`. The Inventory export `Tags` column is package grain (it
+  differs from the item's tags on most rows) and is the read-back.
 
 ## Apex Trading: reading a wholesale cost (PO and catalog listing) [PROBE 2026-10-11, read only, buyer login]
 
