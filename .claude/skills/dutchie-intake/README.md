@@ -65,6 +65,7 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 | `fixtures/plan-pre-active.csv`, `plan-pre-retired.csv` | the pre-batch freeze of that batch |
 | `fixtures/plan-post-active.csv`, `plan-post-retired.csv` | the post pull with every planned cell landed |
 | `fixtures/plan-strains.csv`, `plan-categories.csv`, `plan-brands.csv` | the records the plan binds by name |
+| `fixtures/plan-catalog-search.csv` | the global-link search the lane typed: the sibling's exact-name Active record (plus a near-name and an other-state hit), the cross-brand line's zero hits (`no record`) |
 | `../dutchie-bi-looker/scripts/backoffice_grid_write.js` | `gridBatch`, the batch runner (one allowlist for every lane) |
 
 ## Layouts and the intake CSV

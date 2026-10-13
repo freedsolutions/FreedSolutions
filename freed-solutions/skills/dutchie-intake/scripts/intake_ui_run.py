@@ -17,7 +17,8 @@ UI channel is run here, one row per neo `run` call:
              CONTENT / item_form         uiRowsContent      (new item page via the keyMap; ONE guarded Save)
              UNRETIRE / ui_unretire      uiRowsUnretire     (the UI fallback; the batch default is the grid mutation)
            Any other row is refused by name: a grid row is gridBatch's, a replay row (image_remove, link_replay)
-           has its own KB recipe, a Brand create is UNPROVEN (P5), Tags run on the grid since P4.
+           has its own KB recipe, an IMAGE_ADD row is create step 5's file input (a human-picked file, never a
+           script), a Brand create is UNPROVEN (P5), Tags run on the grid since P4.
   harvest  prints the one-time script that keeps the page's own record-read envelope for the tab (run it first).
   record   appends the run's result to the progress JSONL (seq, step, product_key, status, time) and, for a COPY
            that WROTE, writes `new:<line>` -> the new ProductId into the keyMap JSON that gridBatch reads.
@@ -45,6 +46,7 @@ NOT_HERE = {
     "grid_bulk_unretire": "a grid row: gridBatch sends the bulk-unretire mutation",
     "image_remove": "a replay row: remove-product-image by its KB recipe",
     "link_replay": "a replay row: link / unlink-from-catalog-product by its KB recipe",
+    "image_add_form": "create step 5: the product's own art through the item form's Add image file input",
     "ui_brand_create": "UNPROVEN (probe P5): the plan refuses it",
     "ui_brand_link": "UNPROVEN (probe P5): the plan refuses it",
 }
@@ -250,7 +252,8 @@ def _rows():
             ("ALIGN", "new:2", "StrainId", "name:Strain X", "name:Strain Q", "grid"),
             ("CONTENT", "new:2", "Online title", "Strain X Pre-Roll 1g", "Strain Q Pre-Roll 1g", "item_form"),
             ("IMAGE_REMOVE", "new:2", "_images", "a.jpg", "", "image_remove"),
-            ("UNRETIRE", "402", "_state", "retired", "active", "ui_unretire")]
+            ("UNRETIRE", "402", "_state", "retired", "active", "ui_unretire"),
+            ("IMAGE_ADD", "new:2", "_image_add", "a.jpg", "own art: create step 5 sourcing", "image_add_form")]
     out = []
     for i, (step, key, field, before, target, ch) in enumerate(base, 1):
         r = dict(seq=str(i), step=step, line_no="2", product_key=key, field=field, before=before, target=target,
@@ -288,6 +291,8 @@ def selftest():
     t.check("FIRES: the bulk-unretire mutation row is gridBatch's (NOT_A_UI_ROW)",
             refused(lambda: emit(rows, "2", {}, False, "x"), "NOT_A_UI_ROW"))
     t.check("FIRES: a replay row is not run here (NOT_A_UI_ROW)", refused(lambda: emit(rows, "6", {}, False, "x"), "NOT_A_UI_ROW"))
+    t.check("FIRES: an IMAGE_ADD row is create step 5's file input, never emitted here (NOT_A_UI_ROW, named)",
+            refused(lambda: emit(rows, "8", {"new:2": 9500}, False, "x"), "NOT_A_UI_ROW: seq 8: create step 5"))
     t.check("QUIET: a ui_unretire row emits the UI fallback", "window.uiRowsUnretire(a)" in emit(rows, "7", {}, False, "x"))
     bad = [dict(r) for r in rows]
     bad[2]["target"] = "Brand A | Pre-Roll | Strain Q | 1g (Copy)"

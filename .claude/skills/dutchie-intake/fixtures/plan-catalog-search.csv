@@ -1,0 +1,5 @@
+"line_no","search_term","brand_id","brand_name","id","name","state","status","subcategory","size","strain_type","created"
+"2","Strain","b-1","Brand A","g-q1","Strain Q Pre-Roll 1g","ST","Active","singles","1g","Sativa","2026-01-02"
+"2","Strain","b-1","Brand A","g-q2","Strain Q Pre-Roll 0.5g","ST","Active","singles","0.5g","Sativa","2026-01-03"
+"2","Strain","b-1","Brand A","g-q3","Strain Q Pre-Roll 1g","OT","Active","singles","1g","Sativa","2026-01-04"
+"3","Lime","b-1","Brand A","","","","","","","",""

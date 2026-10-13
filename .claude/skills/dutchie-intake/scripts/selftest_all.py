@@ -527,15 +527,17 @@ def mg_pack_ctx():
 PFX = IC.plan_fixture()
 
 
-def plan_of(guard_probed=True, intake_edit=None, copy_source=None, strains=None):
+def plan_of(guard_probed=True, intake_edit=None, copy_source=None, strains=None, link=True):
     """build_plan on the plan fixtures; `guard_probed=False` SIMULATES the pre-P2 map (the breaker; P2 proved
-    the retired guard read 2026-10-08, so the module's own map is the probed one). `strains` replaces the table."""
+    the retired guard read 2026-10-08, so the module's own map is the probed one). `strains` replaces the table.
+    `link=False` drops the global-link search (fixtures/plan-catalog-search.csv) - the LINK_NOT_SEARCHED breaker."""
     intake = copy.deepcopy(rows_of("plan-intake.csv"))
     if intake_edit:
         intake_edit(intake)
     if copy_source:
         intake[1]["copy_source_productid"] = copy_source
-    kw = {"guard": PL._probed() if guard_probed else PL._unproven_retired()}
+    kw = {"guard": PL._probed() if guard_probed else PL._unproven_retired(), "catalog_state": "ST",
+          "link_search": rows_of("plan-catalog-search.csv") if link else None}
     return PL.build_plan(intake, rows_of("plan-pre-active.csv"), rows_of("plan-pre-retired.csv"),
                          rows_of("plan-strains.csv") if strains is None else strains, rows_of("plan-categories.csv"),
                          rows_of("plan-brands.csv"), **kw)
@@ -941,8 +943,8 @@ CHECKS = [
     ("receive --check join key is package_id, an intake CSV column",
      lambda cols: RC.CHECK_JOIN_KEY == "package_id" and RC.CHECK_JOIN_KEY in cols,
      IM.INTAKE_COLS, [c for c in IM.INTAKE_COLS if c != "package_id"], "remove package_id from the columns"),
-    ("plan (R124): the synthetic batch plans 20 writes in step order with 0 refusals (P2 proven 2026-10-08)",
-     lambda pr: len(pr[0]) == 20 and pr[1] == []
+    ("plan (R124): the synthetic batch plans 22 writes in step order with 0 refusals (P2 proven 2026-10-08)",
+     lambda pr: len(pr[0]) == 22 and pr[1] == []
      and [PL.STEPS.index(r["step"]) for r in pr[0]] == sorted(PL.STEPS.index(r["step"]) for r in pr[0]),
      plan_of(), plan_of(intake_edit=lambda i: i[2].update(lane_CBDContent="5")),
      "a cross-brand copy that sets CBD content (CBDContent REFUSED, P7)"),
@@ -964,8 +966,18 @@ CHECKS = [
      PFX, dict(PFX, pr=[dict(r, **{"Brand catalog product": "Brand A Old Link"}) if r["ProductId"] == "401" else r
                         for r in PFX["pr"]]),
      "give the un-retired row a pre-batch link that then changes"),
-    ("certify --plan GREEN: A = 19 planned + 2 derived, B 1, C 0",
-     lambda e: (lambda rep, f, c: f == [] and c["A"] == 19 and c["A_derived"] == 2 and c["B"] == 1 and c["C"] == 0)(*IC.run_plan(PFX, e)),
+    ("plan: every create gets a global-link attempt - the sibling links its ONE exact-name Active record, the zero-hit "
+     "cross-brand line is a `no record` result; no search at all refuses LINK_NOT_SEARCHED",
+     lambda pr: not any(f["reason"] == "LINK_NOT_SEARCHED" for f in pr[1])
+     and [r["product_key"] for r in pr[0] if r["step"] == "LINK"] == ["new:2"]
+     and any(x.startswith("LINK_RESULT line 3") and ": no record:" in x for x in pr[2]),
+     plan_of(), plan_of(link=False), "drop the catalog search file"),
+    ("plan: a sibling copy adds its own art (IMAGE_ADD) and then removes the copied rows; image_keep = Y plans neither",
+     lambda pr: [r["step"] for r in pr[0] if r["product_key"] == "new:2" and r["step"].startswith("IMAGE")]
+     == ["IMAGE_ADD", "IMAGE_REMOVE"],
+     plan_of(), plan_of(intake_edit=lambda i: i[1].update(image_keep="Y")), "the Operator marks the carried art generic"),
+    ("certify --plan GREEN: A = 18 planned + 4 derived, B 1, C 0",
+     lambda e: (lambda rep, f, c: f == [] and c["A"] == 18 and c["A_derived"] == 4 and c["B"] == 1 and c["C"] == 0)(*IC.run_plan(PFX, e)),
      None, lambda a, r, p: _pr(a, "601").update(Available="45"), "Available goes UP on the sibling"),
 ] + [(f"certify --plan: {flag} quiet on the clean batch, fires on its breaker",
       (lambda fl: (lambda e: fl not in plan_flags(e)))(flag), None, brk, how) for flag, how, brk in PLAN_BREAKERS]
@@ -1270,7 +1282,8 @@ def apex_intake(*reads, unit="0.05"):
 
 def plan_on(intake):
     return PL.build_plan(intake, rows_of("plan-pre-active.csv"), rows_of("plan-pre-retired.csv"), rows_of("plan-strains.csv"),
-                         rows_of("plan-categories.csv"), rows_of("plan-brands.csv"), guard=PL._probed())
+                         rows_of("plan-categories.csv"), rows_of("plan-brands.csv"), guard=PL._probed(),
+                         link_search=rows_of("plan-catalog-search.csv"), catalog_state="ST")
 
 
 def apex_cost_row(intake):
@@ -1464,7 +1477,8 @@ def cli_chain():
         pin = os.path.join(t, "plan-intake-v1.csv")
         shutil.copy(fx("plan-intake.csv"), pin)
         pargs = ["--intake", pin, "--active", fx("plan-pre-active.csv"), "--retired", fx("plan-pre-retired.csv"),
-                 "--strains", fx("plan-strains.csv"), "--categories", fx("plan-categories.csv"), "--brands", fx("plan-brands.csv")]
+                 "--strains", fx("plan-strains.csv"), "--categories", fx("plan-categories.csv"), "--brands", fx("plan-brands.csv"),
+                 "--catalog-search", fx("plan-catalog-search.csv"), "--catalog-state", "ST"]
         step("plan (GREEN: P2 proved the retired guard read; the CLI writes the plan file)", ["intake_plan.py"] + pargs, 0)
         if not any(n.endswith("-plan-v1.csv") for n in os.listdir(t)):
             bad.append("plan written")

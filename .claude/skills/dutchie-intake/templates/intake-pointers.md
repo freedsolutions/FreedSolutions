@@ -48,6 +48,9 @@ record that ruled it in the tenant's DECISIONS.
                                          # dose read's cap (none = per piece). A [limit_exception."<Category>"] table
                                          # (fl_eq + caps) is read before its master's. There is no `Package THC cap mg:` line
                                          # (RETIRED by R130; the parser refuses it)
+- Catalog state: <stateLibrary>          # OPTIONAL: the global-link step's state library, spelled as search-catalog-products
+                                         # prints `stateLibrary`. Absent: nothing is linked, every create with hits is a `no match`
+                                         # question for the business (intake_plan.py --catalog-state overrides it)
 ```
 
 The MSRP keys are read only by `intake_msrp.py`; the other runners ignore them. `MSRP anchor` and

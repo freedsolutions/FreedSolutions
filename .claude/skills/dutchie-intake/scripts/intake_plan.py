@@ -5,6 +5,8 @@
                         [--fl-eq-classes <toml>]   (default: the tenant pointer `FL EQ classes:`)
                         [--pl-key <file.py>:<function>] [--discontinue-tag <tag>]   (default: the tenant pointers
                         `PL key:` / `Discontinue tag:`, else the generic key and `ITM - Discontinue`; R68)
+                        --catalog-search <csv> [--catalog-state <stateLibrary>]   (default: the tenant pointer
+                        `Catalog state:`; the global-link search the lane ran for every create, below)
   python intake_plan.py --selftest
 
 R124: the Operator approves one plan file that names every write - item, field, before-value, target. The
@@ -18,13 +20,14 @@ Output: a NEW `<stem>-plan-vN.csv`, one row per write:
   seq, step, line_no, product_key, field, before, target, channel, depends_on, provenance, row_sha1
 
   step         in this order (R124, the kickoff's work item B): MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN,
-               UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK. Order is the dependency.
+               UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_ADD, IMAGE_REMOVE, LINK. Order is the dependency.
   line_no      the intake row's 1-based position in the intake CSV.
   product_key  a ProductId; `new:<line_no>` for an item the COPY step creates; `strain:<name>` / `brand:<name>`
                for a record mint.
   field        the INTERNAL grid name (`Cost`, `StrainId`, ...) on the `grid` channel; the form control's
                label (`Tags`, `Online title`, `Online description`) on `item_form`; a synthetic name starting
-               `_` for a write with no item field (`_state`, `_copy`, `_strain`, `_brand`, `_images`, `_global_link`).
+               `_` for a write with no item field (`_state`, `_copy`, `_strain`, `_brand`, `_image_add`, `_images`,
+               `_global_link`).
   before       the freeze value (for a copy: the copy SOURCE's value, which the copy inherits).
   target       the planned value. A record-bound field (StrainId, BrandId, ProductCategoryId, VendorId) is written
                `name:<label>`: the batch resolves it to exactly one live record id, never by guess.
@@ -42,6 +45,33 @@ setting, not a plan channel). A CROSS_BRAND_COPY then REPLACES the carried Onlin
 the new brand's own words - `online_title` and the optional intake column `online_description`, written at
 the STOP; a blank one is refused (CONTENT_UNWRITTEN), never planned as a clear - and deletes the copied image
 (IMAGE_REMOVE). Global Category / Sub carry from the source.
+
+Images (KB "Images"; the 2026-10-13 run). Copy item duplicates EVERY source image row under NEW blob file names, so
+a created row's `Image URL` always moves and the certify declares it (the export cannot tell a copied row from own
+art). A sibling copy carries the sibling's own label art (its strain printed on the device): a defect on the new
+item. So a sibling copy whose source has an image plans IMAGE_ADD (the product's own art, create step 5 sourcing,
+through the item form's Add image file input - it lands without a form Save) and then IMAGE_REMOVE of the copied
+rows. A cross-brand copy plans IMAGE_REMOVE only (its new-brand art is step 5 after it). Every IMAGE_REMOVE is
+guarded on the exact image-row list `get-product-extra-info` returns (`images[]` ids, read before the add): it
+removes exactly the copied ids, by the `remove-product-image` replay `{...ctx, ProductImageId, ProductId}`. An
+intake row with `image_keep = Y` (the Operator, at the STOP: the carried art is generic brand art, KB "Images")
+plans no image row for that sibling copy.
+
+Global link (operator ruling 2026-10-13: ALWAYS ATTEMPTED, a BEST GUESS - the business QCs after). Copy item drops
+the source's brand-catalog link (seen 2026-10-13), so every create gets a link attempt, guarded on a null link. The
+lane runs the search before it asks anything: `batch-catalog-products` on a sibling's `BrandCatalogProductId` (or the
+brand's other linked items) gives `brandId`; `search-catalog-products` `{SearchTerm: <first strain/flavor word>,
+BrandCatalogBrandIds: [brandId]}` (JSON:API, fields under `data[].attributes`) gives the candidates, typed into
+`--catalog-search` (LINK_SEARCH_COLS, one row per candidate; a row with a blank `id` records a search with zero hits,
+and a blank `brand_id` too says the brand has no global catalog brand). A create with no search row is REFUSED
+(LINK_NOT_SEARCHED). The GBC name will often not match ours, so the plan GUESSES (link_decision): the PL's own naming
+first - a linked sibling's record name with its strain / flavor word swapped for ours - then our own names; an exact
+name is `exact`, else the closest Active in-state record that prints our strain / flavor word is a `best guess`; a
+size that disagrees is never linked; a tie, or no such record, is `no match`. The LINK row is
+`link-catalog-product` `{...ctx, BrandCatalogBrandId, BrandCatalogBrandName, BrandCatalogProductId,
+BrandCatalogProductVersion: 0, ProductId}`. Each create's result prints in the summary as `global_link_result`;
+step 7 writes it into the intake and the notice asks the business about every best guess and every no-match with
+candidates. The Operator may override at the STOP in `global_link_pick` (a listed id, or `none`).
 
 Derived fields (intake_derive.py; the intake row's `derived` cell, v6). A create row's Flower equiv, Servings per
 Unit and CBD content that the lane DERIVED carry their rule cite into the plan row's provenance. Flower equiv is
@@ -73,7 +103,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from intake_common import (CATALOG_COLS, CATEGORIES_REQUIRED, CREATE_VERDICTS, DEFAULT_ACTIVE_TAG, DEFAULT_DEAD_TAG,  # noqa: E402
                            DEFAULT_DISCONTINUE_TAG, DEFAULT_NEW_LINE_TAG, EXIT_ABORT, EXIT_OK, ITEM_PREFIX,
-                           line_state, pl_index, pl_key_default, STRAINS_REQUIRED, Selftest, abort, get_flag, grams_of, money_eq,
+                           line_state, pl_index, pl_key_default, STRAINS_REQUIRED, Selftest, abort, get_flag, grams_eq, grams_of, money_eq,
                            new_path, next_version, norm, num, read_csv, stamp, strain_name_col, tag_set, version_stem,
                            write_csv)
 from intake_match import V3_COLS  # noqa: E402
@@ -89,8 +119,12 @@ PLAN_COLS = ["seq", "step", "line_no", "product_key", "field", "before", "target
              "provenance", "row_sha1"]
 HASH_COLS = PLAN_COLS[:-1]
 SEP = "\x1f"
-STEPS = ["MINT_STRAIN", "CREATE_BRAND", "UNRETIRE_ALIGN", "UNRETIRE", "COPY", "ALIGN", "CONTENT", "IMAGE_REMOVE",
-         "LINK"]
+STEPS = ["MINT_STRAIN", "CREATE_BRAND", "UNRETIRE_ALIGN", "UNRETIRE", "COPY", "ALIGN", "CONTENT", "IMAGE_ADD",
+         "IMAGE_REMOVE", "LINK"]
+# The global-link search the lane ran per create (--catalog-search): one row per candidate record; a blank `id` = the
+# search ran and returned zero hits. `line_no` = the intake row's 1-based position (the plan's line_no).
+LINK_SEARCH_COLS = ["line_no", "search_term", "brand_id", "brand_name", "id", "name", "state", "status", "subcategory",
+                    "size", "strain_type", "created"]
 PROVEN, UNPROVEN = "PROVEN", "UNPROVEN"
 REFUSAL_COLS = ["reason", "step", "line_no", "product_key", "field", "channel", "probe", "detail"]
 
@@ -110,10 +144,15 @@ CHANNELS = {
                                        "gridBatch sends it after the guard read"),
     "grid": (PROVEN, "", "update-products-multiple - KB 'Path A′'; per field below"),
     "item_form": (PROVEN, "", "the item form, full navigation per item; per field below"),
-    "image_remove": (PROVEN, "", "§2A row 20: remove-product-image replay - KB [PROBE 2026-09-26]; memory "
-                                 "reference_dutchie_add_product_image_client_resize"),
+    "image_remove": (PROVEN, "", "§2A row 20: remove-product-image replay {...ctx, ProductImageId, ProductId} - KB "
+                                 "[PROBE 2026-09-26]; memory reference_dutchie_add_product_image_client_resize; a "
+                                 "sibling copy's copied rows removed this way 2026-10-13"),
+    "image_add_form": (PROVEN, "", "the item form's Online details > Add image file input (create step 5) - KB [PROBE "
+                                   "2026-09-26], the app resizes in the browser; never an add-product-image replay; "
+                                   "lands without a form Save (2026-10-13 run)"),
     "link_replay": (PROVEN, "", "§2A row 21: link-catalog-product / unlink-from-catalog-product replay - KB "
-                                "'The global-catalog link picker' [PROBE 2026-09-15/16, 2026-09-22/23]"),
+                                "'The global-catalog link picker' [PROBE 2026-09-15/16, 2026-09-22/23]; a copy linked "
+                                "2026-10-13 moved ONLY BrandCatalogProductId"),
 }
 GRID_FIELDS = {
     "Name": (PROVEN, "", "§2A row 9: KB Path A′ [PROBE 2026-09-18/19]; helper allowlist"),
@@ -151,6 +190,10 @@ GUARD = {
     "retired": (PROVEN, "", "§2A row 22: get-product-details-v2 on a RETIRED item returns the same 157-key record, "
                             "IsRetired true (KB [PROBE 2026-10-08], P2)"),
     "record": (PROVEN, "", "a record mint is guarded by the live list read (KB Path A′ get-strains)"),
+    "image_rows": (PROVEN, "", "get-product-extra-info {ctx, ProductId}: the exact images[] id list, read before the "
+                               "add; the remove takes exactly the copied ids (2026-10-13 run)"),
+    "link_null": (PROVEN, "", "get-product-details-v2 {ctx, ProductId}: BrandCatalogProductId null - the copy drops "
+                              "the source's link (2026-10-13 run); a live link is a STOP, never overwritten"),
 }
 
 # export column -> (field, channel, intake target column)
@@ -165,8 +208,12 @@ ROUTES = [("Cost", "Cost", "grid", "lane_Cost"), ("Price", "Price", "grid", "lan
           ("Tags", "Tags", "grid", "tags")]
 # field -> the export column the certify reads it on (shared with intake_certify.py)
 FIELD_COL = {f: c for c, f, _, _ in ROUTES}
+# `_image_add` / `_images` map to no export cell: a created row's `Image URL` is declared (the copy's rows carry new
+# blob names, so the export cannot tell copied art from own art); the image-row guard read is their proof.
 FIELD_COL.update({"Name": "Product", "Online title": "Online title", "Online description": "Online description",
-                  "_state": "_state", "_copy": "Product", "_images": "Image URL", "_global_link": "Brand catalog product"})
+                  "_state": "_state", "_copy": "Product", "_global_link": "Brand catalog product"})
+# a cell the COPY does not carry: the copy drops its source's brand-catalog link (seen 2026-10-13)
+COPY_DROPS = ("Brand catalog product",)
 # a planned field whose write moves another export cell by itself: declared, never a defect (R124)
 DERIVES = {"StrainId": ["Strain Type"], "_state": ["Brand catalog product"],
            "ProductCategoryId": ["Master category"]}   # moves only on a cross-MC target (P6)
@@ -239,14 +286,149 @@ def is_dead(r, dead_tag=DEFAULT_DEAD_TAG):
     return dead_tag in tag_set(r.get("Tags"))
 
 
+def link_target(c):
+    """A LINK row's target: the call's ids, then the record name LAST (the export prints the name)."""
+    return f"id={c['id'].strip()};brand_id={c['brand_id'].strip()};brand_name={c['brand_name'].strip()};name={c['name'].strip()}"
+
+
+def link_name(target):
+    """The record name a LINK target carries (what `Brand catalog product` prints); a bare value passes through."""
+    t = target or ""
+    return t.split(";name=", 1)[1] if ";name=" in t else (t[len("name="):] if t.startswith("name=") else t)
+
+
+def _toks(s):
+    return set(norm(s).split())
+
+
+def _jac(a, b):
+    A, B = _toks(a), _toks(b)
+    return len(A & B) / len(A | B) if A | B else 0.0
+
+
+def link_templates(r, sibs):
+    """The PL's own naming, translated: [(expected name, cite)]. A linked sibling of the same brand whose record name
+    prints its strain / flavor word gives our expected name by swapping in our word (`Strain X Pre-Roll 1g` ->
+    `Strain Q Pre-Roll 1g`). A sibling whose record does not print its word gives nothing (the GBC may not follow it)."""
+    ours = (r.get("strain") or r.get("lane_Flavor") or "").strip()
+    out, seen = [], set()
+    for sb in sibs:
+        link = (sb.get("Brand catalog product") or "").strip()
+        w = (sb.get("Strain") or sb.get("Flavor") or "").strip()
+        if not link or not w or not ours or norm(sb.get("Brand")) != norm(r.get("lane_Brand")) or sb.get("ProductId") in seen:
+            continue
+        seen.add(sb.get("ProductId"))
+        pat = re.compile(r"(?<![A-Za-z0-9])" + re.escape(w) + r"(?![A-Za-z0-9])", re.I)
+        if pat.search(link):
+            out.append((pat.sub(ours, link), f"the PL's naming: sibling {sb.get('ProductId')} is linked to {link!r}"))
+    return out
+
+
+def link_near(cands, score, k=3):
+    return "; ".join(f"{c.get('id')} | {c.get('name')} | {c.get('state')} | {c.get('status')}"
+                     for c in sorted(cands, key=lambda c: -score(c)[0])[:k]) or "none"
+
+
+def link_decision(r, cands, state_lib, templates=()):
+    """The global-link BEST GUESS for one create (operator ruling 2026-10-13, refined the same day: the GBC name will
+    often not match ours, so the lane guesses - "no match" included - and the business QCs after).
+      ('link', record, 'exact' | 'best guess' | 'operator', why, nearest)   ('none', None, kind, why, nearest)
+      ('refuse', reason code, detail, '', '')
+    `cands` = this line's --catalog-search rows ([] = never searched); `templates` = link_templates() for the line.
+    Only an Active record in the tenant's state library is ever linked; a size that disagrees is a different product.
+    The name test runs against the PL's translated naming first, then our own names (invoice line, online title,
+    create name): an exact name (case and punctuation ignored) is `exact`; else the closest name that prints our
+    strain / flavor word is a `best guess` (a tie is `no match`). Subcategory or strain type disagreeing turns an
+    exact name into a best guess. Every best guess and every no-match with hits is a question for the business."""
+    if not cands:
+        return ("refuse", "LINK_NOT_SEARCHED", "every create gets a global-link attempt (ruled 2026-10-13): the lane "
+                "runs search-catalog-products for the line and types the hits (or one blank-id row for zero hits)", "", "")
+    hits = [c for c in cands if (c.get("id") or "").strip()]
+    own = [(r.get(c), f"our {c}") for c in ("invoice_line", "online_title", "create_name_FINAL") if norm(r.get(c))]
+    expected = list(templates) + own
+
+    def score(c):
+        best = (0.0, "")
+        for e, via in expected:
+            v = 1.0 if norm(c.get("name")) == norm(e) else _jac(c.get("name"), e)
+            if v > best[0]:
+                best = (v, via)
+        return best
+    near = lambda pool: link_near(pool, score)  # noqa: E731
+    pick = (r.get("global_link_pick") or "").strip()
+    if pick.lower() == "none":
+        return ("none", None, "none", "the Operator ruled no link at the plan STOP", "")
+    if pick:
+        got = [c for c in hits if c["id"].strip() == pick]
+        if len(got) != 1:
+            return ("refuse", "LINK_PICK_UNKNOWN", f"global_link_pick {pick!r} is not one of the line's listed candidates", "", "")
+        return ("link", got[0], "operator", f"the Operator's pick at the plan STOP ({pick})", "")
+    if not hits:
+        brand = any((c.get("brand_id") or "").strip() for c in cands)
+        return ("none", None, "no record", (f"zero hits for {cands[0].get('search_term')!r} under the brand" if brand else
+                                            "the brand has no global catalog brand (no GBC entries)"), "")
+    if not state_lib:
+        return ("none", None, "no match", "no catalog state named (`Catalog state:` / --catalog-state)", near(hits))
+    elig = [c for c in hits if norm(c.get("state")) == norm(state_lib) and norm(c.get("status")) == "active"]
+    sized = [c for c in elig if not ((c.get("size") or "").strip() and (r.get("lane_ProductGrams") or "").strip()
+                                     and not grams_eq(c["size"], r["lane_ProductGrams"]))]
+    if not sized:
+        return ("none", None, "no match", (f"no hit is Active in {state_lib}" if not elig else
+                                           f"every Active {state_lib} hit is another size than ours "
+                                           f"({r.get('lane_ProductGrams')})"), near(hits))
+
+    def soft(c):
+        d = []
+        if (c.get("subcategory") or "").strip() and (r.get("lane_GlobalSubCategory") or "").strip() \
+                and norm(c["subcategory"]) != norm(r["lane_GlobalSubCategory"]):
+            d.append(f"its subcategory {c['subcategory']!r} is not ours ({r['lane_GlobalSubCategory']!r})")
+        if (c.get("strain_type") or "").strip() and (r.get("strain_type") or "").strip() \
+                and norm(c["strain_type"]) != norm(r["strain_type"]):
+            d.append(f"its strain type {c['strain_type']!r} is not ours ({r['strain_type']!r})")
+        return d
+    exact = [c for c in sized if score(c)[0] == 1.0]
+    if exact:
+        c = sorted(exact, key=lambda c: (len(soft(c)), c.get("created") or ""))[0]
+        why = f"exact name via {score(c)[1]}"
+        if len(exact) > 1:
+            return ("link", c, "best guess", f"{why}, but {len(exact)} records share the name: took the one with the fewest "
+                    "disagreements, then the earliest created", near([x for x in exact if x is not c]))
+        if soft(c):
+            return ("link", c, "best guess", f"{why}, but " + " and ".join(soft(c)), "")
+        return ("link", c, "exact", why, "")
+    word = (r.get("strain") or r.get("lane_Flavor") or "").strip()
+    pool = [c for c in sized if _toks(word) <= _toks(c.get("name"))] if word else [c for c in sized if score(c)[0] >= 0.6]
+    if not pool:
+        return ("none", None, "no match", (f"no Active {state_lib} record names {word!r}" if word else
+                                           "no Active record's name is close to ours"), near(sized))
+    ranked = sorted(pool, key=lambda c: -score(c)[0])
+    top = ranked[0]
+    if len(ranked) > 1 and score(top)[0] - score(ranked[1])[0] < 0.05:
+        return ("none", None, "no match", f"a tie: {top.get('id')} and {ranked[1].get('id')} are equally close", near(ranked))
+    why = f"the closest name (score {score(top)[0]:.2f} via {score(top)[1]})" + (" - " + " and ".join(soft(top)) if soft(top) else "")
+    return ("link", top, "best guess", why, near(ranked[1:]))
+
+
+def link_result(kind, conf, rec, why, nearest):
+    """The `global_link_result` cell step 7 writes for the notice (one value per create)."""
+    if kind == "link":
+        head = "linked" if conf in ("exact", "operator") else "best guess"
+        tail = "" if head == "linked" else (f"; other candidates: {nearest}" if nearest else "") + "; please confirm"
+        return f"{head}: {rec['id']} | {rec['name']} - {why}{tail}"
+    if conf == "none":
+        return f"none: {why}"
+    return f"{conf}: {why}" + (f"; nearest: {nearest}" if nearest else "")
+
+
 def build_plan(intake, active, retired, strains, categories, brands, channels=None, grid_fields=None,
                form_fields=None, guard=None, dead_tag=DEFAULT_DEAD_TAG, prefix=ITEM_PREFIX, fl_eq_classes=None,
                pl_key_fn=pl_key_default, discontinue_tag=DEFAULT_DISCONTINUE_TAG, active_tag=DEFAULT_ACTIVE_TAG,
-               new_line_tag=DEFAULT_NEW_LINE_TAG):
+               new_line_tag=DEFAULT_NEW_LINE_TAG, link_search=None, catalog_state=None):
     """Pure. (plan rows, refusals, notes). The four maps default to this module's; a selftest passes a copy
     to simulate a probe result - the CLI has no flag that widens them. `fl_eq_classes` = the tenant's class map
     (intake_derive.load_classes); None = no re-derivation, the row's cells stand. `pl_key_fn` = the PRODUCT LINE key
-    for the R68 line read on each create's Tags row (None skips it)."""
+    for the R68 line read on each create's Tags row (None skips it). `link_search` = the --catalog-search rows
+    (None = no search: every create refuses LINK_NOT_SEARCHED); `catalog_state` = the tenant's stateLibrary."""
     channels, grid_fields = channels or CHANNELS, grid_fields or GRID_FIELDS
     form_fields, guard = form_fields or FORM_FIELDS, guard or GUARD
     act, ret = keyed(active, "--active"), keyed(retired, "--retired")
@@ -406,6 +588,7 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
         if b in brand_rows:
             deps.append(brand_rows[b])
         state[key] = {c: eff(src_id, c) for c in CATALOG_COLS}
+        state[key].update({c: "" for c in COPY_DROPS})
         copies[n] = (key, src_id, emit("COPY", n, key, "_copy", src_id, name, "ui_copy", deps, "active"))
     # 6 ALIGN ------------------------------------------------------------------------------------------------
     # R68: the line index over the freeze AS THIS PLAN LEAVES IT - every active item plus every planned un-retire, each
@@ -529,22 +712,67 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
             elif not xb and fld == "Online description" and not tgt:
                 notes.append(f"line {n}: the sibling's Online description is kept; its strain paragraph is a UI tail, not a planned write")
         later.append((n, r, key, src_id, cseq, xb))
+    # Copy item duplicates EVERY source image row under new blob names (2026-10-13). A sibling copy: the product's own
+    # art first (IMAGE_ADD), then the copied rows out; a cross-brand copy: the copied rows out (its art is step 5).
+    adds = {}
     for n, r, key, src_id, cseq, xb in later:
         img = eff(src_id, "Image URL")
-        if xb and img.strip():
-            emit("IMAGE_REMOVE", n, key, "_images", img, "", "image_remove", [cseq], "active",
-                 "every carried image: the ids come from the item's own read at run time")
+        if xb or not img.strip():
+            continue
+        if (r.get("image_keep") or "").strip().upper() == "Y":
+            notes.append(f"line {n}: `image_keep = Y` - the Operator ruled the sibling's carried art generic brand art "
+                         f"(KB 'Images': leave it); no image row is planned")
+            continue
+        adds[n] = emit("IMAGE_ADD", n, key, "_image_add", img, "own art: create step 5 sourcing", "image_add_form",
+                       [cseq], "image_rows", "a sibling copy carries the sibling's own label art (KB 'Images': a defect); "
+                       "the product's own art lands first, through the file input, with no form Save")
     for n, r, key, src_id, cseq, xb in later:
-        link = eff(src_id, "Brand catalog product")
-        if xb and link.strip():
-            emit("LINK", n, key, "_global_link", link, "", "link_replay", [cseq], "active", "unlink the source brand's global product")
+        img = eff(src_id, "Image URL")
+        if img.strip() and (xb or n in adds):
+            emit("IMAGE_REMOVE", n, key, "_images", img, "", "image_remove", [cseq] + ([adds[n]] if n in adds else []),
+                 "image_rows", "every COPIED row (new blob names, no CatalogImageId): exactly the images[] ids the copy "
+                 "read showed before the add; the add's own row stays")
+    # Global link, ALWAYS ATTEMPTED (ruled 2026-10-13): the copy drops its source's link, so every create gets the best
+    # guess (`no match` included); the business QCs it after, through the notice. A cross-brand copy never keeps the
+    # source brand's record (its own brand's search).
+    by_line = {}
+    for c in link_search or []:
+        by_line.setdefault(str(c.get("line_no") or "").strip(), []).append(c)
+    for n, r, key, src_id, cseq, xb in later:
+        cands = by_line.get(str(n), [])
+        sibs = []
+        if line_idx is not None:
+            try:
+                sibs = list(line_idx.get(pl_key_fn({c: eff(key, c) for c in CATALOG_COLS}), []))
+            except Exception:  # noqa: BLE001 - a key the function cannot read gives no siblings, never an abort here
+                sibs = []
+        src = act.get(src_id)
+        if not xb and src is not None:
+            sibs.append(src)
+        kind, rec, conf, why, nearest = link_decision(r, cands, catalog_state, link_templates(r, sibs))
+        name = (r.get("create_name_FINAL") or "").strip()
+        if kind == "refuse":
+            refuse(rec, "LINK", n, key, "_global_link", "link_replay", "", conf)
+            continue
+        if kind == "link" and (not (rec.get("brand_id") or "").strip() or not (rec.get("brand_name") or "").strip()):
+            refuse("LINK_BRAND_UNKNOWN", "LINK", n, key, "_global_link", "link_replay", "",
+                   f"candidate {rec.get('id')} carries no brand id / name (batch-catalog-products on a sibling's "
+                   f"BrandCatalogProductId gives them)")
+            continue
+        if kind == "link":
+            emit("LINK", n, key, "_global_link", "", link_target(rec), "link_replay", [cseq], "link_null",
+                 f"{conf}: {why}; link-catalog-product {{...ctx, BrandCatalogBrandId, BrandCatalogBrandName, "
+                 f"BrandCatalogProductId, BrandCatalogProductVersion: 0, ProductId}}")
+        notes.append(f"LINK_RESULT line {n} {name!r}: {link_result(kind, conf, rec, why, nearest)}")
     if any(r["step"] == "COPY" for r in rows):
         notes.append("COPY keeps `Copy online details` CHECKED on every copy, cross-brand included (PROVEN: KB 'Item "
                      "creation by Copy item' [PROBE 2026-10-08] - unchecked, the copy blanks the Online title, description "
                      "and Global Category / Sub yet still copies the image); Global Category / Sub carry from the source. "
                      "A cross-brand copy's title and description are REPLACED by its CONTENT rows (the new brand's words), "
-                     "its copied image deleted by IMAGE_REMOVE after the item's last form Save (so no Save carries it "
-                     "back), its source link removed by LINK; the new brand's image ADD is a UI tail after the certify")
+                     "its copied images deleted by IMAGE_REMOVE after the item's last form Save (so no Save carries them "
+                     "back); the new brand's image ADD is create step 5 after it. A sibling copy adds its own art "
+                     "(IMAGE_ADD) and then removes the copied rows. The copy drops its source's global link: every "
+                     "create gets its own best-guess LINK row, or a `no match` result")
     for r in rows:
         r["row_sha1"] = row_sha1(r)
     order = [STEPS.index(r["step"]) for r in rows]
@@ -575,8 +803,14 @@ def summary(rows, refusals, notes):
         probes = sorted({f["probe"] for f in refusals if f["probe"]})
         if probes:
             out.append(f"\nProbes that would clear the channel refusals: {', '.join(probes)}")
-    if notes:
-        out += ["", "## Notes (not writes)", ""] + [f"- {x}" for x in dict.fromkeys(notes)]
+    links = [x for x in dict.fromkeys(notes) if x.startswith("LINK_RESULT")]
+    if links:
+        out += ["", "## Global link per create - the best guess (step 7 writes each value into `global_link_result`; "
+                "a best guess or a no-match with candidates is a question for the business in the notice)", ""]
+        out += [f"- {x}" for x in links]
+    rest = [x for x in dict.fromkeys(notes) if not x.startswith("LINK_RESULT")]
+    if rest:
+        out += ["", "## Notes (not writes)", ""] + [f"- {x}" for x in rest]
     return out
 
 
@@ -602,9 +836,17 @@ def main(argv):
     new_line_tag, active_tag = tag_options(argv, ptr)
     discontinue_tag, pl_key_fn, pl_key_src = line_options(argv, ptr)
     print(f"R68 line state: PL key {pl_key_src}; discontinue tag `{discontinue_tag}`")
+    sp = get_flag(argv, "--catalog-search")
+    link_search = read_csv(sp, LINK_SEARCH_COLS, "--catalog-search")[1] if sp else None
+    catalog_state = get_flag(argv, "--catalog-state") or ((ptr or {}).get("intake", {}).get("Catalog state"))
+    if catalog_state and re.fullmatch(r"<[^>]*>", catalog_state.strip()):
+        catalog_state = None
+    print(f"Global link: search {'`' + os.path.basename(sp) + '`' if sp else 'NONE (every create refuses LINK_NOT_SEARCHED)'}; "
+          f"catalog state {catalog_state or 'NONE (nothing is linked: every create with hits is a `no match` question)'}")
     rows, refusals, notes = build_plan(intake, active, retired, strains, categories, brands,
                                        fl_eq_classes=load_fl_eq_classes(argv, ptr), pl_key_fn=pl_key_fn,
-                                       discontinue_tag=discontinue_tag, active_tag=active_tag, new_line_tag=new_line_tag)
+                                       discontinue_tag=discontinue_tag, active_tag=active_tag, new_line_tag=new_line_tag,
+                                       link_search=link_search, catalog_state=catalog_state)
     print("\n".join(summary(rows, refusals, notes)))
     if "--dry-run" in argv:
         print("\ndry run: nothing written")
@@ -669,7 +911,16 @@ def _fixture():
                    online_title="Lime Gummies", tags="ITM - New PL", lane_Cost="8", lane_Price="18", lane_Category="Gummies",
                    lane_Vendor="Vendor Shared", online_description="Lime gummies from Brand A."),
               dict(base, verdict="EXISTS", approved="Y", copy_source_productid="601")]
-    return dict(intake=intake, active=active, retired=retired, strains=strains, categories=cats, brands=brands)
+    ls = {c: "" for c in LINK_SEARCH_COLS}
+    link = [dict(ls, line_no="2", search_term="Strain", brand_id="b-1", brand_name="Brand A", id="g-q1",
+                 name="Strain Q Pre-Roll 1g", state="ST", status="Active", size="1g", strain_type="Sativa", created="2026-01-02"),
+            dict(ls, line_no="2", search_term="Strain", brand_id="b-1", brand_name="Brand A", id="g-q2",
+                 name="Strain Q Pre-Roll 0.5g", state="ST", status="Active", size="0.5g", created="2026-01-03"),
+            dict(ls, line_no="2", search_term="Strain", brand_id="b-1", brand_name="Brand A", id="g-q3",
+                 name="Strain Q Pre-Roll 1g", state="OT", status="Active", size="1g", created="2026-01-04"),
+            dict(ls, line_no="3", search_term="Lime", brand_id="b-1", brand_name="Brand A")]   # zero hits
+    return dict(intake=intake, active=active, retired=retired, strains=strains, categories=cats, brands=brands,
+                link_search=link)
 
 
 def _probed():
@@ -686,6 +937,8 @@ def _unproven_retired():
 
 def _build(fx=None, **kw):
     f = fx or _fixture()
+    kw.setdefault("link_search", f["link_search"])
+    kw.setdefault("catalog_state", "ST")
     return build_plan(f["intake"], f["active"], f["retired"], f["strains"], f["categories"], f["brands"], **kw)
 
 
@@ -696,8 +949,9 @@ def selftest():
     steps = [r["step"] for r in rows]
     t.check("steps run in the kickoff's order (MINT_STRAIN .. LINK), never interleaved",
             [STEPS.index(s) for s in steps] == sorted(STEPS.index(s) for s in steps))
-    t.check("each step kind is planned: MINT_STRAIN, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK",
-            {"MINT_STRAIN", "UNRETIRE_ALIGN", "UNRETIRE", "COPY", "ALIGN", "CONTENT", "IMAGE_REMOVE", "LINK"} <= set(steps),
+    t.check("each step kind is planned: MINT_STRAIN, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_ADD, IMAGE_REMOVE, LINK",
+            {"MINT_STRAIN", "UNRETIRE_ALIGN", "UNRETIRE", "COPY", "ALIGN", "CONTENT", "IMAGE_ADD", "IMAGE_REMOVE", "LINK"}
+            <= set(steps),
             str(sorted(set(steps))))
     by = {(r["product_key"], r["field"]): r for r in rows}
     seq = {r["seq"]: r for r in rows}
@@ -716,11 +970,109 @@ def selftest():
             and st["target"] == "name:Strain Q" and st["before"] == "name:Strain X", str(st))
     t.check("a record-bound field is planned by NAME (`name:`), never an invented id",
             by[("new:3", "BrandId")]["target"] == "name:Brand A")
-    t.check("cross-brand: title and description REPLACED by the new brand's words, carried image removed, link unlinked",
+    t.check("cross-brand: title and description REPLACED by the new brand's words, copied images removed, no own-art add "
+            "before it (step 5 follows), no unlink (the copy drops the source's link)",
             by[("new:3", "Online description")]["target"] == "Lime gummies from Brand A."
             and by[("new:3", "Online title")]["target"] == "Lime Gummies"
-            and ("new:3", "_images") in by and ("new:3", "_global_link") in by)
-    t.check("the sibling copy plans no residue clears", ("new:2", "_images") not in by and ("new:2", "Online description") not in by)
+            and ("new:3", "_images") in by and ("new:3", "_image_add") not in by
+            and by[("new:3", "_images")]["channel"] == "image_remove")
+    t.check("the sibling copy plans no description clear", ("new:2", "Online description") not in by)
+    # --- images: Copy item duplicates every source image row; a sibling copy carries the sibling's label art ---
+    ia, ir = by.get(("new:2", "_image_add")), by.get(("new:2", "_images"))
+    t.check("IMAGES sibling: own art added FIRST (file input, no form Save), then the copied rows removed, the remove "
+            "depending on the add and guarded on the exact images[] id list",
+            ia is not None and ir is not None and ia["step"] == "IMAGE_ADD" and ia["channel"] == "image_add_form"
+            and ia["seq"] in ir["depends_on"].split(";") and int(ia["seq"]) < int(ir["seq"])
+            and "images[] ids" in ir["provenance"] and "ProductImageId" in ir["provenance"], f"{ia} {ir}")
+    fk = _fixture()
+    fk["intake"][1]["image_keep"] = "Y"
+    rk, _, nk = _build(fk, guard=_probed())
+    t.check("IMAGES breaker: `image_keep = Y` (generic brand art, KB 'Images') plans no sibling image row and says so",
+            not any(r["product_key"] == "new:2" and r["step"].startswith("IMAGE") for r in rk)
+            and any("image_keep = Y" in x for x in nk), str(nk))
+    fi = _fixture()
+    fi["active"][0]["Image URL"] = ""
+    ri, _, _ = _build(fi, guard=_probed())
+    t.check("IMAGES QUIET: a sibling source with no image plans no image row",
+            not any(r["product_key"] == "new:2" and r["step"].startswith("IMAGE") for r in ri))
+    # --- global link, ALWAYS ATTEMPTED, a BEST GUESS the business QCs after (ruled 2026-10-13) ---
+    lk = by.get(("new:2", "_global_link"))
+    t.check("LINK exact: the ONE exact-name Active in-state record is planned, guarded on a null link, its call ids in "
+            "the target and the record name last (the export prints it)",
+            lk is not None and lk["before"] == "" and lk["target"] == "id=g-q1;brand_id=b-1;brand_name=Brand A;name=Strain Q Pre-Roll 1g"
+            and link_name(lk["target"]) == "Strain Q Pre-Roll 1g" and "; exact: exact name via our online_title;" in lk["provenance"]
+            and "BrandCatalogProductVersion: 0" in lk["provenance"] and lk["depends_on"] == by[("new:2", "_copy")]["seq"], str(lk))
+    t.check("LINK: every create prints its `global_link_result` in the summary (an exact link asks nothing; zero hits = "
+            "`no record`, no row, no refusal)",
+            ("new:3", "_global_link") not in by
+            and any(x.startswith("LINK_RESULT line 2") and ": linked: g-q1 | Strain Q Pre-Roll 1g - exact" in x
+                    and "please confirm" not in x for x in notes)
+            and any(x.startswith("LINK_RESULT line 3") and ": no record: zero hits for 'Lime'" in x for x in notes)
+            and "## Global link per create" in "\n".join(summary(rows, ref, notes)), str(notes))
+    ls = {c: "" for c in LINK_SEARCH_COLS}
+
+    def cand(i, name, **kw):
+        return dict(dict(ls, line_no="2", search_term="Strain", brand_id="b-1", brand_name="Brand A", id=f"g-{i}", name=name,
+                         state="ST", status="Active", size="1g", created=f"2026-01-0{i}"), **kw)
+
+    def link_case(cands=None, edit=None, **kw):
+        f = _fixture()
+        if cands is not None:
+            f["link_search"] = cands + [c for c in f["link_search"] if c["line_no"] != "2"]
+        if edit:
+            edit(f)
+        rw, rf, nt = _build(f, guard=_probed(), **kw)
+        res = next((x.split(": ", 1)[1] for x in nt if x.startswith("LINK_RESULT line 2")), "")
+        return ({(r["product_key"], r["field"]): r for r in rw}.get(("new:2", "_global_link")), [x["reason"] for x in rf], res)
+    # the PL's naming: the linked sibling 601 (Strain X) is `Brand A Strain X Joint 1g` in the GBC - ours translates to it
+    gbc = [cand(1, "Brand A Strain Q Joint 1g"), cand(2, "Brand A Strain Q Joint 0.5g", **{"size": "0.5g"})]
+    sib = lambda f: f["active"][0].update(**{"Brand catalog product": "Brand A Strain X Joint 1g"})  # noqa: E731
+    lr, rf_, res = link_case(gbc, sib)
+    t.check("LINK PL naming: a linked sibling's record name, its strain swapped for ours, finds the GBC name none of our "
+            "own names match - an exact link",
+            lr is not None and lr["target"].startswith("id=g-1;") and res.startswith("linked: g-1")
+            and "the PL's naming: sibling 601" in res, f"{lr} {res}")
+    lr, rf_, res = link_case(gbc)
+    t.check("LINK PL naming breaker: with the sibling unlinked the same record is only a BEST GUESS (closest name) - linked, "
+            "and the business is asked to confirm",
+            lr is not None and lr["target"].startswith("id=g-1;") and res.startswith("best guess: g-1")
+            and "please confirm" in res, res)
+    for label, cands, edit, want in (
+            ("a near name that prints our strain word", [cand(1, "Strain Q PR 1g")], None, "best guess: g-1"),
+            ("several records share the exact name (a GBC duplicate)",
+             [cand(1, "Strain Q Pre-Roll 1g"), cand(2, "Strain Q Pre-Roll 1g")], None, "best guess: g-1"),
+            ("the exact name, but its strain type disagrees", [cand(1, "Strain Q Pre-Roll 1g", strain_type="Indica")], None,
+             "best guess: g-1"),
+            ("the exact name, but its subcategory is not ours", [cand(1, "Strain Q Pre-Roll 1g", subcategory="infused")],
+             lambda f: f["intake"][1].update(lane_GlobalSubCategory="singles"), "best guess: g-1"),
+            ("hits that never print our strain word", [cand(1, "Strain Z Pre-Roll 1g")], None, "no match: no Active ST record names 'Strain Q'"),
+            ("a tie between two names equally close", [cand(1, "Strain Q Pre-Roll 1g Jar"), cand(2, "Strain Q Pre-Roll 1g Tin")],
+             None, "no match: a tie"),
+            ("the only name match is another size", [cand(1, "Strain Q Pre-Roll 1g", size="2g")], None, "no match: every Active ST hit is another size"),
+            ("the only name match is archived", [cand(1, "Strain Q Pre-Roll 1g", status="Archived")], None, "no match: no hit is Active in ST"),
+            ("the only name match is in another state", [cand(1, "Strain Q Pre-Roll 1g", state="OT")], None, "no match: no hit is Active in ST"),
+            ("the brand has no GBC entries", [dict(ls, line_no="2", search_term="Strain")], None,
+             "no record: the brand has no global catalog brand")):
+        lr, rf_, res = link_case(cands, edit)
+        linked = want.startswith("best guess")
+        t.check(f"LINK {'BEST GUESS' if linked else 'NO MATCH'}: {label}",
+                not rf_ and res.startswith(want) and (lr is not None) == linked
+                and (("please confirm" in res) == linked), f"{lr} {rf_} {res}")
+    lr, rf_, res = link_case(catalog_state=None)
+    t.check("LINK NO MATCH: no catalog state named - nothing is linked, the hits are listed for the business",
+            lr is None and res.startswith("no match: no catalog state") and "nearest: g-q" in res, res)
+    lr, rf_, _ = link_case(link_search=None)
+    t.check("LINK FIRES: a create with no search refuses LINK_NOT_SEARCHED (the lane searches before it asks)",
+            lr is None and rf_.count("LINK_NOT_SEARCHED") == 2, str(rf_))
+    lr, rf_, res = link_case(None, lambda f: (f["link_search"][2].update(state="ST"), f["intake"][1].update(global_link_pick="g-q3")))
+    t.check("LINK: the Operator's pick at the STOP overrides the guess", lr is not None and lr["target"].startswith("id=g-q3;")
+            and res.startswith("linked: g-q3") and "Operator's pick" in res, res)
+    lr, rf_, res = link_case(None, lambda f: f["intake"][1].update(global_link_pick="none"))
+    t.check("LINK: the Operator's `none` - no row, no refusal", lr is None and not rf_ and res.startswith("none:"), f"{rf_} {res}")
+    lr, rf_, _ = link_case(None, lambda f: f["intake"][1].update(global_link_pick="g-zz"))
+    t.check("LINK FIRES: a pick that is not a listed candidate refuses LINK_PICK_UNKNOWN", rf_ == ["LINK_PICK_UNKNOWN"], str(rf_))
+    lr, rf_, _ = link_case(None, lambda f: f["link_search"][0].update(brand_id=""))
+    t.check("LINK FIRES: the record with no brand id refuses LINK_BRAND_UNKNOWN", rf_ == ["LINK_BRAND_UNKNOWN"], str(rf_))
     t.check("an EXISTS row plans no write", not any(r["line_no"] == "4" for r in rows))
     # --- R68 (amended 2026-10-11): the create re-reads its PRODUCT LINE on the freeze as the plan leaves it ---
     t.check("R68 QUIET on the base fixture: no line is wholly discontinued, no PL_DISCONTINUED_CREATE",
@@ -730,6 +1082,7 @@ def selftest():
         fx = _fixture()
         if drop_unretire:
             fx["intake"] = fx["intake"][1:]          # line 1 then is the sibling copy (no un-retire in the batch)
+            fx["link_search"] = [dict(c, line_no=str(int(c["line_no"]) - 1)) for c in fx["link_search"]]
         fx["intake"][0]["tags"] = intake_tag
         fx["active"] = [dict(a, Tags=active_tags[i]) if i < len(active_tags) else a for i, a in enumerate(fx["active"])]
         fx["active"] += [_item(str(610 + i), f"Brand A | Pre-Roll | Strain S{i} | 1g", Tags=tg)

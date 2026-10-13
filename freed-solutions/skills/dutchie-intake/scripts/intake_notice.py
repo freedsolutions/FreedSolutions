@@ -23,6 +23,14 @@ image; a carried image that is kept = an image). The `image_source` cell is the 
   not found: <where the lane looked>      the item fires and prints where the lane looked
   not attempted[: <why>]  or blank        the item fires and says sourcing was not attempted
 
+Global link (ruled 2026-10-13: ALWAYS ATTEMPTED, a best guess the business QCs after). The `global_link_result`
+cell is the plan's per-create result (intake_plan.link_result; step 7 writes it):
+  linked: <id> | <name> - <why>          an exact name (or the Operator's pick) - nothing to ask
+  best guess: <id> | <name> - <why>...   linked as a guess - the business is asked to confirm it
+  no match: <why>[; nearest: <records>]  not linked - the business is asked whether a record is this product
+  no record: <why> / none: <why>         nothing in the global catalog / the Operator ruled no link - nothing to ask
+  blank                                  the attempt was not recorded - it fires
+
 Flag table: NOT_READ_BACK  R101  DEFECT  an approved create row with no new_sku: a notice before the
 read-back would announce an item nobody has seen (exit 1, nothing written).
 """
@@ -41,6 +49,7 @@ from intake_match import V3_COLS  # noqa: E402
 # so it can never be an approved create and never reaches the paragraph.
 NEW_LINE_VERDICTS = ("NEW_PL", "NEW_CATEGORY", "NEW_BRAND")
 IMAGE_SOURCE_COL = "image_source"   # optional column: a v4 intake file reads as blank = not attempted
+LINK_COL = "global_link_result"     # a v3 column; blank = the link attempt was not recorded
 
 
 def is_created(r):
@@ -95,6 +104,26 @@ def needs_image(r):
     return f"- Product image: {nm} has no image. Image sourcing was not attempted{why}. Please add one."
 
 
+def needs_link(r):
+    """None when the global link needs no question; else the notice bullet (a question for the business)."""
+    s = (r.get(LINK_COL) or "").strip()
+    nm, low = item_name(r), s.lower()
+    if low.startswith(("linked:", "no record:", "none:")):
+        return None
+    if low.startswith("best guess:"):
+        body = s.split(":", 1)[1].strip()
+        body = body[:-len("; please confirm")] if body.endswith("; please confirm") else body
+        return (f"- Global catalog link: {nm} is linked to our best guess, {body}. Please confirm it is this product, "
+                f"or name the right one.")
+    if low.startswith("no match:"):
+        body = s.split(":", 1)[1].strip()
+        why, _, nearest = body.partition("; nearest: ")
+        return (f"- Global catalog link: {nm} is not linked ({why}). "
+                + (f"Nearest records: {nearest}. Is one of them this product?" if nearest else
+                   "Does the brand list it under another name?"))
+    return f"- Global catalog link: {nm} - no link attempt was recorded ({s or 'blank global_link_result'}). Please check it."
+
+
 def fill(template, rows, operator, new_line_tag=DEFAULT_NEW_LINE_TAG):
     """(text, created rows, created new-line rows, defects). A created NEW_PL item is marked for the business's QC."""
     created = [r for r in rows if is_created(r)]
@@ -110,6 +139,9 @@ def fill(template, rows, operator, new_line_tag=DEFAULT_NEW_LINE_TAG):
             hand.append(b)
         if not (r.get("online_title") or "").strip():
             hand.append(f"- Online title: {item_name(r)} has none yet.")
+        b = needs_link(r)
+        if b:
+            hand.append(b)
     out = []
     for ln in text.split("\n"):
         s = ln.strip()
@@ -190,7 +222,7 @@ def selftest():
                encoding="utf-8").read()
     rows = [{"verdict": "NEW_ITEM_WITH_SIBLING", "approved": "Y", "new_sku": "123", "create_name_FINAL": "A | P | W | 1g",
              "lane_Brand": "A", "invoice_no": "T-1", "invoice_date": "2026-09-20", "image_state": "0 images (NO_ECOM_IMAGE)",
-             "online_title": "W 1g"},
+             "online_title": "W 1g", "global_link_result": "linked: g-1 | W 1g - exact name via our online_title"},
             {"verdict": "EXISTS", "invoice_line": "A X preroll 1g"}]
     text, created, newl, d = fill(tpl, rows, "Pat Example")
     t.check("item line carries the SKU", "- A | P | W | 1g - SKU 123" in text)
@@ -202,7 +234,8 @@ def selftest():
     # Defect 1 (2026-10-08): the "New line:" paragraph named every new-line row's invoice line, approved = N included.
     pl = {"verdict": "NEW_PL", "approved": "Y", "invoice_line": "A Haze cart 0.5g (invoice words)", "lane_Brand": "A",
           "create_name_FINAL": "A | Cart | Haze | 0.5g", "new_sku": "55", "new_productid": "9055",
-          "image_state": "deleted (source art)", "online_title": "Haze 0.5g"}
+          "image_state": "deleted (source art)", "online_title": "Haze 0.5g",
+          "global_link_result": "linked: g-2 | Haze Cart 0.5g - exact name via our online_title"}
     cat_n = {"verdict": "NEW_CATEGORY", "approved": "N", "invoice_line": "A Haze cart 0.5g (case of 5) sample", "lane_Brand": "A"}
     pl_n = {"verdict": "NEW_PL", "approved": "N", "invoice_line": "A Fog cart 0.5g", "lane_Brand": "A"}
     text2, _, newl2, _ = fill(tpl, rows + [pl, cat_n, pl_n], "Pat Example")
@@ -216,7 +249,7 @@ def selftest():
             "New line: A | Cart | Haze | 0.5g - a new product line" in fill(tpl, rows + [dict(pl, new_sku="", new_productid="")], "x")[0])
     rows3 = rows + [{"verdict": "NEW_BRAND", "invoice_line": "Zed Haze cart 0.5g", "lane_Brand": "Zed", "new_sku": "77",
                      "create_name_FINAL": "Zed | Cart | Haze | 0.5g", "approved": "Y", "image_state": "deleted (source art)",
-                     "online_title": "Haze 0.5g"}]
+                     "online_title": "Haze 0.5g", "global_link_result": "no record: the brand has no global catalog brand"}]
     text3, created3, _, _ = fill(tpl, rows3, "Pat")
     t.check("a created NEW_BRAND item is marked NEW BRAND and NEW LINE for the business's review",
             "- Zed | Cart | Haze | 0.5g - SKU 77 - NEW BRAND and NEW LINE" in text3 and len(created3) == 2, text3[:200])
@@ -249,6 +282,26 @@ def selftest():
             "Image sourcing was not attempted (no image_source recorded)" in tx, tx)
     t.check("a sourced image never clears a missing online title",
             "Online title:" in fill(tpl, [dict(pl, image_source="https://example.test/a.jpg", online_title="")], "x")[0])
+    # global link (ruled 2026-10-13): the plan's best guess is the business's question; an exact link asks nothing
+    ok = dict(pl, image_source="sourced: https://example.test/a")
+    for val in ("linked: g-2 | Haze Cart 0.5g - exact name via our online_title", "no record: zero hits for 'Haze' under the brand",
+                "none: the Operator ruled no link at the plan STOP"):
+        tx = fill(tpl, [dict(ok, global_link_result=val)], "x")[0]
+        t.check(f"QUIET: `{val.split(':')[0]}:` asks the business nothing", "Global catalog link" not in tx and "- Nothing." in tx, tx)
+    tx = fill(tpl, [dict(ok, global_link_result="best guess: g-3 | Haze Cartridge 0.5g - the closest name (score 0.60 via "
+                                                 "our online_title); other candidates: g-4 | Haze Pod 0.5g | ST | Active; please confirm")], "x")[0]
+    t.check("FIRES: a best guess asks the business to confirm it, naming the record and the other candidates",
+            "Global catalog link: A | Cart | Haze | 0.5g is linked to our best guess, g-3 | Haze Cartridge 0.5g" in tx
+            and "g-4 | Haze Pod 0.5g" in tx and "Please confirm it is this product" in tx and "; please confirm." not in tx, tx)
+    tx = fill(tpl, [dict(ok, global_link_result="no match: a tie: g-3 and g-4 are equally close; nearest: g-3 | Haze A; g-4 | Haze B")], "x")[0]
+    t.check("FIRES: a no-match with candidates lists them and asks whether one is this product",
+            "is not linked (a tie: g-3 and g-4 are equally close). Nearest records: g-3 | Haze A; g-4 | Haze B. Is one" in tx, tx)
+    tx = fill(tpl, [dict(ok, global_link_result="no match: no Active ST record names 'Haze'")], "x")[0]
+    t.check("FIRES: a no-match with no candidates asks whether the brand lists it under another name",
+            "Does the brand list it under another name?" in tx, tx)
+    tx = fill(tpl, [dict(ok, global_link_result="")], "x")[0]
+    t.check("FIRES: a blank global_link_result (the attempt was not recorded) needs a hand",
+            "no link attempt was recorded" in tx and "- Nothing." not in tx, tx)
     return t.done()
 
 

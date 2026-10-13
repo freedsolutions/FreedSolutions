@@ -65,6 +65,8 @@ the second is the `bi-change` block the tenant already has.
 - Market center / Market radius mi / Own store (+ optional Market box, Market archive, MSRP anchor, MSRP floor x cost)
 - FL EQ classes: <abs path to the tenant's fl_eq class map .toml>   (optional; R1-R3, R6 - see "derived" below;
   R130: the same map carries each master's market limits - `package_cap_mg` is the dose read's cap)
+- Catalog state: <stateLibrary>      (the global-link step's state library, as `search-catalog-products` prints
+  it; absent, nothing is linked and every create with hits is a `no match` question - create step 2)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
@@ -270,11 +272,43 @@ Rows: `approved = Y` creates (`NEW_ITEM_WITH_SIBLING`, `NEW_PL`, `NEW_BRAND`) an
 and the lane of a row flagged `UNRETIRE_FIRST`), in a version written AFTER the Operator's reply. A row with
 no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `intake` with the direction).
 1. **Pre-batch freeze.** The lane pulls Catalog Active + Retired, Strains, Categories and Brands (Inputs) and
-   freezes them. The freeze predates the first write, or the certify has no baseline.
-2. **Plan.** `intake_plan.py --intake <vN> --active --retired --strains --categories --brands --tenant
-   <CLAUDE.md>` writes a NEW `<stem>-plan-vN.csv`, one row per write: `seq, step, line_no, product_key, field,
-   before, target, channel, depends_on, provenance, row_sha1`. Steps run in this order, which is the
-   dependency: MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK.
+   freezes them. The freeze predates the first write, or the certify has no baseline. **Global-link search**
+   (operator ruling 2026-10-13: ALWAYS ATTEMPTED - the copy drops its source's link, so every create gets a link
+   attempt, and the lane searches before it asks anything): per create row, `batch-catalog-products` on a
+   sibling's `BrandCatalogProductId` (or the brand's other linked items) gives `brandId`; then
+   `search-catalog-products` `{SearchTerm: <first strain/flavor word>, BrandCatalogBrandIds: [<brandId>]}`
+   (JSON:API: the fields sit under `data[].attributes`; read-only, the browser's cookie). Type every hit into a
+   NEW `<stem>-catalog-search-<ts>.csv`: `line_no, search_term, brand_id, brand_name, id, name, state, status,
+   subcategory, size, strain_type, created` (`line_no` = the intake row's position; one row with a blank `id`
+   records a search with zero hits, and a blank `brand_id` too records a brand with no global catalog entries -
+   not every vendor has them).
+2. **Plan.** `intake_plan.py --intake <vN> --active --retired --strains --categories --brands --catalog-search
+   <csv> --tenant <CLAUDE.md>` writes a NEW `<stem>-plan-vN.csv`, one row per write: `seq, step, line_no,
+   product_key, field, before, target, channel, depends_on, provenance, row_sha1`. Steps run in this order, which
+   is the dependency: MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_ADD,
+   IMAGE_REMOVE, LINK.
+   **Images.** Copy item duplicates EVERY source image row under NEW blob file names. A sibling copy therefore
+   carries the sibling's own label art (its strain printed on the device) - a defect (KB "Images"). For a sibling
+   copy whose source has an image the plan writes IMAGE_ADD (the product's own art: step 5 sourcing, through the
+   item form's Add image file input, which lands without a form Save) and then IMAGE_REMOVE of the copied rows.
+   A cross-brand copy gets IMAGE_REMOVE only (its new-brand art is step 5, after it). Every IMAGE_REMOVE is guarded
+   on the exact image-row list `get-product-extra-info` returns (`images[]` ids, read before the add) and removes
+   exactly the copied ids, each by the `remove-product-image` replay `{...ctx, ProductImageId, ProductId}`. An
+   intake row with `image_keep = Y` (set at the STOP: the carried art is generic brand art) plans no image row.
+   **Global link - a BEST GUESS, QC'd by the business after** (ruled 2026-10-13). The global catalog name often
+   matches none of ours, and the GBC has its own alignment issues, so the plan guesses (`no match` included)
+   instead of asking. Only an Active record in the tenant's `Catalog state:` is ever linked, and never one whose
+   size disagrees with ours. The names it tests, in order: the PL's own naming - each linked sibling of the same
+   brand in the product line, its record name with its strain / flavor word swapped for ours (sibling `Strain X`
+   linked to `Brand A Strain X Joint 1g` -> we expect `Brand A Strain Q Joint 1g`) - then our `invoice_line`,
+   `online_title` and `create_name_FINAL`. Results: `linked` = an exact name (case and punctuation ignored);
+   `best guess` = the closest name that prints our strain / flavor word, or an exact name whose subcategory or
+   strain type disagrees, or one of several records sharing the name; `no match` = a tie, or no such record;
+   `no record` = zero hits, or a brand with no GBC entries. `linked` and `best guess` plan a LINK row:
+   `link-catalog-product` `{...ctx, BrandCatalogBrandId, BrandCatalogBrandName, BrandCatalogProductId,
+   BrandCatalogProductVersion: 0, ProductId}`, guarded on a null link. The summary prints each create's
+   `global_link_result`; a best guess and a no-match with candidates become questions for the business in the
+   notice. A create with no search row refuses `LINK_NOT_SEARCHED`.
    A create row of a sample-only new line plans its Cost only from a `Cost:` entry in its `derived` cell (intake step 4:
    the Apex PO or listing, or the Operator's typed Cost); with none - or flagged `COST_UNKNOWN` - the Cost row is REFUSED
    (`COST_UNKNOWN`), because the copy would keep its source's Cost. The entry rides the Cost row's provenance, and the one
@@ -289,7 +323,10 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    move, VendorId / Grams / Servings / Online-available; CBDContent stays refused). A dead record (R81) is
    never a source and never un-retired.
 3. **The ONE STOP is the plan approval.** The plan summary (writes per step and per channel, the refusals,
-   the notes) goes to the Operator with the verdict and exception tables. No write before the reply. An
+   the global link per create, the notes) goes to the Operator with the verdict and exception tables. No write
+   before the reply. The Operator may override a link in the intake row's `global_link_pick` (a listed candidate
+   id, or `none`) and may mark a sibling's carried art generic (`image_keep = Y`); both cells are optional and
+   added at the STOP, like `online_description`. A guess the Operator lets stand is the business's to QC. An
    approval that changes a row means a rebuilt plan (`-plan-vN+1`), never an edited one: `gridBatch`
    recomputes every `row_sha1` and refuses an edited row before the first request.
 4. **Login stop** (below), then **the batch, paced** - no per-item read-back; the certify proves the result:
@@ -315,18 +352,22 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    copies) -> Confirm -> Brand and Vendor on a cross-brand copy (`lane_Brand`, `lane_Vendor`) -> Strain (modal
    picker: type, take the exact option, check the type shown under it) and Flavor when flagged `FLAVOR_TO_SET`
    -> Online title and description (a sibling copy: replace the strain paragraph only; a `CROSS_BRAND_COPY`:
-   replace both with the new brand's own words, none of the source's survive) -> images per the KB (a
-   `CROSS_BRAND_COPY`: delete the copied image before Save) -> Save. Global Category / Sub carry from the
+   replace both with the new brand's own words, none of the source's survive) -> images per the KB (the plan's
+   IMAGE_ADD / IMAGE_REMOVE rows, after the item's last form Save) -> Save. Global Category / Sub carry from the
    source on every copy. In the batch the plan carries these as rows: Brand, Vendor (proven P7), Strain and Flavor are
    ALIGN grid rows; the cross-brand title and description are CONTENT rows whose target is the new brand's
    words (`online_title`, and `online_description` added at the STOP; a blank one refuses `CONTENT_UNWRITTEN`);
-   the copied image is an IMAGE_REMOVE row run after the item's last form Save. The new ProductId goes into
+   the copied images are an IMAGE_REMOVE row run after the item's last form Save (on a sibling copy, after its
+   IMAGE_ADD row); the global link is a LINK row (a replay, no Save; a 2026-10-13 link moved ONLY
+   `BrandCatalogProductId`, the item's own image and description untouched). The new ProductId goes into
    `keyMap` (where probe P1 shows it, else the item page URL). The copy inherits its source's tags: the plan
    sets the ONE decision tag the intake row's `tags` cell names and removes the source's - a grid `Tags` row whose
    target is the item's WHOLE tag set (grid Tags REPLACE, KB [PROBE 2026-10-08]), sent as TagIds from the live
    `get-tags` read the runtime passes in `ids.Tags`.
 5. **Image sourcing**, after each created item's last Save, for every created item with no image (`image_state`
-   blank, `NO_ECOM_IMAGE`, `deleted ...`, or its IMAGE_REMOVE row ran). Ruled by Adam 2026-10-08: *"We should
+   blank, `NO_ECOM_IMAGE`, `deleted ...`, or its IMAGE_REMOVE row ran), and as the IMAGE_ADD row of a sibling
+   copy (before its IMAGE_REMOVE; a `not found:` there still lets the remove run - another product's label art
+   is a defect, an image-less item is the honest state). Ruled by Adam 2026-10-08: *"We should
    always try to add an image from the Brand's site or other Dutchie menus (otherwise, the business will pick it
    up via the QC error)."* Look for the product's own image on the brand's own site first, then on other
    Dutchie menus that list the same product (platform KB "Ecom menu cards"; memory
@@ -344,8 +385,10 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    time; the step-5 `image_source` per created item). A resume reads the live rows and that log, never a
    page-side done-list. A STOP (`GUARD_MISMATCH`, a refusal, a 401) ends the batch: record it, fall down the
    ladder, never retry blind.
-7. **Post pull + ONE certify** (below). Then write `new_sku`, `new_productid`, `verified`, `action = CREATED`
-   and `image_source` from the certify's create map and the run record into a NEW intake version for the notice.
+7. **Post pull + ONE certify** (below). Then write `new_sku`, `new_productid`, `verified`, `action = CREATED`,
+   `image_source` and `global_link_result` (the plan summary's value per create; a LINK row that STOPPED in the
+   run reads `no match: the link did not land (<reason>)`) from the certify's create map and the run record into
+   a NEW intake version for the notice.
 Platform mechanics: `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Item creation by Copy item".
 
 **`certify`** - ONE certify per batch, at the end (R124). After the last write the lane pulls Catalog Active
@@ -354,7 +397,10 @@ Platform mechanics: `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Item
 `_state` cell (`active` / `retired`), so an un-retire is ONE planned cell. A = every planned cell at its
 target, plus the declared derived cells (Strain Type from StrainId; an un-retired row's `Brand catalog
 product` moving blank -> link, because the Retired export prints that column blank - that direction only; a
-created row's global link). B = `Available`, down only. C = every other moved cell, reported, never waived:
+created row's `Image URL`, which always moves because the copy's image rows carry new blob file names - on a
+created row only, the same cell moving on any other row is C). A created row inherits `Brand catalog product`
+BLANK (the copy drops the link): blank -> the record name is the plan's LINK row (A); with no LINK row a link
+equal to the source's is declared, any other is C. B = `Available`, down only. C = every other moved cell, reported, never waived:
 exit 1. A created row maps to its COPY row by the exact planned name (`DUP_CREATE` on two). Controls, each
 with a fixture breaker: `ROW_REMOVED`, `C_FOREIGN_CELL`, `PLAN_NOT_APPLIED`, `UNRETIRE_PARTIAL`,
 `UNRETIRE_FOREIGN`, `TAG_NOT_READ_BACK` / `TAG_EXTRA`, `CROSS_BRAND_RESIDUE` (whole cell) and
@@ -374,7 +420,10 @@ never an invoice line (fixed 2026-10-08) - and the same set prints the `Floor sh
 run it. "What still needs a hand" lists every created item with no image unless `image_source` records a
 sourced image (create step 5): `not found:` prints where the lane looked, `not attempted:` or a blank cell
 says sourcing was not attempted (fixed 2026-10-08: five created rows with `image_state = deleted ...` read
-"Nothing."). A created NEW_PL item is marked on its line for the business's review. The Operator adds
+"Nothing."). It also asks the business about the global link (`global_link_result`): a `best guess` - please
+confirm it, or name the right record; a `no match` - is one of the nearest records this product, or does the
+brand list it under another name. A `linked` or `no record` result asks nothing; a blank one fires (the attempt
+was not recorded). A created NEW_PL item is marked on its line for the business's review. The Operator adds
 recipients and sends; this skill sends nothing.
 
 **`receive`** - phase 2. `--prep` is built; `--enter`, `--check` and `--vendor` are stubs (exit 2). No login and

@@ -15,9 +15,12 @@ exports on ProductId, with a synthetic `_state` cell (`active` / `retired`), so 
 the lane's own pull just before the batch, the post pair its own pull just after. Populations:
   A  every planned cell at its target, plus the cells the plan declares derived (Strain Type from StrainId; an
      un-retired row's `Brand catalog product` moving BLANK -> link, because the Retired export prints that column
-     blank and the post row comes from the Active file - that direction only, a changed link is C; a created
-     row's global link, whose carry by the copy is unproven). A created row maps to its COPY row by the EXACT planned name; every other cell of it
-     must equal what the copy inherits from its source.
+     blank and the post row comes from the Active file - that direction only, a changed link is C). A created row
+     maps to its COPY row by the EXACT planned name; every other cell of it must equal what the copy inherits from
+     its source, except two declared cells: `Image URL` (Copy item duplicates every source image row under NEW blob
+     file names, so it always moves; the image-row guard read is the image proof, 2026-10-13) and `Brand catalog
+     product`, which the copy DROPS (inherited blank, 2026-10-13): blank -> the record name is the plan's LINK row
+     (A); with no LINK row a link equal to the source's (a copy that carried it) is declared, any other link is C.
   B  `Available`, numeric, down only.       C  every other moved cell - reported, never waived (exit 1).
 Plan-mode flags (DEFECT, exit 1): ROW_REMOVED · C_FOREIGN_CELL · PLAN_NOT_APPLIED (a planned cell or create that
 did not land - a 429 not resumed) · A_MISMATCH · A_UNEXPECTED (an added row no COPY names) · DUP_CREATE (two
@@ -241,9 +244,13 @@ def certify(pre_hdr, pre, post_hdr, post, key, intake=None, no_create=False, all
 
 STATE = "_state"            # the synthetic cell: `active` / `retired` (which export the row came from)
 NOT_CELLS = ("ProductId", "SKU")
-# A created row's cell the copy MAY carry or not: the copy's carry of the global link is unproven (probe P1
-# rides the first real copy), so it is declared, never a defect, unless the plan writes it.
-CREATE_DECLARED = ("Brand catalog product",)
+# A created row's cell that moves by the copy itself: Copy item duplicates EVERY source image row under NEW blob file
+# names (2026-10-13), so `Image URL` always moves on a created row and the export cannot tell copied art from own art.
+# Declared on a CREATED row only: the same cell moving on any other row is C.
+CREATE_DECLARED = ("Image URL",)
+# The global link: the copy DROPS its source's link (2026-10-13; intake_plan.COPY_DROPS), so a created row inherits
+# it blank. A link equal to the source's (a copy that carried it after all) is declared; any other unplanned link is C.
+LINK_COL = "Brand catalog product"
 # A column the RETIRED export prints blank whatever the record holds (KB "Retired products"; found again by the
 # intake session 2026-10-08): an un-retired row's cell moves blank -> link only because the post row now comes
 # from the Active file. Declared derived of `_state` (intake_plan.DERIVES), in that ONE direction: a pre value
@@ -267,10 +274,12 @@ def union(active_rows, retired_rows, label):
 
 def cell_eq(field, export_val, plan_val):
     """An export cell against a plan value (`name:` stripped; money, grams and tags compared by meaning)."""
-    from intake_plan import GRAMS as PG, MONEY as PM, NUMBERS as PN
+    from intake_plan import GRAMS as PG, MONEY as PM, NUMBERS as PN, link_name
     a, b = (export_val or "").strip(), (plan_val or "").strip()
     if b.startswith("name:"):
         b = b[len("name:"):]
+    if field == "_global_link":
+        b = link_name(b).strip()   # a LINK target carries the call ids, then the record name the export prints
     if field == "Tags":
         return tag_set(a) == tag_set(b)
     if not a or not b:
@@ -315,7 +324,7 @@ def residue_words(src, planned_name, new_brand, cells):
 
 def certify_plan(plan, pre_hdr, pre, post_hdr, post, min_rows=None, prefix=ITEM_PREFIX):
     """Pure. `pre` / `post` = union() of each pull. Returns (report lines, fails, counts)."""
-    from intake_plan import DERIVES, FIELD_COL, row_sha1
+    from intake_plan import COPY_DROPS, DERIVES, FIELD_COL, row_sha1
     rep, fails = [], []
     counts = {"planned": 0, "A": 0, "A_derived": 0, "B": 0, "C": 0, "created": 0}
     cols = [c for c in pre_hdr if c in post_hdr and c not in NOT_CELLS] + [STATE]
@@ -417,6 +426,8 @@ def certify_plan(plan, pre_hdr, pre, post_hdr, post, min_rows=None, prefix=ITEM_
             inherited = planned[(sid, col)]["target"] if (sid, col) in planned else src.get(col, "")
             if col == STATE:
                 inherited = "active"
+            if col in COPY_DROPS:
+                inherited = ""
             if p:
                 judge(k, col, inherited, b, p)
                 continue
@@ -426,7 +437,8 @@ def certify_plan(plan, pre_hdr, pre, post_hdr, post, min_rows=None, prefix=ITEM_
                 continue
             if cell_eq("", b, inherited):
                 continue
-            if (k, col) in derived or col in CREATE_DECLARED:
+            if (k, col) in derived or col in CREATE_DECLARED \
+                    or (col == LINK_COL and (b or "").strip() == (src.get(col) or "").strip()):
                 counts["A_derived"] += 1
             else:
                 C.append((k, col, inherited, b))
@@ -639,7 +651,8 @@ def plan_fixture(online_title=None):
     if online_title is not None:
         intake[2]["online_title"] = online_title
     rows, ref, _ = PL.build_plan(intake, pa, pr, rd("plan-strains.csv")[1], rd("plan-categories.csv")[1],
-                                 rd("plan-brands.csv")[1], guard=PL._probed())
+                                 rd("plan-brands.csv")[1], guard=PL._probed(),
+                                 link_search=rd("plan-catalog-search.csv")[1], catalog_state="ST")
     return dict(plan=rows, refusals=ref, hdr=hdr, pa=pa, pr=pr, qa=qa, qr=qr)
 
 
@@ -664,8 +677,9 @@ def _move(src, dst, pid):
 def plan_selftest(t):
     fx = plan_fixture()
     _, fails, c = run_plan(fx)
-    t.check("PLAN GREEN: A = every planned cell (19) + 2 declared derived, B 1, C 0, exit 0",
-            fails == [] and fx["refusals"] == [] and c["A"] == c["planned"] == 19 and c["A_derived"] == 2
+    t.check("PLAN GREEN: A = every planned cell (18, the sibling's LINK among them) + 4 declared derived (Strain Type, "
+            "the un-retired link, both created rows' Image URL), B 1, C 0, exit 0",
+            fails == [] and fx["refusals"] == [] and c["A"] == c["planned"] == 18 and c["A_derived"] == 4
             and c["B"] == 1 and c["C"] == 0, f"{fails} {c}")
 
     def fires(label, flag, edit, fx_=None):
@@ -692,6 +706,35 @@ def plan_selftest(t):
     fires("a cell a create row inherits moved off its source", "C_FOREIGN_CELL", lambda a, r, p: _row(a, "801").update(Vendor="Vendor Other"))
     fires("a derived cell moved where the plan declares none", "C_FOREIGN_CELL",
           lambda a, r, p: _row(a, "602").update(**{"Strain Type": "Sativa"}))
+    # Image URL: declared on a CREATED row only (the copy's image rows carry new blob names, 2026-10-13)
+    rep_i, f_i, c_i = run_plan(fx)
+    t.check("IMAGE QUIET: a created row's Image URL moved off its source's (new blob name / own art) is declared, not C",
+            f_i == [] and not any("801 | Image URL" in x or "802 | Image URL" in x for x in rep_i)
+            and _row(fx["qa"], "801")["Image URL"] != _row(fx["pa"], "601")["Image URL"], str(f_i))
+    fires("a foreign Image URL change on a NON-created row (the declaration is created-rows only)", "C_FOREIGN_CELL",
+          lambda a, r, p: _row(a, "601").update(**{"Image URL": "img-a-x-v2.jpg"}))
+    fires("an Image URL appearing on an untouched row", "C_FOREIGN_CELL",
+          lambda a, r, p: _row(a, "602").update(**{"Image URL": "img-a-y.jpg"}))
+    # the global link: blank -> the record name on a created row is the plan's LINK row (A)
+    t.check("LINK A: the sibling copy's `Brand catalog product` blank -> the planned record name is a planned cell at target",
+            any(r["field"] == "_global_link" and r["product_key"] == "new:2" for r in fx["plan"])
+            and _row(fx["qa"], "801")["Brand catalog product"] == "Strain Q Pre-Roll 1g" and c_i["A"] == c_i["planned"])
+    fires("the created row linked to another record than the plan's", "A_MISMATCH",
+          lambda a, r, p: _row(a, "801").update(**{"Brand catalog product": "Strain Q Pre-Roll 0.5g"}))
+    fires("the planned LINK did not land (the link still blank)", "PLAN_NOT_APPLIED",
+          lambda a, r, p: _row(a, "801").update(**{"Brand catalog product": ""}))
+    fires("a link on a created row the plan names no LINK for (a no-match result)", "C_FOREIGN_CELL",
+          lambda a, r, p: _row(a, "802").update(**{"Brand catalog product": "Brand A Lime Gummies"}))
+    fires("a cross-brand copy carrying its source brand's link", "CROSS_BRAND_RESIDUE",
+          lambda a, r, p: _row(a, "802").update(**{"Brand catalog product": "Brand B Mango Gummies"}))
+    fxc = plan_fixture()
+    fxc["pa"] = copy.deepcopy(fxc["pa"])
+    _row(fxc["pa"], "601")["Brand catalog product"] = "Strain X Pre-Roll 1g"
+    _row(fxc["qa"], "601")["Brand catalog product"] = "Strain X Pre-Roll 1g"
+    fxc["plan"] = [r for r in fxc["plan"] if r["field"] != "_global_link"]
+    _, f_c, c_c = run_plan(fxc, lambda a, r, p: _row(a, "801").update(**{"Brand catalog product": "Strain X Pre-Roll 1g"}))
+    t.check("LINK QUIET: with no LINK row, a created row carrying its SOURCE's link (a copy that kept it) is declared, not C",
+            f_c == [] and c_c["C"] == 0, f"{f_c} {c_c}")
     # the WORD residue: the plan itself carries a source-only word (the Operator's title kept "Mango"); the whole-cell
     # leg cannot see it and A is green, so ONLY the word leg fires - the case it exists for.
     fxw = plan_fixture(online_title="Mango Lime Gummies 100mg")
@@ -713,7 +756,7 @@ def plan_selftest(t):
     _row(fxl["pr"], "401")["Brand catalog product"] = "Brand A Strain Z Old Link"
     _, fl, cl = run_plan(fxl)
     t.check("FIRES C_FOREIGN_CELL: an un-retired row whose link CHANGED (not blank -> link) is a write, never derived",
-            any(x.startswith("C_FOREIGN_CELL:") for x in fl) and cl["C"] == 1 and cl["A_derived"] == 1, f"{fl} {cl}")
+            any(x.startswith("C_FOREIGN_CELL:") for x in fl) and cl["C"] == 1 and cl["A_derived"] == 3, f"{fl} {cl}")
     fxb = plan_fixture()
     fxb["pa"] = copy.deepcopy(fxb["pa"])
     _row(fxb["pr"], "402")["Cost"] = "3.9"

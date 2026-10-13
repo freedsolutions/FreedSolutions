@@ -6,6 +6,8 @@
                     created item with no image unless `image_source` records a sourced image (`sourced: <url>`);
                     `not found: <where>` prints where the lane looked, `not attempted` / blank says so.
                     An online-title bullet fires for a created item with no `online_title`.
+                    A global-link bullet asks the business to confirm a best-guess link, or whether a listed
+                    record is the product on a no-match (`global_link_result`); an exact link or no record asks nothing.
     [[new-line]]    the line is kept only when a NEW_PL / NEW_BRAND row was created (approved = Y); <new lines>
                     names those items by final name with SKU / ProductId when the row has them, never an
                     approved = N row and never an invoice line
