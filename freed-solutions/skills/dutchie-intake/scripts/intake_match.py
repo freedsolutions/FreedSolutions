@@ -502,13 +502,14 @@ def form_vocab(rows):
     return sorted({form_word(r.get("Product")) for r in rows if form_word(r.get("Product"))} | set(FORM_SYNONYMS))
 
 
-def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g, fl=None):
+def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g, fl=None, cat=None):
     """The ONE active item that brand + body + grams hit when the line names NO form word at all;
     None when the grams are unread, the line names any form word of the catalog vocabulary (a named
-    form that fits no lane is a new line, not an unread one), or zero / two or more items hit."""
+    form that fits no lane is a new line, not an unread one), or zero / two or more items hit.
+    `cat` (the operator's --line-category direction) counts only the items in that Category."""
     if g is None or any(form_score(f, dtoks) > 0 for f in vocab):
         return None
-    own = [r for r in rows if norm(r.get("Brand")) == norm(brand)]
+    own = [r for r in rows if norm(r.get("Brand")) == norm(brand) and (not cat or norm(r.get("Category")) == norm(cat))]
     hits = [r for r in own if (body_of(r.get("Product")) or r.get("Strain", ""))
             and body_hit(desc_n, body_of(r.get("Product")) or r.get("Strain", ""), fl)
             and grams_eq(r.get("Product grams"), g)]
@@ -684,6 +685,17 @@ def lanes_of(rows, brand, dtoks, g):
         fs = form_score(form_word(r.get("Product")), dtoks)
         if fs > 0:
             lanes.setdefault(lane_key(r), {"fs": fs, "rows": []})["rows"].append(r)
+    return lanes
+
+
+def lanes_in_category(rows, brand, cat, g):
+    """lanes_of for a line the matcher reads no form word from but the operator directed to a Category:
+    the brand's items in that Category at the line's grams, grouped by lane key (form score 1)."""
+    lanes = {}
+    for r in rows:
+        if norm(r.get("Brand")) == norm(brand) and norm(r.get("Category")) == norm(cat) \
+                and g is not None and grams_eq(r.get("Product grams"), g):
+            lanes.setdefault(lane_key(r), {"fs": 1, "rows": []})["rows"].append(r)
     return lanes
 
 
@@ -886,8 +898,9 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             brand_is_new = True
         lanes = lanes_of(live, brand, dtoks, g) if not brand_is_new else {}
         from_retired = False
+        cat_dir0 = direction(line_categories, ln.get("line_no"))
         if not lanes and not brand_is_new:
-            m = form_unread_hit(live, vocab, brand, desc_n, dtoks, g, fl)
+            m = form_unread_hit(live, vocab, brand, desc_n, dtoks, g, fl, cat_dir0)
             if m is not None:
                 flags.append("FORM_UNREAD")
                 fill_from(row, m)
@@ -899,7 +912,12 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                 row["flags"] = ";".join(flags)
                 out.append(row)
                 continue
-            lanes = lanes_of(old, brand, dtoks, g)
+            if cat_dir0:
+                lanes = lanes_in_category(live, brand, cat_dir0, g)
+                if lanes:
+                    flags.append("CATEGORY_DIRECTED")
+        if not lanes and not brand_is_new:
+            lanes = lanes_of(old, brand, dtoks, g) or (lanes_in_category(old, brand, cat_dir0, g) if cat_dir0 else {})
             from_retired = bool(lanes)
         if not lanes:
             # a NEW line: the brand (an item, a Brand record, a direction) carries nothing it fits
@@ -1929,6 +1947,24 @@ def selftest():
     t.check("QUIET: FORM_UNREAD off when the line names another form word (cart) that no catalog form ends in -> NEW_PL + CATEGORY_UNREAD",
             r["verdict"] == "NEW_PL" and "FORM_UNREAD" not in r["flags"] and "CATEGORY_UNREAD" in r["flags"].split(";"), f"{r['verdict']} {r['flags']}")
     t.check("QUIET: FORM_UNREAD off on a full match", "FORM_UNREAD" not in run("Acme Blue Dream preroll 1g")["flags"])
+    dc = active + [_item("5", "Acme | Distillate AIO | Lime Sorbet | 2g | Pocket Pro", pid="15", cat="Distillate AIO"),
+                   _item("6", "Acme | Distillate Cart | Lime Sorbet | 2g", pid="16", cat="Distillate Cart"),
+                   _item("7", "Acme | Live AIO | Mochi | 2g | Pocket Pro", pid="17", cat="Live Distillate AIO")]
+    r = run("Acme | Lime Sorbet | Flavor Line | Pocket PRO | 2.0g | Hybrid", act=dc, line_categories={"1": "Distillate AIO"})
+    t.check("FORM_UNREAD: a --line-category direction narrows two brand + body + grams hits to the ONE in that Category",
+            r["verdict"] == "EXISTS" and "FORM_UNREAD" in r["flags"].split(";") and r["copy_source_sku"] == "5",
+            f"{r['verdict']} {r['flags']} {r['copy_source_sku']}")
+    r = run("Acme | Lime Sorbet | Flavor Line | Pocket PRO | 2.0g | Hybrid", act=dc)
+    t.check("QUIET: the same line with no direction stays NEW_PL (two hits, no guess)",
+            r["verdict"] == "NEW_PL" and r["copy_source_sku"] == "", f"{r['verdict']} {r['copy_source_sku']}")
+    r = run("Acme Blue Dream (LIVE) - 2.0g (P PRO)", act=dc, line_categories={"1": "Live Distillate AIO"})
+    t.check("a directed Category with no form word read: the brand's items in it at the grams are the lane (sibling copy)",
+            r["verdict"] == "NEW_ITEM_WITH_SIBLING" and r["copy_source_sku"] == "7"
+            and r["create_name_FINAL"] == "Acme | Live AIO | Blue Dream | 2g | Pocket Pro",
+            f"{r['verdict']} {r['copy_source_sku']} {r['create_name_FINAL']!r}")
+    r = run("Acme Blue Dream (LIVE) - 2.0g (P PRO)", act=dc, line_categories={"1": "Distillate Cart"})
+    t.check("QUIET: a directed Category the brand carries at other words still copies from that Category's lane",
+            r["copy_source_sku"] == "6", f"{r['verdict']} {r['copy_source_sku']}")
     t.check("ratio_key: cannabinoid order + case are unordered",
             ratio_key("1:1 CBD:THC") == ratio_key("1:1 THC:CBD") and ratio_key("1:1:1 THC:CBC:CBG") == ratio_key("1:1:1 THC:CBG:CBC")
             and ratio_key("1:1 THC:THCv") == ratio_key("1:1 THC:THCV"))

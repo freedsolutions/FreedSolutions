@@ -15,7 +15,7 @@ Credit Memo Total, Balance Due, Terms Discount.
 
 Output (sign convention of intake_parse): the product row carries the BASE (list) price -
 `case_cost` = BASE PRICE, `ext_cost` = QTY x BASE PRICE, `unit_cost` = ext / units. The price-tier
-discount and any LINE DISC are LINE-level discount rows (`is_order_level` N, R103: they stay on their
+discount (PRICE DISC. AMT, read per line or per UOM - whichever ties to QTY x (BASE - YOUR PRICE)) and any LINE DISC are LINE-level discount rows (`is_order_level` N, R103: they stay on their
 line). Document Discount and Credit Memo Total, when non-zero, are ORDER-level rows. The header
 `total` is Balance Due, so TOTAL_MISMATCH checks every base price and every discount read.
 `package_id` (the line's package tags, `;`-joined) is an intake_parse column and rides into the
@@ -188,7 +188,13 @@ def parse(text):
                     "units_per_case": (units / qty) if units and qty and uom != "EA" else "",
                     "your_price": money(m.group("your")), "disc_pct": m.group("pct"), "price_class": h["price_class"],
                     "printed_ext": money(m.group("ext"))})
+        # PRICE DISC. AMT prints per line on some invoices and per UOM on others (a 2-case line printed (84.00)
+        # for 2 x 84, 2026-10-13). Read it at the grain that ties to QTY x (BASE - YOUR PRICE); when neither
+        # ties, keep the printed amount so TOTAL_MISMATCH fires instead of a computed figure hiding a misread.
         pd, ld = _amt(m.group("pdisc")), _amt(m.group("ldisc"))
+        tier = round(qty * (base - money(m.group("your"))), 2)
+        if abs(pd - tier) > 0.005 and abs(round(pd * qty, 2) - tier) <= 0.005:
+            pd = round(pd * qty, 2)
         if pd:
             out.append({"description": f"Price tier discount {m.group('pct')}%"
                                        + (f" (Price Class {h['price_class']})" if h["price_class"] else "")
