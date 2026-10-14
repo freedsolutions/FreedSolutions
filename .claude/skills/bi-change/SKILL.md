@@ -323,7 +323,7 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 167 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 174 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
   an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score
@@ -353,7 +353,11 @@ this skill can be trusted, and each is proven to fail, not merely to pass:**
   dropping it from its own guide must still fail, naming that guide; and a title no header board
   carries fails `new tile on a board`. **Group M — a `config` change that declares no BI surface
   (2026-09-27):** every scope list empty and `filters` false, an unmoved board reads `estate <id> moved`
-  ✔ "unmoved, as declared"; a declared element, or any other path, still fails it. Exit 1 on any failed assertion. A check that cannot be made to
+  ✔ "unmoved, as declared"; a declared element, or any other path, still fails it. **Group N — a
+  titled text header is named by its `title_text` (2026-10-14):** Looker harvests it with `title` "",
+  so the scope match and the new-tile check read `title || title_text` (text elements only); declared
+  by its visible text it is in scope and owned, undeclared it fails naming that text, a blank spacer
+  stays exempt and a vis element still matches on `title`. Exit 1 on any failed assertion. A check that cannot be made to
   fail has not been tested — this skill has shipped an inert check before.
 
 **And before fixing a gate, baseline it.** Run the CURRENT gate over every kickoff in a real estate,

@@ -140,6 +140,11 @@ function cap(which, label, detail) {
 function read(p) { return fs.readFileSync(p, 'utf8'); }
 function sha1(s) { return crypto.createHash('sha1').update(s.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 12); }
 function norm(s) { return s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' '); }
+// An element's DISPLAYED name. A titled Looker text header keeps its visible text in `title_text` and
+// harvests with `title` = "" (2026-10-14: header 197874 "Floor reference" on 28006), so matching on
+// `title` alone made a planned header undeclarable in scope.new_elements and invisible to the new-tile
+// ownership check. Vis elements still match on `title`; a blank spacer has neither and stays exempt.
+function elName(e) { return (e && (e.title || (e.type === 'text' ? e.title_text : '') || '')) || ''; }
 
 // ---------- pointer mode ----------
 // C3–C10 only: no kickoff, no header, no register, no estate scan — so a tenant can be scored at any
@@ -848,14 +853,14 @@ for (const id of H.dashboards) {
     const addedSpacers = added.filter(k => isSpacer(B[k]));
     const removedSpacers = removed.filter(k => isSpacer(A[k]));
     const offScope = changed.filter(k => !H.scope.elements.includes(k));
-    const offAdded = added.filter(k => !addedSpacers.includes(k) && !H.scope.new_elements.some(t => norm(t) === norm(B[k].title || '')));
+    const offAdded = added.filter(k => !addedSpacers.includes(k) && !H.scope.new_elements.some(t => norm(t) === norm(elName(B[k]))));
     const offRemoved = removed.filter(k => !removedSpacers.includes(k) && !H.scope.retired_elements.includes(k));
     if (addedSpacers.length || removedSpacers.length) ok('spacer tiles ' + id,
       [addedSpacers.length ? '+' + addedSpacers.join(', +') : '', removedSpacers.length ? '-' + removedSpacers.join(', -') : '']
         .filter(Boolean).join(' ') + ' — blank text tile(s), layout spacers, not scope');
-    if (offScope.length) fail('scope ' + id + ' changed elements', offScope.map(k => k + ' "' + (B[k].title || '').slice(0, 40) + '"').join('; ') + ' — not in scope.elements');
-    if (offAdded.length) fail('scope ' + id + ' added elements', offAdded.map(k => k + ' "' + (B[k].title || '').slice(0, 40) + '"').join('; ') + ' — not in scope.new_elements');
-    if (offRemoved.length) fail('scope ' + id + ' removed elements', offRemoved.map(k => k + ' "' + (A[k].title || '').slice(0, 40) + '"').join('; ') + ' — not in scope.retired_elements');
+    if (offScope.length) fail('scope ' + id + ' changed elements', offScope.map(k => k + ' "' + elName(B[k]).slice(0, 40) + '"').join('; ') + ' — not in scope.elements');
+    if (offAdded.length) fail('scope ' + id + ' added elements', offAdded.map(k => k + ' "' + elName(B[k]).slice(0, 40) + '"').join('; ') + ' — not in scope.new_elements');
+    if (offRemoved.length) fail('scope ' + id + ' removed elements', offRemoved.map(k => k + ' "' + elName(A[k]).slice(0, 40) + '"').join('; ') + ' — not in scope.retired_elements');
     if (!offScope.length && !offAdded.length && !offRemoved.length) ok('scope ' + id, changed.length + ' changed, ' + added.length + ' added, ' + removed.length + ' removed — all in scope');
     // Spacers do not count as evidence the build landed — a blank tile someone else added must not
     // satisfy this check on behalf of a build that never wrote anything.
@@ -909,7 +914,7 @@ if (Object.keys(docsBoards).length) {
   for (const id of Object.keys(docsBoards)) {
     const cur = estateFile(id);
     const els = cur ? (loadEstate(cur).elements || []) : [];
-    carried[id] = els.map(e => ({ id: String(e.id), title: norm(e.title || '') }));
+    carried[id] = els.map(e => ({ id: String(e.id), title: norm(elName(e)) }));
   }
   for (const t of H.scope.new_elements) {
     const label = '"' + t.slice(0, 40) + '"';

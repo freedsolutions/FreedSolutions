@@ -32,6 +32,8 @@
 //      carries it, not on every board the header names (L1 fails against the pre-2026-09-26 gate).
 //   M. a config change with an empty declared scope reads its unmoved board as "unmoved, as
 //      declared" (M1 fails against the pre-2026-09-27 gate); a declared element or another path still fails.
+//   N. a titled text header is named by its `title_text` in the scope match and the new-tile check
+//      (N1/N2 fail against the pre-2026-10-14 gate); a blank spacer and a vis title are unchanged.
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -1285,6 +1287,80 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
   }
 }
 
+// =============================================================================================
+// N. A TITLED TEXT HEADER IS NAMED BY ITS title_text (2026-10-14).
+//
+// A Looker text header keeps its visible text in `title_text` and harvests with `title` = "". The
+// scope match and the new-tile ownership check read `title` only, so a planned header could never be
+// declared: board 28006 gained header 197874 "Floor reference" and the gate read `197874 ""` — not in
+// scope.new_elements. N1 and N2 are the new guards (both FAIL against the pre-2026-10-14 gate); N3 and
+// N4 are the controls — a blank spacer stays exempt and a vis element still matches on `title`.
+// =============================================================================================
+{
+  const BRD = '99996';
+  const vis = (id, title) => ({ id, type: 'vis', title, query_id: 'q' + id });
+  const HEADER = { id: '600002', type: 'text', title: '', title_text: 'Floor reference', subtitle_text: '', body_text: '' };
+  const SPACER = { id: '600003', type: 'text', title: '', title_text: '', subtitle_text: '', body_text: '' };
+  function header(newElements) {
+    buildClean();
+    const w = (f, o) => fs.writeFileSync(path.join(EST, f), JSON.stringify(o, null, 2));
+    w('estate-' + BRD + '.pre-fx.json', { harvested_at: '2026-09-09T00:00:00.000Z', elements: [vis('600001', 'Tile N')], filters: [] });
+    w('estate-' + BRD + '.json', { harvested_at: '2026-09-10T00:00:00.000Z',
+      elements: [vis('600001', 'Tile N'), HEADER, SPACER, vis('600004', 'Tile Beta')], filters: [] });
+    fs.writeFileSync(path.join(EST, 'BI-SOP.md'), '# SOP\n\n- Floor reference — header\n- Tile Beta — tile\n');
+    fs.writeFileSync(path.join(EST, 'BI-WI.md'), '# WI\n\n- Floor reference — why\n- Tile Beta — why\n');
+    fs.writeFileSync(path.join(EST, 'dashboard-' + BRD + '-fixture.md'),
+      guide(['- 2026-09-08 — fx-kickoff-2026-09-08.md']) + '\n## Floor reference\n\n## Tile Beta\n');
+    fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'), kickoff({
+      rules: ['R1'], seals: { R1: sha1(RULE1) }, done: false, kpath: 'new-tile',
+      dashboards: [BRD], baseline: { [BRD]: 'estate-' + BRD + '.pre-fx.json' },
+      scope: { elements: [], new_elements: newElements },
+    }));
+    return runBuild('fx-kickoff-2026-09-08.md');
+  }
+  // `line()` matches by prefix, and `scope <id>` is a prefix of `scope <id> added elements`.
+  const verdict = out => out.split('\n').find(l => l.trim().slice(2).startsWith('scope ' + BRD + ' — ')) || '';
+  const addedFail = out => line(out, 'scope ' + BRD + ' added elements');
+  // N1 — THE NEW GUARD. The header declared by its visible text → in scope, owned, documented.
+  {
+    const r = header(['Floor reference', 'Tile Beta']);
+    check('N1: a text header declared by its title_text is in scope',
+      verdict(r.out).trim()[0] === '✔' && !addedFail(r.out), (verdict(r.out) || addedFail(r.out)).trim() || '(absent)');
+    check('N1: …and its board is named as the owner, with the element id',
+      mark(r.out, 'new tile on a board "Floor reference"') === '✔' &&
+      line(r.out, 'new tile on a board "Floor reference"').includes(BRD + ' (element 600002)'),
+      line(r.out, 'new tile on a board "Floor reference"').trim() || '(absent)');
+    check('N1: …and its docs are read on that board\'s guide',
+      mark(r.out, 'new tile in docs "Floor reference"') === '✔' &&
+      line(r.out, 'new tile in docs "Floor reference"').includes('dashboard-' + BRD),
+      line(r.out, 'new tile in docs "Floor reference"').trim() || '(absent)');
+  }
+  // N2 — THE CONTROL IN THE OTHER DIRECTION. Undeclared → red, and the line names the header's text.
+  {
+    const r = header(['Tile Beta']);
+    check('N2: an undeclared text header fails `scope added elements`, naming "Floor reference"',
+      mark(r.out, 'scope ' + BRD + ' added elements') === '✘' && addedFail(r.out).includes('600002 "Floor reference"'),
+      addedFail(r.out).trim() || '(absent)');
+    check('N2: …and the failure lists only the header, not the spacer or the declared vis tile',
+      !addedFail(r.out).includes('600003') && !addedFail(r.out).includes('600004'), addedFail(r.out).trim() || '(absent)');
+  }
+  // N3 — a blank spacer is still exempt, and still reported as a spacer.
+  {
+    const r = header(['Floor reference', 'Tile Beta']);
+    check('N3: a blank text tile is still a layout spacer, not scope',
+      mark(r.out, 'spacer tiles ' + BRD) === '✔' && line(r.out, 'spacer tiles ' + BRD).includes('+600003'),
+      line(r.out, 'spacer tiles ' + BRD).trim() || '(absent)');
+  }
+  // N4 — a vis element still matches on `title`.
+  {
+    const r = header(['Floor reference', 'Tile Beta']);
+    check('N4: a vis element is still matched by its title',
+      mark(r.out, 'new tile on a board "Tile Beta"') === '✔' &&
+      line(r.out, 'new tile on a board "Tile Beta"').includes(BRD + ' (element 600004)'),
+      line(r.out, 'new tile on a board "Tile Beta"').trim() || '(absent)');
+  }
+}
+
 // ---- report ---------------------------------------------------------------------------------
 let bad = 0;
 console.log('gate self-test — ' + GATE);
@@ -1307,6 +1383,7 @@ if (bad) {
   console.log('       refusing an unfilled placeholder and refusing to overwrite a live tenant;');
   console.log('       and a minted rule with no DECISIONS row — or one recorded against a SIBLING');
   console.log('       kickoff — reddens, while a cite-only rule and an unratified plan do not;');
-  console.log('       and a new tile is checked against the guide of the board that carries it.');
+  console.log('       and a new tile is checked against the guide of the board that carries it,');
+  console.log('       a titled text header included (by its title_text).');
 }
 process.exit(bad ? 1 : 0);
