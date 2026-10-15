@@ -163,7 +163,13 @@ through connector bodies only.
    flavor and, when the line prints a ratio, the same ratio with cannabinoid order unordered and case
    ignored (`1:1 CBD:THC` == `1:1 THC:CBD`); with no ratio, the letter must name the body's type. The
    unordered read is for MATCHING only: a create takes the brand's one Strain record with that ratio and
-   keeps the catalog's spelling (R26), never the invoice's order. The intake CSV v3 has 54 columns;
+   keeps the catalog's spelling (R26), never the invoice's order.
+   **Spelling and pack grain.** Brands compare space- and case-insensitively: `TwinOak` on a line is the
+   catalog's (or a Brand record's) `Twin Oak`, and the row takes the catalog's spelling. Every
+   phrase test folds accents (`Piña` == `Pina`), for strain records and name bodies alike. Grams alone do
+   not make a match: the line's pack count (a weight with no count is a single) must equal the count in
+   the item's dose segment (`0.5g x 2pk` = 2), at EXISTS and in the lane. A 1g single is never the
+   0.5g x 2pk. An mg figure with no count reads no pack on either side (R129). The intake CSV v3 has 54 columns;
    the last two are `parse_source` and `package_id`.
    **Tags (R96, R83).** A sibling copy carries its lane's decision tag: the ONE item-namespace tag every
    active member carries; a mixed lane reads the Active tag; `--tag-override <line_no>=<tag>` (or `*=`) is

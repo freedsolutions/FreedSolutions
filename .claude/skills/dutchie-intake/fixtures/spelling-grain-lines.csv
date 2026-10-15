@@ -1,0 +1,8 @@
+"invoice_no","invoice_date","vendor","line_no","description","cases","units_total","case_cost","unit_cost","ext_cost","potency_tac_pct","container","coa_url","expiry_date","is_order_level","order_level_kind","po_ref","parse_source"
+"HW-3003","2026-10-09","Harbor Wholesale","1","TwinOak | Pre-Roll Blue Dream 1g | Prerolls","1","10","50.00","5.00","50.00","","","","","N","","","lines:spelling-grain-lines.csv"
+"HW-3003","2026-10-09","Harbor Wholesale","2","Red Fern | Pre-Roll Blue Dream 1g | Prerolls","1","10","50.00","5.00","50.00","","","","","N","","","lines:spelling-grain-lines.csv"
+"HW-3003","2026-10-09","Harbor Wholesale","3","Twin Oak | Pre-Roll Lemon Haze 1g | Prerolls","1","10","50.00","5.00","50.00","","","","","N","","","lines:spelling-grain-lines.csv"
+"HW-3003","2026-10-09","Harbor Wholesale","4","Twin Oak | Pre-Roll Lemon Haze 0.5g x 2pk | Prerolls","1","10","50.00","5.00","50.00","","","","","N","","","lines:spelling-grain-lines.csv"
+"HW-3003","2026-10-09","Harbor Wholesale","5","Twin Oak | Pre-Roll Lemon Haze 0.5g 5-Pack | Prerolls","1","10","110.00","11.00","110.00","","","","","N","","","lines:spelling-grain-lines.csv"
+"HW-3003","2026-10-09","Harbor Wholesale","6","Twin Oak | Pre-Roll Piña Verde 1g | Prerolls","1","10","50.00","5.00","50.00","","","","","N","","","lines:spelling-grain-lines.csv"
+"HW-3003","2026-10-09","Harbor Wholesale","7","Twin Oak | Pre-Roll Jalapeno Haze 1g | Prerolls","1","10","50.00","5.00","50.00","","","","","N","","","lines:spelling-grain-lines.csv"

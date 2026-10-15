@@ -455,6 +455,43 @@ def fl_create_keeps_canon(c):
             and r["strain"] == "Restore (1:1 THC:CBD)" and "CBD:THC" not in r["create_name_FINAL"] + r["online_title"])
 
 
+SG = {"active": rows_of("spelling-grain-active.csv"), "lines": rows_of("spelling-grain-lines.csv"),
+      "strains": IM.load_strains(fx("spelling-grain-strains.csv")), "brands": rows_of("spelling-grain-brands.csv")}
+# The three reads the 2026-10-08 batch lacked, each switched off by its breaker (the pre-fix matcher):
+#   brand = brands compare as norm (spaces count); pack = no pack test (grams alone); fold = no accent folding.
+SG_OFF = {"brand": [(IM, "brand_key", C.norm), (IM, "has_brand", C.has_phrase)],
+          "pack": [(IM, "item_pack", lambda r: None)],
+          "fold": [(C, "fold", lambda t: t or "")]}
+
+
+def sg_ctx(off=None):
+    """Spelling + pack-grain fixture: lines whose brand drops its space (`TwinOak`), a direction spelled apart
+    from its Brand record (`Red Fern` / `RedFern`), a 1g single beside a 0.5g x 2pk at the same grams, and
+    accents on one side only (`Piña Verde` / `Pina Verde`, `Jalapeno Haze` / `Jalapeño Haze`). `off` names the
+    read the breaker switches off (SG_OFF)."""
+    c = copy.deepcopy(SG)
+    c["off"] = off
+    return c
+
+
+def sg_rows(c):
+    saved = [(m, n, getattr(m, n)) for m, n, _ in SG_OFF.get(c["off"], [])]
+    for m, n, v in SG_OFF.get(c["off"], []):
+        setattr(m, n, v)
+    try:
+        rows = IM.match(c["lines"], c["active"], [], c["strains"], drop_tags=DROP, brands=c["brands"],
+                        line_brands={"2": "Red Fern"})[0]
+    finally:
+        for m, n, v in saved:
+            setattr(m, n, v)
+    return {ln["line_no"]: r for ln, r in zip(c["lines"], rows)}
+
+
+def sg_is(c, no, verdict, sku=None, **kv):
+    r = sg_rows(c)[no]
+    return r["verdict"] == verdict and (sku is None or r["copy_source_sku"] == sku) and all(r.get(k) == v for k, v in kv.items())
+
+
 GUMMY_SRC = dict(BASE["active"][3], SKU="3101", ProductId="711", Brand="Birch Labs", Strain="", Flavor="Lime",
                  Product="Birch Labs | Gummies | Lime | 100mg", Category="Gummies", Tags="Status - Live",
                  **{"Master category": "Edible", "Global SubCategory": "gummies", "Product grams": "0.1g",
@@ -830,9 +867,9 @@ CHECKS = [
      ctx(active=BASE["active"] + [GUMMY_SRC], line_brands={"6": "Dune Co"}, brands=[b for b in BASE["brands"] if b["Display name"] != "Dune Co"]),
      "drop Dune Co from the brands export: a new brand again"),
     ("--line-brand naming a catalog brand matches the line under it (a spelling the invoice got wrong)",
-     lambda c: row_for(c, "AcmeFarms Gelato")["verdict"] == "NEW_ITEM_WITH_SIBLING" and row_for(c, "AcmeFarms Gelato")["copy_source_sku"] == "1001",
-     line3("AcmeFarms Gelato preroll 1g", line_brands={"3": "Acme Farms"}), line3("AcmeFarms Gelato preroll 1g"),
-     "no direction: the misspelt brand is nobody's"),
+     lambda c: row_for(c, "Akme Farms Gelato")["verdict"] == "NEW_ITEM_WITH_SIBLING" and row_for(c, "Akme Farms Gelato")["copy_source_sku"] == "1001",
+     line3("Akme Farms Gelato preroll 1g", line_brands={"3": "Acme Farms"}), line3("Akme Farms Gelato preroll 1g"),
+     "no direction: the misspelt brand is nobody's (a spacing alone is no misspelling: brand_key)"),
     ("sibling = the lane member WITH an image", lambda c: row_for(c, "Acme Farms Gelato")["copy_source_sku"] == "1001",
      ctx(), mut(ctx(), "active", lambda r: r["SKU"] == "1001", **{"Image URL": ""}), "clear the imaged sibling's image"),
     ("a dead record (R81) is never the sibling", lambda c: row_for(c, "Acme Farms Gelato")["copy_source_sku"] != "1003",
@@ -940,6 +977,22 @@ CHECKS = [
      fl_create_keeps_canon, fl_ctx(),
      fl_ctx(strains={k: v for k, v in FL["strains"].items() if k != "Restore (1:1 THC:CBD)"}),
      "delete the brand's Restore strain record"),
+    ("brand spelling: `TwinOak` on the line is catalog brand `Twin Oak` (space- and case-insensitive) - EXISTS",
+     lambda c: sg_is(c, "1", "EXISTS", "6003"), sg_ctx(), sg_ctx("brand"),
+     "brands compare as norm: the space counts, the line names no brand"),
+    ("brand spelling: a direction `Red Fern` is the Brand record `RedFern` (no item) - NEW_PL under the record's spelling, never NEW_BRAND",
+     lambda c: sg_is(c, "2", "NEW_PL", lane_Brand="RedFern"), sg_ctx(), sg_ctx("brand"),
+     "brands compare as norm: `Red Fern` is nobody's, a new brand"),
+    ("pack grain: a 1g single never EXISTS on the 0.5g x 2pk at the same grams; it copies the 1g single lane",
+     lambda c: sg_is(c, "3", "NEW_ITEM_WITH_SIBLING", "6003", create_name_FINAL="Twin Oak | Pre-Roll | Lemon Haze | 1g")
+     and sg_is(c, "4", "EXISTS", "6001") and sg_is(c, "5", "EXISTS", "6002"),
+     sg_ctx(), sg_ctx("pack"), "no pack test: grams alone match the 1g line to the 0.5g x 2pk"),
+    ("accents fold: `Piña Verde` on the line names the Strain record `Pina Verde` (never STRAIN_MISSING)",
+     lambda c: sg_is(c, "6", "NEW_ITEM_WITH_SIBLING", strain="Pina Verde"), sg_ctx(), sg_ctx("fold"),
+     "no accent folding: `pi a verde` names no record"),
+    ("accents fold: `Jalapeno Haze` on the line is the item `Jalapeño Haze` - EXISTS",
+     lambda c: sg_is(c, "7", "EXISTS", "6004"), sg_ctx(), sg_ctx("fold"),
+     "no accent folding: the body reads `jalape o haze`"),
     ("receive --check join key is package_id, an intake CSV column",
      lambda cols: RC.CHECK_JOIN_KEY == "package_id" and RC.CHECK_JOIN_KEY in cols,
      IM.INTAKE_COLS, [c for c in IM.INTAKE_COLS if c != "package_id"], "remove package_id from the columns"),

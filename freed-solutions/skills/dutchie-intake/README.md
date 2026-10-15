@@ -78,6 +78,8 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 - A flavor-led line, `(S|I|H) <Flavor> <Form>[ <ratio>]`, matches a body `<Flavor>[ <Effect>] (<type or
   ratio>)` by layout. Ratio cannabinoid order is unordered for the match only; a create name keeps the
   catalog's ratio spelling.
+- Brands compare space- and case-insensitively, and every phrase test folds accents. EXISTS needs the
+  grams AND the pack count to agree: a 1g single never matches a 0.5g x 2pk.
 - The create path (R101): a product line carried before comes back by UN-RETIRING it whole (`RETIRED_MATCH`,
   or a sibling copy flagged `UNRETIRE_FIRST`; the set rides the v4 column `unretire_set`); any other new line
   copies the brand's nearest item in the Master category, else the CLOSEST item by subcategory, any brand

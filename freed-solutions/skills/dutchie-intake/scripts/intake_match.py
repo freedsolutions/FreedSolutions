@@ -56,9 +56,14 @@ Verdicts (one per product line; R101 = Copy-from-sibling is the create path; a p
 before comes back WHOLE by un-retiring; any other new line duplicates the closest item by subcategory,
 any brand; the lane creates a new brand; the operator STOP is a Category or Master category the
 taxonomy lacks):
-  EXISTS                  brand + body (name segment 3) + grams + form match ONE active item; or
-                          brand + body + grams match ONE active item, the form test alone fails and
+  EXISTS                  brand + body (name segment 3) + grams + pack + form match ONE active item; or
+                          brand + body + grams + pack match ONE active item, the form test alone fails and
                           the line names NO form word at all -> EXISTS + FORM_UNREAD.
+                          Brands compare space- and case-insensitively (`brand_key`); every phrase test
+                          folds accents (intake_common.norm). Pack = the count the line prints (a weight
+                          with none = a single) against the name's dose segment (`0.5g x 2pk` = 2): a 1g
+                          single is not a 0.5g x 2pk, at EXISTS and in the lane (`pack_agrees`). An mg dose
+                          with no count reads no pack on either side: no pack test
                           A flavor-led line `(S|I|H) <Flavor> <Form>[ <ratio>]` meets body
                           `<Flavor>[ <Effect>] (<type or ratio>)` by layout (`flavor_led`); the ratio
                           compares unordered (`ratio_key`), for matching only - never for a create name
@@ -187,7 +192,8 @@ from intake_common import (CATALOG_COLS, CATALOG_REQUIRED, COL_RETIRED, CREATE_V
                            swap_decision, BRANDS_REQUIRED, CATEGORIES_REQUIRED,
                            EXIT_ABORT, EXIT_DEFECT, EXIT_OK, STRAINS_REQUIRED, Selftest, abort, body_of,
                            form_word, freshest, get_all, get_flag, grams_eq, grams_of, has_phrase, lane_key,
-                           next_version, norm, num, read_csv, slug, strain_name_col, tag_set, write_csv)
+                           next_version, norm, num, read_csv, segs, slug, strain_name_col, tag_set, write_csv,
+                           PL_DOSE)
 import intake_derive  # noqa: E402
 
 LINES_REQUIRED = ["invoice_no", "invoice_date", "vendor", "line_no", "description", "cases", "units_total",
@@ -357,6 +363,61 @@ def vendor_match(a, b):
     return bool(ta) and bool(tb) and (ta <= tb or tb <= ta)
 
 
+def brand_key(s):
+    """A brand compared space- and case-insensitively: `TwinOak` == `Twin Oak` == `twin-oak`."""
+    return norm(s).replace(" ", "")
+
+
+def same_brand(a, b):
+    ka = brand_key(a)
+    return bool(ka) and ka == brand_key(b)
+
+
+def brand_span(desc_n, brand):
+    """(start, end) token span of the first run of whole words in the line that, joined, is the brand's key
+    (`twinoak` meets `Twin Oak`, `twin oak` meets `TwinOak`); None when the line does not name it."""
+    key, toks = brand_key(brand), desc_n.split()
+    if not key:
+        return None
+    for i in range(len(toks)):
+        run = ""
+        for j in range(i, len(toks)):
+            run += toks[j]
+            if run == key:
+                return i, j + 1
+            if not key.startswith(run):
+                break
+    return None
+
+
+def has_brand(desc_n, brand):
+    return brand_span(desc_n, brand) is not None
+
+
+def strip_brand(desc_n, brand):
+    """The line with the brand's words removed, however the line spaces them."""
+    sp, toks = brand_span(desc_n, brand), desc_n.split()
+    return " ".join(toks[:sp[0]] + toks[sp[1]:]) if sp else desc_n
+
+
+def item_pack(r):
+    """The pack count the item's name prints in its dose segment (R42): `0.5g x 2pk` -> 2, a plain weight `1g` -> 1
+    (a single). None = no pack read, so no pack test: a plain mg dose (`100mg` is the package total, its piece
+    count unprinted - R129), or a segment 4 that does not read as a dose."""
+    p = segs(r.get("Product"))
+    m = PL_DOSE.match(p[3]) if len(p) >= 4 else None
+    if not m:
+        return None
+    return int(m.group(3)) if m.group(3) else (1 if m.group(2).lower() == "g" else None)
+
+
+def pack_agrees(r, pk):
+    """Grams alone do not make the item: a 1g single is not a 0.5g x 2pk. True when the line's pack count `pk`
+    (None = no weight read: no test) is the item's, or the item's name prints no readable dose."""
+    ip = item_pack(r)
+    return pk is None or ip is None or ip == pk
+
+
 def is_dead(r, dead_tag):
     return dead_tag in tag_set(r.get("Tags"))
 
@@ -451,7 +512,7 @@ def flavor_led_strain(fl, live, brand, strains):
     if rkey is None:
         cands = [stype]
     else:
-        cands = sorted({r.get("Strain") for r in live if norm(r.get("Brand")) == norm(brand)
+        cands = sorted({r.get("Strain") for r in live if same_brand(r.get("Brand"), brand)
                         and r.get("Strain") and ratio_key(r.get("Strain")) == rkey})
     if len(cands) != 1 or cands[0] not in strains:
         return None, None
@@ -478,15 +539,18 @@ def flavor_cell_hit(r, desc_n, stated, rkey=None):
     return norm(stated) in (norm(r.get("Strain Type")), norm(r.get("Strain")))
 
 
-def body_hits(rows, brand, desc_n, dtoks, g, fl=None, stated="", rkey=None):
+def body_hits(rows, brand, desc_n, dtoks, g, fl=None, stated="", rkey=None, pk=None):
+    """The rows brand + body + grams + pack (`pk`, pack_agrees) + form hit, at the best body length and form score."""
     hits = []
     for r in rows:
-        if norm(r.get("Brand")) != norm(brand):
+        if not same_brand(r.get("Brand"), brand):
             continue
         body = body_of(r.get("Product")) or r.get("Strain", "")
         if not body or not (body_hit(desc_n, body, fl) or (fl is None and flavor_cell_hit(r, desc_n, stated, rkey))):
             continue
         if g is not None and not grams_eq(r.get("Product grams"), g):
+            continue
+        if not pack_agrees(r, pk):
             continue
         fs = form_score(form_word(r.get("Product")), dtoks)
         if fs > 0:
@@ -502,17 +566,17 @@ def form_vocab(rows):
     return sorted({form_word(r.get("Product")) for r in rows if form_word(r.get("Product"))} | set(FORM_SYNONYMS))
 
 
-def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g, fl=None, cat=None):
+def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g, fl=None, cat=None, pk=None):
     """The ONE active item that brand + body + grams hit when the line names NO form word at all;
     None when the grams are unread, the line names any form word of the catalog vocabulary (a named
     form that fits no lane is a new line, not an unread one), or zero / two or more items hit.
     `cat` (the operator's --line-category direction) counts only the items in that Category."""
     if g is None or any(form_score(f, dtoks) > 0 for f in vocab):
         return None
-    own = [r for r in rows if norm(r.get("Brand")) == norm(brand) and (not cat or norm(r.get("Category")) == norm(cat))]
+    own = [r for r in rows if same_brand(r.get("Brand"), brand) and (not cat or norm(r.get("Category")) == norm(cat))]
     hits = [r for r in own if (body_of(r.get("Product")) or r.get("Strain", ""))
             and body_hit(desc_n, body_of(r.get("Product")) or r.get("Strain", ""), fl)
-            and grams_eq(r.get("Product grams"), g)]
+            and grams_eq(r.get("Product grams"), g) and pack_agrees(r, pk)]
     return hits[0] if len(hits) == 1 else None
 
 
@@ -537,7 +601,7 @@ def line_strain(fl, live, brand, desc_n, strains, flavored=False, stated="", des
     layout only (`flavor_led_strain`): a ratio or stray token is never taken for a strain name."""
     if fl:
         return flavor_led_strain(fl, live, brand, strains)
-    return find_strain(" ".join(desc_n.replace(norm(brand), " ").split()), strains, flavored, stated,
+    return find_strain(strip_brand(desc_n, brand), strains, flavored, stated,
                        ratio_key(desc if desc is not None else desc_n)), None
 
 
@@ -574,7 +638,7 @@ def strain_conflict(strain, strains, stated, everything, brand=None):
         return None
     mine = [r for r in everything if (r.get("Strain") or "") == strain]
     on = [f"{r.get('Brand', '')} {r.get('SKU', '')} {r.get('Product', '')!r}".strip() for r in mine]
-    others_only = bool(mine) and bool(brand) and all(norm(r.get("Brand")) != norm(brand) for r in mine)
+    others_only = bool(mine) and bool(brand) and all(not same_brand(r.get("Brand"), brand) for r in mine)
     return rec, stated, on, others_only
 
 
@@ -674,13 +738,15 @@ def feedstock_tiebreak(top, lanes, dtoks):
     return pick[0] if len(pick) == 1 else None
 
 
-def lanes_of(rows, brand, dtoks, g):
-    """{lane key: {'fs': form score, 'rows': members}} over `rows` for the brand at the line's grams."""
+def lanes_of(rows, brand, dtoks, g, pk=None):
+    """{lane key: {'fs': form score, 'rows': members}} over `rows` for the brand at the line's grams and pack."""
     lanes = {}
     for r in rows:
-        if norm(r.get("Brand")) != norm(brand):
+        if not same_brand(r.get("Brand"), brand):
             continue
         if g is not None and not grams_eq(r.get("Product grams"), g):
+            continue
+        if not pack_agrees(r, pk):
             continue
         fs = form_score(form_word(r.get("Product")), dtoks)
         if fs > 0:
@@ -688,13 +754,13 @@ def lanes_of(rows, brand, dtoks, g):
     return lanes
 
 
-def lanes_in_category(rows, brand, cat, g):
+def lanes_in_category(rows, brand, cat, g, pk=None):
     """lanes_of for a line the matcher reads no form word from but the operator directed to a Category:
     the brand's items in that Category at the line's grams, grouped by lane key (form score 1)."""
     lanes = {}
     for r in rows:
-        if norm(r.get("Brand")) == norm(brand) and norm(r.get("Category")) == norm(cat) \
-                and g is not None and grams_eq(r.get("Product grams"), g):
+        if same_brand(r.get("Brand"), brand) and norm(r.get("Category")) == norm(cat) \
+                and g is not None and grams_eq(r.get("Product grams"), g) and pack_agrees(r, pk):
             lanes.setdefault(lane_key(r), {"fs": 1, "rows": []})["rows"].append(r)
     return lanes
 
@@ -711,7 +777,7 @@ def place_line(live, brand, dtoks):
     scored = [(s, r) for s, r in scored if s > 0]
     if not scored:
         return None, None, None, None, "the line names no form word the catalog carries"
-    pool = [(s, r) for s, r in scored if norm(r.get("Brand")) == norm(brand)] or scored
+    pool = [(s, r) for s, r in scored if same_brand(r.get("Brand"), brand)] or scored
     top = max(s for s, _ in pool)
     best = [r for s, r in pool if s == top]
     mcs = sorted({r.get("Master category", "") for r in best})
@@ -745,7 +811,7 @@ def taxonomy_of(categories, live, old):
 def nearest_in_mc(live, brand, mc, dtoks, g):
     """The brand's active item in the Master category closest to the line: the same form word first, then
     the closest grams, then the sibling order (image, newest ProductId, lowest SKU). None = the brand has none."""
-    own = [r for r in live if norm(r.get("Brand")) == norm(brand) and r.get("Master category") == mc]
+    own = [r for r in live if same_brand(r.get("Brand"), brand) and r.get("Master category") == mc]
 
     def key(r):
         rg = grams_of(r.get("Product grams"))
@@ -822,8 +888,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
     everything = live + old
     vocab = form_vocab(live)
     brands_items = sorted({r["Brand"] for r in everything if r.get("Brand")}, key=len, reverse=True)
-    brand_records = {norm(b.get("Display name")): (b.get("Display name") or "").strip() for b in (brands or [])
+    brand_records = {brand_key(b.get("Display name")): (b.get("Display name") or "").strip() for b in (brands or [])
                      if (b.get("Display name") or "").strip()}
+    catalog_brands = {}   # brand_key -> the catalog's spelling (the longest first, as brands_items sorts)
+    for b in brands_items:
+        catalog_brands.setdefault(brand_key(b), b)
     tax = taxonomy_of(categories, live, old)
     out, defects = [], []
     reads = []   # (index of the line's row in `out`, its dose read): DOSE_READ_TOTAL lands on create rows only
@@ -840,12 +909,15 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         vend = ln.get("vendor", "")
         vb = sorted({r["Brand"] for r in everything if r.get("Brand")
                      and (vendor_match(r.get("Vendor"), vend) or vendor_match(r["Brand"], vend))})
-        named = [b for b in brands_items if has_phrase(desc_n, b)]
+        named = [b for b in brands_items if has_brand(desc_n, b)]
         directed = direction(line_brands, ln.get("line_no"))
         brand = directed or brand_override or (named[0] if named else (vb[0] if len(vb) == 1 else None))
-        brand_is_new = bool(brand) and norm(brand) not in {norm(b) for b in brands_items}
-        if brand_is_new and norm(brand) in brand_records:
-            brand, brand_is_new = brand_records[norm(brand)], False   # a Brand record with no item yet
+        # A brand compares space- and case-insensitively (brand_key): the line's spelling resolves to the
+        # catalog's, else to a Brand record's; only a name neither carries is a new brand.
+        brand = catalog_brands.get(brand_key(brand), brand) if brand else brand
+        brand_is_new = bool(brand) and brand_key(brand) not in catalog_brands
+        if brand_is_new and brand_key(brand) in brand_records:
+            brand, brand_is_new = brand_records[brand_key(brand)], False   # a Brand record with no item yet
         stated0, rkey0 = line_type(desc), ratio_key(desc)
         # R129 + R130: per piece when piece x count fits the TARGET Master category's package cap, else the package
         # total. The master is read first (line_mc); a new line re-reads below if its final master differs.
@@ -853,11 +925,13 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                             direction(line_categories, ln.get("line_no")), tax)
         rd = dose_read(desc, *cap_for(mc0, package_caps, package_cap_mg, cat0))
         g = rd["total"]
+        # the line's pack count: a weight with no count is a single; an mg figure with no count leaves it unread (R129)
+        pk = None if g is None else (rd["count"] or (1 if rd["unit"] == "g" else None))
         if g is None:
             flags.append("DOSE_UNREAD")
         reads.append((len(out), rd))
         at = f"{'?' if g is None else format(g, 'g')}g"
-        hits = body_hits(live, brand, desc_n, dtoks, g, fl, stated0, rkey0) if brand and not brand_is_new else []
+        hits = body_hits(live, brand, desc_n, dtoks, g, fl, stated0, rkey0, pk) if brand and not brand_is_new else []
         if hits:
             if len(hits) > 1:
                 flags.append("AMBIGUOUS_MATCH")
@@ -872,7 +946,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
-        rhits = body_hits(old, brand, desc_n, dtoks, g, fl, stated0, rkey0) if brand and not brand_is_new else []
+        rhits = body_hits(old, brand, desc_n, dtoks, g, fl, stated0, rkey0, pk) if brand and not brand_is_new else []
         if rhits:
             if len(rhits) > 1:
                 flags.append("AMBIGUOUS_MATCH")
@@ -896,11 +970,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             continue
         if not brand:
             brand_is_new = True
-        lanes = lanes_of(live, brand, dtoks, g) if not brand_is_new else {}
+        lanes = lanes_of(live, brand, dtoks, g, pk) if not brand_is_new else {}
         from_retired = False
         cat_dir0 = direction(line_categories, ln.get("line_no"))
         if not lanes and not brand_is_new:
-            m = form_unread_hit(live, vocab, brand, desc_n, dtoks, g, fl, cat_dir0)
+            m = form_unread_hit(live, vocab, brand, desc_n, dtoks, g, fl, cat_dir0, pk)
             if m is not None:
                 flags.append("FORM_UNREAD")
                 fill_from(row, m)
@@ -913,11 +987,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                 out.append(row)
                 continue
             if cat_dir0:
-                lanes = lanes_in_category(live, brand, cat_dir0, g)
+                lanes = lanes_in_category(live, brand, cat_dir0, g, pk)
                 if lanes:
                     flags.append("CATEGORY_DIRECTED")
         if not lanes and not brand_is_new:
-            lanes = lanes_of(old, brand, dtoks, g) or (lanes_in_category(old, brand, cat_dir0, g) if cat_dir0 else {})
+            lanes = lanes_of(old, brand, dtoks, g, pk) or (lanes_in_category(old, brand, cat_dir0, g, pk) if cat_dir0 else {})
             from_retired = bool(lanes)
         if not lanes:
             # a NEW line: the brand (an item, a Brand record, a direction) carries nothing it fits

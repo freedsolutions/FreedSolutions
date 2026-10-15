@@ -15,6 +15,7 @@ import fnmatch
 import os
 import re
 import sys
+import unicodedata
 from datetime import datetime
 
 sys.dont_write_bytecode = True
@@ -121,9 +122,15 @@ def body_of(name):
     return p[2] if len(p) >= 3 else ""
 
 
+def fold(s):
+    """Accents folded to their base letter (`Piña` -> `Pina`, `Jalapeño` -> `Jalapeno`): a vendor and the catalog
+    spell one name with and without the mark."""
+    return "".join(ch for ch in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(ch))
+
+
 def norm(s):
-    """Lowercase, punctuation to spaces, single-spaced. Phrase tests run on this form."""
-    s = (s or "").lower().replace("&", " and ")
+    """Accents folded, lowercase, punctuation to spaces, single-spaced. Phrase tests run on this form."""
+    s = fold(s).lower().replace("&", " and ")
     s = re.sub(r"[^a-z0-9.]+", " ", s)
     return " ".join(s.split())
 
