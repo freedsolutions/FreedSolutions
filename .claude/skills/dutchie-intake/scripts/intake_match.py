@@ -1190,7 +1190,9 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                                         form=form_word(near.get("Product"))) if brand else (None, None)
             st_dir = direction(strain_types, ln.get("line_no")) or ""
             st_type, _, st_src = st_dir.partition("@")
-            reason = ((f"new brand {brand!r}: create the Brand record first (live Global Brand read, R30; display name "
+            brand_txt = (repr(brand) if brand else      # BRAND_NAME_UNREAD: no spelling to print, say how to give one
+                         f"(name unread - pass --line-brand {ln.get('line_no', '?')}=<Display name>)")
+            reason = ((f"new brand {brand_txt}: create the Brand record first (live Global Brand read, R30; display name "
                        f"per R121); then " if brand_is_new else f"new line under {brand!r}: ")
                       + f"no lane at {at} {form}; "
                       + (f"closest active item by subcategory, any brand ({src_brand!r}), in Master category {mc!r}"
@@ -2081,6 +2083,9 @@ def selftest():
     t.check("NEW_BRAND fires with BRAND_NAME_UNREAD when nothing spells the brand; a copy source is still found",
             r["verdict"] == "NEW_BRAND" and "BRAND_NAME_UNREAD" in r["flags"].split(";") and r["copy_source_sku"] == "1"
             and r["lane_Brand"] == "" and r["action"].startswith("CREATE"), f"{r['verdict']} {r['flags']} {r['copy_source_sku']} {r['lane_Brand']!r}")
+    t.check("BRAND_NAME_UNREAD reason says how to name the brand, never prints None",
+            "None" not in r["sibling_reason"] and "name unread - pass --line-brand 1=<Display name>" in r["sibling_reason"],
+            r["sibling_reason"][:120])
     r = run("Zed Gelato preroll 1g", vendor="Other Co", line_brands={"1": "Zed"})
     t.check("NEW_BRAND with --line-brand: a CREATE, cross-brand copy, Brand = the operator's spelling, name drafted",
             r["verdict"] == "NEW_BRAND" and "BRAND_NAME_UNREAD" not in r["flags"] and "CROSS_BRAND_COPY" in r["flags"]
