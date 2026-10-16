@@ -34,6 +34,8 @@
 //      declared" (M1 fails against the pre-2026-09-27 gate); a declared element or another path still fails.
 //   N. a titled text header is named by its `title_text` in the scope match and the new-tile check
 //      (N1/N2 fail against the pre-2026-10-14 gate); a blank spacer and a vis title are unchanged.
+//   O. a folder Look retired on its own (`scope.retired_looks`) moves the estate; an undeclared,
+//      unapplied or query-moved Look fails `scope <id> looks` (O1 fails against the pre-2026-10-15 gate).
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -1361,6 +1363,68 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
   }
 }
 
+// =============================================================================================
+// O. A FOLDER LOOK IS RETIRED ON ITS OWN (2026-10-15).
+//
+// An estate file can carry a board's folder Looks at its top level (`{sandbox, looks}`). The scope
+// diff read only `sandbox`, so retiring a Look (board unchanged) read `estate <id> moved` ✘ — an
+// unapplied build — however cleanly it landed. O1 is the new guard (FAILS against the pre-2026-10-15
+// gate); O2-O4 are the controls: an undeclared Look removal, a declared Look still listed, and a Look
+// whose query moved all fail `scope <id> looks`.
+// =============================================================================================
+{
+  const BRD = '99995';
+  const vis = (id, title) => ({ id, type: 'vis', title, query_id: 'q' + id });
+  const look = (id, title, q) => ({ id, title, query_id: q, query: { id: q, model: 'm', view: 'v', fields: ['a'] } });
+  function lookRun(curLooks, retiredLooks) {
+    buildClean();
+    const w = (f, o) => fs.writeFileSync(path.join(EST, f), JSON.stringify(o, null, 2));
+    const sandbox = t => ({ harvested_at: t, elements: [vis('700001', 'Tile O')], filters: [] });
+    w('estate-' + BRD + '-and-looks.pre-fx.json', { sandbox: sandbox('2026-09-09T00:00:00.000Z'),
+      looks: [look('80001', 'Look Retired', 'QA'), look('80002', 'Look Kept', 'QB')] });
+    w('estate-' + BRD + '-and-looks.json', { sandbox: sandbox('2026-09-10T00:00:00.000Z'), looks: curLooks });
+    fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'), kickoff({
+      rules: ['R1'], seals: { R1: sha1(RULE1) }, done: false, kpath: 'retire',
+      dashboards: [BRD], baseline: { [BRD]: 'estate-' + BRD + '-and-looks.pre-fx.json' },
+      scope: { elements: [], retired_looks: retiredLooks },
+    }));
+    return runBuild('fx-kickoff-2026-09-08.md');
+  }
+  const kept = look('80002', 'Look Kept', 'QB');
+  // O1 — THE NEW GUARD. A declared Look retire, board unchanged → the estate moved, looks in scope.
+  {
+    const r = lookRun([kept], ['80001']);
+    check('O1: a declared Look retire reads `scope looks` ✔',
+      mark(r.out, 'scope ' + BRD + ' looks') === '✔' && line(r.out, 'scope ' + BRD + ' looks').includes('80001'),
+      line(r.out, 'scope ' + BRD + ' looks').trim() || '(absent)');
+    check('O1: …and the board is not read as an unapplied build',
+      mark(r.out, 'estate ' + BRD + ' moved') === '(absent)', line(r.out, 'estate ' + BRD + ' moved').trim() || '(absent)');
+  }
+  // O2 — an undeclared Look removal fails, naming it.
+  {
+    const r = lookRun([kept], []);
+    check('O2: an undeclared Look removal fails `scope looks`, naming it',
+      mark(r.out, 'scope ' + BRD + ' looks') === '✘' && line(r.out, 'scope ' + BRD + ' looks').includes('80001 "Look Retired"'),
+      line(r.out, 'scope ' + BRD + ' looks').trim() || '(absent)');
+    check('O2: …and with nothing declared the board still reads unmoved',
+      mark(r.out, 'estate ' + BRD + ' moved') === '✘', line(r.out, 'estate ' + BRD + ' moved').trim() || '(absent)');
+  }
+  // O3 — a declared Look still in the live list fails (the retire was not applied).
+  {
+    const r = lookRun([look('80001', 'Look Retired', 'QA'), kept], ['80001']);
+    check('O3: a declared Look still listed fails `scope looks`',
+      mark(r.out, 'scope ' + BRD + ' looks') === '✘' && /still listed/.test(line(r.out, 'scope ' + BRD + ' looks')),
+      line(r.out, 'scope ' + BRD + ' looks').trim() || '(absent)');
+  }
+  // O4 — a kept Look whose query moved fails, even beside a clean declared retire.
+  {
+    const r = lookRun([look('80002', 'Look Kept', 'QZ')], ['80001']);
+    check('O4: a kept Look whose query moved fails `scope looks`, naming it',
+      mark(r.out, 'scope ' + BRD + ' looks') === '✘' && line(r.out, 'scope ' + BRD + ' looks').includes('80002 "Look Kept"'),
+      line(r.out, 'scope ' + BRD + ' looks').trim() || '(absent)');
+  }
+}
+
 // ---- report ---------------------------------------------------------------------------------
 let bad = 0;
 console.log('gate self-test — ' + GATE);
@@ -1384,6 +1448,7 @@ if (bad) {
   console.log('       and a minted rule with no DECISIONS row — or one recorded against a SIBLING');
   console.log('       kickoff — reddens, while a cite-only rule and an unratified plan do not;');
   console.log('       and a new tile is checked against the guide of the board that carries it,');
-  console.log('       a titled text header included (by its title_text).');
+  console.log('       a titled text header included (by its title_text);');
+  console.log('       and a folder Look retires on its own, declared in scope.retired_looks.');
 }
 process.exit(bad ? 1 : 0);

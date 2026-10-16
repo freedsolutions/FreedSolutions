@@ -22,7 +22,8 @@
 //                   or refreshes; each must exist in the estate dir at build phase. A `sync` of
 //                   a reference artifact names it HERE instead of naming a dashboard.
 //   scope           { elements: [ids the build may change], new_elements: [titles], retired_elements: [ids],
-//                     retired_titles: [titles that must vanish from the docs], filters: true|false }
+//                     retired_titles: [titles that must vanish from the docs], filters: true|false,
+//                     retired_looks: [folder Look ids, read from the estate file's top-level `looks`] }
 //   baseline        estate-<id>.pre-<slug>.json captured before the build (one board) or {id: file}
 //   retire_needles  strings that must be gone from every executable surface after the build (--verify)
 //   ratified        true once Adam has ruled on every "Open for Adam" row
@@ -864,7 +865,29 @@ for (const id of H.dashboards) {
     if (!offScope.length && !offAdded.length && !offRemoved.length) ok('scope ' + id, changed.length + ' changed, ' + added.length + ' added, ' + removed.length + ' removed — all in scope');
     // Spacers do not count as evidence the build landed — a blank tile someone else added must not
     // satisfy this check on behalf of a build that never wrote anything.
-    const realAdded = added.length - addedSpacers.length, realRemoved = removed.length - removedSpacers.length;
+    // FOLDER LOOKS (2026-10-15). An estate file may carry the board's folder Looks at its top level
+    // (`{sandbox, looks}`), and a Look can be retired on its own (`scope.retired_looks`). Read only the
+    // board's `sandbox`, a Look retire moved nothing and read as an unapplied build. A Look that left the
+    // live list, or whose query changed, must be declared in `scope.retired_looks`; a declared one that
+    // is still listed fails — the build was not applied.
+    const looksOf = f => { const d = JSON.parse(read(path.join(EST_DIR, f))); return Array.isArray(d.looks) ? d.looks : null; };
+    const la = looksOf(base), lb = looksOf(cur);
+    const retiredLooks = (H.scope.retired_looks || []).map(String);
+    let looksMoved = 0;
+    if (la || lb || retiredLooks.length) {
+      const LA = Object.fromEntries((la || []).map(l => [String(l.id), l])), LB = Object.fromEntries((lb || []).map(l => [String(l.id), l]));
+      const lSig = l => JSON.stringify(l.query || null) + '|' + (l.query_id || '');
+      const lRemoved = Object.keys(LA).filter(k => !LB[k]);
+      const lAdded = Object.keys(LB).filter(k => !LA[k]);
+      const lChanged = Object.keys(LB).filter(k => LA[k] && lSig(LA[k]) !== lSig(LB[k]));
+      const lOff = [...lRemoved.filter(k => !retiredLooks.includes(k)), ...lAdded, ...lChanged];
+      const lStill = retiredLooks.filter(k => LB[k]);
+      if (lOff.length) fail('scope ' + id + ' looks', lOff.map(k => k + ' "' + ((LB[k] || LA[k]).title || '') + '"').join('; ') + ' — moved but not in scope.retired_looks');
+      else if (lStill.length) fail('scope ' + id + ' looks', lStill.join(', ') + ' still listed in ' + cur + ' — the retire was not applied or not re-harvested');
+      else ok('scope ' + id + ' looks', lRemoved.length + ' retired (' + (lRemoved.join(', ') || 'none') + '), ' + Object.keys(LB).length + ' still listed — all in scope');
+      looksMoved = lRemoved.filter(k => retiredLooks.includes(k)).length;
+    }
+    const realAdded = added.length - addedSpacers.length, realRemoved = removed.length - removedSpacers.length + looksMoved;
     // A `config` change that DECLARES no BI surface (every scope list empty, filters false) re-harvests its
     // boards only to prove the labels moved and nothing else did, so "no element differs" is the expected
     // verdict there, not evidence of an unapplied build (2026-09-27, brand-rename wave). Any non-empty scope
