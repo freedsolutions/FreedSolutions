@@ -66,8 +66,11 @@ taxonomy lacks):
                           with no count reads no pack on either side: no pack test
                           A flavor-led line `(S|I|H) <Flavor> <Form>[ <ratio>]` meets body
                           `<Flavor>[ <Effect>] (<type or ratio>)` by layout (`flavor_led`); the ratio
-                          compares unordered (`ratio_key`), for matching only - never for a create name
-  RETIRED_MATCH           the same match, on a retired item only -> UN-RETIRE: the item's product line
+                          compares unordered (`ratio_key`), for matching only - never for a create name.
+                          A flavored item also meets a line on its Flavor cell when that Flavor is the line's
+                          WHOLE flavor phrase, read by layout up to the form word (`flavor_run_ok`): a longer
+                          phrase (`Raspberry Lemonade` vs `Raspberry`) is another product
+  RETIRED_MATCH          the same match, on a retired item only -> UN-RETIRE: the item's product line
                           (the R50 lane) comes back whole; `unretire_set` lists every retired member;
                           Cost from the invoice, Price confirmed current, tag = the Active tag
   NEW_ITEM_WITH_SIBLING   no match; the R50 lane (Brand + Category + grams + Form word) has an active
@@ -329,7 +332,7 @@ def cap_for(mc, package_caps, fallback=DEFAULT_PACKAGE_THC_CAP_MG, cat=None):
     return package_caps[norm(mc)], mc
 
 
-def line_mc(rows_live, rows_old, brand, brand_is_new, desc_n, dtoks, fl, stated, rkey, cat_dir, tax):
+def line_mc(rows_live, rows_old, brand, brand_is_new, desc_n, dtoks, fl, stated, rkey, cat_dir, tax, desc=None):
     """(Master category, Category | None) the line is read against BEFORE its grams are known (R130: the dose
     read's cap is the target Category exception's, else its master's). In order: the operator's Category direction;
     the items brand + body + form hit at any grams (active, then retired) when they agree on one master (the
@@ -338,7 +341,7 @@ def line_mc(rows_live, rows_old, brand, brand_is_new, desc_n, dtoks, fl, stated,
         return tax[norm(cat_dir)][0], cat_dir
     if brand and not brand_is_new:
         for rows in (rows_live, rows_old):
-            hits = body_hits(rows, brand, desc_n, dtoks, None, fl, stated, rkey)
+            hits = body_hits(rows, brand, desc_n, dtoks, None, fl, stated, rkey, desc=desc)
             mcs = {r.get("Master category", "") for r in hits}
             if len(mcs) == 1 and next(iter(mcs)):
                 cats = {r.get("Category", "") for r in hits}
@@ -524,13 +527,43 @@ def body_hit(desc_n, body, fl):
     return has_phrase(desc_n, body) or flavor_led_hit(fl, body)
 
 
-def flavor_cell_hit(r, desc_n, stated, rkey=None):
+_SEG_BREAK_RE = re.compile(r"\s+[-–—]\s+|[|·()\[\],;/]")
+_RUN_STOP = {norm(t) for t in STRAIN_TYPES} | set(STRAIN_LETTERS)
+
+
+def flavor_run_ok(r, desc, flav):
+    """The layout guard on a Flavor-cell hit. The line's flavor phrase runs from the item's Flavor to the next form
+    word (the item's own, or a canonical FORM_SYNONYMS token), Strain Type word, number or segment break (` - `, `|`,
+    `·`, a parenthesis). The hit stands when that phrase IS the Flavor, or is a phrase of the item's own body
+    (`Pomegranate Restore` on body `Pomegranate Restore (1:1 THC:CBD)`). A LONGER flavor is another product:
+    `Raspberry Lemonade Gummies` never meets Flavor `Raspberry`."""
+    ftoks = canon(flav).split()
+    forms = [canon(form_word(r.get("Product"))).split()] + [[c] for c in FORM_SYNONYMS]
+    body = " " + canon(body_of(r.get("Product")) or r.get("Strain", "")) + " "
+    k = len(ftoks)
+    for seg in _SEG_BREAK_RE.split(desc or ""):
+        toks = canon(seg).split()
+        for i in range(len(toks) - k + 1):
+            if not k or toks[i:i + k] != ftoks:
+                continue
+            j = i + k
+            while j < len(toks) and not (toks[j] in _RUN_STOP or re.search(r"\d", toks[j])
+                                         or any(f and toks[j:j + len(f)] == f for f in forms)):
+                j += 1
+            run = " ".join(toks[i:j])
+            if j == i + k or " " + run + " " in body:
+                return True
+    return False
+
+
+def flavor_cell_hit(r, desc_n, stated, rkey=None, desc=None):
     """A FLAVORED item (its Flavor cell is set) is the line's item when the line prints that Flavor and states no
     Strain Type that contradicts the item's (`S'mores Cheesecake` + `Hybrid` meets a Hybrid `S'mores Cheesecake (THC)`
     whose Strain Type is Hybrid). The body's own parenthesis is not required on the line: a vendor prints the
-    flavor, not our composition paren."""
+    flavor, not our composition paren. The Flavor must be the line's WHOLE flavor phrase (flavor_run_ok, by layout
+    on the raw line `desc`; without it the normalised line is one segment)."""
     flav = (r.get("Flavor") or "").strip()
-    if not flav or not has_phrase(desc_n, flav):
+    if not flav or not has_phrase(desc_n, flav) or not flavor_run_ok(r, desc if desc is not None else desc_n, flav):
         return False
     if ratio_key(r.get("Strain") or "") != rkey:   # a ratio item and a ratio line agree on the ratio, or neither prints one
         return False
@@ -539,14 +572,15 @@ def flavor_cell_hit(r, desc_n, stated, rkey=None):
     return norm(stated) in (norm(r.get("Strain Type")), norm(r.get("Strain")))
 
 
-def body_hits(rows, brand, desc_n, dtoks, g, fl=None, stated="", rkey=None, pk=None):
-    """The rows brand + body + grams + pack (`pk`, pack_agrees) + form hit, at the best body length and form score."""
+def body_hits(rows, brand, desc_n, dtoks, g, fl=None, stated="", rkey=None, pk=None, desc=None):
+    """The rows brand + body + grams + pack (`pk`, pack_agrees) + form hit, at the best body length and form score.
+    `desc` = the raw line, for the Flavor-cell layout guard (flavor_run_ok)."""
     hits = []
     for r in rows:
         if not same_brand(r.get("Brand"), brand):
             continue
         body = body_of(r.get("Product")) or r.get("Strain", "")
-        if not body or not (body_hit(desc_n, body, fl) or (fl is None and flavor_cell_hit(r, desc_n, stated, rkey))):
+        if not body or not (body_hit(desc_n, body, fl) or (fl is None and flavor_cell_hit(r, desc_n, stated, rkey, desc))):
             continue
         if g is not None and not grams_eq(r.get("Product grams"), g):
             continue
@@ -922,7 +956,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
         # R129 + R130: per piece when piece x count fits the TARGET Master category's package cap, else the package
         # total. The master is read first (line_mc); a new line re-reads below if its final master differs.
         mc0, cat0 = line_mc(live, old, brand, brand_is_new, desc_n, dtoks, fl, stated0, rkey0,
-                            direction(line_categories, ln.get("line_no")), tax)
+                            direction(line_categories, ln.get("line_no")), tax, desc)
         rd = dose_read(desc, *cap_for(mc0, package_caps, package_cap_mg, cat0))
         g = rd["total"]
         # the line's pack count: a weight with no count is a single; an mg figure with no count leaves it unread (R129)
@@ -931,7 +965,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             flags.append("DOSE_UNREAD")
         reads.append((len(out), rd))
         at = f"{'?' if g is None else format(g, 'g')}g"
-        hits = body_hits(live, brand, desc_n, dtoks, g, fl, stated0, rkey0, pk) if brand and not brand_is_new else []
+        hits = body_hits(live, brand, desc_n, dtoks, g, fl, stated0, rkey0, pk, desc) if brand and not brand_is_new else []
         if hits:
             if len(hits) > 1:
                 flags.append("AMBIGUOUS_MATCH")
@@ -946,7 +980,7 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             row["flags"] = ";".join(flags)
             out.append(row)
             continue
-        rhits = body_hits(old, brand, desc_n, dtoks, g, fl, stated0, rkey0, pk) if brand and not brand_is_new else []
+        rhits = body_hits(old, brand, desc_n, dtoks, g, fl, stated0, rkey0, pk, desc) if brand and not brand_is_new else []
         if rhits:
             if len(rhits) > 1:
                 flags.append("AMBIGUOUS_MATCH")

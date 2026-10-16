@@ -455,6 +455,35 @@ def fl_create_keeps_canon(c):
             and r["strain"] == "Restore (1:1 THC:CBD)" and "CBD:THC" not in r["create_name_FINAL"] + r["online_title"])
 
 
+FC_LINES = rows_of("flavor-cell-lines.csv")
+
+
+def fc_ctx(guard=True):
+    """Flavor-cell fixture on the flavor-led catalog: lines OUTSIDE the flavor-led layout, so a flavored item meets
+    them on its Flavor cell. Line 1 prints a LONGER flavor (`Raspberry Lemonade`) than item 4001's `Raspberry`;
+    line 2 prints `Raspberry` whole after a sub-line word; line 3 prints `Pomegranate Restore`, item 4004's Flavor
+    plus its body word. guard=False runs the matcher without the layout guard (flavor_run_ok: the pre-fix matcher)."""
+    c = fl_ctx()
+    c.update(lines=copy.deepcopy(FC_LINES), guard=guard)
+    return c
+
+
+def fc_rows(c):
+    real = IM.flavor_run_ok
+    if not c["guard"]:
+        IM.flavor_run_ok = lambda *a: True
+    try:
+        return fl_rows(c)
+    finally:
+        IM.flavor_run_ok = real
+
+
+def fc_is(c, no, sku):
+    """Line `no` is EXISTS on `sku`; sku=None = the line is NOT EXISTS on any item."""
+    r = fc_rows(c)[no]
+    return r["verdict"] != "EXISTS" if sku is None else (r["verdict"] == "EXISTS" and r["copy_source_sku"] == sku)
+
+
 SG = {"active": rows_of("spelling-grain-active.csv"), "lines": rows_of("spelling-grain-lines.csv"),
       "strains": IM.load_strains(fx("spelling-grain-strains.csv")), "brands": rows_of("spelling-grain-brands.csv")}
 # The three reads the 2026-10-08 batch lacked, each switched off by its breaker (the pre-fix matcher):
@@ -977,6 +1006,14 @@ CHECKS = [
      fl_create_keeps_canon, fl_ctx(),
      fl_ctx(strains={k: v for k, v in FL["strains"].items() if k != "Restore (1:1 THC:CBD)"}),
      "delete the brand's Restore strain record"),
+    ("flavor cell: a LONGER flavor on the line (`Raspberry Lemonade`) never EXISTS on the item whose Flavor is its prefix "
+     "(`Raspberry`); the whole flavor still EXISTS",
+     lambda c: fc_is(c, "1", None) and fc_is(c, "2", "4001"), fc_ctx(), fc_ctx(guard=False),
+     "no layout guard: the line merely CONTAINING the Flavor takes the item"),
+    ("flavor cell: the line's flavor phrase may run on into the item's own body words (`Pomegranate Restore` on "
+     "`Pomegranate Restore (1:1 THC:CBD)`) - EXISTS",
+     lambda c: fc_is(c, "3", "4004"), fc_ctx(), fl_body(fc_ctx(), "4004", "Pomegranate (1:1 THC:CBD)"),
+     "the item's body drops `Restore`: the line's phrase is longer than anything the item names"),
     ("brand spelling: `TwinOak` on the line is catalog brand `Twin Oak` (space- and case-insensitive) - EXISTS",
      lambda c: sg_is(c, "1", "EXISTS", "6003"), sg_ctx(), sg_ctx("brand"),
      "brands compare as norm: the space counts, the line names no brand"),

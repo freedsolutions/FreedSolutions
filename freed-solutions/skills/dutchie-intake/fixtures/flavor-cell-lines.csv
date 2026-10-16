@@ -1,0 +1,4 @@
+"invoice_no","invoice_date","vendor","line_no","description","cases","units_total","case_cost","unit_cost","ext_cost","potency_tac_pct","container","coa_url","expiry_date","is_order_level","order_level_kind","po_ref","parse_source"
+"NW-2003","2026-10-14","Northwind Distribution","1","Acme Farms | Juniper - Raspberry Lemonade Gummies | Edibles & Drinks · Gummies | 100mg per unit (10mg x 10pk)","1","40","440.00","11.00","440.00","","","","","N","","","lines:flavor-cell-lines.csv"
+"NW-2003","2026-10-14","Northwind Distribution","2","Acme Farms | Juniper - Raspberry Gummies | Edibles & Drinks · Gummies | 100mg per unit (10mg x 10pk)","1","40","440.00","11.00","440.00","","","","","N","","","lines:flavor-cell-lines.csv"
+"NW-2003","2026-10-14","Northwind Distribution","3","Acme Farms | Pomegranate Restore Gummies 1:1 THC:CBD | Edibles & Drinks · Gummies | 100mg per unit (10mg x 10pk)","1","40","440.00","11.00","440.00","","","","","N","","","lines:flavor-cell-lines.csv"
