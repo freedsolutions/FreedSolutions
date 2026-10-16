@@ -1345,6 +1345,12 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - A percent is stored as a fraction: `DiscountValue` 0.5 = 50 % off.
 - The detail route is `/marketing/discounts/all/discount/<id>` (pushState + popstate); a row click does not open it.
   Archived discounts load through the same route with `IsDeleted` = true.
+- **A proposed discount gets its business read BEFORE the build** [2026-10-14]: the tenant's
+  `scripts/promo_proposal_read.py <spec> --psql` (or `--emit-sql` → Neon MCP → `--warehouse <result>`) writes on
+  hand + expiry, 2/8-week velocity, units by discount on the scope (giveaways too), carts per spend band on matching weekdays,
+  50/70/100 % uptake, cost per redemption and the self-qualifying-reward leak. Warehouse `total_amount` carries tax;
+  a spend requirement reads the PRE-TAX price of the qualifying items [PROBE 2026-10-15, sandbox ring-up],
+  so band carts on the pre-tax amount.
 
 ### Building and editing a discount in the wizard [PROBE 2026-09-27/30, discount build lanes]
 
