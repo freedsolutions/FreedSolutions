@@ -1,0 +1,4 @@
+"invoice_no","invoice_date","vendor","line_no","description","cases","units_total","case_cost","unit_cost","ext_cost","potency_tac_pct","container","coa_url","expiry_date","is_order_level","order_level_kind","po_ref","parse_source"
+"NW-2004","2026-10-15","Northwind Distribution","1","Acme Farms | ACME FARMS - Raspberry Gummies - 100mg - 10ct | Edibles & Drinks · Gummies","1","40","440.00","11.00","440.00","","","","","N","","","lines:sub-line-lines.csv"
+"NW-2004","2026-10-15","Northwind Distribution","2","Acme Farms | Pebbles - Raspberry Lemonade Gummies - 100mg - 10ct | Edibles & Drinks · Gummies","1","40","440.00","11.00","440.00","","","","","N","","","lines:sub-line-lines.csv"
+"NW-2004","2026-10-15","Northwind Distribution","3","Acme Farms | ACME FARMS - Lemonade Gummies - 100mg - 10ct | Edibles & Drinks · Gummies","1","40","440.00","11.00","440.00","","","","","N","","","lines:sub-line-lines.csv"

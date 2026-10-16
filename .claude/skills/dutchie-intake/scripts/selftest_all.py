@@ -521,6 +521,59 @@ def sg_is(c, no, verdict, sku=None, **kv):
     return r["verdict"] == verdict and (sku is None or r["copy_source_sku"] == sku) and all(r.get(k) == v for k, v in kv.items())
 
 
+SL = {"lines": rows_of("sub-line-lines.csv"), "strains": IM.load_strains(fx("sub-line-strains.csv"))}
+# The two layout reads the 10/8 SO line 11 lacked, each switched off by its breaker (the pre-fix matcher):
+#   lead = no brand slot (a catalog brand named anywhere on the line is its brand); run = a flavored lane takes any
+#   Strain-record phrase; slot = every column's lead is a brand slot, with or without a brand leading a line there.
+SL_OFF = {"lead": [(IM, "lead_of", lambda d: None)], "run": [(IM, "whole_run", lambda *a: True)],
+          "slot": [(IM, "brand_slots", lambda lines, known: {((ln.get("invoice_no") or "").strip(), IM.brand_key(lo[0]))
+                                                             for ln in lines for lo in [IM.lead_of(ln.get("description"))] if lo})]}
+
+
+def sl_ctx(off=None, lines="sub-line", line_brands=None):
+    """Sub-line fixture on the flavor-led catalog: lines `Acme Farms | <lead> - <Flavor> Gummies - 100mg - 10ct`. Lines
+    1 and 3 lead with the brand (the invoice's brand slot); line 2 leads with `Pebbles`, another brand's line word,
+    and prints `Raspberry Lemonade`, inside which sits Strain record `Lemonade`; line 3 prints `Lemonade` whole.
+    lines="flavor-cell" runs the flavor-cell lines (a sub-line lead `Juniper` with no brand in any line's slot).
+    `off` names the read the breaker switches off (SL_OFF); `line_brands` = --line-brand directions."""
+    c = fl_ctx()
+    c.update(lines=copy.deepcopy(SL["lines"] if lines == "sub-line" else FC_LINES), off=off, line_brands=line_brands or {})
+    if lines == "sub-line":
+        c["strains"] = SL["strains"]
+    return c
+
+
+def sl_rows(c):
+    saved = [(m, n, getattr(m, n)) for m, n, _ in SL_OFF.get(c["off"], [])]
+    for m, n, v in SL_OFF.get(c["off"], []):
+        setattr(m, n, v)
+    try:
+        rows = IM.match(c["lines"], BASE["active"] + c["active"], [], c["strains"], drop_tags=DROP,
+                        line_brands=c["line_brands"])[0]
+    finally:
+        for m, n, v in saved:
+            setattr(m, n, v)
+    return {ln["line_no"]: r for ln, r in zip(c["lines"], rows)}
+
+
+def sl_slot_unread(c):
+    """Line 2's `Pebbles` lead reads no brand (NEW_BRAND, BRAND_NAME_UNREAD, the reason names the word), while lines 1
+    and 3 under the same column still read the brand: 1 EXISTS on 4001, 3 copies the brand's gummy lane."""
+    r = sl_rows(c)
+    return (r["2"]["verdict"] == "NEW_BRAND" and "BRAND_NAME_UNREAD" in r["2"]["flags"].split(";")
+            and r["2"]["lane_Brand"] == "" and "'Pebbles' leads the product segment" in r["2"]["sibling_reason"]
+            and r["1"]["verdict"] == "EXISTS" and r["1"]["copy_source_sku"] == "4001"
+            and r["3"]["verdict"] == "NEW_ITEM_WITH_SIBLING" and r["3"]["lane_Brand"] == "Acme Farms")
+
+
+def sl_strain_whole_run(c):
+    """Directed to a new brand, line 2 copies a flavored gummy and takes NO Strain record out of `Raspberry Lemonade`
+    (STRAIN_MISSING); line 3 prints `Lemonade` as its whole run and takes the record."""
+    r = sl_rows(c)
+    return (r["2"]["verdict"] == "STRAIN_MISSING" and r["2"]["strain"] == "" and "Lemonade" not in r["2"]["create_name_FINAL"]
+            and r["3"]["strain"] == "Lemonade" and r["3"]["create_name_FINAL"] == "Acme Farms | Gummies | Lemonade | 10mg x 10pk")
+
+
 GUMMY_SRC = dict(BASE["active"][3], SKU="3101", ProductId="711", Brand="Birch Labs", Strain="", Flavor="Lime",
                  Product="Birch Labs | Gummies | Lime | 100mg", Category="Gummies", Tags="Status - Live",
                  **{"Master category": "Edible", "Global SubCategory": "gummies", "Product grams": "0.1g",
@@ -1014,6 +1067,19 @@ CHECKS = [
      "`Pomegranate Restore (1:1 THC:CBD)`) - EXISTS",
      lambda c: fc_is(c, "3", "4004"), fc_ctx(), fl_body(fc_ctx(), "4004", "Pomegranate (1:1 THC:CBD)"),
      "the item's body drops `Restore`: the line's phrase is longer than anything the item names"),
+    ("brand slot: a non-brand word leading the product segment where the invoice's other lines under the column lead "
+     "with the brand (`Pebbles - ...`) reads NO brand - NEW_BRAND + BRAND_NAME_UNREAD, never the column's brand",
+     sl_slot_unread, sl_ctx(), sl_ctx("lead"),
+     "no brand slot: the column's catalog brand, named anywhere on the line, is the line's brand"),
+    ("brand slot: a sub-line lead with NO brand in any line's slot on the invoice (`Juniper - Raspberry`) stays the "
+     "column brand's - EXISTS",
+     lambda c: sl_rows(c)["2"]["verdict"] == "EXISTS" and sl_rows(c)["2"]["copy_source_sku"] == "4001",
+     sl_ctx(lines="flavor-cell"), sl_ctx("slot", lines="flavor-cell"),
+     "every column's lead is a slot, without a brand leading any line there"),
+    ("flavored lane: a Strain record must be the WHOLE word run it sits in - `Lemonade` out of `Raspberry Lemonade` "
+     "is a flavor word (STRAIN_MISSING); `Lemonade Gummies` takes the record",
+     sl_strain_whole_run, sl_ctx(line_brands={"2": "Cedar Co"}), sl_ctx("run", line_brands={"2": "Cedar Co"}),
+     "no run guard: the longest record phrase anywhere in the line is the Strain"),
     ("brand spelling: `TwinOak` on the line is catalog brand `Twin Oak` (space- and case-insensitive) - EXISTS",
      lambda c: sg_is(c, "1", "EXISTS", "6003"), sg_ctx(), sg_ctx("brand"),
      "brands compare as norm: the space counts, the line names no brand"),

@@ -90,7 +90,15 @@ taxonomy lacks):
   NEW_BRAND               no catalog brand, Brand record or direction names the line's brand -> CREATE:
                           the Brand record first (a live Global Brand read, R30; display name per R121,
                           as the operator spells it), then the line as a NEW_PL copy. With no spelling
-                          (BRAND_NAME_UNREAD) the row has no brand yet and is never created as it stands
+                          (BRAND_NAME_UNREAD) the row has no brand yet and is never created as it stands.
+                          The brand is read by layout first (`lead_of`, `brand_slots`): a known brand that
+                          LEADS the product segment (`<Column> | <Brand> - <product> - ...`) is the line's
+                          brand; where an invoice's lines under one column lead with a brand, a sibling line
+                          whose lead is NO known brand names another brand's line - no brand is read from the
+                          column or the vendor (BRAND_NAME_UNREAD). Elsewhere: any catalog brand on the line
+  STRAIN record read      a flavored lane (the source carries a Flavor) takes a Strain record only when it is
+                          the WHOLE word run it sits in (`whole_run`): `Lemonade` in `Raspberry Lemonade
+                          Gummies` is a flavor word, never the record
 For EXISTS / RETIRED_MATCH the copy_source_* columns carry the MATCHED record, not a copy source.
 
 Sibling = the lane member WITH an image first, then the newest ProductId, then the lowest SKU.
@@ -397,6 +405,31 @@ def has_brand(desc_n, brand):
     return brand_span(desc_n, brand) is not None
 
 
+_LEAD_RE = re.compile(r"\s+[-–—]\s+")
+
+
+def lead_of(desc):
+    """(column, lead) by layout: the line's first ` | ` segment (the brand column a vendor prints) and the words before
+    the first spaced dash of its second, the product segment (`Acme | ACME - Raspberry Gummies - 100mg` -> ('Acme',
+    'ACME')). None when the line prints no column, or its product segment no spaced dash."""
+    p = [x.strip() for x in re.split(r"\s+\|\s+", desc or "")]
+    m = _LEAD_RE.search(p[1]) if len(p) >= 2 and p[0] else None
+    lead = p[1][:m.start()].strip() if m else ""
+    return (p[0], lead) if lead else None
+
+
+def brand_slots(lines, known):
+    """The brand slots an invoice's layout shows: {(invoice_no, column key)} where at least one line under that column
+    leads its product segment with a known brand (`known(word)`). In such a slot a lead that is NOT a known brand is
+    another name - another brand's line word - never the column's brand."""
+    out = set()
+    for ln in lines:
+        lo = lead_of(ln.get("description"))
+        if lo and known(lo[1]):
+            out.add(((ln.get("invoice_no") or "").strip(), brand_key(lo[0])))
+    return out
+
+
 def strip_brand(desc_n, brand):
     """The line with the brand's words removed, however the line spaces them."""
     sp, toks = brand_span(desc_n, brand), desc_n.split()
@@ -614,29 +647,51 @@ def form_unread_hit(rows, vocab, brand, desc_n, dtoks, g, fl=None, cat=None, pk=
     return hits[0] if len(hits) == 1 else None
 
 
-def find_strain(desc_wo_brand_n, strains, flavored=False, stated="", rkey=None):
+def whole_run(desc, phrase, form="", brand=""):
+    """Layout: True when `phrase` is the WHOLE run of words it sits in, somewhere on the line. A run is bounded by a
+    segment break (` - `, `|`, `·`, a parenthesis ...), a form word (`form`, or a canonical FORM_SYNONYMS token), a
+    Strain Type word, a number or the brand's own words. `Lemonade` in `Raspberry Lemonade Gummies` sits inside the
+    longer run `Raspberry Lemonade`: a word of the flavor, not the phrase."""
+    ptoks, k = canon(phrase).split(), len(canon(phrase).split())
+    stops = _RUN_STOP | set(FORM_SYNONYMS) | set(canon(form).split()) | set(canon(brand).split())
+    stop = lambda t: t in stops or re.search(r"\d", t) is not None  # noqa: E731
+    for seg in _SEG_BREAK_RE.split(desc or ""):
+        toks = canon(seg).split()
+        for i in range(len(toks) - k + 1):
+            if not k or toks[i:i + k] != ptoks:
+                continue
+            if (i == 0 or stop(toks[i - 1])) and (i + k == len(toks) or stop(toks[i + k])):
+                return True
+    return False
+
+
+def find_strain(desc_wo_brand_n, strains, flavored=False, stated="", rkey=None, desc=None, form="", brand=""):
     """The Strain record the line names: the longest record phrase in the line, never a bare Strain Type word
     (`Indica` is a type the line prints, not a smokable's cultivar). On a FLAVORED lane (the source carries a
     Flavor) the type record IS the Strain when the line states the type, and it wins over any other phrase:
-    the body is then `<Flavor> (<Type>)`, which the operator completes (FLAVOR_TO_SET). A line that prints a
-    RATIO takes the ONE record with that ratio key (R26), never a cannabinoid word out of the ratio (`THC`)."""
+    the body is then `<Flavor> (<Type>)`, which the operator completes (FLAVOR_TO_SET). On a flavored lane a record
+    phrase must also be the WHOLE run it sits in on the raw line `desc` (whole_run): `Lemonade` out of `Raspberry
+    Lemonade` is a flavor word, not the record. A line that prints a RATIO takes the ONE record with that ratio key
+    (R26), never a cannabinoid word out of the ratio (`THC`)."""
     if rkey is not None:
         cands = [n for n in strains if ratio_key(n) == rkey]
         return cands[0] if len(cands) == 1 else None
     names = [n for n in strains if has_phrase(desc_wo_brand_n, n)]
     if flavored and stated and stated in strains:
         return stated
-    real = [n for n in names if n not in STRAIN_TYPES]
+    real = [n for n in names if n not in STRAIN_TYPES
+            and (not flavored or desc is None or whole_run(desc, n, form, brand))]
     return max(real, key=len) if real else None
 
 
-def line_strain(fl, live, brand, desc_n, strains, flavored=False, stated="", desc=None):
+def line_strain(fl, live, brand, desc_n, strains, flavored=False, stated="", desc=None, form=""):
     """(Strain record, name body or None) a create carries. A flavor-led line reads its record from its
-    layout only (`flavor_led_strain`): a ratio or stray token is never taken for a strain name."""
+    layout only (`flavor_led_strain`): a ratio or stray token is never taken for a strain name. `form` = the
+    copy source's form word, a run boundary for a flavored lane (find_strain)."""
     if fl:
         return flavor_led_strain(fl, live, brand, strains)
     return find_strain(strip_brand(desc_n, brand), strains, flavored, stated,
-                       ratio_key(desc if desc is not None else desc_n)), None
+                       ratio_key(desc if desc is not None else desc_n), desc, form, brand), None
 
 
 def body_known(strain, fbody):
@@ -928,8 +983,11 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
     for b in brands_items:
         catalog_brands.setdefault(brand_key(b), b)
     tax = taxonomy_of(categories, live, old)
+    known = lambda w: brand_key(w) in catalog_brands or brand_key(w) in brand_records  # noqa: E731
+    slots = brand_slots(lines, known)
     out, defects = [], []
     reads = []   # (index of the line's row in `out`, its dose read): DOSE_READ_TOTAL lands on create rows only
+    notes = []   # (index of the line's row in `out`, a brand-read note for its sibling_reason)
     for ln in lines:
         if (ln.get("order_level_kind") or "").strip():
             continue
@@ -945,7 +1003,17 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                      and (vendor_match(r.get("Vendor"), vend) or vendor_match(r["Brand"], vend))})
         named = [b for b in brands_items if has_brand(desc_n, b)]
         directed = direction(line_brands, ln.get("line_no"))
-        brand = directed or brand_override or (named[0] if named else (vb[0] if len(vb) == 1 else None))
+        # By layout (lead_of, brand_slots): a known brand leading the product segment is the line's brand; a word
+        # in a brand slot that is no known brand is another brand's line word, so the line reads no brand at all.
+        lo = lead_of(desc)
+        lead = lo[1] if lo and known(lo[1]) else None
+        slot_word = lo[1] if lo and not lead and ((ln.get("invoice_no") or "").strip(), brand_key(lo[0])) in slots else None
+        read = lead or (None if slot_word else (named[0] if named else (vb[0] if len(vb) == 1 else None)))
+        brand = directed or brand_override or read
+        if slot_word and not (directed or brand_override):
+            notes.append((len(out), f"{slot_word!r} leads the product segment where this invoice's other {lo[0]!r} "
+                                    f"lines print a brand: another brand's line word, so no brand is read from the "
+                                    f"column - pass --line-brand {ln.get('line_no', '?')}=<Brand>"))
         # A brand compares space- and case-insensitively (brand_key): the line's spelling resolves to the
         # catalog's, else to a Brand record's; only a name neither carries is a new brand.
         brand = catalog_brands.get(brand_key(brand), brand) if brand else brand
@@ -1118,7 +1186,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
             src_brand = near.get("Brand", "")
             stated = line_type(desc)
             strain, fbody = line_strain(fl, live, brand or src_brand, desc_n, strains,
-                                        flavored=bool(near.get("Flavor")), stated=stated, desc=desc) if brand else (None, None)
+                                        flavored=bool(near.get("Flavor")), stated=stated, desc=desc,
+                                        form=form_word(near.get("Product"))) if brand else (None, None)
             st_dir = direction(strain_types, ln.get("line_no")) or ""
             st_type, _, st_src = st_dir.partition("@")
             reason = ((f"new brand {brand!r}: create the Brand record first (live Global Brand read, R30; display name "
@@ -1236,7 +1305,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
                        f"and read them back before this copy (R101)")
         stated = line_type(desc)
         strain, fbody = line_strain(fl, live if not from_retired else live + members, brand, desc_n, strains,
-                                    flavored=bool(sib.get("Flavor")), stated=stated, desc=desc)
+                                    flavored=bool(sib.get("Flavor")), stated=stated, desc=desc,
+                                    form=form_word(sib.get("Product")))
         strain_bearing = bool(sib.get("Strain"))
         if sib.get("Flavor"):
             flags.append("FLAVOR_TO_SET")
@@ -1299,6 +1369,8 @@ def match(lines, active, retired, strains, brand_override=None, new_line_tag=DEF
     for i, rd in reads:
         if i < len(out) and rd["reading"] == "package total" and out[i]["verdict"] not in ("EXISTS", "RETIRED_MATCH"):
             out[i]["flags"] = ";".join([f for f in out[i]["flags"].split(";") if f] + ["DOSE_READ_TOTAL"])
+    for i, note in notes:
+        out[i]["sibling_reason"] = "; ".join(x for x in (out[i].get("sibling_reason", ""), note) if x)
     if pl_key_fn is not None:
         discontinued_line(out, pl_index(live, pl_key_fn, dead_tag), pl_key_fn, discontinue_tag, active_tag,
                           new_line_tag, prefix)
