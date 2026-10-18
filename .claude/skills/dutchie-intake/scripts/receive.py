@@ -96,6 +96,7 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
 
 Exit: 0 clean (STOP / INFO never fail), 1 DEFECT, 2 ABORT.
 """
+import math
 import os
 import re
 import sys
@@ -435,7 +436,7 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
         if uom == "g":
             grams, size = num(p.get("qty")), unit_grams(p.get("metrc_item"))
             n = grams / size if grams is not None and size else None
-            if n is not None and n > 0 and abs(n - round(n)) < 1e-6:
+            if n is not None and math.isfinite(n) and n > 0 and abs(n - round(n)) < 1e-6:
                 p["qty"], p["_size"] = f"{round(n):d}", size
             else:
                 p["_unsized"] = (f"Metrc item {p.get('metrc_item')!r} names no single unit size" if not size
@@ -1007,6 +1008,8 @@ def selftest():
             and next(x for x in ru[0] if x["row"] == "2")["physical_count"] == "", str(_flags(ru)))
     fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", item="Preroll - 0.3g - Haze"),
           "grams that do not divide by the unit size (100 g / 0.3 g)")
+    fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="inf", item="Preroll - 1g - Haze"),
+          "a non-finite gram qty (`inf`: no count, no crash)")
 
     def pack(c, i, l, m, it):
         l[1].update(description="Acme Haze Pre-Roll 5 x 0.5g", units_total="50", unit_cost="10.00", ext_cost="500.00")
