@@ -24,7 +24,12 @@ Inputs (columns are checked; a missing one ABORTs, never reads as blank):
                or `tags` cells. An intake row that pairs to no product line is INTAKE_ROW_UNPAIRED; a product line no
                intake row pairs to (and no `--item`) is LINE_NO_INTAKE_ROW. Both STOP; neither reads as ITEM_PENDING.
   --manifest   optional; the READ-ONLY Metrc manifest read typed to CSV (SKILL.md "Metrc manifest read"):
-               package_id, line, metrc_item, qty, ship_cost [, vendor_batch, expiry, map_basis]. `line` is the reader's
+               package_id, line, metrc_item, qty, ship_cost [, uom, vendor_batch, expiry, map_basis]. `qty` and `uom` are
+               what Metrc prints (Operator ruling 2026-10-18): `uom` `g` on flower, pre-rolls, kief and infused flower /
+               pre-rolls, `ea` on every other category. A `g` package counts qty / the unit size its `metrc_item` names
+               (`Preroll - 0.5g - X` -> 0.5; `5 x 0.5g` -> 2.5); no readable size is MANIFEST_GRAMS_UNSIZED (never a
+               guess). A blank `uom` (or `ea`) on a gram-based item, or `g` on a unit-based one, is MANIFEST_UOM_UNREAD.
+               Another `uom` value ABORTs. `line` is the reader's
                mapping from the PO / SO / invoice / manifest: the product `line_no` (6 on BOTH packages of a line that
                ships as two; the runner labels the rows 6a / 6b itself). A typed `6a` / `6b` reads as line 6; an `<n><letter>`
                whose `<n>` is not a product line stays MANIFEST_PACKAGE_UNMAPPED. Blank = the runner PROPOSES a line (a
@@ -42,8 +47,8 @@ transfer [PROBE 2026-10-09]" in dutchie-bi-looker/references/dutchie-platform-kb
     number until one arrives; the mapping that lands in the accounting system is open. The receive form has no
     Transaction ID field (same KB section): a record value on this sheet, never a form field.
   * Count (Operator ruling 2026-10-09): staff verify the drop against Metrc and fix any count issue BEFORE the transfer
-    lands as pending in Dutchie. The sheet defaults `physical_count` = manifest qty and `qty_match` = Y on every
-    mapped package; no count question is asked.
+    lands as pending in Dutchie. The sheet defaults `physical_count` = the package count (the manifest qty; a `g`
+    package counts grams / its unit size) and `qty_match` = Y on every mapped package; no count question is asked.
   * Expiry (Operator ruling 2026-10-09): blank on entry. Staff add each package's expiration date as a confirmation
     step after the pending receipt is saved (why the save allows it: the same KB section). The `expiry` column is what
     the manifest read or the lines carried, for reference only.
@@ -83,7 +88,11 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     or a deal word on the invoice, settles it. The invoice total and catalog Cost are unchanged (R62).
   * cost_entered: the unit cost typed on each package row - the deal's blended unit, else the package's invoice unit.
   * manifest (R126): per line, sum of ship $ == invoice ext, else DEFECT; sum of qty == invoice qty, else STOP unless
-    qty is a whole multiple with the $ tied (APEX_UNIT_IS_CASE, INFO: a vendor "unit" was a case).
+    qty is a whole multiple with the $ tied (APEX_UNIT_IS_CASE, INFO: a vendor "unit" was a case). The qty is the
+    package COUNT (a `g` package: grams / the unit size). A Metrc item size that differs from the invoice line's size or
+    the item's grams (`Product grams`, else its name) is MANIFEST_ITEM_SIZE_MISMATCH, a STOP: a wrong-item ship, never a
+    short count. Dutchie converts Metrc grams by the PICKED item's grams, so a wrong-size item halves or doubles the
+    count (platform KB "Metrc package quantity is in the item's unit of measure").
 
 Exit: 0 clean (STOP / INFO never fail), 1 DEFECT, 2 ABORT.
 """
@@ -126,6 +135,8 @@ FLAGS = {
     "LANDED_UNRECONCILED": ("R103", "DEFECT"), "DISCONTINUED_BUY": ("R68 (R48)", "INFO"),
     "BUY_GET_BLEND": ("R103 (R84)", "INFO"), "BUY_GET_UNTIED": ("R103", "STOP"),
     "TIER_LIST_COST": ("R127 (R50)", "INFO"), "MANIFEST_COST_UNREAD": ("R126", "INFO"),
+    "MANIFEST_ITEM_SIZE_MISMATCH": ("R126", "STOP"), "MANIFEST_UOM_UNREAD": ("R126", "STOP"),
+    "MANIFEST_GRAMS_UNSIZED": ("R126", "STOP"),
 }
 QUESTION = {
     "MANIFEST_QTY_MISMATCH": "The manifest quantity differs from the invoice. The vendor adjusts and reissues the invoice, or the package is rejected whole. Which?",
@@ -143,6 +154,9 @@ QUESTION = {
     "CREDIT_TRIPS_R62": "The blended credit lands this package at or below 0.90 x catalog Cost with no `PKG - ` tag (R62 would flag it). Tag it, or settle the credit another way.",
     "BUY_GET_UNTIED": "The deal's remainder does not divide to a 4-place unit on its last package, so the entered total misses the invoice. Enter the last package's cost so its total is the deal total less the other packages, or settle the remainder with the vendor.",
     "CREDIT_BLEND_NEGATIVE": "Dutchie's equal blend makes this package's cost negative. Enter the credit another way (vendor bill or a reissued invoice).",
+    "MANIFEST_ITEM_SIZE_MISMATCH": "The Metrc item's size differs from the invoice line or the item's grams: a wrong-item ship, not a short count. Ask the vendor (reissue the invoice for the size shipped, or reject the package) before the receipt. WARNING: Dutchie converts Metrc grams to units by the PICKED item's grams, so receiving into the wrong-size item halves or doubles the on-hand count.",
+    "MANIFEST_UOM_UNREAD": "The manifest unit does not fit the item. Flower, pre-rolls, kief and infused flower / pre-rolls are `g` in Metrc; every other category is `ea`. Read the unit from the Incoming grid (the Packages export prints a bare number) and type it in the `uom` cell, then re-run.",
+    "MANIFEST_GRAMS_UNSIZED": "A `g` package whose Metrc item names no unit size (or whose grams do not divide by it), so its count is unknown. The runner never guesses a size. Read the size from Metrc or the vendor, then re-run.",
 }
 PREP_COLS = ["row", "line", "invoice_item", "dutchie_productid", "dutchie_sku", "dutchie_name", "expected_qty",
              "unit_cost_invoice", "ext_cost", "landed_unit_cost", "blended_unit_cost", "cost_entered", "deal", "catalog_cost",
@@ -160,6 +174,16 @@ DEAL_WORDS = re.compile(r"\b(?:buy\s*\d*\s*[-,/]?\s*get\s*\d*(?:\s*free)?|b\d+g\
 STOPWORDS = {"mg", "g", "ct", "10ct", "100mg", "gummies", "gummy", "the", "and", "pk", "pack", "x", "1g", "thc", "cbd"}
 # a parser's line-level price-tier row (parsers/fernway.py: "Price tier discount 20% (Price Class X): ...") - list cost
 TIER_DISC_RE = re.compile(r"^\s*price tier discount\b", re.I)
+# the gram-based Metrc categories (Operator ruling 2026-10-18): flower, pre-rolls, kief and infused flower / pre-rolls.
+# EVERY other category is unit-based (`ea`). Read on the item's Category, else its Master category, else the words.
+GRAM_BASED = re.compile(r"\b(?:flower|buds?|pre ?rolls?|prerolls?|blunts?|kief)\b", re.I)
+MAN_UOMS = ("", "g", "ea")
+# a unit size in grams: `5 x 0.5g` / `0.5g x 5` (a pack = n x size), else ONE `0.5g`. A pack COUNT word beside a
+# size (`0.5g 5pk` is 0.5 g each, `2.5g 5pk` is 2.5 g in all) is ambiguous: no size, never a guess.
+SIZE_PACK = re.compile(r"(?<![\w.])(\d+)\s*x\s*(\d*\.?\d+)\s*g(?:rams?)?\b", re.I)
+SIZE_PACK_R = re.compile(r"(?<![\w.])(\d*\.?\d+)\s*g(?:rams?)?\s*x\s*(\d+)\b", re.I)
+SIZE_ONE = re.compile(r"(?<![\w.])(\d*\.?\d+)\s*g(?:rams?)?\b", re.I)
+PACK_COUNT = re.compile(r"(?<![\w.])\d+\s*-?\s*(?:pk|pack|ct|count)\b", re.I)
 
 
 def sort_key(n):
@@ -189,6 +213,40 @@ def marker(desc):
 
 def tokens(s):
     return {w for w in norm(s).split() if w not in STOPWORDS and not re.fullmatch(r"[\d.]+", w)}
+
+
+def unit_grams(text):
+    """The unit size in grams a name states: `Preroll - 0.5g - X` -> 0.5; a `5 x 0.5g` pack -> 2.5. None when no
+    size, when the name states two different sizes, or when a pack count sits beside a size (`0.5g 5pk`): each or
+    in all is not readable from the name (never a guess)."""
+    s = str(text or "")
+    packs = {round(int(n) * float(g), 6) for n, g in SIZE_PACK.findall(s)}
+    packs |= {round(float(g) * int(n), 6) for g, n in SIZE_PACK_R.findall(s)}
+    if packs:
+        return packs.pop() if len(packs) == 1 else None
+    if PACK_COUNT.search(s):
+        return None
+    ones = {round(float(g), 6) for g in SIZE_ONE.findall(s)}
+    return ones.pop() if len(ones) == 1 and next(iter(ones)) > 0 else None
+
+
+def item_grams(cat):
+    """The catalog item's net grams: `Product grams` when the export carries it, else the size its name states."""
+    g = cat.get("Product grams")
+    if g not in (None, ""):
+        return num(g) if num(g) else unit_grams(g)
+    return unit_grams(cat.get("Product"))
+
+
+def gram_based(cat, *words):
+    """Metrc carries this item in grams (Operator 2026-10-18). The item's Category, else its Master category; a
+    Master category of `Infused` reads the item name; with no item, the Metrc item and invoice words."""
+    if cat:
+        if (cat.get("Category") or "").strip():
+            return bool(GRAM_BASED.search(norm(cat["Category"])))
+        mc = norm(cat.get("Master category"))
+        return bool(GRAM_BASED.search(mc) or (mc == "infused" and GRAM_BASED.search(norm(cat.get("Product")))))
+    return any(GRAM_BASED.search(norm(w)) for w in words)
 
 
 def propose_line(pkg, prod, used_qty):
@@ -271,6 +329,23 @@ def buy_get_groups(prod, pids, programs, disc, disc_named, pk_by_line):
     return out
 
 
+def man_qty(p):
+    """The manifest qty as Metrc printed it: `50 g` on a gram package, else the typed number."""
+    if not p:
+        return ""
+    return f"{p['_raw_qty']} g" if p.get("_uom") == "g" else p.get("_raw_qty", p.get("qty", ""))
+
+
+def man_basis(p):
+    """The reader's map basis, plus the runner's gram conversion when it made one."""
+    if not p:
+        return ""
+    b = p.get("map_basis", "")
+    if p.get("_size"):
+        b = "; ".join(x for x in (b, f"{p['_raw_qty']} g / {p['_size']:g} g = {p['qty']}") if x)
+    return b
+
+
 def on_hand(inv, sku):
     rooms, costs = {}, set()
     for r in inv:
@@ -351,6 +426,20 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     known = {ln["line_no"] for ln in prod}
     for p in manifest or []:
         p = dict(p)
+        # Metrc carries a gram-based item in grams (Operator 2026-10-18): `uom` g -> count = grams / the unit size the
+        # Metrc item names. No size (or grams that do not divide) keeps the typed qty and is a STOP, never a guess.
+        uom = (p.get("uom") or "").strip().lower()
+        if uom not in MAN_UOMS:
+            abort(f"manifest package {p.get('package_id')}: uom {p.get('uom')!r} is not `g` or `ea` (blank = not read)")
+        p["_uom"], p["_raw_qty"] = uom, p.get("qty", "")
+        if uom == "g":
+            grams, size = num(p.get("qty")), unit_grams(p.get("metrc_item"))
+            n = grams / size if grams is not None and size else None
+            if n is not None and n > 0 and abs(n - round(n)) < 1e-6:
+                p["qty"], p["_size"] = f"{round(n):d}", size
+            else:
+                p["_unsized"] = (f"Metrc item {p.get('metrc_item')!r} names no single unit size" if not size
+                                 else f"{p.get('qty')} g does not divide by the {size:g} g unit size")
         line = (p.get("line") or "").strip()
         basis = p.get("map_basis") or ("reader" if line else "")
         m = re.fullmatch(r"(\d+)\s*[A-Za-z]", line)
@@ -516,6 +605,34 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                 else:
                     lflag("MANIFEST_LINE_MISSING", f"no Metrc package maps to line {no} ({units:g} units)")
             else:
+                # the unit and the size, per package (Operator 2026-10-18; platform KB "Metrc package quantity is in
+                # the item's unit of measure")
+                inv_size, pid_size = unit_grams(desc), (item_grams(cat) if cat else None)
+                for p in pks:
+                    pk, gb, mi = p["package_id"], gram_based(cat, p.get("metrc_item"), desc), p.get("metrc_item")
+                    if gb and p["_uom"] != "g":
+                        lflag("MANIFEST_UOM_UNREAD", f"package {pk}: {'a bare qty' if not p['_uom'] else '`ea`'} "
+                                                     f"{p['_raw_qty']} on a gram-based item: Metrc carries it in grams; "
+                                                     "the qty reads as a count until `uom` is typed")
+                    elif not gb and p["_uom"] == "g":
+                        lflag("MANIFEST_UOM_UNREAD", f"package {pk}: `g` on a unit-based item (every category but flower, "
+                                                     "pre-rolls, kief and infused flower / pre-rolls is `ea`)")
+                    if p.get("_unsized"):
+                        lflag("MANIFEST_GRAMS_UNSIZED", f"package {pk}: {p['_raw_qty']} g, {p['_unsized']}; its count is "
+                                                        "unknown, so the qty tie is not made")
+                    ms, off = unit_grams(mi), []
+                    if ms and inv_size and abs(inv_size - ms) > 1e-6:
+                        off.append(f"the invoice line is {inv_size:g} g")
+                    if ms and pid_size and abs(pid_size - ms) > 1e-6:
+                        off.append(f"item {pid} is {pid_size:g} g")
+                    if off:
+                        conv = ""
+                        if p["_uom"] == "g" and pid_size and num(p["_raw_qty"]) is not None:
+                            conv = (f"; Dutchie would receive {p['_raw_qty']} g as {num(p['_raw_qty']) / pid_size:g} "
+                                    f"unit(s) of the {pid_size:g} g item")
+                        lflag("MANIFEST_ITEM_SIZE_MISMATCH", f"package {pk}: Metrc item {mi!r} is {ms:g} g but "
+                                                             + " and ".join(off) + " - a wrong-item ship" + conv)
+                unsized = any(p.get("_unsized") for p in pks)
                 unread = any(num(p.get("ship_cost")) is None for p in pks)
                 if unread:
                     lflag("MANIFEST_COST_UNREAD", f"manifest ship $ not read for {sum(1 for p in pks if num(p.get('ship_cost')) is None)} "
@@ -524,7 +641,7 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                     merged_in = any(e["flag"] == "SAMPLE_MERGED" and f"line {no}'s" in e["detail"] for e in exc)
                     lflag("MANIFEST_COST_MISMATCH", f"manifest ship ${ss:.2f} vs invoice ext ${ext:.2f} ({ss - ext:+.2f})"
                           + (" (explained: a sample merged in)" if merged_in else ""))
-                if abs(sq - units) >= 1e-9:
+                if not unsized and abs(sq - units) >= 1e-9:
                     k = sq / units if units else 0
                     if not unread and abs(ss - ext) < 0.005 and units and k > 1 and abs(k - round(k)) < 1e-9:
                         case = True
@@ -565,11 +682,13 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                      cost_entered=(dg["rows"][-1][3] if dg and q else fmt_money(entered_unit)), deal=deal_cell,
                      blended_unit_cost="" if blend is None or not order else f"{blend:.4f}",
                      metrc_package_id=(p or {}).get("package_id", ""), metrc_item=(p or {}).get("metrc_item", ""),
-                     manifest_qty=(p or {}).get("qty", ""), manifest_ship_cost=(p or {}).get("ship_cost", ""),
-                     map_basis=(p or {}).get("map_basis", ""), vendor_batch=(p or {}).get("vendor_batch", ""),
+                     manifest_qty=man_qty(p), manifest_ship_cost=(p or {}).get("ship_cost", ""),
+                     map_basis=man_basis(p), vendor_batch=(p or {}).get("vendor_batch", ""),
                      expiry=(p or {}).get("expiry") or common["expiry"],
                      # staff settle the count against Metrc before the transfer lands as pending (Operator 2026-10-09)
-                     physical_count=(p or {}).get("qty", ""), qty_match="Y" if p else "")
+                     # a `g` package counts grams / its unit size; an unsized one has no count yet (a STOP)
+                     physical_count="" if not p or p.get("_unsized") else p.get("qty", ""),
+                     qty_match="Y" if p and not p.get("_unsized") else "")
             rflags = list(line_flags)
             if order and blend is not None:
                 if entered_ext + share < -0.005:
@@ -626,7 +745,8 @@ def header_block(h):
             "exists, else the sales-order number until one arrives (the mapping that lands in the accounting system is "
             "open). The receive form has no Transaction ID field: a record value, never a form field.",
             "- Count: staff verify the drop against Metrc and fix any count issue BEFORE the transfer lands as pending; "
-            "the sheet sets physical_count = manifest qty and qty_match = Y on every mapped package. No count question.",
+            "the sheet sets physical_count = the package count (the manifest qty; a gram package counts grams / its unit "
+            "size) and qty_match = Y on every mapped package. No count question.",
             "- Expiry: blank on entry. Staff add each package's expiration date as a confirmation step after the pending "
             "receipt is saved. The `expiry` column is reference only.",
             f"- Source: {KB_RECEIVE}.", ""]
@@ -754,11 +874,12 @@ def _fixture():
                      "ext_cost": f"{units * unit:.2f}", "is_order_level": "N", "order_level_kind": "", "expiry_date": ""}, **kw)
     lines = [ln(1, "Acme Lemon Gummies 100mg 10ct", 40, 10.0), ln(2, "Acme Haze Pre-Roll 1g", 100, 5.0),
              ln(3, "Acme Mint Vape 1g", 10, 20.0), ln(4, "Acme Mint Vape 1g (sample)", 5, 0.01)]
-    man = [{"package_id": "PKG-A", "line": "1", "metrc_item": "Lemon Gummies", "qty": "20", "ship_cost": "200.00"},
-           {"package_id": "PKG-B", "line": "1", "metrc_item": "Lemon Gummies", "qty": "20", "ship_cost": "200.00"},
-           {"package_id": "PKG-C", "line": "2", "metrc_item": "Haze Pre-Roll", "qty": "100", "ship_cost": "500.00"},
-           {"package_id": "PKG-D", "line": "3", "metrc_item": "Mint Vape", "qty": "10", "ship_cost": "200.00"},
-           {"package_id": "PKG-E", "line": "4", "metrc_item": "Mint Vape sample", "qty": "5", "ship_cost": "0.05"}]
+    # Metrc carries the pre-roll in grams (100 g of a 1g pre-roll = 100) and the rest in `ea` (Operator 2026-10-18)
+    man = [{"package_id": "PKG-A", "line": "1", "metrc_item": "Lemon Gummies", "qty": "20", "uom": "ea", "ship_cost": "200.00"},
+           {"package_id": "PKG-B", "line": "1", "metrc_item": "Lemon Gummies", "qty": "20", "uom": "ea", "ship_cost": "200.00"},
+           {"package_id": "PKG-C", "line": "2", "metrc_item": "Preroll - 1g - Haze", "qty": "100", "uom": "g", "ship_cost": "500.00"},
+           {"package_id": "PKG-D", "line": "3", "metrc_item": "Mint Vape", "qty": "10", "uom": "ea", "ship_cost": "200.00"},
+           {"package_id": "PKG-E", "line": "4", "metrc_item": "Mint Vape sample", "qty": "5", "uom": "ea", "ship_cost": "0.05"}]
     items = {"1": "11", "2": "12", "3": "13", "4": "13"}
     return cat, inv, lines, man, items
 
@@ -841,6 +962,83 @@ def selftest():
     def qty(c, i, l, m, it):
         next(p for p in m if p["package_id"] == "PKG-C")["qty"] = "90"
     fires("MANIFEST_QTY_MISMATCH", "2", qty, "a 10-unit short package")
+
+    # Metrc carries a gram-based item in grams (Operator 2026-10-18). A wrong-size ship: the invoice bills 100 x 1g
+    # pre-rolls; Metrc ships `Preroll - 0.5g` x 50 g = 100 pre-rolls at the same $. Not a short count: a wrong item.
+    def half_g(c, i, l, m, it, qty_="50", uom="g", item="Preroll - 0.5g - Haze"):
+        next(p for p in m if p["package_id"] == "PKG-C").update(metrc_item=item, qty=qty_, uom=uom)
+    rw = fires("MANIFEST_ITEM_SIZE_MISMATCH", "2", half_g, "50 g of a 0.5g pre-roll billed as 100 x 1g")
+    rw2 = next(x for x in rw[0] if x["row"] == "2")
+    t.check("the wrong-size ship reads 50 g / 0.5 g = 100 = the invoice qty: no MANIFEST_QTY_MISMATCH; a STOP that "
+            "names Dutchie's conversion by the picked item's grams",
+            not any(e["flag"] == "MANIFEST_QTY_MISMATCH" for e in rw[1]) and rw2["expected_qty"] == "100"
+            and rw2["manifest_qty"] == "50 g" and rw2["physical_count"] == "100"
+            and any(e["flag"] == "MANIFEST_ITEM_SIZE_MISMATCH" and e["class"] == "STOP"
+                    and "is 0.5 g but the invoice line is 1 g and item 12 is 1 g" in e["detail"]
+                    and "Dutchie would receive 50 g as 50 unit(s) of the 1 g item" in e["detail"] for e in rw[1]),
+            str(_flags(rw)))
+    def size_detail(res):
+        return next((e["detail"] for e in res[1] if e["flag"] == "MANIFEST_ITEM_SIZE_MISMATCH"), "")
+    leg_item = _run(*_mut(lambda c, i, l, m, it: (half_g(c, i, l, m, it), l[1].update(description="Acme Haze Pre-Roll"))))
+    leg_inv = _run(*_mut(lambda c, i, l, m, it: (half_g(c, i, l, m, it), it.pop("2"))))
+    t.check("each leg fires alone: the item's grams (invoice names no size), the invoice size (no item yet)",
+            "item 12 is 1 g" in size_detail(leg_item) and "invoice line" not in size_detail(leg_item)
+            and "the invoice line is 1 g" in size_detail(leg_inv) and "item 12" not in size_detail(leg_inv),
+            f"{size_detail(leg_item)!r} / {size_detail(leg_inv)!r}")
+    rq = questions(rw[1], rw[2], "x")
+    t.check("the questions file asks the vendor (wrong-item ship) and warns that Dutchie converts by the picked item",
+            "wrong-item ship" in rq and "Dutchie converts Metrc grams to units by the PICKED item's grams" in rq)
+    rold = _run(*_mut(lambda c, i, l, m, it: half_g(c, i, l, m, it, uom="")))
+    t.check("BREAKER: the old reading (a bare 50 typed as a count) is a false short ship; the bare qty is MANIFEST_UOM_UNREAD",
+            ("MANIFEST_QTY_MISMATCH", "2") in _flags(rold) and ("MANIFEST_UOM_UNREAD", "2") in _flags(rold), str(_flags(rold)))
+    rok = _run(*_mut(lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", item="Preroll - 1g - Haze")))
+    t.check("CONTROL: 100 g of the billed 1g pre-roll is quiet (no size, unit or qty flag)",
+            not [e for e in rok[1] if e["flag"].startswith("MANIFEST_")], str(_flags(rok)))
+    fires("MANIFEST_UOM_UNREAD", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", uom="", item="Preroll - 1g - Haze"),
+          "a bare qty (no `uom`) on a pre-roll")
+    fires("MANIFEST_UOM_UNREAD", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", uom="ea", item="Preroll - 1g - Haze"),
+          "`ea` on a pre-roll")
+    fires("MANIFEST_UOM_UNREAD", "3", lambda c, i, l, m, it: m[3].update(uom="g", metrc_item="Mint Vape 1g"),
+          "`g` on a vape (unit-based)")
+    ru = fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", item="Haze Pre-Roll"),
+               "a `g` package whose Metrc item names no size")
+    t.check("an unsized `g` package is never guessed: no qty tie, no count on the row",
+            not any(e["flag"] == "MANIFEST_QTY_MISMATCH" for e in ru[1])
+            and next(x for x in ru[0] if x["row"] == "2")["physical_count"] == "", str(_flags(ru)))
+    fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", item="Preroll - 0.3g - Haze"),
+          "grams that do not divide by the unit size (100 g / 0.3 g)")
+
+    def pack(c, i, l, m, it):
+        l[1].update(description="Acme Haze Pre-Roll 5 x 0.5g", units_total="50", unit_cost="10.00", ext_cost="500.00")
+        next(x for x in c if x["ProductId"] == "12").update(Product="Acme | Pre-Roll | Haze | 0.5g 5pk", Cost="10",
+                                                           **{"Product grams": "2.5g"})
+        half_g(c, i, l, m, it, qty_="125", item="Preroll Pack - 5 x 0.5g - Haze")
+    rpk = _run(*_mut(pack))
+    t.check("a pack: 125 g of a 5 x 0.5g pack (2.5 g) = 50 packs, ties to the invoice's 50, sizes agree",
+            next(x for x in rpk[0] if x["row"] == "2")["expected_qty"] == "50"
+            and not [e for e in rpk[1] if e["flag"].startswith("MANIFEST_")], str(_flags(rpk)))
+    t.check("unit_grams reads one size or a pack, never a guess",
+            [unit_grams(x) for x in ("Preroll - 0.5g - Haze #5", "Preroll Pack - 5 x 0.5g - X", "X 0.5g x 5",
+                                     "Flower - 3.5 g - Kush", "Monkey x Tina 0.5g Pre-Roll", "X 0.5g 5pk", "X 2.5g 5pk",
+                                     "Lemon Gummies 100mg 10ct", "Haze 1g / 0.5g", "b4g1 promo", "")]
+            == [0.5, 2.5, 2.5, 3.5, 0.5, None, None, None, None, None, None])
+    t.check("item grams: `Product grams` beats the name (a `0.5g 5pk` name reads no size; its 2.5g cell does)",
+            item_grams({"Product": "X | 0.5g 5pk", "Product grams": "2.5g"}) == 2.5
+            and item_grams({"Product": "X | 0.5g 5pk"}) is None and item_grams({"Product": "X | 1g"}) == 1.0)
+    t.check("gram-based reads the Category, else the Master category (Infused reads the name), else the words",
+            gram_based({"Category": "Infused Pre-Roll Single", "Master category": "Infused"})
+            and gram_based({"Category": "Bud", "Master category": "Flower"})
+            and gram_based({"Master category": "Infused", "Product": "X | Infused Pre-Roll 1g"})
+            and gram_based({}, "Preroll - 0.5g - X") and gram_based({"Master category": "Kief"})
+            and not gram_based({"Master category": "Vaporizer", "Product": "Flower Vape 1g"})
+            and not gram_based({"Category": "Gummies", "Master category": "Edible", "Product": "Elderflower Gummies"})
+            and not gram_based({"Master category": "Infused", "Product": "X | Infused Chocolate"}))
+    try:
+        _run(*_mut(lambda c, i, l, m, it: m[0].update(uom="oz")))
+        bad_uom = False
+    except SystemExit as e:
+        bad_uom = e.code == EXIT_ABORT
+    t.check("a `uom` that is not g / ea ABORTs (never read as a count)", bad_uom)
 
     def unmapped(c, i, l, m, it):
         m[2]["line"] = "99"
@@ -987,9 +1185,11 @@ def selftest():
     rb = fires("MANIFEST_PACKAGE_UNMAPPED", "9a", split_bad, "a typed `9a` whose 9 is not a product line")
     t.check("an `<n><letter>` whose <n> is not a line stays a DEFECT",
             any(e["flag"] == "MANIFEST_PACKAGE_UNMAPPED" and e["class"] == "DEFECT" for e in rb[1]))
-    t.check("physical_count = manifest qty and qty_match = Y on every mapped package (count settled against Metrc)",
-            all(r["physical_count"] == r["manifest_qty"] and r["qty_match"] == "Y" for r in base[0] if r.get("metrc_package_id"))
-            and rows["1a"]["physical_count"] == "20")
+    t.check("physical_count = the package count and qty_match = Y on every mapped package (count settled against Metrc); "
+            "the pre-roll's 100 g / 1 g prints manifest_qty `100 g`, count 100",
+            all(r["physical_count"] == r["expected_qty"] and r["qty_match"] == "Y" for r in base[0] if r.get("metrc_package_id"))
+            and rows["1a"]["physical_count"] == "20" and rows["2"]["manifest_qty"] == "100 g"
+            and rows["2"]["physical_count"] == "100" and rows["2"]["map_basis"].endswith("100 g / 1 g = 100"))
 
     # the intake gives the item id only: catalog Cost and the CURRENT tags come from the catalog by ProductId
     def intake_of(lines_, verdict="EXISTS", pid_of=None, **cells):
@@ -1053,7 +1253,7 @@ def selftest():
     hq = questions(base[1], base[2], "x", header_values([dict(lines[0], vendor="Acme Supply", invoice_no="SO-1001")]))
     t.check("the questions header prints Vendor, Room and the Transaction ID (receive form header values)",
             "- Vendor: Acme Supply" in hq and "- Room: Intake" in hq and "- Transaction ID: SO-1001" in hq
-            and "physical_count = manifest qty" in hq and "Expiry: blank on entry" in hq)
+            and "physical_count = the package count" in hq and "Expiry: blank on entry" in hq)
     t.check("FIRES: an unread vendor / transaction id is named, never blank",
             "Vendor: NOT READ" in questions(base[1], base[2], "x", header_values(lines))
             and "- Transaction ID: INV-9" in questions(base[1], base[2], "x", header_values(lines, txn="INV-9")))
@@ -1096,6 +1296,10 @@ def selftest():
     bg_cat = cat + [{"ProductId": "14", "SKU": "9014", "Product": "Acme | Flower | Kush | 3.5g", "Master category": "Flower",
                      "Cost": "18.37", "Tags": "ITM - Active"}]
 
+    def kush(units, pid, line, ship, item="Flower - 3.5g - Kush"):
+        """A flower package as Metrc prints it: grams (units x 3.5 g), `uom` g."""
+        return {"package_id": pid, "line": line, "metrc_item": item, "qty": f"{units * 3.5:g}", "uom": "g", "ship_cost": ship}
+
     def bg_ln(no, desc, units, unit, **kw):
         return dict({"line_no": no, "description": desc, "units_total": str(units), "unit_cost": f"{unit:.2f}",
                      "ext_cost": f"{units * unit:.2f}", "is_order_level": "N", "order_level_kind": "", "expiry_date": ""}, **kw)
@@ -1103,10 +1307,8 @@ def selftest():
     def bg(paid=18.37, programs=None, drop_paid=False, extra=()):
         ls = [bg_ln("1", "Acme Kush Flower 3.5g", 40, paid), bg_ln("2", "Acme Kush Flower 3.5g", 10, 0.01),
               bg_ln("3", "Acme Kush Flower 3.5g (sample)", 1, 0.01)] + list(extra)
-        mf = [{"package_id": f"BG-{k}", "line": "1", "metrc_item": "Kush Flower", "qty": "10", "ship_cost": f"{10 * paid:.2f}"}
-              for k in range(1, 5)]
-        mf += [{"package_id": "BG-5", "line": "2", "metrc_item": "Kush Flower", "qty": "10", "ship_cost": "0.10"},
-               {"package_id": "BG-S", "line": "3", "metrc_item": "Kush Flower sample", "qty": "1", "ship_cost": "0.01"}]
+        mf = [kush(10, f"BG-{k}", "1", f"{10 * paid:.2f}") for k in range(1, 5)]
+        mf += [kush(10, "BG-5", "2", "0.10"), kush(1, "BG-S", "3", "0.01", "Flower - 3.5g - Kush sample")]
         if drop_paid:
             ls = [x for x in ls if x["line_no"] != "1"]
             mf = [p for p in mf if p["line"] != "1"]
@@ -1174,8 +1376,7 @@ def selftest():
         ls = [bg_ln("1", "Acme Kush Flower 3.5g", 50, 18.37),
               {"line_no": "1", "description": words, "units_total": "", "unit_cost": "", "ext_cost": "-183.70",
                "is_order_level": "N", "order_level_kind": "discount"}]
-        mf = [{"package_id": f"ND-{k}", "line": "1", "metrc_item": "Kush Flower", "qty": "10", "ship_cost": "183.70"}
-              for k in range(1, 6)]
+        mf = [kush(10, f"ND-{k}", "1", "183.70") for k in range(1, 6)]
         return prep(ls, bg_cat, inv, None, mf, {"1": "14"}, None, "PKG - Vendor Deal")
     bpair("a line discount NAMING the deal blends the line over its 5 packages (14.70 x4 + 14.68, ties 734.80)",
           lambda res: ([x["cost_entered"] for x in res[0]] == ["14.70"] * 4 + ["14.68"]
@@ -1187,8 +1388,7 @@ def selftest():
             and not any(DEAL_WORDS.search(w) for w in ("Sugar Free Gummies", "buyer credit", "Getaway 1g")))
     def untied(last_qty):
         ls = [bg_ln("1", "Acme Kush Flower 3.5g", 7, 10.0), bg_ln("2", "Acme Kush Flower 3.5g", last_qty, 0.01)]
-        mf = [{"package_id": "U-1", "line": "1", "metrc_item": "Kush Flower", "qty": "7", "ship_cost": "70.00"},
-              {"package_id": "U-2", "line": "2", "metrc_item": "Kush Flower", "qty": str(last_qty), "ship_cost": f"{last_qty * 0.01:.2f}"}]
+        mf = [kush(7, "U-1", "1", "70.00"), kush(last_qty, "U-2", "2", f"{last_qty * 0.01:.2f}")]
         return prep(ls, bg_cat, inv, None, mf, {"1": "14", "2": "14"}, {"2": "deal"}, "PKG - Vendor Deal")
     bpair("BUY_GET_UNTIED (STOP) fires when the remainder cannot divide on a big last package (1,000 units: 79.96 vs 80.00)",
           lambda res: any(e["flag"] == "BUY_GET_UNTIED" and e["class"] == "STOP" for e in res[1]),

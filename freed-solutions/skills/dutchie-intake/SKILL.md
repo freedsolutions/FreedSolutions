@@ -439,15 +439,20 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
 1. **Metrc manifest read (READ-ONLY).** In the write channel, open Metrc > Licensed Transfers > Incoming, expand each
    transfer row and read its packages. Never click Receive, Reject or any button but the row expanders: a Metrc
    receive is a compliance event and is Dutchie's to send. Type what you read into a NEW
-   `<vendor>-<manifest no>-manifest-<date>-vN.csv`: `package_id, line, metrc_item, qty, ship_cost[, vendor_batch,
-   expiry, map_basis]`. Record the manifest number, the shipper license, the ETA and the package count in a read note.
-   **`qty` is a COUNT of the invoice's units (ruled 2026-10-18).** Metrc carries flower, pre-rolls, kief and infused
-   flower / pre-rolls in grams (every other category is `ea`): type `grams / the unit size in the Metrc item name` (`50 g` of `Preroll - 0.5g` = 100) and say so
-   in `map_basis` (`50 g / 0.5 g`). The grid prints the unit (`g` / `ea`); the Packages `.xlsx` export does not, so
-   take the unit from the grid. A Metrc item SIZE that differs from the invoice line (0.5g shipped, 1g billed) is a
-   wrong-item ship: note it in the read note and ask the vendor before the receipt. Dutchie converts the grams by the
-   picked item's grams, so receiving into the wrong-size item halves or doubles the count (platform KB "Metrc package
-   quantity is in the item's unit of measure"). The runner has no size check yet: the reader catches it.
+   `<vendor>-<manifest no>-manifest-<date>-vN.csv`: `package_id, line, metrc_item, qty, uom, ship_cost[,
+   vendor_batch, expiry, map_basis]`. Record the manifest number, the shipper license, the ETA and the package count
+   in a read note.
+   **Type `qty` and `uom` as Metrc prints them (ruled 2026-10-18).** Metrc carries flower, pre-rolls, kief and infused
+   flower / pre-rolls in grams (`uom` `g`); every other category is `ea`. The grid prints the unit (`50 g`, `50 ea`);
+   the Packages `.xlsx` export prints a bare number, so take the unit from the grid. Type the Metrc item name exactly:
+   the runner counts a `g` package as grams / the unit size the name states (`50 g` of `Preroll - 0.5g` = 100; `125 g`
+   of `5 x 0.5g` = 50) and prints the sum in `map_basis`. A name with no readable size (or a `0.5g 5pk`, each or in
+   all?) is `MANIFEST_GRAMS_UNSIZED` (STOP): read the size from Metrc or the vendor, never guess it. A blank `uom` (or
+   `ea`) on a gram-based item, or `g` on a unit-based one, is `MANIFEST_UOM_UNREAD` (STOP).
+   A Metrc item SIZE that differs from the invoice line or the item's grams (0.5g shipped, 1g billed) is
+   `MANIFEST_ITEM_SIZE_MISMATCH` (STOP): a wrong-item ship, not a short count. Ask the vendor before the receipt.
+   Dutchie converts the grams by the picked item's grams, so receiving into the wrong-size item halves or doubles the
+   count (platform KB "Metrc package quantity is in the item's unit of measure").
 2. **Map every package to its invoice line** from the documents, not from a name: the PO (an Apex document can be
    the PO), the SO or invoice the vendor bills, and the manifest. Evidence, strongest first: ship $ and qty tie to
    the line; the same unit price; the item words. A line that ships as several packages types the product `line_no`
@@ -495,8 +500,10 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      `OWED: ...` until the Operator writes the reason, and the PO names it too. A sample or display package is not a
      buy and stays quiet. The questions file lists every such line; it never blocks the receipt.
    - Manifest: a line whose summed ship $ differs from its ext is `MANIFEST_COST_MISMATCH`, a DEFECT (exit 1; the line is not entered). A qty
-     gap is `MANIFEST_QTY_MISMATCH` (PO > Invoice > Physical: the vendor reissues or the package is rejected whole). A
-     sample inside its paid package is `SAMPLE_MERGED` (STOP).
+     gap is `MANIFEST_QTY_MISMATCH` (PO > Invoice > Physical: the vendor reissues or the package is rejected whole);
+     the qty is the package COUNT, so a `g` package ties by grams / its unit size. A Metrc size that differs from the
+     invoice line or the item's grams is `MANIFEST_ITEM_SIZE_MISMATCH` (STOP, step 1). A sample inside its paid package
+     is `SAMPLE_MERGED` (STOP).
 4. Send the `-questions.md` it writes to the Operator BEFORE the delivery is received; every STOP is a question there.
    Its header block carries the receive form's header values (platform KB "Receive inventory from a pending Metrc
    transfer [PROBE 2026-10-09]" in `dutchie-bi-looker/references/dutchie-platform-kb.md`):
@@ -505,8 +512,9 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      sales-order number until one arrives. The mapping that lands in the accounting system is open. The receive form
      has no Transaction ID field (same KB section): it is a record value on the sheet, never a form field.
    - **Count** (Operator ruling 2026-10-09): staff verify the drop against Metrc and fix any count issue BEFORE the
-     transfer lands as pending in Dutchie. The sheet sets `physical_count` = manifest qty and `qty_match` = Y on every
-     mapped package. The lane asks no count question.
+     transfer lands as pending in Dutchie. The sheet sets `physical_count` = the package count (the manifest qty; a
+     `g` package counts grams / its unit size) and `qty_match` = Y on every mapped package. The lane asks no count
+     question.
    - **Expiry** (Operator ruling 2026-10-09): vendors vary on package-level expiry and every label shows it. The lane
      leaves expiry blank on entry; staff add each package's expiration date as a confirmation step after the pending
      receipt is saved (why the save allows it: the KB section above). The sheet's `expiry` column is reference only.

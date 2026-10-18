@@ -1313,8 +1313,8 @@ RECEIVE_CHECKS = [
      lambda c: ("MANIFEST_PACKAGE_UNMAPPED", "DEFECT", "9a") in rc_prep(c)[1],
      rc_mut("manifest", lambda r: r["package_id"] == "PKG-A", line="9a"),
      rc_mut("manifest", lambda r: r["package_id"] == "PKG-A", line="1a"), "type `1a` instead"),
-    ("receive --prep: physical_count = manifest qty and qty_match = Y on every mapped package (no count question)",
-     lambda c: (lambda mp: bool(mp) and all(r["physical_count"] == r["manifest_qty"] and r["qty_match"] == "Y" for r in mp))(
+    ("receive --prep: physical_count = the package count and qty_match = Y on every mapped package (no count question)",
+     lambda c: (lambda mp: bool(mp) and all(r["physical_count"] == r["expected_qty"] and r["qty_match"] == "Y" for r in mp))(
          [r for r in rc_prep(c)[0].values() if r.get("metrc_package_id")]),
      RCX, dict(copy.deepcopy(RCX), manifest=None), "no manifest read (no mapped package)"),
     ("receive --prep: an intake-resolved item reads catalog Cost by ProductId, never the intake lane_Cost",
@@ -1355,6 +1355,25 @@ RECEIVE_CHECKS = [
                       RC.header_values(ls))),
      RCX["lines"], [{k: v for k, v in r.items() if k not in ("vendor", "invoice_no")} for r in RCX["lines"]],
      "lines with no vendor / invoice_no cells"),
+    ("receive --prep: Metrc grams on a pre-roll count by the unit size (100 g / 1 g = 100; manifest_qty `100 g`), quiet",
+     lambda c: (lambda rw, fl: rw["2"]["expected_qty"] == "100" and rw["2"]["manifest_qty"] == "100 g"
+                and not any(f[0].startswith("MANIFEST_") for f in fl))(*rc_prep(c)),
+     RCX, rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", uom=""), "the `uom` cell is blank (a bare qty)"),
+    ("receive --prep: a wrong-size ship (50 g of a 0.5g pre-roll billed 100 x 1g) is MANIFEST_ITEM_SIZE_MISMATCH (STOP), "
+     "never a MANIFEST_QTY_MISMATCH short ship (Operator 2026-10-18)",
+     lambda c: (lambda rw, fl: ("MANIFEST_ITEM_SIZE_MISMATCH", "STOP", "2") in fl and rw["2"]["expected_qty"] == "100"
+                and not any(f[0] == "MANIFEST_QTY_MISMATCH" for f in fl))(*rc_prep(c)),
+     dict(copy.deepcopy(RCX), manifest=rows_of("receive-wrongsize-manifest.csv")), RCX, "the billed 1g pre-roll ships"),
+    ("receive --prep: a bare qty on a gram-based item is MANIFEST_UOM_UNREAD (STOP); the old count reading misfires a "
+     "short ship",
+     lambda c: (lambda fl: ("MANIFEST_UOM_UNREAD", "STOP", "2") in fl and ("MANIFEST_QTY_MISMATCH", "STOP", "2") in fl)(
+         rc_prep(c)[1]),
+     rc_with(dict(copy.deepcopy(RCX), manifest=rows_of("receive-wrongsize-manifest.csv")), "manifest",
+             lambda r: r["package_id"] == "PKG-C", uom=""),
+     dict(copy.deepcopy(RCX), manifest=rows_of("receive-wrongsize-manifest.csv")), "type `uom` g"),
+    ("receive --prep: a `g` package whose Metrc item names no size is MANIFEST_GRAMS_UNSIZED (STOP), never guessed",
+     lambda c: (lambda rw, fl: ("MANIFEST_GRAMS_UNSIZED", "STOP", "2") in fl and rw["2"]["physical_count"] == "")(*rc_prep(c)),
+     rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", metrc_item="Haze Pre-Roll"), RCX, "the item names `1g`"),
     ("receive --prep R103: a buy-4-get-1 blends over EVERY package of the deal (14.70 x4, remainder 14.69 on the last; "
      "734.90 ties to the invoice; all 5 `PKG - Vendor Deal`)",
      lambda c: bg_blended(rc_prep(c)[0]), BGX, bg_ctx(drop_line="1"), "the paid cases are gone (a lone penny line)"),
@@ -1600,6 +1619,12 @@ def cli_chain():
         mrows[2]["ship_cost"] = "480.00"
         C.write_csv(badman, list(mrows[0].keys()), mrows)
         step("receive --prep DEFECT (manifest ship $ does not tie)", rargs + ["--manifest", badman], 1)
+        out = step("receive --prep wrong-size ship (STOP, exit 0)", rargs + ["--manifest", fx("receive-wrongsize-manifest.csv")], 0)
+        ok = ("MANIFEST_ITEM_SIZE_MISMATCH" in out and "MANIFEST_QTY_MISMATCH" not in out
+              and "Dutchie converts Metrc grams to units by the PICKED item's grams" in out)
+        print(f"  {'PASS' if ok else 'FAIL'}  the wrong-size questions ask the vendor and warn of Dutchie's gram conversion")
+        if not ok:
+            bad.append("receive wrong-size questions")
         bgargs = ["receive.py", "--prep", "--lines", fx("receive-buyget-lines.csv"), "--catalog", fx("receive-catalog.csv"),
                   "--inventory", fx("receive-inventory.csv"), "--manifest", fx("receive-buyget-manifest.csv"), "--tenant",
                   fx("tenant-CLAUDE.md"), "--out-dir", t, "--slug", "bg", "--asof", "2026-01-01", "--program", "2=deal"]

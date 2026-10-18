@@ -1,7 +1,7 @@
-package_id,line,metrc_item,qty,ship_cost
-BG-1,1,Kush Flower,10,183.70
-BG-2,1,Kush Flower,10,183.70
-BG-3,1,Kush Flower,10,183.70
-BG-4,1,Kush Flower,10,183.70
-BG-5,2,Kush Flower,10,0.10
-BG-S,3,Kush Flower sample,1,0.01
+package_id,line,metrc_item,qty,uom,ship_cost
+BG-1,1,Flower - 3.5g - Kush,35,g,183.70
+BG-2,1,Flower - 3.5g - Kush,35,g,183.70
+BG-3,1,Flower - 3.5g - Kush,35,g,183.70
+BG-4,1,Flower - 3.5g - Kush,35,g,183.70
+BG-5,2,Flower - 3.5g - Kush,35,g,0.10
+BG-S,3,Flower - 3.5g - Kush sample,3.5,g,0.01
