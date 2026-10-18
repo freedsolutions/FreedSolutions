@@ -1001,9 +1001,10 @@ def selftest():
           "`ea` on a pre-roll")
     fires("MANIFEST_UOM_UNREAD", "3", lambda c, i, l, m, it: m[3].update(uom="g", metrc_item="Mint Vape 1g"),
           "`g` on a vape (unit-based)")
-    ru = fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", item="Haze Pre-Roll"),
+    # 50 g against 100 invoice units: a qty tie on the typed grams WOULD fire, so its absence is the proof
+    ru = fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, item="Haze Pre-Roll"),
                "a `g` package whose Metrc item names no size")
-    t.check("an unsized `g` package is never guessed: no qty tie, no count on the row",
+    t.check("an unsized `g` package is never guessed: no qty tie (50 g vs 100 units stays quiet), no count on the row",
             not any(e["flag"] == "MANIFEST_QTY_MISMATCH" for e in ru[1])
             and next(x for x in ru[0] if x["row"] == "2")["physical_count"] == "", str(_flags(ru)))
     fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", item="Preroll - 0.3g - Haze"),

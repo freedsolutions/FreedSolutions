@@ -1372,8 +1372,10 @@ RECEIVE_CHECKS = [
              lambda r: r["package_id"] == "PKG-C", uom=""),
      dict(copy.deepcopy(RCX), manifest=rows_of("receive-wrongsize-manifest.csv")), "type `uom` g"),
     ("receive --prep: a `g` package whose Metrc item names no size is MANIFEST_GRAMS_UNSIZED (STOP), never guessed",
-     lambda c: (lambda rw, fl: ("MANIFEST_GRAMS_UNSIZED", "STOP", "2") in fl and rw["2"]["physical_count"] == "")(*rc_prep(c)),
-     rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", metrc_item="Haze Pre-Roll"), RCX, "the item names `1g`"),
+     lambda c: (lambda rw, fl: ("MANIFEST_GRAMS_UNSIZED", "STOP", "2") in fl and rw["2"]["physical_count"] == ""
+                and not any(f[0] == "MANIFEST_QTY_MISMATCH" for f in fl))(*rc_prep(c)),
+     rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", metrc_item="Haze Pre-Roll", qty="50"), RCX,
+     "the item names `1g`"),
     ("receive --prep R103: a buy-4-get-1 blends over EVERY package of the deal (14.70 x4, remainder 14.69 on the last; "
      "734.90 ties to the invoice; all 5 `PKG - Vendor Deal`)",
      lambda c: bg_blended(rc_prep(c)[0]), BGX, bg_ctx(drop_line="1"), "the paid cases are gone (a lone penny line)"),
