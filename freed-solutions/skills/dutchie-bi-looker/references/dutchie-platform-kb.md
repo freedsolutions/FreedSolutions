@@ -1537,6 +1537,23 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - The age gate's "Yes" agrees to terms, so do not click it. The products render behind it.
 
 
+## Metrc package quantity is in the item's unit of measure, not always a count [OPERATOR 2026-10-18]
+
+- **Pre-rolls and flower ship by WEIGHT.** A Metrc package of a weight-based item (`Raw Pre-Rolls`, buds) carries
+  its quantity in grams: `50 g` of a 0.5g pre-roll is 100 pre-rolls, not 50. Count-based items (vapes, edibles) carry
+  `ea`. The count is `grams / the unit net weight`: 100 g of 1g = 100; 125 g of a 5 x 0.5g pack (2.5 g) = 50 packs;
+  7.5 g of the same pack = 3 packs.
+- **Read the unit with the number.** The Incoming grid prints both (`50 g`, `50 ea`). The Licensed Transfers
+  Packages `.xlsx` export prints `Shipped Quantity` as a bare number: take the unit from the grid, or from the item
+  category, never assume `ea`.
+- **Dutchie converts by the PICKED item's grams.** On receive, the Metrc grams become units at the catalog item's net
+  weight [OBSERVED 2026-10-14 / 10-16 receipts: 125 g -> 50 units of a 2.5 g item; 100 g -> 100 of a 1g item; 50 g of
+  0.5g pre-rolls -> 50 units of a 1g item]. So a wrong-size item silently halves (or doubles) the on-hand count, and
+  the Metrc package then runs out halfway through the physical stock.
+- **The size check before a pick:** the size word in the Metrc item name (`Preroll - 0.5g - ...`) must equal the
+  invoice line's size and the Dutchie item's grams. A Metrc size that differs from the invoice is a wrong-item ship
+  (the vendor's question), not a short count: the count is grams / the Metrc size.
+
 ## Receive inventory from a pending Metrc transfer [PROBE 2026-10-09, first lane-entered receipt]
 
 - **Path:** Products › Inventory › `Receive inventory` › Source `Pending transfer`, then pick the transfer

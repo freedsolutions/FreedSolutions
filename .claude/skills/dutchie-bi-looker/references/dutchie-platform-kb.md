@@ -1539,6 +1539,23 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - The age gate's "Yes" agrees to terms, so do not click it. The products render behind it.
 
 
+## Metrc package quantity is in the item's unit of measure, not always a count [OPERATOR 2026-10-18]
+
+- **Pre-rolls and flower ship by WEIGHT.** A Metrc package of a weight-based item (`Raw Pre-Rolls`, buds) carries
+  its quantity in grams: `50 g` of a 0.5g pre-roll is 100 pre-rolls, not 50. Count-based items (vapes, edibles) carry
+  `ea`. The count is `grams / the unit net weight`: 100 g of 1g = 100; 125 g of a 5 x 0.5g pack (2.5 g) = 50 packs;
+  7.5 g of the same pack = 3 packs.
+- **Read the unit with the number.** The Incoming grid prints both (`50 g`, `50 ea`). The Licensed Transfers
+  Packages `.xlsx` export prints `Shipped Quantity` as a bare number: take the unit from the grid, or from the item
+  category, never assume `ea`.
+- **Dutchie converts by the PICKED item's grams.** On receive, the Metrc grams become units at the catalog item's net
+  weight [OBSERVED 2026-10-14 / 10-16 receipts: 125 g -> 50 units of a 2.5 g item; 100 g -> 100 of a 1g item; 50 g of
+  0.5g pre-rolls -> 50 units of a 1g item]. So a wrong-size item silently halves (or doubles) the on-hand count, and
+  the Metrc package then runs out halfway through the physical stock.
+- **The size check before a pick:** the size word in the Metrc item name (`Preroll - 0.5g - ...`) must equal the
+  invoice line's size and the Dutchie item's grams. A Metrc size that differs from the invoice is a wrong-item ship
+  (the vendor's question), not a short count: the count is grams / the Metrc size.
+
 ## Receive inventory from a pending Metrc transfer [PROBE 2026-10-09, first lane-entered receipt]
 
 - **Path:** Products › Inventory › `Receive inventory` › Source `Pending transfer`, then pick the transfer
@@ -1593,6 +1610,20 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 - **The package page's Tags box is not the state.** On `/products/inventory/<id>` the Tags dropdown showed nothing
   ticked for a package whose export read `ITM - Active`. The Inventory export `Tags` column is package grain (it
   differs from the item's tags on most rows) and is the read-back.
+
+## Package cost after receipt: the write path [PROBE 2026-10-17, 1 + 4 + 4 received packages]
+
+- **Path:** Products › Inventory › tick the packages by Package ID › `Bulk actions (n)` › `Bulk update inventory costs
+  BETA`. The dialog lists one row per package (`CURRENT COST`, `NEW COST`, `COST CHANGE`, `PRICING SOURCE`) plus an
+  "AI package cost assistant" text box (not used). Click a row's `NEW COST` cell, type the unit cost in the spinbutton,
+  press `Enter`; the row shows the new cost and the % change. `Apply now` is the default (vs `Schedule for later`); the
+  button reads `Apply <n> cost change(s)`.
+- **Request:** `POST /api/v2/inventory/set-package-prices` `{Packages: [{PackageId, Cost}], ...ctx}` -> `Result: true`,
+  `"Package prices updated successfully"`. `PackageId` is the numeric inventory id (the GraphQL `packages` query
+  returns it as `id`), not the Metrc tag. It moves the package cost only; the catalog Cost does not change.
+- **The menu item can vanish mid-session.** After two applies it disappeared from Bulk actions for every selection
+  (a BETA flag; cause unknown). The captured body, replayed with a fresh ctx envelope, committed the same way. Read
+  each package's live cost first, and read back in the Inventory grid `Cost` column.
 
 ## Apex Trading: reading a wholesale cost (PO and catalog listing) [PROBE 2026-10-11, read only, buyer login]
 
