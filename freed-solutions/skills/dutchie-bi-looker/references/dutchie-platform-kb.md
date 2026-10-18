@@ -1592,6 +1592,20 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
   ticked for a package whose export read `ITM - Active`. The Inventory export `Tags` column is package grain (it
   differs from the item's tags on most rows) and is the read-back.
 
+## Package cost after receipt: the write path [PROBE 2026-10-17, 1 + 4 + 4 received packages]
+
+- **Path:** Products › Inventory › tick the packages by Package ID › `Bulk actions (n)` › `Bulk update inventory costs
+  BETA`. The dialog lists one row per package (`CURRENT COST`, `NEW COST`, `COST CHANGE`, `PRICING SOURCE`) plus an
+  "AI package cost assistant" text box (not used). Click a row's `NEW COST` cell, type the unit cost in the spinbutton,
+  press `Enter`; the row shows the new cost and the % change. `Apply now` is the default (vs `Schedule for later`); the
+  button reads `Apply <n> cost change(s)`.
+- **Request:** `POST /api/v2/inventory/set-package-prices` `{Packages: [{PackageId, Cost}], ...ctx}` -> `Result: true`,
+  `"Package prices updated successfully"`. `PackageId` is the numeric inventory id (the GraphQL `packages` query
+  returns it as `id`), not the Metrc tag. It moves the package cost only; the catalog Cost does not change.
+- **The menu item can vanish mid-session.** After two applies it disappeared from Bulk actions for every selection
+  (a BETA flag; cause unknown). The captured body, replayed with a fresh ctx envelope, committed the same way. Read
+  each package's live cost first, and read back in the Inventory grid `Cost` column.
+
 ## Apex Trading: reading a wholesale cost (PO and catalog listing) [PROBE 2026-10-11, read only, buyer login]
 
 Apex Trading is the wholesale marketplace a tenant may order through (`PO source: apex`). It is not Dutchie, but the
