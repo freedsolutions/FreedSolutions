@@ -1541,9 +1541,9 @@ reads it; the endpoint descriptions carry contract facts that the schemas do not
 
 ## Metrc package quantity is in the item's unit of measure, not always a count [OPERATOR 2026-10-18]
 
-- **Pre-rolls and flower ship by WEIGHT.** A Metrc package of a weight-based item (`Raw Pre-Rolls`, buds) carries
-  its quantity in grams: `50 g` of a 0.5g pre-roll is 100 pre-rolls, not 50. Count-based items (vapes, edibles) carry
-  `ea`. The count is `grams / the unit net weight`: 100 g of 1g = 100; 125 g of a 5 x 0.5g pack (2.5 g) = 50 packs;
+- **Flower, pre-rolls, kief and infused flower / pre-rolls ship by WEIGHT** (Operator 2026-10-18: those are the
+  gram-based Metrc categories; EVERY other category is unit-based, `ea`). A gram-based package carries its quantity in
+  grams: `50 g` of a 0.5g pre-roll is 100 pre-rolls, not 50. The count is `grams / the unit net weight`: 100 g of 1g = 100; 125 g of a 5 x 0.5g pack (2.5 g) = 50 packs;
   7.5 g of the same pack = 3 packs.
 - **Read the unit with the number.** The Incoming grid prints both (`50 g`, `50 ea`). The Licensed Transfers
   Packages `.xlsx` export prints `Shipped Quantity` as a bare number: take the unit from the grid, or from the item

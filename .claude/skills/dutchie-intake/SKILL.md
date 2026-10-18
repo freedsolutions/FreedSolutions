@@ -443,8 +443,8 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
    receive is a compliance event and is Dutchie's to send. Type what you read into a NEW
    `<vendor>-<manifest no>-manifest-<date>-vN.csv`: `package_id, line, metrc_item, qty, ship_cost[, vendor_batch,
    expiry, map_basis]`. Record the manifest number, the shipper license, the ETA and the package count in a read note.
-   **`qty` is a COUNT of the invoice's units (ruled 2026-10-18).** Metrc carries a weight-based item (pre-rolls,
-   flower) in grams: type `grams / the unit size in the Metrc item name` (`50 g` of `Preroll - 0.5g` = 100) and say so
+   **`qty` is a COUNT of the invoice's units (ruled 2026-10-18).** Metrc carries flower, pre-rolls, kief and infused
+   flower / pre-rolls in grams (every other category is `ea`): type `grams / the unit size in the Metrc item name` (`50 g` of `Preroll - 0.5g` = 100) and say so
    in `map_basis` (`50 g / 0.5 g`). The grid prints the unit (`g` / `ea`); the Packages `.xlsx` export does not, so
    take the unit from the grid. A Metrc item SIZE that differs from the invoice line (0.5g shipped, 1g billed) is a
    wrong-item ship: note it in the read note and ask the vendor before the receipt. Dutchie converts the grams by the
