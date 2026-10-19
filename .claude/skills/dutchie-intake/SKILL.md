@@ -505,7 +505,17 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      gap is `MANIFEST_QTY_MISMATCH` (PO > Invoice > Physical: the vendor reissues or the package is rejected whole);
      the qty is the package COUNT, so a `g` package ties by grams / its unit size. A Metrc size that differs from the
      invoice line or the item's grams is `MANIFEST_ITEM_SIZE_MISMATCH` (STOP, step 1). A sample inside its paid package
-     is `SAMPLE_MERGED` (STOP).
+     is `SAMPLE_MERGED` (STOP). A qty that is not a finite number (`inf`, `nan`) is unreadable: `MANIFEST_QTY_UNREAD`
+     (`MANIFEST_GRAMS_UNSIZED` on a `g` package), a STOP with no count and no qty tie; such a package never blends a
+     Buy-Get deal.
+   - Warehouse payload: `--payload <new.json>` also writes the receipt's inputs as ONE JSON object for the tenant's
+     warehouse ingest procedure (keys `slug, receipt_date, invoice_no, vendor_record, txn_id, apex_invoice, lines,
+     manifest, intake_rows, bindings`; rows as read, `uom` included; a binding per line named by `--item`,
+     `--program`, `--cite <line>=<the invoice text or the email id>` or `--apex-item <line>=<Apex item name>`). The
+     ingest is stricter than the runner, so `--payload` ABORTs (nothing written) on a `--program` with no `--cite`, a
+     disposition outside the R127 list, a binding to no line, an item on `*`, a slug that is not lowercase words, or an
+     existing file. `--receipt-date` defaults to `--asof`, else today: the warehouse dates its sheet and reads its
+     catalog and stock on that day. The runner never sends it; the tenant's warehouse sender does, with its own login.
 4. Send the `-questions.md` it writes to the Operator BEFORE the delivery is received; every STOP is a question there.
    Its header block carries the receive form's header values (platform KB "Receive inventory from a pending Metrc
    transfer [PROBE 2026-10-09]" in `dutchie-bi-looker/references/dutchie-platform-kb.md`):

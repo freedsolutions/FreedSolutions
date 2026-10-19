@@ -5,6 +5,8 @@ are stubs that exit 2.
                     [--intake <intake-vN.csv>] [--manifest <manifest.csv>] [--item <line>=<ProductId>]...
                     [--program <line>=<disposition>]... --tenant <CLAUDE.md> [--out-dir <dir>] [--slug <s>]
                     [--vendor-record <Dutchie vendor>] [--txn-id <final invoice no | SO no>]
+                    [--payload <new.json> [--cite <line>=<text>]... [--apex-item <line>=<Apex name>]...
+                     [--receipt-date <YYYY-MM-DD>] [--invoice-no <no>] [--apex-invoice <no>]]
   python receive.py --enter | --check | --vendor ...   phase 2 stubs; exit 2
   python receive.py --selftest
 
@@ -39,6 +41,15 @@ Inputs (columns are checked; a missing one ABORTs, never reads as blank):
                `deal`, `tier <n>`, `none`, `cost change`. Beats every default. A sample the vendor states only in an
                email is `--program <line>=sample`.
   --vendor-record / --txn-id  the receive-form header values (below); default the lines' `vendor` / `invoice_no` cells.
+  --payload    also write the receipt-inputs payload: the same inputs as ONE JSON object for the warehouse ingest
+               (keys slug, receipt_date, invoice_no, vendor_record, txn_id, apex_invoice, lines, manifest, intake_rows,
+               bindings). Rows go as read (every column, `uom` included); manifest / intake_rows are null when not
+               given; a binding per line named by --item / --program / --cite / --apex-item. The ingest is stricter than
+               the runner, so --payload refuses (ABORT, nothing written) a disposition without its `--cite <line>=<the
+               invoice text or the email id>`, a disposition outside the R127 list, a binding to no line of the receipt,
+               an item on `*`, a slug that is not lowercase words, and an existing file. `--receipt-date` defaults to
+               `--asof`, else today (the warehouse dates its sheet and reads its catalog and stock on that day);
+               `--invoice-no` defaults to the lines' `invoice_no` cell, else `--txn-id`. The runner never sends it.
 
 Receive form header (printed at the top of the questions file; platform KB "Receive inventory from a pending Metrc
 transfer [PROBE 2026-10-09]" in dutchie-bi-looker/references/dutchie-platform-kb.md):
@@ -92,10 +103,14 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     package COUNT (a `g` package: grams / the unit size). A Metrc item size that differs from the invoice line's size or
     the item's grams (`Product grams`, else its name) is MANIFEST_ITEM_SIZE_MISMATCH, a STOP: a wrong-item ship, never a
     short count. Dutchie converts Metrc grams by the PICKED item's grams, so a wrong-size item halves or doubles the
-    count (platform KB "Metrc package quantity is in the item's unit of measure").
+    count (platform KB "Metrc package quantity is in the item's unit of measure"). A qty that is not a finite number
+    (`inf`, `nan`) on any package is unreadable: MANIFEST_QTY_UNREAD (or MANIFEST_GRAMS_UNSIZED on a `g` package), a
+    STOP with no count and no qty tie, never a crash; such a package never blends a Buy-Get deal.
 
 Exit: 0 clean (STOP / INFO never fail), 1 DEFECT, 2 ABORT.
 """
+import hashlib
+import json
 import math
 import os
 import re
@@ -137,7 +152,7 @@ FLAGS = {
     "BUY_GET_BLEND": ("R103 (R84)", "INFO"), "BUY_GET_UNTIED": ("R103", "STOP"),
     "TIER_LIST_COST": ("R127 (R50)", "INFO"), "MANIFEST_COST_UNREAD": ("R126", "INFO"),
     "MANIFEST_ITEM_SIZE_MISMATCH": ("R126", "STOP"), "MANIFEST_UOM_UNREAD": ("R126", "STOP"),
-    "MANIFEST_GRAMS_UNSIZED": ("R126", "STOP"),
+    "MANIFEST_GRAMS_UNSIZED": ("R126", "STOP"), "MANIFEST_QTY_UNREAD": ("R126", "STOP"),
 }
 QUESTION = {
     "MANIFEST_QTY_MISMATCH": "The manifest quantity differs from the invoice. The vendor adjusts and reissues the invoice, or the package is rejected whole. Which?",
@@ -158,6 +173,7 @@ QUESTION = {
     "MANIFEST_ITEM_SIZE_MISMATCH": "The Metrc item's size differs from the invoice line or the item's grams: a wrong-item ship, not a short count. Ask the vendor (reissue the invoice for the size shipped, or reject the package) before the receipt. WARNING: Dutchie converts Metrc grams to units by the PICKED item's grams, so receiving into the wrong-size item halves or doubles the on-hand count.",
     "MANIFEST_UOM_UNREAD": "The manifest unit does not fit the item. Flower, pre-rolls, kief and infused flower / pre-rolls are `g` in Metrc; every other category is `ea`. Read the unit from the Incoming grid (the Packages export prints a bare number) and type it in the `uom` cell, then re-run.",
     "MANIFEST_GRAMS_UNSIZED": "A `g` package whose Metrc item names no unit size (or whose grams do not divide by it), so its count is unknown. The runner never guesses a size. Read the size from Metrc or the vendor, then re-run.",
+    "MANIFEST_QTY_UNREAD": "The manifest qty is not a readable number (`inf` / `nan`), so the package count is unknown. Read the qty from Metrc and type it in the `qty` cell, then re-run.",
 }
 PREP_COLS = ["row", "line", "invoice_item", "dutchie_productid", "dutchie_sku", "dutchie_name", "expected_qty",
              "unit_cost_invoice", "ext_cost", "landed_unit_cost", "blended_unit_cost", "cost_entered", "deal", "catalog_cost",
@@ -260,7 +276,8 @@ def propose_line(pkg, prod, used_qty):
         lq, lu, le = num(ln.get("units_total")) or 0, num(ln.get("unit_cost")), num(ln.get("ext_cost"))
         free = lq - used_qty.get(ln["line_no"], 0)
         price_ok = unit is not None and lu is not None and abs(unit - lu) < 0.005 and q <= free + 1e-9
-        case_ok = le is not None and abs(ship - le) < 0.005 and lq and q > lq and abs(q / lq - round(q / lq)) < 1e-9
+        case_ok = (le is not None and abs(ship - le) < 0.005 and lq and q > lq and math.isfinite(q / lq)
+                   and abs(q / lq - round(q / lq)) < 1e-9)
         if price_ok or case_ok:
             cands.append((len(tokens(pkg.get("metrc_item")) & tokens(ln.get("description"))), ln["line_no"]))
     if not cands:
@@ -319,7 +336,7 @@ def buy_get_groups(prod, pids, programs, disc, disc_named, pk_by_line):
             else:
                 pk_units += _dec(num(x.get("units_total")) or 0)
                 n_pk += 1
-        if pk_units <= 0:
+        if not pk_units.is_finite() or pk_units <= 0:   # an unreadable package count (inf / nan) never blends
             continue
         stated = [x["line_no"] for x in lns if (programs.get(x["line_no"]) or programs.get("*") or "").strip().lower() == "deal"]
         worded = [x["line_no"] for x in lns if DEAL_WORDS.search(x.get("description") or "")]
@@ -441,6 +458,10 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             else:
                 p["_unsized"] = (f"Metrc item {p.get('metrc_item')!r} names no single unit size" if not size
                                  else f"{p.get('qty')} g does not divide by the {size:g} g unit size")
+        elif num(p.get("qty")) is not None and not math.isfinite(num(p.get("qty"))):
+            # a non-finite count (`inf` / `nan`) is unreadable, as a non-finite gram qty is: no count, no qty tie, a
+            # STOP - never a crash in the case-multiple test, never a silent nan pass
+            p["_unread"] = f"qty {p.get('qty')!r} is not a finite number"
         line = (p.get("line") or "").strip()
         basis = p.get("map_basis") or ("reader" if line else "")
         m = re.fullmatch(r"(\d+)\s*[A-Za-z]", line)
@@ -621,6 +642,9 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                     if p.get("_unsized"):
                         lflag("MANIFEST_GRAMS_UNSIZED", f"package {pk}: {p['_raw_qty']} g, {p['_unsized']}; its count is "
                                                         "unknown, so the qty tie is not made")
+                    if p.get("_unread"):
+                        lflag("MANIFEST_QTY_UNREAD", f"package {pk}: {p['_unread']}; its count is unknown, so the qty tie "
+                                                     "is not made")
                     ms, off = unit_grams(mi), []
                     if ms and inv_size and abs(inv_size - ms) > 1e-6:
                         off.append(f"the invoice line is {inv_size:g} g")
@@ -633,7 +657,7 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                                     f"unit(s) of the {pid_size:g} g item")
                         lflag("MANIFEST_ITEM_SIZE_MISMATCH", f"package {pk}: Metrc item {mi!r} is {ms:g} g but "
                                                              + " and ".join(off) + " - a wrong-item ship" + conv)
-                unsized = any(p.get("_unsized") for p in pks)
+                unsized = any(p.get("_unsized") or p.get("_unread") for p in pks)
                 unread = any(num(p.get("ship_cost")) is None for p in pks)
                 if unread:
                     lflag("MANIFEST_COST_UNREAD", f"manifest ship $ not read for {sum(1 for p in pks if num(p.get('ship_cost')) is None)} "
@@ -688,8 +712,8 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                      expiry=(p or {}).get("expiry") or common["expiry"],
                      # staff settle the count against Metrc before the transfer lands as pending (Operator 2026-10-09)
                      # a `g` package counts grams / its unit size; an unsized one has no count yet (a STOP)
-                     physical_count="" if not p or p.get("_unsized") else p.get("qty", ""),
-                     qty_match="Y" if p and not p.get("_unsized") else "")
+                     physical_count="" if not p or p.get("_unsized") or p.get("_unread") else p.get("qty", ""),
+                     qty_match="Y" if p and not (p.get("_unsized") or p.get("_unread")) else "")
             rflags = list(line_flags)
             if order and blend is not None:
                 if entered_ext + share < -0.005:
@@ -734,6 +758,59 @@ def header_values(lines, vendor=None, txn=None):
     Transaction ID (`--txn-id`, else the lines' `invoice_no` cell: the final invoice no., else the SO no.)."""
     first = lambda col: next((ln.get(col, "").strip() for ln in lines if (ln.get(col) or "").strip()), "")  # noqa: E731
     return {"vendor": vendor or first("vendor"), "room": RECEIVE_ROOM, "txn": txn or first("invoice_no")}
+
+
+# the receipt-inputs payload (`--payload`): the inputs of ONE receipt as the warehouse ingest procedure takes them.
+# The ingest is stricter than the runner (a disposition needs its cite; a binding names a line), so the emitter
+# refuses what the ingest would refuse, before anything is written.
+PAYLOAD_KEYS = ["slug", "receipt_date", "invoice_no", "vendor_record", "txn_id", "apex_invoice", "lines", "manifest",
+                "intake_rows", "bindings"]
+PAYLOAD_PROGRAM = re.compile(r"^(?:sample|display|deal|none|cost change|tier \S+)$")
+PAYLOAD_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def receipt_payload(lines, intake, manifest, items, programs, cites, apex_items, slug_, receipt_date, invoice_no="",
+                    vendor_record="", txn_id="", apex_invoice=""):
+    """Pure. The receipt-inputs payload (a dict, PAYLOAD_KEYS order): the rows exactly as --prep read them (every
+    column, cells as read), the manifest / intake rows or None when not given, and one binding per line named by
+    --item / --program / --cite / --apex-item (`*` = a disposition on every line). ABORTs on what the ingest refuses."""
+    if not PAYLOAD_SLUG.fullmatch(slug_ or ""):
+        abort(f"--payload: slug {slug_!r} is not lowercase words joined by `-` (the ingest refuses it); give --slug")
+    try:
+        date.fromisoformat(receipt_date or "")
+    except ValueError:
+        abort(f"--payload: receipt date {receipt_date!r} is not YYYY-MM-DD; give --receipt-date")
+    inv_no = (invoice_no or next((ln.get("invoice_no", "").strip() for ln in lines if (ln.get("invoice_no") or "").strip()), "")
+              or (txn_id or "").strip())
+    if not inv_no:
+        abort("--payload: no invoice number (the lines carry no `invoice_no` cell and no --txn-id); the ingest needs one")
+    nos = {(ln.get("line_no") or "").strip() for ln in lines}
+    keys = sorted(set(items) | set(programs) | set(cites) | set(apex_items), key=sort_key)
+    bindings = []
+    for k in keys:
+        if k != "*" and k not in nos:
+            abort(f"--payload: line {k!r} (--item / --program / --cite / --apex-item) is not a line of this receipt")
+        if k == "*" and (items.get(k) or apex_items.get(k)):
+            abort("--payload: `*` binds a disposition to every line; an item or an Apex item binds one line")
+        prog = (programs.get(k) or "").strip()
+        if prog and not PAYLOAD_PROGRAM.fullmatch(prog.lower()):
+            abort(f"--payload: line {k} disposition {prog!r} is not sample, display, deal, none, cost change or tier <n> (R127)")
+        if prog and not (cites.get(k) or "").strip():
+            abort(f"--payload: line {k} disposition {prog!r} has no --cite {k}=<the invoice text or the email id> (R127)")
+        bindings.append({"line": k, "item": items.get(k, ""), "program": prog, "cite": cites.get(k, ""),
+                         "apex_item": apex_items.get(k, "")})
+    rows = lambda rs: None if rs is None else [dict(r) for r in rs]  # noqa: E731
+    return {"slug": slug_, "receipt_date": receipt_date, "invoice_no": inv_no, "vendor_record": vendor_record or "",
+            "txn_id": txn_id or "", "apex_invoice": apex_invoice or "", "lines": rows(lines), "manifest": rows(manifest),
+            "intake_rows": rows(intake), "bindings": bindings}
+
+
+def payload_inputs(pl):
+    """The inverse the warehouse applies (gold.receipt_prep): (lines, intake, manifest, items, programs) from a
+    payload - an item / a disposition per binding when it is not blank. The selftest proves payload -> prep() = --prep."""
+    items = {b["line"]: b["item"] for b in pl["bindings"] if b.get("item")}
+    programs = {b["line"]: b["program"] for b in pl["bindings"] if b.get("program")}
+    return pl["lines"], pl["intake_rows"], pl["manifest"], items, programs
 
 
 def header_block(h):
@@ -814,14 +891,31 @@ def run_prep(argv):
     _, inv = read_csv(inv_p, INV_REQ, "inventory")
     intake = read_csv(get_flag(argv, "--intake"), INTAKE_REQ, "intake")[1] if get_flag(argv, "--intake") else None
     man = read_csv(get_flag(argv, "--manifest"), MAN_REQ, "manifest")[1] if get_flag(argv, "--manifest") else None
-    rows, exc, summary = prep(lines, catalog, inv, intake, man, parse_directions(argv, "--item"),
-                              parse_directions(argv, "--program"), deal_tag, sample_tag, display_tag, new_line_tag, active_tag,
-                              discontinue_tag)
+    items, programs = parse_directions(argv, "--item"), parse_directions(argv, "--program")
     first = next((ln for ln in lines if ln.get("invoice_no")), {})
     s = get_flag(argv, "--slug") or slug(first.get("invoice_no") or os.path.splitext(os.path.basename(lines_p))[0])
+    day = get_flag(argv, "--asof") or date.today().isoformat()
+    pl_path, payload = get_flag(argv, "--payload"), None
+    if pl_path:
+        # built and checked BEFORE prep() and before any file is written: a refusal writes nothing
+        if os.path.exists(pl_path):
+            abort(f"--payload {pl_path} exists; a payload is never overwritten - name a new file")
+        payload = receipt_payload(lines, intake, man, items, programs, parse_directions(argv, "--cite"),
+                                  parse_directions(argv, "--apex-item"), s, get_flag(argv, "--receipt-date") or day,
+                                  get_flag(argv, "--invoice-no") or "", get_flag(argv, "--vendor-record") or "",
+                                  get_flag(argv, "--txn-id") or "", get_flag(argv, "--apex-invoice") or "")
+    rows, exc, summary = prep(lines, catalog, inv, intake, man, items, programs, deal_tag, sample_tag, display_tag,
+                              new_line_tag, active_tag, discontinue_tag)
     out_dir = get_flag(argv, "--out-dir") or os.path.dirname(os.path.abspath(lines_p))
-    out = next_version(out_dir, f"{s}-receipt-prep-{get_flag(argv, '--asof') or date.today().isoformat()}")
+    out = next_version(out_dir, f"{s}-receipt-prep-{day}")
     write_csv(out, PREP_COLS, rows)
+    if payload is not None:
+        text_pl = json.dumps(payload, ensure_ascii=False, indent=1) + "\n"
+        with open(pl_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text_pl)
+        print(f"wrote payload {pl_path} ({len(payload['lines'])} line(s), "
+              f"{'no manifest' if payload['manifest'] is None else str(len(payload['manifest'])) + ' package(s)'}, "
+              f"{len(payload['bindings'])} binding(s); md5 {hashlib.md5(text_pl.encode('utf-8')).hexdigest()})")
     qpath = new_path(out_dir, os.path.splitext(os.path.basename(out))[0] + "-questions", ".md")
     text = questions(exc, summary, os.path.basename(out),
                      header_values(lines, get_flag(argv, "--vendor-record"), get_flag(argv, "--txn-id")))
@@ -1408,6 +1502,127 @@ def selftest():
             (lambda res: rows_of(res)["1a"]["blended_unit_cost"] == f"{(147.0 - 60 / 6) / 10:.4f}")(
                 bg(extra=[{"line_no": "90", "description": "Credit", "units_total": "", "unit_cost": "", "ext_cost": "-60.00",
                            "is_order_level": "Y", "order_level_kind": "credit"}])))
+
+    # a qty that is not a finite number is unreadable on ANY package (the `g` leg above): no count, no tie, no crash.
+    # PKG-D's $ ties line 3, so `inf` reached round(inf) in the case-multiple test (OverflowError) before the fix.
+    def ea_q(q, uom="ea", line_="3"):
+        return lambda c, i, l, m, it: m[3].update(qty=q, uom=uom, line=line_)
+    rinf = fires("MANIFEST_QTY_UNREAD", "3", ea_q("inf"), "an `inf` qty on an `ea` package whose $ ties (was OverflowError)")
+    t.check("an unreadable `ea` qty is a STOP with no count and no qty tie (no MANIFEST_QTY_MISMATCH, no APEX_UNIT_IS_CASE)",
+            not any(e["flag"] in ("MANIFEST_QTY_MISMATCH", "APEX_UNIT_IS_CASE") for e in rinf[1])
+            and any(e["flag"] == "MANIFEST_QTY_UNREAD" and e["class"] == "STOP" and "'inf' is not a finite number" in e["detail"]
+                    for e in rinf[1])
+            and nl(rinf, "3")["physical_count"] == "" and nl(rinf, "3")["qty_match"] == "", str(_flags(rinf)))
+    fires("MANIFEST_QTY_UNREAD", "3", ea_q("nan", uom=""), "a `nan` bare qty (was a silent pass: nan ties nothing)")
+    try:
+        crash = ""
+        for q in ("inf", "-inf", "nan", "1e400"):
+            for uom in ("", "ea", "g"):
+                for line_ in ("3", ""):
+                    _run(*_mut(ea_q(q, uom, line_)))
+        _run(*_mut(lambda c, i, l, m, it: m[2].update(qty="inf", line="")))   # the proposal's case-multiple test
+        bgi = bg(extra=())
+        mf_bad = prep([bg_ln("1", "Acme Kush Flower 3.5g", 40, 18.37), bg_ln("2", "Acme Kush Flower 3.5g", 10, 0.01)], bg_cat,
+                      inv, None, [kush(40, "I-1", "1", "734.80"), dict(kush(10, "I-2", "2", "0.10"), qty="inf")],
+                      {"1": "14", "2": "14"}, {"2": "deal"}, "PKG - Vendor Deal")
+    except (OverflowError, ValueError, ArithmeticError) as e:
+        crash, mf_bad, bgi = f"{type(e).__name__}: {e}", ([], [], {}), ([], [], {})
+    t.check("no non-finite qty (inf / -inf / nan / 1e400; blank, ea, g; mapped or proposed) crashes --prep",
+            crash == "", crash)
+    t.check("a Buy-Get deal holding an unreadable package does not blend (no BUY_GET_BLEND; the STOP names the package) "
+            "[breaker: the same deal with a readable qty blends]",
+            not any(e["flag"] == "BUY_GET_BLEND" for e in mf_bad[1]) and ("MANIFEST_GRAMS_UNSIZED", "2") in _flags(mf_bad)
+            and any(e["flag"] == "BUY_GET_BLEND" for e in bgi[1]), str(_flags(mf_bad)))
+
+    # --payload: the receipt-inputs payload for the warehouse ingest. Proven by the inverse the warehouse applies:
+    # payload -> (lines, intake, manifest, items, programs) -> prep() equals the sheet --prep wrote.
+    import contextlib
+    import csv as _csv
+    import io
+    import json as _json
+    import tempfile
+    progs = {"4": "sample", "*": "none"}
+    cites = {"4": "invoice line 4 reads (sample)", "*": "email 2026-01-02 from the vendor"}
+    pl = receipt_payload(lines, None, man, items, progs, cites, {"1": "Acme Lemon 10pk"}, "inv-9", "2026-01-02",
+                         vendor_record="Acme Supply", txn_id="INV-9")
+    t.check("the payload carries every ingest key, in order, and the rows as read (manifest `uom` included)",
+            list(pl) == PAYLOAD_KEYS and pl["lines"] == lines and pl["manifest"] == man and pl["intake_rows"] is None
+            and [p["uom"] for p in pl["manifest"]] == ["ea", "ea", "g", "ea", "ea"] and pl["invoice_no"] == "INV-9"
+            and pl["receipt_date"] == "2026-01-02" and pl["vendor_record"] == "Acme Supply", str(list(pl)))
+    t.check("one binding per line named (line order, `*` last), each with item, disposition, cite and Apex item",
+            [b["line"] for b in pl["bindings"]] == ["1", "2", "3", "4", "*"]
+            and pl["bindings"][0] == {"line": "1", "item": "11", "program": "", "cite": "", "apex_item": "Acme Lemon 10pk"}
+            and pl["bindings"][3] == {"line": "4", "item": "13", "program": "sample", "cite": cites["4"], "apex_item": ""}
+            and pl["bindings"][4]["program"] == "none", str(pl["bindings"]))
+    li, ii, mi, iti, pri = payload_inputs(_json.loads(_json.dumps(pl)))
+    t.check("payload -> inputs -> prep() = prep() on the runner's inputs (rows, exceptions)",
+            prep(li, cat, inv, ii, mi, iti, pri, "PKG - Vendor Deal")[:2] == prep(lines, cat, inv, None, man, items, progs,
+                                                                                 "PKG - Vendor Deal")[:2])
+
+    def refused(**kw):
+        a = dict(lines=lines, intake=None, manifest=man, items=items, programs={}, cites={}, apex_items={}, slug_="inv-9",
+                 receipt_date="2026-01-02", txn_id="INV-9")
+        a.update(kw)
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err):
+                receipt_payload(**a)
+        except SystemExit as e:
+            return e.code == EXIT_ABORT and err.getvalue()
+        return False
+    t.check("--payload refuses what the ingest refuses: a disposition with no cite, a disposition outside R127, a "
+            "binding to no line, an item on `*`, a bad slug, a bad date, no invoice number",
+            "has no --cite 4=" in (refused(programs={"4": "sample"}) or "")
+            and "is not sample, display" in (refused(programs={"4": "promo"}, cites={"4": "x"}) or "")
+            and "is not a line of this receipt" in (refused(items=dict(items, **{"9": "11"})) or "")
+            and "`*` binds a disposition" in (refused(items=dict(items, **{"*": "11"})) or "")
+            and "is not lowercase words" in (refused(slug_="INV 9") or "")
+            and "is not YYYY-MM-DD" in (refused(receipt_date="01/02/2026") or "")
+            and "no invoice number" in (refused(txn_id="") or ""))
+    t.check("CONTROL: the same bindings with their cites build (an intake list rides as rows)",
+            refused(programs={"4": "sample"}, cites={"4": "x"}) is False
+            and receipt_payload(lines, [{"invoice_line": "x"}], None, {}, {}, {}, {}, "a", "2026-01-02",
+                                txn_id="T")["intake_rows"] == [{"invoice_line": "x"}])
+    with tempfile.TemporaryDirectory() as td:
+        def put(name, rows_):
+            path = os.path.join(td, name)
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                w = _csv.DictWriter(f, fieldnames=list(dict.fromkeys(k for r in rows_ for k in r)))
+                w.writeheader()
+                w.writerows(rows_)
+            return path
+        lp = put("acme-lines.csv", [dict(x, invoice_no="INV-9") for x in lines])
+        argv = ["--prep", "--lines", lp, "--catalog", put("cat.csv", cat), "--inventory", put("inv.csv", inv),
+                "--manifest", put("man.csv", man), "--deal-tag", "PKG - Vendor Deal", "--asof", "2026-01-02",
+                "--out-dir", td] + [x for k, v in items.items() for x in ("--item", f"{k}={v}")]
+        pp = os.path.join(td, "inv-9-payload.json")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            try:
+                main(argv + ["--program", "4=sample", "--payload", pp])
+                no_cite = False
+            except SystemExit as e:
+                no_cite = e.code == EXIT_ABORT
+            wrote_none = not [n for n in os.listdir(td) if "receipt-prep" in n] and not os.path.exists(pp)
+            code = main(argv + ["--program", "4=sample", "--cite", "4=invoice reads (sample)", "--payload", pp])
+            try:
+                main(argv + ["--payload", pp])
+                again = False
+            except SystemExit as e:
+                again = e.code == EXIT_ABORT
+        sheet = os.path.join(td, "inv-9-receipt-prep-2026-01-02-v1.csv")
+        with open(pp, encoding="utf-8") as f:
+            cli = _json.load(f)
+        with open(sheet, encoding="utf-8", newline="") as f:
+            got = [r for r in _csv.DictReader(f)]
+        li, ii, mi, iti, pri = payload_inputs(cli)
+        again_rows = prep(li, cat, inv, ii, mi, iti, pri, "PKG - Vendor Deal")[0]
+        t.check("CLI: --program without --cite ABORTs and writes NO sheet and no payload [control: with the cite it writes both]",
+                no_cite and wrote_none and code == EXIT_OK and os.path.exists(sheet) and "wrote payload" in out.getvalue())
+        t.check("CLI: the payload file names the sheet's slug and date and reads back to the sheet --prep wrote, cell for cell",
+                cli["slug"] == "inv-9" and cli["receipt_date"] == "2026-01-02" and cli["invoice_no"] == "INV-9"
+                and [{c: str(r.get(c, "")) for c in PREP_COLS} for r in again_rows] == got)
+        t.check("CLI: an existing payload file is never overwritten (ABORT)", again)
 
     t.check("stub paths still refuse with exit 2",
             all(main([m]) == EXIT_ABORT for m in ("--enter", "--check", "--vendor")) and main([]) == EXIT_ABORT)
