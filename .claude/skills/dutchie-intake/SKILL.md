@@ -593,8 +593,9 @@ The path. Each step waits for the step before it (Operator ruling: the Dutchie f
    [OPERATOR 2026-10-19: the `Change product` into-itself path is not probed yet. The first live run records it in the
    platform KB.]
 5. **Release.** When the paperwork is on file (or a CREDIT_DUE case tracks the credit) and step 4 is certified, fill the
-   tenant's release-notice template. It goes to the team. Whether the lane sends it or a person sends it is the tenant's
-   mail rule. Write `RELEASED` with the notice's mail id. People move the package out of the hold room. The lane then
+   tenant's release-notice template to the team. The lane DRAFTS it in the Drafts of the tenant's agent mailbox, and a
+   person sends it (Operator ruling 2026-10-19). The lane never sends it. When it is sent, write `RELEASED` with the
+   sent notice's mail id. People move the package out of the hold room. The lane then
    reads the room READ ONLY (the warehouse's daily package-room load, or the Inventory grid), writes the result as a
    NOTE, and sets the case `RESOLVED` (`status` op; the store writes CLOSED, and a closed case is final).
 
