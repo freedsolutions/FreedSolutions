@@ -128,7 +128,12 @@ worktrees do not contain `clients/`):
 - Write channel: playwright | pane  # see below; reads may use any channel
 - Export refresh: <command>         # after every export pull: freeze + place + retire (see Scripts)
 - Canon: Dictionary > rule patterns reference > skill > memory; runbook = BI-SOP.md §2
+#   optional clause on the Canon line, only for a tenant whose canon has a warehouse mirror:
+#   "Mirror: SHADOW, sync from <dir>" (absent = no mirror). See Close-out step 7.
 ```
+
+The mirror clause sits on the existing `Canon:` line, not on a key of its own: C8 counts every
+template key as required, and the pointer is held to 120 lines.
 
 **The tenant pointer is hand-folded and CRLF by convention** (ruled 2026-10-11): rewrite it in place
 keeping CRLF endings, and keep "Current state" at ≤ 8 top-level bullets. `--pointer` fails either breach.
@@ -226,6 +231,22 @@ run history. Re-seal is not needed — a cadence run rules nothing new.
 5. Browser phase ends: close the browser, then release HOLDER (playwright) — in that order.
    Delete `.playwright-mcp/` files.
 6. Commit skill-side changes only; `clients/` is never committed and never named in a tracked file.
+7. **Canon mirror sync (shadow period only).** Do this step when the tenant pointer's `Canon:` line
+   says `Mirror: SHADOW` AND this close changed `DATA-DICTIONARY.md` or `DECISIONS.md`. Otherwise
+   write "no mirror sync owed" in Status.
+   - The operator runs the shadow sync ONCE, in the same sitting, before any other canon edit. The
+     operator is a person with the canon-writer login, never a lane. Run it in the directory the
+     pointer names: `canon_load.js <tenant args> --sync --kickoff <kickoff basename> --changed-on
+     <local date> --send`. The local date is the operator's calendar date, never UTC.
+   - The manager reads back, read-only, as the agent login: the sync committed and refused
+     nothing; render sha256 = file sha256 for BOTH documents; `canon.v_current_mismatch` = 0 rows;
+     `canon.v_rules_without_decision` = 0 rows; the DECISIONS row count in the database = the file;
+     each rule the sync versioned is in `header.rules`.
+   - The manager writes ONE line in the tenant's queue or record: date, kickoff, sync counts, both
+     sha256 prefixes, the result and the clean-close count.
+   - A failed sync or read-back resets the clean-close count to 0. A canon edit between the close
+     and the sync also resets it. Fix the cause and sync again. That sync restores parity and does
+     not count.
 
 ## Where the data lives (pointers, not copies)
 

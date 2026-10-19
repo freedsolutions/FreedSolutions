@@ -387,18 +387,31 @@ const DEC = path.join(EST_DIR, 'DECISIONS.md');
   // A row is `| date | Rn | ruling… | record |`. The ruling cell carries backticks, quotes and
   // escaped `\|` — Product Line names are themselves pipe-delimited — so it is cut with the gate's
   // own unescaped-pipe splitter and the record is the LAST cell, never a counted index.
+  //
+  // A rule cell may name SEVERAL rules: `R98 R99`, `R115 R116 R117` (space-separated, the shape the
+  // reference estate writes) or `R98, R99` (comma-separated). Such a row is a ruling on EACH rule it
+  // names, so it counts for each one in D1 and D2 (canon design Q8, 2026-10-19). Until then the
+  // pattern read single-id cells only, and on the reference estate 22 rows naming 23 rule ids were
+  // invisible to both checks. The cell must hold rule ids and separators ONLY: `DD`, `SOP`, prose
+  // or a mixed cell stays out of both checks, exactly as before.
   const byRule = {};
   let decRowCount = 0;
+  let decMultiCount = 0;
   if (decText !== null) {
-    for (const m of decText.matchAll(/^\| (\d{4}-\d\d-\d\d) \| (R\d+) \| ([^\r\n]*)$/gm)) {
+    for (const m of decText.matchAll(/^\| (\d{4}-\d\d-\d\d) \| (R\d+(?:(?:[ \t]*,[ \t]*|[ \t]+)R\d+)*) \| ([^\r\n]*)$/gm)) {
       const cells = splitCells(m[3]);
       // exactly one trailing empty segment, from the row's closing pipe — a genuinely empty record
       // cell must survive as '' rather than silently promoting the ruling text into its place
       if (cells.length && cells[cells.length - 1] === '') cells.pop();
       decRowCount++;
-      (byRule[m[2]] = byRule[m[2]] || []).push({ date: m[1], record: cells.length ? cells[cells.length - 1] : '' });
+      // one entry per DISTINCT id, so a cell that repeats an id cannot count the row twice
+      const ids = [...new Set(m[2].match(/R\d+/g))];
+      if (ids.length > 1) decMultiCount++;
+      const rec = { date: m[1], record: cells.length ? cells[cells.length - 1] : '' };
+      for (const id of ids) (byRule[id] = byRule[id] || []).push(rec);
     }
   }
+  const decReadNote = decRowCount + ' DECISIONS row(s) read, ' + decMultiCount + ' naming several rules';
   const byNum = (a, b) => Number(a.slice(1)) - Number(b.slice(1));
 
   // --- D1: a rule this change minted or amended names this kickoff in its record cell ---
@@ -434,7 +447,7 @@ const DEC = path.join(EST_DIR, 'DECISIONS.md');
     const recorded = minted.filter(r => (byRule[r] || []).some(d => d.record.includes(kickBase)));
     const orphan = minted.filter(r => !recorded.includes(r));
     const detail = minted.length + ' minted of ' + H.rules.length + ' header rule(s) — ' +
-      recorded.length + ' recorded (Since = ' + kickDate + ', ' + decRowCount + ' DECISIONS row(s) read)';
+      recorded.length + ' recorded (Since = ' + kickDate + ', ' + decReadNote + ')';
     const unshapedNote = unshaped.length ? '; ' + unshaped.length + ' header rule(s) on an unshaped register row, `Since` unreadable: ' +
       unshaped.sort(byNum).join(', ') + ' — escape the pipes as `\\|` to restore the check' : '';
     if (orphan.length) fail('DECISIONS: minted rules on record', detail + '; no row naming `' + kickBase +
@@ -453,8 +466,8 @@ const DEC = path.join(EST_DIR, 'DECISIONS.md');
     const missing = allRules.filter(r => !byRule[r]);
     const detail = (allRules.length - missing.length) + ' of ' + allRules.length + ' rule(s) recorded';
     if (missing.length) fail('DECISIONS: every register rule recorded', detail + ' — no row at all for ' +
-      missing.sort(byNum).join(', '));
-    else ok('DECISIONS: every register rule recorded', detail);
+      missing.sort(byNum).join(', ') + ' (' + decReadNote + ')');
+    else ok('DECISIONS: every register rule recorded', detail + ' (' + decReadNote + ')');
   }
 }
 

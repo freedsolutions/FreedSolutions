@@ -1094,6 +1094,62 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
     check('J7: a register with no `Since` column reports D1 as `·`, naming the columns it found',
       mark(r.out, D1) === '·' && /no `Since` column/.test(line(r.out, D1)), line(r.out, D1).trim());
   }
+
+  // J8–J10 — A MULTI-RULE ROW (canon design Q8, 2026-10-19). One DECISIONS row may rule on several
+  // rules at once (`R98 R99`; the reference estate has 22 such rows naming 23 rule ids). Until Q8 the
+  // gate read single-id rule cells only, so such a row was invisible to D1 and D2: a rule whose ONLY
+  // ruling sat in a multi-rule row read as unrecorded, and a mint recorded that way read as orphan.
+  // Here BOTH rules are minted by this kickoff (Since = its date) and the ONLY rows are multi-rule,
+  // so every ✔ below comes from the multi-rule read alone. Against the pre-Q8 gate J8 and J9 FAIL.
+  const V2BOTH = () => dd([['R1', RULE1, 'tile 1', '2026-09-08'], ['R2', RULE2, 'tile 1', '2026-09-08']], 'v2');
+  function buildMulti(rows) {
+    buildDecClean();
+    fs.writeFileSync(path.join(EST, 'DATA-DICTIONARY.md'), V2BOTH());
+    fs.writeFileSync(path.join(EST, 'fx-kickoff-2026-09-08.md'),
+      kickoff({ rules: ['R1', 'R2'], seals: { R1: sha1(RULE1), R2: sha1(RULE2) }, done: false }));
+    fs.writeFileSync(path.join(EST, 'DECISIONS.md'), decisions(rows));
+  }
+  // J8 — the space-separated shape the reference estate writes.
+  buildMulti([['2026-09-08', 'R1 R2', '`fx-kickoff-2026-09-08.md`']]);
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J8: a row `R1 R2` satisfies D1 for EACH rule — ✔ "2 minted of 2 … 2 recorded"',
+      mark(r.out, D1) === '✔' && /2 minted of 2 header rule\(s\) — 2 recorded/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J8: …and D2 for EACH rule — ✔ "2 of 2", the row counted once as naming several rules',
+      mark(r.out, D2) === '✔' && /2 of 2 rule\(s\) recorded \(1 DECISIONS row\(s\) read, 1 naming several rules\)/.test(line(r.out, D2)),
+      line(r.out, D2).trim());
+    check('J8: …and the run stays green (exit 0)', r.status === 0, 'exit ' + r.status);
+  }
+  // J9 — the comma-separated shape.
+  buildMulti([['2026-09-08', 'R1, R2', '`fx-kickoff-2026-09-08.md`']]);
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J9: a row `R1, R2` satisfies D1 for EACH rule',
+      mark(r.out, D1) === '✔' && /2 minted of 2 header rule\(s\) — 2 recorded/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J9: …and D2 for EACH rule',
+      mark(r.out, D2) === '✔' && /2 of 2 rule\(s\) recorded/.test(line(r.out, D2)), line(r.out, D2).trim());
+  }
+  // J10 — THE NEEDLE. The same row names R1 only. R2 now has no row at all: D2 must FAIL naming R2,
+  // and D1 must FAIL naming R2 as the orphan mint. If the splitter ever credited a row to a rule it
+  // does not name, this case stays green and the self-test fails.
+  buildMulti([['2026-09-08', 'R1', '`fx-kickoff-2026-09-08.md`']]);
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J10: needle — the row names R1 only, so D2 FAILS "1 of 2", naming R2',
+      mark(r.out, D2) === '✘' && /1 of 2 rule\(s\) recorded — no row at all for R2 \(/.test(line(r.out, D2)), line(r.out, D2).trim());
+    check('J10: …and D1 FAILS for R2 (minted, no row naming this kickoff)',
+      mark(r.out, D1) === '✘' && /for R2 —/.test(line(r.out, D1)), line(r.out, D1).trim());
+    check('J10: …and the run reddens (exit 1)', r.status === 1, 'exit ' + r.status);
+  }
+  // J11 — a mixed cell (`R1 DD`) is NOT a multi-rule cell: it stays out of D1 and D2, exactly as
+  // before Q8. The fix widens the reader to id lists only, never to prose or pseudo-keys.
+  buildMulti([['2026-09-08', 'R1 DD', '`fx-kickoff-2026-09-08.md`'], ['2026-09-08', 'R2', '`fx-kickoff-2026-09-08.md`']]);
+  {
+    const r = run('fx-kickoff-2026-09-08.md', 'fail');
+    check('J11: a mixed cell `R1 DD` is not read — D2 FAILS naming R1',
+      mark(r.out, D2) === '✘' && /no row at all for R1 \(1 DECISIONS row\(s\) read, 0 naming several rules\)/.test(line(r.out, D2)),
+      line(r.out, D2).trim());
+  }
 }
 
 // =============================================================================================
@@ -1447,6 +1503,7 @@ if (bad) {
   console.log('       refusing an unfilled placeholder and refusing to overwrite a live tenant;');
   console.log('       and a minted rule with no DECISIONS row — or one recorded against a SIBLING');
   console.log('       kickoff — reddens, while a cite-only rule and an unratified plan do not;');
+  console.log('       and a multi-rule DECISIONS row counts for EACH rule it names, and only those;');
   console.log('       and a new tile is checked against the guide of the board that carries it,');
   console.log('       a titled text header included (by its title_text);');
   console.log('       and a folder Look retires on its own, declared in scope.retired_looks.');
