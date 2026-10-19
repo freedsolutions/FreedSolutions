@@ -5,7 +5,7 @@ a rule changes here first, then in the BI surface, then in the operator docs.
 
 **Column contract** — `| # | Rule | Grain | Surface | Status | Since | Links | Record |`
 
-- **Rule** — the standing rule only, present tense, ≤ 400 characters. No dates, quotes,
+- **Rule** — the standing rule only, present tense, ≤ 600 characters. No dates, quotes,
   counts, query ids, tile ids or narrative; a Product Line name escapes its pipes as `\|`.
 - **Grain** — what one row of the rule is about: per product, per PL, per package.
 - **Surface** — where it is enforced: tile ids, `export`, `api`, `config`. The impl cell.
