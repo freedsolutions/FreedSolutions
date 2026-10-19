@@ -13,7 +13,7 @@ record that ruled it in the tenant's DECISIONS.
 ## Intake Pointers
 - Operator: <name>                       # the human at the pre-create STOP; the notice signs as them
 - Mail label: <Gmail label>              # `pull` reads this; a shared inbox later = one line change
-- Drive invoices folder: <folder id>     # the <Client>/Invoices/ root; <Vendor>/<YYYY>/ below it
+- Drive invoices folder: <folder id>     # the Vendors/ root; <Vendor>/Invoices/<YYYY>/ below it (R104)
 - Intake dir: <abs path>                 # inbox/, manifest.jsonl, intake CSVs, exceptions, notices
 - Exports dir: <abs path>                # freshest Catalog Active / Retired / Strains / Receipt Detail
 - Standard cost: lane Cost (R50)         # what COST_DRIFT compares to (the only standard implemented)

@@ -6,7 +6,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 ## Pipeline
 
 ```
- mail label ──pull──▶ Drive <Client>/Invoices/<Vendor>/<YYYY>/  +  <Intake dir>/inbox/ + manifest.jsonl
+ mail label ──pull──▶ Drive Vendors/<Vendor>/Invoices/<YYYY>/  +  <Intake dir>/inbox/ + manifest.jsonl
                                   │
  invoice.pdf ──intake_parse──▶ lines.csv ──intake_match──▶ intake-v1 ──intake_exceptions──▶ intake-v2
  (or --text rendering, --lines)        (Active / Retired /           (R102 flags, R62 read,
@@ -31,7 +31,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 
 | Mode | Script | Login | Output |
 |---|---|---|---|
-| `pull` | session procedure (Gmail + Drive connectors) | connector only | Drive copy, inbox mirror, `manifest.jsonl` |
+| `pull` | session procedure (Gmail + Drive connectors) | connector only | Drive copy, inbox working copy, `manifest.jsonl` |
 | `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` -> `intake_apex_cost.py` (sample-only new lines; the Apex read is read-only, in the write channel) -> `intake_msrp.py` (new lines only) | none (Apex: read only) | lines CSV, intake v1 + v2 (+ v3), exceptions CSV, apex-read CSV, `-msrp-<ts>.md`, STOP message |
 | `create` | `intake_plan.py`, then `gridBatch` + `intake_ui_run.py` (UI rows) in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL, the keyMap |
 | `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
@@ -94,6 +94,7 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
    and fill every `<placeholder>`.
 2. Copy `templates/notice.md` into the tenant and point `Notice template:` at the copy.
 3. `python scripts/intake_pointers.py --tenant <tenant CLAUDE.md>` must print `contract complete`.
-4. Create the mail label and the Drive `<Client>/Invoices/` root; put its folder id in the pointer.
+4. Create the mail label and the `Vendors/` root in the tenant's operations Shared Drive; put its folder id
+   in the pointer.
 5. First invoice: run `intake` with explicit export paths, read the STOP, and check the verdicts by
    hand before trusting a freshest-file pick.

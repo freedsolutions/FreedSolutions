@@ -52,7 +52,7 @@ the second is the `bi-change` block the tenant already has.
 
 ```
 ## Intake Pointers
-- Operator: <name>                 - Mail label: <Gmail label>       - Drive invoices folder: <folder id>
+- Operator: <name>                 - Mail label: <Gmail label>       - Drive invoices folder: <Vendors folder id>
 - Intake dir: <abs path>           - Exports dir: <abs path>         - Standard cost: lane Cost (R50)
 - Expiry threshold days: <n>       - PO source: <apex | vendor pdf | none>   (apex: also where a sample-only
   new line's Cost is read - the vendor's Apex PO, else its Apex catalog listing; R125, intake step 4)
@@ -81,7 +81,7 @@ The Operator's name comes from `Operator:`, never from this file.
 ## Pipeline
 
 ```
-mail label --pull--> Drive <Client>/Invoices/<Vendor>/<YYYY>/ + <Intake dir>/inbox/ + manifest.jsonl
+mail label --pull--> Drive Vendors/<Vendor>/Invoices/<YYYY>/ + <Intake dir>/inbox/ + manifest.jsonl
 invoice.pdf --intake_parse--> lines.csv --intake_match--> intake-v1.csv --intake_exceptions--> intake-v2.csv
    + -exceptions-<ts>.csv --(Apex read in the write channel)--> -apex-read-<date>-vN.csv
    --intake_apex_cost--> intake-v3.csv (sample-only new lines only) --intake_msrp--> -msrp-<ts>.md (new lines only)
@@ -105,13 +105,18 @@ run never overwrites one. Exit codes for every script: 0 clean (STOP / INFO coun
 2. Google Workspace connector `gmail_search` on the label with `has:attachment filename:pdf`. Skip
    every message whose id is already in the manifest: the mode is idempotent on `message_id`.
 3. Per new message: `gmail_downloadAttachment`. The bytes arrive base64; decode and write them
-   UNCHANGED to `<Intake dir>/inbox/<vendor>/<filename>`; compute the sha1.
-4. Drive connector: find `<Client>/Invoices/<Vendor>/<YYYY>/` under the folder id; create each missing
-   level with `create_file`, mime `application/vnd.google-apps.folder`, parent = the level above.
-   Upload the PDF with `create_file` into the year folder. Read the Drive copy back and compare sha1.
-   Filed BEFORE parse; the estate keeps the local mirror (R104). PO and COAs file beside it.
-5. Append one JSON line per file: `message_id, vendor, invoice_no, drive_file_id, local_path, sha1,
-   pulled_at`. `invoice_no` may be blank until `intake` reads it.
+   UNCHANGED to `<Intake dir>/inbox/<vendor>/<filename>`; compute the SHA-256.
+4. Drive connector: the folder id is the `Vendors/` folder; find `<Vendor>/Invoices/<YYYY>/` below it; create
+   each missing level with `create_file`, mime `application/vnd.google-apps.folder`, parent = the level above.
+   Upload the PDF with `create_file` into the year folder as `INVOICE - <YYYY-MM-DD> - <Vendor>.pdf`. Read the
+   Drive copy back and compare SHA-256. Filed BEFORE parse; a local copy is a working cache, never the record
+   (R104). PO, manifest, COA and credit memo file under the same vendor folder (`Orders/`, `Manifests/`,
+   `COAs/`, `Credits/`).
+5. Append one JSON line per file: `message_id, vendor, invoice_no, drive_file_id, local_path, sha256,
+   pulled_at`. `invoice_no` may be blank until `intake` reads it. A run names its invoice by `drive_file_id`.
+When the tenant's inbox flow files invoices itself (its classifier stamps Drive file properties), `pull` is a
+Drive read instead: list the files under the folder id with `doc_class=invoice` and `status` `filed` or
+`filed_by_hand`, download a working copy, and keep `drive_file_id` in the manifest.
 `pull` never puts the invoice, its number or its bytes in a URL or a query string: content goes
 through connector bodies only.
 
@@ -567,8 +572,8 @@ line is sample-only:
    figure as the package total (per piece x count would break its Master category's package cap, named in the
    `derived` cite); the Operator confirms it against the COA before replying: a COA mg per serving or mg per package
    settles the read; a COA stating mg/g settles nothing, because the grams per piece are unknown. A COA may test
-   within the market's tolerance of the label (the class map's `[market]` block): a callout, never a hit. The lane reads no COA file: this is the Operator's check, and the COA stays filed
-   beside the invoice (R104). A `DOSE_UNREAD` on an mg line with no count means the package total is unsettled:
+   within the market's tolerance of the label (the class map's `[market]` block): a callout, never a hit. The lane reads no COA file: this is the Operator's check, and the COA is filed
+   in the vendor folder's `COAs/` (R104). A `DOSE_UNREAD` on an mg line with no count means the package total is unsettled:
    set Product grams and Servings per Unit in the lane cells from the label / COA and write the name's dose.
 6. **Cost on a sample-only new line (R125)** - `# | Line | Invoice line | Sample price | Cost | Source | Flags`, printed by
    `intake_apex_cost.py`: the Cost read from the vendor's Apex PO or catalog listing, named with its read date. A row at
