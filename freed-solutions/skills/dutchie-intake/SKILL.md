@@ -74,6 +74,8 @@ the second is the `bi-change` block the tenant already has.
 parser through `--tenant` and ABORTs on a missing key or a value still written `<like this>`. A runner that
 reads only some keys (`receive --prep` reads the tag pointers) ABORTs only on a gap in a key it reads; any other
 gap prints a `WARNING:` line (`intake_pointers.load_for`).
+Every runner loads only the keys it reads (its `tenant_keys`); `Drive invoices folder` gates only the Drive-filing
+step (`pull`, gate `intake_pointers.py --tenant <CLAUDE.md> --for pull`).
 The Operator's name comes from `Operator:`, never from this file.
 
 ## Pipeline
@@ -98,7 +100,8 @@ run never overwrites one. Exit codes for every script: 0 clean (STOP / INFO coun
 ## Modes
 
 **`pull`** - a session procedure over the connectors; no script, no browser.
-1. Read `Mail label`, `Drive invoices folder`, `Intake dir`. Load `<Intake dir>/inbox/manifest.jsonl`.
+1. Run `intake_pointers.py --tenant <CLAUDE.md> --for pull` (exit 2 = STOP: a gap in `Mail label`,
+   `Drive invoices folder` or `Intake dir`). Load `<Intake dir>/inbox/manifest.jsonl`.
 2. Google Workspace connector `gmail_search` on the label with `has:attachment filename:pdf`. Skip
    every message whose id is already in the manifest: the mode is idempotent on `message_id`.
 3. Per new message: `gmail_downloadAttachment`. The bytes arrive base64; decode and write them

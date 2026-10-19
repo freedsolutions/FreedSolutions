@@ -170,6 +170,11 @@ def fill(template, rows, operator, new_line_tag=DEFAULT_NEW_LINE_TAG):
     return re.sub(r"\n{3,}", "\n\n", text).strip() + "\n", created, newl, defects
 
 
+def tenant_keys(argv):
+    """(need, optional): the `## Intake Pointers` keys this runner reads (intake_pointers.load_for)."""
+    return ["Notice template", "Operator", "Floor sheet"], ["New line tag"]
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -180,7 +185,7 @@ def main(argv):
     tenant = get_flag(argv, "--tenant")
     if tenant:
         import intake_pointers
-        p = intake_pointers.load(tenant)["intake"]
+        p = intake_pointers.load_for(tenant, *tenant_keys(argv))["intake"]
         tpl, operator, floor = p["Notice template"], p["Operator"], p["Floor sheet"]
         ptr_tag = p.get("New line tag")
     else:

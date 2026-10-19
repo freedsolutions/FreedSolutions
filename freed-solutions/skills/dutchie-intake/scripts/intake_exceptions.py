@@ -284,6 +284,11 @@ def stop_message(rows, exc, summary, operator, intake_path):
     return "\n".join(out)
 
 
+def tenant_keys(argv):
+    """(need, optional): the `## Intake Pointers` keys this runner reads (intake_pointers.load_for)."""
+    return ["Standard cost", "Expiry threshold days", "Operator", "PO source", "Vendor deal tag"], []
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -294,7 +299,7 @@ def main(argv):
     tenant = get_flag(argv, "--tenant")
     if tenant:
         import intake_pointers
-        ptr = intake_pointers.load(tenant)["intake"]
+        ptr = intake_pointers.load_for(tenant, *tenant_keys(argv))["intake"]
         if "lane cost" not in ptr["Standard cost"].lower():
             abort(f"`Standard cost: {ptr['Standard cost']}` - only the lane Cost (R50) standard is implemented")
         days, operator, po_source = int(ptr["Expiry threshold days"]), ptr["Operator"], ptr["PO source"].lower()

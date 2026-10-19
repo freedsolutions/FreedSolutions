@@ -33,6 +33,7 @@ import intake_derive as ID  # noqa: E402
 import intake_common as C  # noqa: E402
 import intake_exceptions as IE  # noqa: E402
 import intake_match as IM  # noqa: E402
+import intake_msrp as MS  # noqa: E402
 import intake_notice as IN  # noqa: E402
 import intake_parse as IP  # noqa: E402
 import intake_plan as PL  # noqa: E402
@@ -1389,6 +1390,44 @@ RECEIVE_CHECKS = [
 ]
 
 
+def runner_tenant(keys, placeholders):
+    """(blocking, warnings) for a runner's own pointer read (its tenant_keys) on the fixture tenant with the named
+    lines placeholdered - the read intake_pointers.load_for makes."""
+    text = BASE["tenant"]
+    for line, ph in placeholders:
+        text = text.replace(line, ph)
+    return PTR.split_problems(PTR.parse_text(text), *keys)
+
+
+def drive_warn_only(keys):
+    """The check: on the given placeholders the runner's read does not block, and the Drive gap is a WARNING."""
+    return lambda ph: (lambda b, w: b == [] and any("Drive invoices folder" in x for x in w))(*runner_tenant(keys, ph))
+
+
+INTAKE_PH = ("Intake dir: ./intake-out", "Intake dir: <abs path>")
+EXPORTS_PH = ("Exports dir: ./", "Exports dir: <abs path>")
+NOTICE_PH = ("Notice template: ../templates/notice.md", "Notice template: <abs path>")
+OWN_PH = ("Own store: exampleco", "Own store: <token>")
+# Each runner names the keys it reads (tenant_keys -> intake_pointers.load_for). An unfilled `Drive invoices folder` -
+# read only by the pull procedure, which files the invoice to Drive - is a WARNING to every runner; a placeholder in a
+# key the runner DOES read still blocks it.
+RUNNER_KEYS = [("parse", IP.tenant_keys([]), INTAKE_PH), ("match", IM.tenant_keys([]), EXPORTS_PH),
+               ("exceptions", IE.tenant_keys([]), DEAL_PH), ("plan", PL.tenant_keys([]), INTAKE_PH),
+               ("certify", IC.tenant_keys([]), INTAKE_PH), ("notice", IN.tenant_keys([]), NOTICE_PH),
+               ("msrp", MS.tenant_keys([]), OWN_PH)]
+POINTER_CHECKS = [(f"{name} tenant read: the Drive folder placeholder is a WARNING, never an abort", drive_warn_only(keys),
+                   [DRIVE_PH], [DRIVE_PH, br], f"the `{br[0].split(':')[0]}` line (a key {name} reads) is a placeholder too")
+                  for name, keys, br in RUNNER_KEYS]
+POINTER_CHECKS += [
+    ("pull gate (the Drive filer): a whole contract passes; the Drive folder placeholder BLOCKS it",
+     lambda ph: runner_tenant(PTR.PROCEDURE_KEYS["pull"], ph) == ([], []),
+     [], [DRIVE_PH], "the Drive folder is a placeholder"),
+    ("no runner's tenant_keys names `Drive invoices folder` (only the pull gate reads it)",
+     lambda extra: not any("Drive invoices folder" in k[0] + list(k[1]) for k in [r[1] for r in RUNNER_KEYS] + extra),
+     [], [PTR.PROCEDURE_KEYS["pull"]], "count the pull gate as a runner"),
+]
+
+
 # R68 (amended 2026-10-11): a create into a PRODUCT LINE whose every active item carries the discontinue tag is tagged
 # with it at create and flagged PL_DISCONTINUED_CREATE (INFO); a mixed, an untagged and a NEW line print nothing. Line 3
 # (Gelato) copies into the Acme pre-roll line (live 501 + 502; 503 is a dead record, R81, in no line); line 5 is a
@@ -1510,7 +1549,7 @@ CHECKS += [
 
 def run_checks():
     bad = []
-    for name, pred, good, broken, how in CHECKS + RECEIVE_CHECKS:
+    for name, pred, good, broken, how in CHECKS + RECEIVE_CHECKS + POINTER_CHECKS:
         try:
             g = bool(quiet(pred, good))
         except Exception as e:
@@ -1535,6 +1574,30 @@ def run(cmd, expect):
     print(f"  {'PASS' if ok else 'FAIL'}  {' '.join(os.path.basename(x) if os.sep in x or '/' in x else x for x in cmd[:1] + cmd[1:4])}"
           f" ... -> exit {r.returncode} (expect {expect})")
     return ok, r.stdout
+
+
+def drive_ph_tenant(dirpath):
+    """A copy of the fixture tenant under `dirpath` with `Drive invoices folder` a placeholder (the fixture's relative
+    paths made absolute; `Intake dir` stays relative, so it lands in `dirpath/intake-out`). Returns its path."""
+    os.makedirs(os.path.join(dirpath, "intake-out"), exist_ok=True)
+    text = BASE["tenant"].replace(*DRIVE_PH)
+    for a, b in (("Exports dir: ./", "Exports dir: " + FX),
+                 ("Notice template: ../templates/notice.md",
+                  "Notice template: " + os.path.join(os.path.dirname(FX), "templates", "notice.md")),
+                 ("FL EQ classes: ./fl-eq-classes.toml", "FL EQ classes: " + fx("fl-eq-classes.toml")),
+                 ("PL key: ./pl_key_example.py", "PL key: " + fx("pl_key_example.py"))):
+        text = text.replace(a, b)
+    p = os.path.join(dirpath, "CLAUDE.md")
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    return p
+
+
+def pull_gate(tenant):
+    """(exit code, stderr) of the pull procedure's pointer gate: intake_pointers.py --tenant <t> --for pull."""
+    r = subprocess.run([sys.executable, "intake_pointers.py", "--tenant", tenant, "--for", "pull"], capture_output=True,
+                       text=True, encoding="utf-8", env=ENV, cwd=HERE)
+    return r.returncode, r.stderr
 
 
 def cli_chain():
@@ -1608,6 +1671,36 @@ def cli_chain():
         print(f"  {'PASS' if ok else 'FAIL'}  the msrp read wrote ONE -msrp-<ts>.md and printed the pending STOP block")
         if not ok:
             bad.append("msrp output")
+        # The Drive folder unfilled (a key only the pull procedure reads): every runner warns and runs; pull ABORTs.
+        pt = os.path.join(t, "drive-ph")
+        ten_ph = drive_ph_tenant(pt)
+        pdo = os.path.join(pt, "out")
+        os.makedirs(pdo)
+
+        def drive_warns(name, cmd):
+            out = step(f"{name} --tenant with the Drive folder a placeholder (WARNING, exit 0)", cmd, 0)
+            if "WARNING: tenant contract" not in out or "Drive invoices folder" not in out:
+                bad.append(f"{name} Drive warning")
+                print(f"  FAIL  {name} must print a WARNING naming `Drive invoices folder` and run on")
+        drive_warns("parse", ["intake_parse.py", "--pdf", pdf, "--text", fx("apex-invoice.md"), "--tenant", ten_ph])
+        drive_warns("match", ["intake_match.py", "--lines", lines, "--active", fx("catalog-active.csv"), "--retired",
+                              fx("catalog-retired.csv"), "--strains", fx("strains.csv"), "--tenant", ten_ph,
+                              "--out-dir", pdo, "--slug", "example", "--drop-tag", DROP[0]])
+        drive_warns("exceptions", ["intake_exceptions.py", "--intake", v1, "--lines", lines, "--po", fx("po.csv"),
+                                   "--tenant", ten_ph, "--out-dir", pdo])
+        drive_warns("notice", ["intake_notice.py", "--intake", v3, "--tenant", ten_ph, "--out-dir", pdo])
+        drive_warns("msrp", ["intake_msrp.py", "--intake", v2, "--tenant", ten_ph, "--active", fx("catalog-active.csv"),
+                             "--min-rows", "1", "--no-live", "--no-archive", "--out-dir", pdo])
+        step("intake_pointers --tenant (the whole-contract check) stays strict on the Drive placeholder",
+             ["intake_pointers.py", "--tenant", ten_ph], 2)
+        for label, ten_, expect in (("a whole contract", fx("tenant-CLAUDE.md"), 0),
+                                    ("the Drive folder a placeholder", ten_ph, 2)):
+            rc, err = pull_gate(ten_)
+            ok = rc == expect and (expect == 0 or "Drive invoices folder" in err)
+            print(f"  {'PASS' if ok else 'FAIL'}  pull gate (--for pull) on {label} -> exit {rc} (expect {expect})"
+                  + ("" if expect == 0 else ", naming `Drive invoices folder`"))
+            if not ok:
+                bad.append(f"pull gate {label}")
         step("receive with no mode (usage)", ["receive.py"], 2)
         rargs = ["receive.py", "--prep", "--lines", fx("receive-lines.csv"), "--catalog", fx("receive-catalog.csv"),
                  "--inventory", fx("receive-inventory.csv"), "--tenant", fx("tenant-CLAUDE.md"), "--out-dir", t,
@@ -1718,6 +1811,10 @@ def cli_chain():
             print("  FAIL  no Apex read must print COST_UNKNOWN (STOP) 1")
         else:
             print("  PASS  no Apex read prints COST_UNKNOWN (STOP) 1")
+        for name, cmd in (("plan", ["intake_plan.py"] + pargs + ["--tenant", ten_ph]),
+                          ("certify --plan", ["intake_certify.py"] + [a for a in cargs if a not in ("--out-dir", t)]
+                           + ["--post-active", fx("plan-post-active.csv"), "--tenant", ten_ph])):
+            drive_warns(name, cmd)
         stray = [n for n in os.listdir(FX) if n not in FIXTURE_FILES]
         if stray:
             bad.append("wrote into fixtures/")
@@ -1747,7 +1844,7 @@ def main():
     else:
         print(f"  FAIL  the batch runner's selftest is missing: {GRID_SELFTEST}")
         fails.append("backoffice_grid_write_selftest.js missing")
-    print(f"\n2. fixture checks - each must pass clean AND fail on its breaker ({len(CHECKS) + len(RECEIVE_CHECKS)} checks)")
+    print(f"\n2. fixture checks - each must pass clean AND fail on its breaker ({len(CHECKS) + len(RECEIVE_CHECKS) + len(POINTER_CHECKS)} checks)")
     fails += run_checks()
     print("\n3. CLI chain on the fixtures (temp output)")
     fails += cli_chain()

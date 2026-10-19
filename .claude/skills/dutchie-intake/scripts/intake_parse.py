@@ -227,6 +227,11 @@ def run_chain(pdf=None, txt=None, hand=None, layout="auto", vendor=None, total=N
           "filed copy> or hand-type --lines <csv> with columns " + str(HAND_REQUIRED) + ".")
 
 
+def tenant_keys(argv):
+    """(need, optional): the `## Intake Pointers` keys this runner reads (intake_pointers.load_for)."""
+    return ["Intake dir"], []
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -240,7 +245,7 @@ def main(argv):
     tenant = get_flag(argv, "--tenant")
     if not out_dir and tenant:
         import intake_pointers
-        out_dir = intake_pointers.load(tenant)["intake"]["Intake dir"]
+        out_dir = intake_pointers.load_for(tenant, *tenant_keys(argv))["intake"]["Intake dir"]
     src = pdf or txt or hand
     out_dir = out_dir or os.path.dirname(os.path.abspath(src))
     if "--dump-text" in argv:

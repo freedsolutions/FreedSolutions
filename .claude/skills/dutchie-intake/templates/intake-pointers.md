@@ -2,8 +2,8 @@
 
 Paste the block below into the tenant's gitignored `CLAUDE.md`, directly under `## BI Change Pointers`
 (the `dutchie-intake` skill also reads `Backoffice login` and `Write channel` from that block). Replace
-every `<placeholder>`. A value still written `<like this>` counts as MISSING and every runner aborts
-on it: `python <skill>/scripts/intake_pointers.py --tenant <tenant CLAUDE.md>` must print
+every `<placeholder>`. A value still written `<like this>` counts as MISSING and every runner that reads
+the key aborts on it: `python <skill>/scripts/intake_pointers.py --tenant <tenant CLAUDE.md>` must print
 `contract complete`. Paths are absolute: task worktrees do not contain the gitignored tenant tree.
 
 The thresholds are RULED by the business, never tuned from data. Write the ruled number and name the

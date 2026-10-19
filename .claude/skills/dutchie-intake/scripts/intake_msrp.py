@@ -761,6 +761,15 @@ def run(intake_path, rows, active, params, archive_dir, wm_cache, alias_specs, o
     return C.EXIT_OK, path
 
 
+def tenant_keys(argv):
+    """(need, optional): the `## Intake Pointers` keys this read uses (intake_pointers.load_for). `Exports dir` only
+    without --active; `Intake dir` only for the live read with no --wm-cache."""
+    need = ["Market center", "Market radius mi", "Own store"]
+    need += [k for k, read in (("Exports dir", not C.get_flag(argv, "--active")),
+                               ("Intake dir", "--no-live" not in argv and not C.get_flag(argv, "--wm-cache"))) if read]
+    return need, ["Market box", "Market archive", "MSRP anchor", "MSRP floor x cost"]
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -768,10 +777,7 @@ def main(argv):
     if not ip or not tp:
         print(__doc__)
         return C.EXIT_ABORT
-    ptr = PTR.load(tp, strict=False)   # read-only: it needs its own keys, not the whole write contract
-    bad = [x for x in ptr["problems"] if any(k in x for k in ("Intake dir", "Exports dir", "Market", "absent"))]
-    if bad:
-        C.abort("the tenant pointers this read needs are incomplete:\n  - " + "\n  - ".join(bad))
+    ptr = PTR.load_for(tp, *tenant_keys(argv))   # read-only: it needs its own keys, not the whole write contract
     params = market_params(ptr)
     _, rows = C.read_csv(ip, INTAKE_REQUIRED, "intake")
     ap = C.get_flag(argv, "--active") or os.path.join(ptr["intake"]["Exports dir"], "latest", "catalog-active.csv")

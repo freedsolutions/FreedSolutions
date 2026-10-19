@@ -1,6 +1,7 @@
 """intake_pointers.py - read the tenant contract: `## Intake Pointers` + `## BI Change Pointers`.
 
   python intake_pointers.py --tenant <tenant CLAUDE.md> [--json]
+  python intake_pointers.py --tenant <tenant CLAUDE.md> --for pull     # the pull gate: only the keys pull reads
   python intake_pointers.py --selftest
 
 Every other runner in this skill calls `load(path)` through its own `--tenant` flag. The skill
@@ -16,7 +17,10 @@ A value still written `<like this>` is a placeholder and counts as missing.
 
 A runner that reads only SOME keys calls `load_for(path, need, optional)` instead of `load`: a gap in a key it reads
 (or an absent `## Intake Pointers` block) ABORTs; any other gap is a WARNING line, never an abort (receive --prep
-reads the tag pointers only; an unfilled `Drive invoices folder:` is not its business).
+reads the tag pointers only; an unfilled `Drive invoices folder:` is not its business). Every runner names its own
+keys in `tenant_keys(argv)`. `pull` is a session procedure with no script: `--for pull` is its gate, and it is the ONE
+reader of `Drive invoices folder` (it files the invoice to Drive), so that key ABORTs there and nowhere else.
+`--tenant` alone stays the whole-contract check: exit 2 on any gap.
 """
 import json
 import os
@@ -59,6 +63,9 @@ CAT_PREFIX = "cat:"
 OPTIONAL_MARKET_KEYS = ["Market center", "Market radius mi", "Market box", "Market archive", "Own store",
                         "MSRP anchor", "MSRP floor x cost"]
 MSRP_ANCHORS = ["market", "own lanes"]
+# The session procedures with no script of their own: (need, optional) for `--for <mode>`. `pull` files the invoice
+# to Drive - the only reader of `Drive invoices folder`.
+PROCEDURE_KEYS = {"pull": (["Mail label", "Drive invoices folder", "Intake dir"], [])}
 _NUM = r"-?\d+(?:\.\d+)?"
 
 LINE = re.compile(r"^\s*-\s+(?:\*\*)?(?P<key>[^:*`]+?)(?:\*\*)?:(?:\*\*)?\s*(?P<val>.*)$")
@@ -401,6 +408,10 @@ def selftest():
     t.check("FIRES: a placeholder in an OPTIONAL key the runner reads blocks (never read as the tag)",
             any("New line tag" in b for b in split_problems(ot, [], ["New line tag"])[0])
             and split_problems(ot, [], [])[0] == [])
+    pk_ = PROCEDURE_KEYS["pull"]
+    t.check("FIRES: the pull gate (the Drive filer) blocks on a placeholder `Drive invoices folder`",
+            any("Drive invoices folder" in b for b in split_problems(parse_text(drive_ph), *pk_)[0]))
+    t.check("QUIET: the pull gate passes on a whole contract", split_problems(r, *pk_) == ([], []))
     nob = SAMPLE.replace("## BI Change Pointers", "## Something else")
     t.check("FIRES: an absent section is named", any("absent" in p for p in validate(parse_text(nob))))
     return t.done()
@@ -409,10 +420,14 @@ def selftest():
 def main(argv):
     if "--selftest" in argv:
         return selftest()
-    path = get_flag(argv, "--tenant")
-    if not path:
+    path, mode = get_flag(argv, "--tenant"), get_flag(argv, "--for")
+    if not path or (mode is not None and mode not in PROCEDURE_KEYS):
         print(__doc__)
         return EXIT_ABORT
+    if mode:
+        load_for(path, *PROCEDURE_KEYS[mode])
+        print(f"pointers ready for `{mode}`: " + ", ".join(PROCEDURE_KEYS[mode][0]))
+        return EXIT_OK
     res = load(path, strict=False)
     if "--json" in argv:
         print(json.dumps({k: res[k] for k in ("intake", "bi", "ladder", "problems")}, indent=1))

@@ -478,6 +478,11 @@ def certify_plan(plan, pre_hdr, pre, post_hdr, post, min_rows=None, prefix=ITEM_
     return rep, fails, counts
 
 
+def tenant_keys(argv):
+    """(need, optional): the `## Intake Pointers` keys this runner reads (intake_pointers.load_for)."""
+    return ["Intake dir"], []
+
+
 def main_plan(argv):
     from intake_plan import PLAN_COLS
     need = ["--plan", "--pre-active", "--pre-retired", "--post-active", "--post-retired"]
@@ -496,7 +501,7 @@ def main_plan(argv):
     tenant, out_dir = get_flag(argv, "--tenant"), get_flag(argv, "--out-dir")
     if not out_dir and tenant:
         import intake_pointers
-        out_dir = intake_pointers.load(tenant)["intake"]["Intake dir"]
+        out_dir = intake_pointers.load_for(tenant, *tenant_keys(argv))["intake"]["Intake dir"]
     d_, stem = version_stem(p["--plan"])
     out = new_path(out_dir or d_, f"{stem}-certify-{stamp()}", ".md")
     head = [f"# Intake batch certify (R124) - plan `{os.path.basename(p['--plan'])}`", "",
@@ -538,7 +543,7 @@ def main(argv):
     out_dir = get_flag(argv, "--out-dir")
     if not out_dir and tenant:
         import intake_pointers
-        out_dir = intake_pointers.load(tenant)["intake"]["Intake dir"]
+        out_dir = intake_pointers.load_for(tenant, *tenant_keys(argv))["intake"]["Intake dir"]
     if ip:
         d_, stem = version_stem(ip)
     else:

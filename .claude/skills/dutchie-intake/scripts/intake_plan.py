@@ -814,6 +814,14 @@ def summary(rows, refusals, notes):
     return out
 
 
+def tenant_keys(argv):
+    """(need, optional): the `## Intake Pointers` keys this runner reads (intake_pointers.load_for). `Intake dir` only
+    when a plan is written (no --dry-run) and no --out-dir names the folder."""
+    from intake_match import TENANT_OPTIONAL
+    need = ["Intake dir"] if not get_flag(argv, "--out-dir") and "--dry-run" not in argv else []
+    return need, TENANT_OPTIONAL + ["Catalog state"]
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -831,7 +839,7 @@ def main(argv):
     ptr = None
     if tenant:
         import intake_pointers
-        ptr = intake_pointers.load(tenant)
+        ptr = intake_pointers.load_for(tenant, *tenant_keys(argv))
     from intake_match import line_options, load_fl_eq_classes, tag_options
     new_line_tag, active_tag = tag_options(argv, ptr)
     discontinue_tag, pl_key_fn, pl_key_src = line_options(argv, ptr)

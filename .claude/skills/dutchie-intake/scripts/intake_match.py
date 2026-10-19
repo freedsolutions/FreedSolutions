@@ -1563,6 +1563,18 @@ def parse_directions(specs, flag):
     return out
 
 
+# The optional pointers match (and plan) read when present: tag_options, line_options, the class map.
+TENANT_OPTIONAL = ["New line tag", "Active tag", "Discontinue tag", "PL key", "FL EQ classes"]
+
+
+def tenant_keys(argv):
+    """(need, optional): the `## Intake Pointers` keys this runner reads (intake_pointers.load_for). `Exports dir` only
+    when no --active / --exports-dir names the exports; `Intake dir` only when no --out-dir."""
+    need = [k for k, read in (("Exports dir", not (get_flag(argv, "--active") or get_flag(argv, "--exports-dir"))),
+                              ("Intake dir", not get_flag(argv, "--out-dir"))) if read]
+    return need, list(TENANT_OPTIONAL)
+
+
 def main(argv):
     if "--selftest" in argv:
         return selftest()
@@ -1574,7 +1586,7 @@ def main(argv):
     ptr = None
     if tenant:
         import intake_pointers
-        ptr = intake_pointers.load(tenant)
+        ptr = intake_pointers.load_for(tenant, *tenant_keys(argv))
     _, lines = read_csv(lines_p, LINES_REQUIRED, "--lines")
     paths, active, retired, strains, cats, brs = load_exports(argv, ptr)
     new_line_tag, active_tag = tag_options(argv, ptr)
