@@ -4,6 +4,7 @@ tenant's case store, and the lane logs each step as a case event (Operator rulin
   python intake_cases.py open --prep <receipt-prep.csv> (--received <package_id>... | --received-csv <csv>)
                               --tenant <CLAUDE.md> [--owner <name>] [--actor <name>] [--status <s>] [--party-key <k>]
                               [--receipt <id>] [--manifest-no <no>] [--apex-order <id>] [--gmail <id>]
+                              [--thread <gmail thread ref>... --subject <mail subject>]
                               [--title-prefix <text>] [--out-dir <dir>]
   python intake_cases.py sql --ops <ops.json> --tenant <CLAUDE.md> [--out-dir <dir>]
   python intake_cases.py --selftest
@@ -19,8 +20,11 @@ row still carries a STOP or DEFECT flag opens ONE case per package: the before-r
 question leaves the run. Size and qty mismatches, a manifest cost mismatch and every other open STOP count. INFO flags
 never open a case. A STOP on a package that is NOT received stays a question in the run (the before-receipt branch).
 The case type is the most specific flag on the package (SIZE > QTY > PRICE > OTHER, `CASE_TYPE`); the OPENED detail
-lists every open code. Links: the package, the item the package sits on, plus `--receipt`, `--manifest-no`,
-`--apex-order`. The SQL skips (a NOTICE, not an error) a package that already has an open case of the same code, so a
+lists every open code. Links: EVERY Gmail thread already known for the case (`--thread`, repeat; the first is the
+anchor - the tenant's inbox flow never re-reads mail that came before the case), each with the BARE mail subject as its
+note (`--subject`; `Re:` / `Fw:` stripped - the inbox flow matches thread id first, then vendor + this subject), the
+package, the item the package sits on, plus `--receipt`, `--manifest-no`, `--apex-order`. An `open` op whose anchor
+thread note is not a bare subject is refused. The SQL skips (a NOTICE, not an error) a package that already has an open case of the same code, so a
 re-run never opens a twin. `CREDIT_DUE` opens by an `ops` file (a credit that is promised but not on an invoice or a
 credit memo yet); it never holds a release - the credit can land on the next order or a credit memo.
 
@@ -60,6 +64,12 @@ GMAIL_ID = re.compile(r"^(<[^<>@\s]+@[^<>@\s]+>|[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z
 RULE_CODE = re.compile(r"^[A-Z][A-Z0-9_]+$")
 CASE_STORE = re.compile(r"^(?P<org>[A-Z][A-Z0-9_]*)\s+via\s+(?P<runner>\S.*\.ps1)$")
 QUOTE_TAG = "$cases$"
+# a reply / forward prefix on a mail subject (`Re:`, `RE: Fw:`, `Fwd:`); the anchor thread note is the subject without it
+SUBJECT_PREFIX = re.compile(r"^\s*(?:(?:re|fw|fwd)\s*:\s*)+", re.I)
+
+
+def bare_subject(s):
+    return SUBJECT_PREFIX.sub("", s or "").strip()
 DEFAULT_ACTOR = "dutchie-intake"
 # the receive.py flag -> the case type it opens, most specific first (the first hit on a package names the case)
 CASE_TYPE = [
@@ -107,8 +117,10 @@ def received_set(argv):
 
 
 def proposals(prep_rows, received, classes, owner, actor, status="AWAITING_RULING", title_prefix="", party_key=None,
-              receipt=None, manifest_no=None, apex_order=None, gmail=None):
-    """(ops, notes): one `open` op per RECEIVED package whose prep row carries a STOP or DEFECT."""
+              receipt=None, manifest_no=None, apex_order=None, gmail=None, threads=(), subject=""):
+    """(ops, notes): one `open` op per RECEIVED package whose prep row carries a STOP or DEFECT. `threads` = EVERY Gmail
+    thread already known for it (the inbox flow never re-reads mail that came before the case); the first is the
+    anchor, and every thread link's note is the bare `subject` (the inbox flow matches vendor + subject on it)."""
     ops, notes, seen = [], [], set()
     for r in prep_rows:
         pkg = (r.get("metrc_package_id") or "").strip()
@@ -134,6 +146,7 @@ def proposals(prep_rows, received, classes, owner, actor, status="AWAITING_RULIN
         if (r.get("dutchie_productid") or "").strip():
             links.append({"type": "DUTCHIE_ITEM", "ref": r["dutchie_productid"].strip(),
                           "note": f"the item the package was received into: {item}"})
+        links = [{"type": "GMAIL_THREAD", "ref": th, "note": bare_subject(subject)} for th in threads] + links
         for t, v in (("DUTCHIE_RECEIPT", receipt), ("METRC_MANIFEST", manifest_no), ("APEX_ORDER", apex_order)):
             if v:
                 links.append({"type": t, "ref": v})
@@ -189,6 +202,12 @@ def validate(ops):
             _gmail_ok(o.get("gmail"), f"op {i}")
             for j, ln in enumerate(o.get("links") or [], 1):
                 _check_link(ln, f"op {i} link {j}")
+            anchor = next((ln for ln in o.get("links") or [] if ln["type"] == "GMAIL_THREAD"), None)
+            if anchor is not None:
+                note = (anchor.get("note") or "").strip()
+                if not note or note != bare_subject(note):
+                    raise ValueError(f"op {i}: the anchor GMAIL_THREAD note must be the bare mail subject (no `Re:` / "
+                                     f"`Fw:`), got {anchor.get('note')!r}; the inbox flow matches vendor + subject on it")
         elif kind == "link":
             _case_id(o, i)
             _check_link({"type": o.get("type"), "ref": o.get("ref")}, f"op {i}")
@@ -369,10 +388,14 @@ def run_open(argv):
     _, rows = read_csv(prep_p, PREP_REQ, "prep sheet")
     owner = get_flag(argv, "--owner") or operator
     status = get_flag(argv, "--status") or "AWAITING_RULING"
+    threads, subject = [x.strip() for x in get_all(argv, "--thread") if x.strip()], get_flag(argv, "--subject") or ""
+    if threads and not bare_subject(subject):
+        abort("--thread needs --subject <the mail subject>: the anchor thread note is the bare subject the inbox flow "
+              "matches on")
     ops, notes = proposals(rows, received, flag_classes(), owner, get_flag(argv, "--actor") or DEFAULT_ACTOR, status,
                           get_flag(argv, "--title-prefix") or "", get_flag(argv, "--party-key"),
                           get_flag(argv, "--receipt"), get_flag(argv, "--manifest-no"), get_flag(argv, "--apex-order"),
-                          get_flag(argv, "--gmail"))
+                          get_flag(argv, "--gmail"), threads, subject)
     for n in notes:
         print(f"note: {n}")
     if not ops:
@@ -450,6 +473,14 @@ def selftest():
     ops_e = opened({"PKG-E"})[0]
     t.check("FIRES: any other open STOP on a received package opens an OTHER case",
             len(ops_e) == 1 and ops_e[0]["case_type"] == "OTHER" and ops_e[0]["source_rule"] == "ITEM_PENDING")
+    t.check("subject: `RE: Fw: X` and `fwd:X` read as the bare `X`",
+            bare_subject("RE: Fw: NEA Invoice <> Metrc Issue") == "NEA Invoice <> Metrc Issue" and bare_subject("fwd:X") == "X")
+    th = proposals(prep, {"PKG-C"}, classes, "Pat", DEFAULT_ACTOR, threads=["<a.b@mail.example.com>",
+                                                                          "pat@example.com:1a2b3c4d5e6f"],
+                   subject="Re: Haze size")[0][0]["links"]
+    t.check("FIRES: every known thread is linked first, the anchor first, each note the bare subject",
+            [(ln["type"], ln["note"]) for ln in th[:2]] == [("GMAIL_THREAD", "Haze size")] * 2
+            and th[0]["ref"] == "<a.b@mail.example.com>" and th[2]["type"] == "DUTCHIE_PACKAGE", str(th))
     t.check("one case per package, received packages off the sheet are a note",
             len(opened({"PKG-C", "PKG-D", "PKG-E", "PKG-Z"})[0]) == 3
             and any("PKG-Z" in n for n in opened({"PKG-Z"})[1]))
@@ -480,6 +511,12 @@ def selftest():
     t.check("REFUSED: a case id that is not a whole number", refused(dict(good_ev, case_id="7"), "case_id"))
     t.check("REFUSED: text carrying the quote tag", refused(dict(good_ev, detail="x $cases$ y"), "quote tag"))
     t.check("REFUSED: a source rule that is not a code", refused(dict(o, source_rule="size mismatch"), "exception code"))
+    anc = [{"type": "GMAIL_THREAD", "ref": "<a.b@mail.example.com>", "note": "Fw: Haze size"}]
+    t.check("REFUSED: an anchor thread note that is not the bare subject (a `Fw:` prefix, or a description gap)",
+            refused(dict(o, links=anc + o["links"]), "bare mail subject")
+            and refused(dict(o, links=[dict(anc[0], note="")] + o["links"]), "bare mail subject"))
+    t.check("QUIET: an anchor thread note that is the bare subject passes",
+            validate([dict(o, links=[dict(anc[0], note="Haze size")] + o["links"])]) is None)
 
     sql = render([o, good_ev], "EXAMPLE", "prep.csv")
     t.check("SQL: one transaction, dry run rolls back, commit otherwise",

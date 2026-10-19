@@ -1729,11 +1729,18 @@ def cli_chain():
         with open(cten, "w", encoding="utf-8") as fh:
             fh.write(ctext)
         cargs = ["intake_cases.py", "open", "--prep", os.path.join(t, wsprep), "--tenant", cten, "--out-dir", t]
-        out = step("cases open: the wrong-size package was received first (one case)", cargs + ["--received", "PKG-C"], 0)
+        step("cases open: a thread with no subject ABORTs (the anchor note is the subject)",
+             cargs + ["--received", "PKG-C", "--thread", "<a.b@mail.example.com>"], 2)
+        out = step("cases open: the wrong-size package was received first (one case)",
+                   cargs + ["--received", "PKG-C", "--thread", "<a.b@mail.example.com>", "--subject", "Re: Haze size"], 0)
         sqls = [n for n in os.listdir(t) if "-cases-" in n and n.endswith(".sql")]
+        with open(os.path.join(t, sqls[0]) if sqls else os.devnull, encoding="utf-8") as fh:
+            csql = fh.read()
         ok = ("OPEN SIZE_MISMATCH (MANIFEST_ITEM_SIZE_MISMATCH) package PKG-C" in out and len(sqls) == 1
-              and "-Md5 " in out and "case_write.ps1" in out)
-        print(f"  {'PASS' if ok else 'FAIL'}  the received wrong-size package opens ONE SIZE_MISMATCH case + ONE command")
+              and "-Md5 " in out and "case_write.ps1" in out
+              and "'GMAIL_THREAD', '<a.b@mail.example.com>', 'Haze size'" in csql)
+        print(f"  {'PASS' if ok else 'FAIL'}  the received wrong-size package opens ONE SIZE_MISMATCH case + ONE command; "
+              "the anchor thread note is the bare subject")
         if not ok:
             bad.append("cases open after receipt")
         out = step("cases open: the same STOP before the receipt (no case)", cargs + ["--received", "PKG-Z"], 0)

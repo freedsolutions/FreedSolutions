@@ -598,7 +598,12 @@ The path. Each step waits for the step before it (Operator ruling: the Dutchie f
 
 How the lane writes. `intake_cases.py` writes a NEW `.sql` file of procedure calls in ONE transaction (`open` from the
 prep sheet, `sql --ops <ops.json>` for every later step), with a read-back, and prints ONE command for the Operator:
-the tenant's guided runner with the file and its md5. The runner checks the md5, logs in as the agent's writer role
+the tenant's guided runner with the file and its md5. **Mail on a case** (the tenant's inbox flow matches mail to a case
+by thread id first, then by vendor + subject): an `open` links EVERY Gmail thread already known for the case (`--thread`;
+the flow never re-reads mail that came before the case), the first is the anchor, and each thread link's note is the
+BARE subject (`--subject`; `Re:` / `Fw:` stripped). A link note cannot change after the write, so get it right at the
+open. `VENDOR_REPLIED` is a mail FROM the vendor's own address; a staff forward or a staff reply is a NOTE (with its
+mail id); `RULED` is only a real ruling, with its mail id. The guided runner checks the md5, logs in as the agent's writer role
 inside its own process (never a credential in chat or on the command line), runs a DRY RUN that rolls back, and writes
 only after the Operator types the word. The lane reads the result back read-only. The checks in `intake_cases.py`
 repeat the store's own checks (type, status, link, event, the Gmail id shape), so a bad op stops before any login.
