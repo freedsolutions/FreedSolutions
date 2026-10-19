@@ -51,6 +51,8 @@ record that ruled it in the tenant's DECISIONS.
 - Catalog state: <stateLibrary>          # OPTIONAL: the global-link step's state library, spelled as search-catalog-products
                                          # prints `stateLibrary`. Absent: nothing is linked, every create with hits is a `no match`
                                          # question for the business (intake_plan.py --catalog-state overrides it)
+- Case store: <ORG_CODE> via <runner.ps1>  # OPTIONAL: the after-receipt branch (intake_cases.py) - the warehouse org code and
+                                         # the tenant's ONE-command guided case writer (md5 check, dry run, a typed word)
 ```
 
 The MSRP keys are read only by `intake_msrp.py`; the other runners ignore them. `MSRP anchor` and

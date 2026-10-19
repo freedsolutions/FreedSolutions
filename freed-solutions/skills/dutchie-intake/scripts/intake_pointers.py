@@ -49,6 +49,10 @@ OPTIONAL_PL_KEY = "PL key"
 # R1-R3, R6: the tenant's fl_eq class map (a TOML of [master.<MC>] tables); optional - absent, Flower equiv stays
 # at the create stop on every new line (intake_derive.py).
 OPTIONAL_CLASS_KEY = "FL EQ classes"
+# The after-receipt branch (intake_cases.py): the tenant's case store = its warehouse org code + the ONE-command guided
+# runner that writes a case SQL file (`<ORG_CODE> via <runner.ps1>`). Optional: absent, `intake_cases.py` ABORTs.
+OPTIONAL_CASE_KEY = "Case store"
+CASE_STORE_SHAPE = re.compile(r"^[A-Z][A-Z0-9_]*\s+via\s+\S.*\.ps1$")
 # Keys a tenant contract may no longer carry, with the reason. A stale line is a contract gap, never silently read.
 # R130: the package THC cap is per Master Category in the class map (`package_cap_mg`, read by load_caps below),
 # not one tenant-wide pointer.
@@ -170,6 +174,9 @@ def problems_keyed(res):
     fl = res["intake"].get(OPTIONAL_CLASS_KEY)
     if fl is not None and not is_placeholder(fl) and not fl.lower().endswith(".toml"):
         probs.append((OPTIONAL_CLASS_KEY, f"`{OPTIONAL_CLASS_KEY}` must name a .toml class map, got {fl!r}"))
+    cs = res["intake"].get(OPTIONAL_CASE_KEY)
+    if cs is not None and not is_placeholder(cs) and not CASE_STORE_SHAPE.match(cs.strip()):
+        probs.append((OPTIONAL_CASE_KEY, f"`{OPTIONAL_CASE_KEY}` must read `<ORG_CODE> via <runner.ps1>`, got {cs!r}"))
     for k, why in RETIRED_KEYS.items():
         if k in res["intake"]:
             probs.append((k, f"`{k}` is {why}"))
@@ -360,6 +367,11 @@ def selftest():
     t.check("FIRES: a floor that is not a number is refused",
             any("floor" in p for p in validate(parse_text(ms.replace("cost: 2", "cost: keystone")))))
     t.check("QUIET: the FL EQ classes key is optional", OPTIONAL_CLASS_KEY not in r["intake"] and validate(r) == [])
+    t.check("QUIET: the Case store key is optional", OPTIONAL_CASE_KEY not in r["intake"] and validate(r) == [])
+    rcs = parse_text(SAMPLE.replace("- Watermark: 1000\n", "- Watermark: 1000\n- Case store: EXAMPLE via ./w.ps1\n"))
+    t.check("QUIET: a `Case store` of the shape `<ORG_CODE> via <runner.ps1>` passes", validate(rcs) == [], str(validate(rcs)))
+    rcb = parse_text(SAMPLE.replace("- Watermark: 1000\n", "- Watermark: 1000\n- Case store: ./w.ps1\n"))
+    t.check("FIRES: a `Case store` with no org code is named", any("Case store" in p for p in validate(rcb)))
     fl = SAMPLE.replace("## Change log", "- FL EQ classes: ./category-qc/intent.toml   # R1-R3, R6: fl_eq per Master Category\n\n## Change log", 1)
     rf = parse_text(fl)
     t.check("the FL EQ classes value parses with its trailing comment stripped",

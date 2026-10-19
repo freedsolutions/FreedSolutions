@@ -1,6 +1,6 @@
 ---
 name: dutchie-intake
-description: Run a vendor invoice through the Dutchie intake lane — pull, intake (parse, catalog match, R102 exception flags, landed cost), one pre-create stop, Copy-item create, attributed-diff certify, new-items notice. Use when an invoice or PO lands, the Operator asks to intake, create or certify new items, or types /dutchie-intake.
+description: Run a vendor invoice through the Dutchie intake lane — pull, intake (parse, catalog match, R102 exception flags, landed cost), one pre-create stop, Copy-item create, attributed-diff certify, new-items notice, and after a receipt the case flow (a missed STOP becomes a case; the lane logs each step). Use when an invoice or PO lands, the Operator asks to intake, create or certify new items, a package was received before its questions were settled, or types /dutchie-intake.
 ---
 
 <!-- Generated from "freed-solutions/skills/dutchie-intake/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
@@ -24,6 +24,8 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 /dutchie-intake notice <intake-vN.csv>                draft the notice; print the floor-sheet command
 /dutchie-intake receive --prep <lines.csv> [manifest]  the receipt prep sheet: one row per Metrc package + questions
 /dutchie-intake receive --enter | --check | --vendor   phase 2 stubs - exit 2
+/dutchie-intake cases open --prep <prep.csv> --received <pkg>   after receipt: a missed STOP becomes a case (SQL + ONE command)
+/dutchie-intake cases sql --ops <ops.json>             a case event / ruling / status / link as SQL + ONE command
 ```
 
 ## When to Use
@@ -69,6 +71,8 @@ the second is the `bi-change` block the tenant already has.
   R130: the same map carries each master's market limits - `package_cap_mg` is the dose read's cap)
 - Catalog state: <stateLibrary>      (the global-link step's state library, as `search-catalog-products` prints
   it; absent, nothing is linked and every create with hits is a `no match` question - create step 2)
+- Case store: <ORG_CODE> via <runner.ps1>   (optional; the after-receipt branch: the warehouse org code and the
+  tenant's ONE-command guided case writer; absent, `intake_cases.py` ABORTs)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
@@ -547,6 +551,60 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
    `no flip - sample-only receipt` and the item keeps the new-line tag until sellable stock arrives (R83).
 The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt Detail package tag).
 
+**After the receipt: cases** (Operator ruling 2026-10-19, trained on a wrong-size pre-roll ship that staff received
+before the lane's questions were answered). The before-receipt STOPs above are the normal path. A staff receipt before
+the Operator saw the questions is a process miss, not a new branch of the rules. It leaves TWO separate problems:
+1. **The document and the decision.** The vendor owes paperwork (an updated invoice, a credit) and the business owes a
+   ruling. No run can settle these. So the exception leaves the run and becomes a CASE in the tenant's case store
+   (pointer `Case store:`). Gmail holds the conversation, Drive holds the files, the case holds the state.
+2. **The catalog fix.** It is the SAME fix the lane makes when the business knowingly accepts the ship at the
+   before-receipt stop. Change the attributes of the EXISTING item. Do NOT create a new item. Then use the package's
+   `Change product` action INTO THE SAME ITEM, so the package inherits the catalog's attributes again (KB "Type +
+   Default unit": an existing package keeps the attributes it was received with until then).
+
+Which exceptions open a case (`intake_cases.py open`). A RECEIVED package (it is in the receive history, the warehouse
+receipt lines or the Inventory export) whose prep row still carries a STOP or DEFECT opens ONE case. This includes size
+and qty mismatches, a manifest cost mismatch and every other open STOP. INFO never opens a case. A STOP on a package
+that staff have NOT received stays a question in the run. The type is the most specific flag on the package (SIZE >
+QTY > PRICE > OTHER). A re-run opens no twin. **CREDIT_DUE** is a case of its own (an `ops` file): a credit that is
+promised but is not on an invoice or a credit memo yet. It NEVER holds a release, because the credit can land on the
+next order or on a credit memo.
+
+The path. Each step waits for the step before it (Operator ruling: the Dutchie fix runs after the ruling):
+1. **HOLD.** `open` writes the case (OPENED, status `AWAITING_RULING`, the package and item links). People move the
+   package to the tenant's hold room. The lane never moves a room. The lane makes no Dutchie write on the package or
+   the item.
+2. **Ruling (the business, in mail).** The ruling covers three things: the cost (a credit, or a revised invoice),
+   the MSRP of the item as it really is, and the vendor-deal protocol (the package tag, R62 R84 R127). Write it with a
+   `rule` op that carries the mail's id. No mail, no ruling: a ruling relayed in chat is a NOTE until it is in mail.
+3. **Vendor ask.** The lane drafts ONE email to the vendor. It asks for the updated invoice (the size or qty that
+   shipped) and the credit the ruling chose. A person sends it. Write `VENDOR_ASKED` when the draft exists (the detail
+   names the draft), then a `status` op to `AWAITING_VENDOR`. The vendor's answer is `VENDOR_REPLIED` with its mail id
+   (the tenant's inbox flow may write it). File the updated invoice or the credit memo in the vendor's Drive folder
+   (R104) and add a `DRIVE_FILE` link.
+4. **Dutchie fix (at the ONE stop: the Operator approves the plan).** Read the item's other packages and its sales
+   first. If other stock or sales sit on the old attributes, the edit renames them in every report: ask the Operator,
+   never assume. Then (a) edit the item's catalog attributes by the plan / gridBatch path: the name's dose segment,
+   Product grams, the derived fields (Flower equiv, Servings per Unit; `intake_derive.py`), the ruled Price and tag;
+   (b) on the package, `Change product` into the same item. Read the package back: its quantity must equal the
+   physical count (Metrc grams / the true unit size). A different count is a STOP, never an adjustment by guess.
+   (c) Set the package cost from the updated invoice. A credit goes on that ONE package (the post-receipt credit rule).
+   Certify by the attributed diff (the pre and post pulls), then write `DUTCHIE_FIXED` (the detail names the certify).
+   [OPERATOR 2026-10-19: the `Change product` into-itself path is not probed yet. The first live run records it in the
+   platform KB.]
+5. **Release.** When the paperwork is on file (or a CREDIT_DUE case tracks the credit) and step 4 is certified, fill the
+   tenant's release-notice template. It goes to the team. Whether the lane sends it or a person sends it is the tenant's
+   mail rule. Write `RELEASED` with the notice's mail id. People move the package out of the hold room. The lane then
+   reads the room READ ONLY (the warehouse's daily package-room load, or the Inventory grid), writes the result as a
+   NOTE, and sets the case `RESOLVED` (`status` op; the store writes CLOSED, and a closed case is final).
+
+How the lane writes. `intake_cases.py` writes a NEW `.sql` file of procedure calls in ONE transaction (`open` from the
+prep sheet, `sql --ops <ops.json>` for every later step), with a read-back, and prints ONE command for the Operator:
+the tenant's guided runner with the file and its md5. The runner checks the md5, logs in as the agent's writer role
+inside its own process (never a credential in chat or on the command line), runs a DRY RUN that rolls back, and writes
+only after the Operator types the word. The lane reads the result back read-only. The checks in `intake_cases.py`
+repeat the store's own checks (type, status, link, event, the Gmail id shape), so a bad op stops before any login.
+
 ## The ONE human stop (pre-create)
 
 Nothing is created before the Operator's reply. Everything that needs no ruling and no login runs
@@ -647,6 +705,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 `intake_exceptions.py` · `intake_apex_cost.py` (R125: a sample-only new line's Cost from the Apex PO / listing) ·
 `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
+`intake_cases.py` (the after-receipt branch: a case open from the prep sheet, case ops as SQL + ONE command) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_write.js`.
 

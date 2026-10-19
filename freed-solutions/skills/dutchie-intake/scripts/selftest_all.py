@@ -42,7 +42,7 @@ import receive as RC  # noqa: E402
 
 SCRIPTS = ["intake_pointers.py", "intake_parse.py", "intake_match.py", "intake_exceptions.py",
            "intake_plan.py", "intake_certify.py", "intake_notice.py", "intake_ui_run.py", "receive.py",
-           "intake_msrp.py", "intake_derive.py", "intake_apex_cost.py"]
+           "intake_msrp.py", "intake_derive.py", "intake_apex_cost.py", "intake_cases.py"]
 # The batch runner lives in the sibling skill (one allowlist, one refusal set for every lane): its batch
 # cases run here too, so the whole R124 chain - plan, gridBatch, certify - is proven by one command.
 GRID_SELFTEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "dutchie-bi-looker", "scripts",
@@ -1720,6 +1720,29 @@ def cli_chain():
         print(f"  {'PASS' if ok else 'FAIL'}  the wrong-size questions ask the vendor and warn of Dutchie's gram conversion")
         if not ok:
             bad.append("receive wrong-size questions")
+        # the after-receipt branch: staff received the wrong-size package first -> ONE case, a SQL file + ONE command
+        wsprep = max((n for n in os.listdir(t) if n.startswith("rcv-receipt-prep-2026-01-01-v") and n.endswith(".csv")),
+                     key=lambda n: int(n.rsplit("-v", 1)[1][:-4]))
+        cten = os.path.join(t, "tenant-cases.md")
+        with open(fx("tenant-CLAUDE.md"), encoding="utf-8") as fh:
+            ctext = fh.read().replace("- Watermark: 500\n", "- Watermark: 500\n- Case store: EXAMPLE via ./case_write.ps1\n")
+        with open(cten, "w", encoding="utf-8") as fh:
+            fh.write(ctext)
+        cargs = ["intake_cases.py", "open", "--prep", os.path.join(t, wsprep), "--tenant", cten, "--out-dir", t]
+        out = step("cases open: the wrong-size package was received first (one case)", cargs + ["--received", "PKG-C"], 0)
+        sqls = [n for n in os.listdir(t) if "-cases-" in n and n.endswith(".sql")]
+        ok = ("OPEN SIZE_MISMATCH (MANIFEST_ITEM_SIZE_MISMATCH) package PKG-C" in out and len(sqls) == 1
+              and "-Md5 " in out and "case_write.ps1" in out)
+        print(f"  {'PASS' if ok else 'FAIL'}  the received wrong-size package opens ONE SIZE_MISMATCH case + ONE command")
+        if not ok:
+            bad.append("cases open after receipt")
+        out = step("cases open: the same STOP before the receipt (no case)", cargs + ["--received", "PKG-Z"], 0)
+        ok = "no case" in out and "not received" in out and len([n for n in os.listdir(t) if n.endswith(".sql")]) == 1
+        print(f"  {'PASS' if ok else 'FAIL'}  a STOP on a package not yet received stays a question in the run")
+        if not ok:
+            bad.append("cases quiet before receipt")
+        step("cases open without a Case store pointer ABORTs", ["intake_cases.py", "open", "--prep", os.path.join(t, wsprep),
+                                                              "--tenant", fx("tenant-CLAUDE.md"), "--received", "PKG-C"], 2)
         bgargs = ["receive.py", "--prep", "--lines", fx("receive-buyget-lines.csv"), "--catalog", fx("receive-catalog.csv"),
                   "--inventory", fx("receive-inventory.csv"), "--manifest", fx("receive-buyget-manifest.csv"), "--tenant",
                   fx("tenant-CLAUDE.md"), "--out-dir", t, "--slug", "bg", "--asof", "2026-01-01", "--program", "2=deal"]
