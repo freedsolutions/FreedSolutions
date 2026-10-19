@@ -36,6 +36,8 @@
 //      (N1/N2 fail against the pre-2026-10-14 gate); a blank spacer and a vis title are unchanged.
 //   O. a folder Look retired on its own (`scope.retired_looks`) moves the estate; an undeclared,
 //      unapplied or query-moved Look fails `scope <id> looks` (O1 fails against the pre-2026-10-15 gate).
+//   T. the canon tools (HELD until the flip): canon_write.js emits one procedure call with its ruling
+//      and refuses what the procedures refuse; canon_render.js --check is red on any byte (T15).
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -1481,6 +1483,242 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
   }
 }
 
+// =============================================================================================
+// T. THE CANON TOOLS (2026-10-19, HELD until the canon flip).
+//
+// canon_write.js (one writer-procedure call per run, its ruling in the same call) and
+// canon_render.js (renders the two canon documents from the warehouse; --check fails on any
+// difference) need a database to WRITE, but not to be tested: every case here runs with
+// --emit-sql (the dry run) or --render-from (a saved render). T1 pins the seal hash to the
+// gate's own function; T2-T13 prove the writer emits the right call and REFUSES (exit 2, nothing
+// emitted) every input the procedures would refuse; T14-T22 prove --check is green on equal
+// bytes and red on a one-byte edit, a line-ending-only edit and a missing file, and that a
+// render whose text does not match its database sha256 is refused, never written.
+// =============================================================================================
+{
+  const DIR = path.dirname(GATE);
+  const CW = path.join(DIR, 'canon_write.js');
+  const CR = path.join(DIR, 'canon_render.js');
+  if (!fs.existsSync(CW) || !fs.existsSync(CR)) {
+    check('T0: canon_write.js and canon_render.js sit beside the gate', false, DIR);
+  } else {
+    const node = (script, args, env) => {
+      const r = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { ...process.env, ...(env || {}) } });
+      return { status: r.status, out: r.stdout || '', err: (r.stderr || '').replace(/\r\n/g, '\n') };
+    };
+    const KO = 'fx-canon-kickoff-2026-10-19.md';
+    const base = ['--org-code', 'FX', '--kickoff', KO, '--changed-on', '2026-10-19'];
+    const W = (kind, extra, env) => node(CW, [kind, ...base, ...extra], env);
+    const mint = (over = {}) => {
+      const f = Object.assign({ '--rule': 'R3', '--after': 'R1', '--rule-text': RULE1, '--grain': 'per item',
+        '--surface': '', '--status': 'ACTIVE', '--links': '', '--record': KO, '--ruling': 'MINT R3.',
+        '--decision-record': KO }, over);
+      return [].concat(...Object.entries(f).filter(([, v]) => v !== null).map(([k, v]) => [k, v]));
+    };
+    const refused = (r, re) => r.status === 2 && r.out === '' && re.test(r.err);
+    const tail = r => (r.err.trim().split('\n').pop() || '').slice(0, 160) + ' | exit ' + r.status;
+
+    // T1 — the writer seals with the gate's own function, byte for byte.
+    {
+      const gateSrc = fs.readFileSync(GATE, 'utf8').match(/^function sha1\(s\) \{.*\}$/m);
+      const cc = path.join(DIR, 'canon_common.js');
+      const ccSrc = fs.readFileSync(cc, 'utf8').match(/^function sha1\(s\) \{.*\}$/m);
+      check('T1: canon_common.js sha1 is the gate\'s sha1, source for source',
+        gateSrc && ccSrc && gateSrc[0] === ccSrc[0], ccSrc ? ccSrc[0] : '(absent)');
+      check('T1: …and seals the same value on a whitespace-noisy cell',
+        require(cc).sha1('  a\tb \n c ') === sha1('a b c'), require(cc).sha1('  a\tb \n c '));
+    }
+    // T2 — mint emits ONE DO block: the procedure, the gate seal, the ruling in the same call.
+    {
+      const r = W('mint', [...mint(), '--emit-sql']);
+      const blocks = (r.out.match(/^do \$/mg) || []).length;
+      check('T2: mint --emit-sql emits one DO block calling canon.mint_rule with the gate seal',
+        r.status === 0 && blocks === 1 && r.out.includes('call canon.mint_rule(v_org, \'R3\', \'R1\'') &&
+        r.out.includes("'" + sha1(RULE1) + "'") && /"ruling":"MINT R3\."/.test(r.out) && !r.out.includes('\r'),
+        'exit ' + r.status + ', ' + blocks + ' block(s)');
+      check('T2: …resolves the org by code, never by a literal id, and has no set_section without --stamp',
+        r.out.includes("where org_code = 'FX'") && !r.out.includes('set_section'), '');
+    }
+    // T3 — a quote, an escaped pipe and a line-free unicode cell survive as SQL literals.
+    {
+      const txt = "It's “quoted” — with an escaped \\| pipe and ≤ 600 chars.";
+      const r = W('mint', [...mint({ '--rule-text': txt }), '--emit-sql']);
+      check('T3: a quote and an escaped pipe are escaped once, as E\'\' with a doubled backslash',
+        r.status === 0 && r.out.includes("E'It''s “quoted” — with an escaped \\\\| pipe") && r.out.includes("'" + sha1(txt) + "'"), tail(r));
+    }
+    // T4 — the D1 test: the ruling's record must name this kickoff.
+    {
+      const r = W('mint', [...mint({ '--decision-record': 'some-sibling-kickoff-2026-10-18.md' }), '--emit-sql']);
+      check('T4: a ruling whose record does not name the kickoff is REFUSED (D1)', refused(r, /must name the kickoff .*D1/), tail(r));
+      const r2 = W('mint', [...mint({ '--rule-cell': 'R9' }), '--emit-sql']);
+      check('T4: …and one whose rule cell does not name the rule is REFUSED', refused(r2, /does not name R3/), tail(r2));
+    }
+    // T5 — gate C1: a rule cell over 600 chars.
+    {
+      const r = W('mint', [...mint({ '--rule-text': 'x'.repeat(601) }), '--emit-sql']);
+      check('T5: a 601-char rule cell is REFUSED (gate C1)', refused(r, /601 chars; the cap is 600/), tail(r));
+      const ok = W('mint', [...mint({ '--rule-text': 'x'.repeat(600) }), '--emit-sql']);
+      check('T5: …and a 600-char cell is emitted', ok.status === 0, 'exit ' + ok.status);
+    }
+    // T6 — the cell contract: line break, unescaped pipe, edge whitespace.
+    {
+      const a = W('mint', [...mint({ '--grain': 'per\nitem' }), '--emit-sql']);
+      const b = W('mint', [...mint({ '--surface': 'tile | 2' }), '--emit-sql']);
+      const c = W('mint', [...mint({ '--links': ' L1' }), '--emit-sql']);
+      check('T6: a cell with a line break is REFUSED', refused(a, /line break/), tail(a));
+      check('T6: a cell with an unescaped pipe is REFUSED', refused(b, /unescaped pipe/), tail(b));
+      check('T6: a cell with edge whitespace is REFUSED', refused(c, /leading or trailing whitespace/), tail(c));
+      const d = W('mint', [...mint({ '--ruling': 'A ruling | with a raw pipe.' }), '--emit-sql']);
+      check('T6: …while a RULING may hold a raw pipe (9 rows do)', d.status === 0, tail(d));
+    }
+    // T7 — amend / status / impl need the version the caller read (the optimistic lock).
+    {
+      const a = W('amend', ['--rule', 'R1', '--rule-text', RULE2, '--ruling', 'AMEND.', '--decision-record', KO, '--emit-sql']);
+      check('T7: amend with no --expected-version is REFUSED', refused(a, /expected-version N is required/), tail(a));
+      const b = W('amend', ['--rule', 'R1', '--expected-version', '4', '--rule-text', RULE2, '--ruling', 'AMEND.', '--decision-record', KO, '--emit-sql']);
+      check('T7: amend emits amend_rule_text at the read version, Since read into a variable (no subquery in CALL)',
+        b.status === 0 && b.out.includes("call canon.amend_rule_text(v_org, 'R1', 4, ") &&
+        b.out.includes('select since into v_since') && b.out.includes("'" + sha1(RULE2) + "'"), tail(b));
+    }
+    // T8 — status: the vocabulary, and the ruling in the same call.
+    {
+      const a = W('status', ['--rule', 'R2', '--expected-version', '1', '--status', 'GONE', '--ruling', 'x', '--decision-record', KO, '--emit-sql']);
+      check('T8: a status outside ACTIVE/RETIRED/DEFERRED/PROPOSED is REFUSED', refused(a, /--status must be/), tail(a));
+      const b = W('status', ['--rule', 'R2', '--expected-version', '1', '--status', 'RETIRED', '--ruling', 'RETIRE R2.', '--decision-record', KO, '--emit-sql']);
+      check('T8: status emits set_rule_status with its ruling', b.status === 0 && b.out.includes("call canon.set_rule_status(v_org, 'R2', 1, 'RETIRED'") && /"ruling":"RETIRE R2\."/.test(b.out), tail(b));
+    }
+    // T9 — impl cannot carry rule text; an omitted cell keeps its current value.
+    {
+      const a = W('impl', ['--rule', 'R1', '--expected-version', '2', '--surface', 'SQL v2', '--rule-text', 'sneak', '--emit-sql']);
+      check('T9: impl with --rule-text is REFUSED (rule text moves only with a ruling)', refused(a, /impl cannot change the rule text/), tail(a));
+      const b = W('impl', ['--rule', 'R1', '--expected-version', '2', '--surface', 'SQL v2', '--emit-sql']);
+      check('T9: impl emits set_rule_impl, keeping the omitted Links and Record',
+        b.status === 0 && b.out.includes("call canon.set_rule_impl(v_org, 'R1', 2, 'SQL v2', v_cur.links, v_cur.record,"), tail(b));
+      const c = W('impl', ['--rule', 'R1', '--expected-version', '2', '--emit-sql']);
+      check('T9: impl with no cell at all is REFUSED', refused(c, /at least one of/), tail(c));
+    }
+    // T10 — a ruling with no rule change (DD / SOP keys).
+    {
+      const r = W('decision', ['--rule-cell', 'DD SOP', '--ruling', 'A header ruling.', '--decision-record', KO, '--emit-sql']);
+      check('T10: decision emits record_decision with the raw rule cell',
+        r.status === 0 && r.out.includes("call canon.record_decision(v_org, '2026-10-19'::date, 'DD SOP', 'A header ruling.'"), tail(r));
+    }
+    // T11 — the F4 stamp is OFF unless asked for; on, it guards the pre-F4 Prior chain.
+    {
+      const r = W('mint', [...mint(), '--stamp', 'R3 minted.', '--emit-sql']);
+      check('T11: --stamp adds ONE set_section(head) in the same block, guarded against a Prior chain',
+        r.status === 0 && (r.out.match(/call canon\.set_section\(v_org, 'data-dictionary', 'head'/g) || []).length === 1 &&
+        r.out.includes('still carries a Prior chain') && (r.out.match(/^do \$/mg) || []).length === 1, tail(r));
+    }
+    // T12 — section: the body travels as escapes, so a CRLF body has no raw CR in the SQL.
+    {
+      const body = path.join(ROOT, 'p12-head.md');
+      fs.writeFileSync(body, '# Decisions\r\n\r\nNever rewrite a row.\r\n\r\n');
+      const r = W('section', ['--doc', 'decisions', '--section', 'head', '--expected-version', '1', '--body-file', body, '--emit-sql']);
+      check('T12: section emits set_section with the CRLF body as \\r\\n escapes, no raw CR',
+        r.status === 0 && !r.out.includes('\r') && r.out.includes("E'# Decisions\\r\\n\\r\\nNever rewrite a row.\\r\\n\\r\\n'"), tail(r));
+    }
+    // T13 — the login: an env var NAME only, a person only; nothing reaches psql otherwise.
+    {
+      const a = W('decision', ['--rule-cell', 'DD', '--ruling', 'x', '--decision-record', KO, '--send', '--url', 'postgres://u:p@h/d']);
+      check('T13: --url (a literal connection string) is REFUSED', refused(a, /--url is not accepted/) && !a.err.includes('u:p@'), tail(a));
+      const b = W('decision', ['--rule-cell', 'DD', '--ruling', 'x', '--decision-record', KO, '--send', '--url-env', 'postgres://u:p@h/d']);
+      check('T13: --url-env given a URL instead of a NAME is REFUSED, without echoing it', refused(b, /NAME of an environment variable/) && !b.err.includes('u:p@'), tail(b));
+      const c = W('decision', ['--rule-cell', 'DD', '--ruling', 'x', '--decision-record', KO, '--send', '--url-env', 'FX_CANON_UNSET_VAR'], { FX_CANON_UNSET_VAR: '' });
+      check('T13: an unset login variable is REFUSED', refused(c, /is not set/), tail(c));
+      const d = W('decision', ['--rule-cell', 'DD', '--ruling', 'x', '--decision-record', KO, '--send', '--url-env', 'FX_CANON_URL'],
+        { FX_CANON_URL: 'postgres://fx_agent:secret@127.0.0.1:1/db' });
+      check('T13: an _agent login is REFUSED before psql runs (canon is written by people)',
+        refused(d, /login fx_agent is not a person/) && !d.err.includes('secret'), tail(d));
+      const e = W('decision', ['--rule-cell', 'DD', '--ruling', 'x', '--decision-record', KO]);
+      check('T13: neither --emit-sql nor --send is REFUSED', refused(e, /exactly one of --emit-sql/), tail(e));
+      const f = W('mint', [...mint(), '--emit-sql', '--colour', 'red']);
+      check('T13: an unknown flag is REFUSED (a typo is never ignored)', refused(f, /unknown flag --colour/), tail(f));
+    }
+
+    // ---- canon_render.js against fixture renders --------------------------------------------
+    const DDTXT = '# Dictionary\n\nLast updated: **2026-10-19** — fixture.\n\n| # | Rule | Grain | Surface | Status | Since | Links | Record |\n|---|---|---|---|---|---|---|---|\n' +
+      '| R1 | ' + RULE1 + ' | per item | — | ACTIVE | 2026-10-01 |  | fx |\n';
+    const DECTXT = '# Decisions\r\n\r\n| date | rule | ruling | record |\r\n|---|---|---|---|\r\n| 2026-10-01 | R1 | MINT R1. | ' + KO + ' |\r\n';
+    const h = s => crypto.createHash('sha256').update(Buffer.from(s, 'utf8')).digest('hex');
+    const renderJson = (over) => {
+      const list = [{ doc_key: 'data-dictionary', file_name: 'DATA-DICTIONARY.md', sha256: h(DDTXT), render: DDTXT },
+                    { doc_key: 'decisions', file_name: 'DECISIONS.md', sha256: h(DECTXT), render: DECTXT }];
+      const p = path.join(ROOT, 'render-' + Math.random().toString(36).slice(2) + '.json');
+      fs.writeFileSync(p, JSON.stringify(over ? over(list) : list));
+      return p;
+    };
+    const estate = (dd, dec) => {
+      const d = fs.mkdtempSync(path.join(ROOT, 'canon-estate-'));
+      if (dd !== null) fs.writeFileSync(path.join(d, 'DATA-DICTIONARY.md'), dd);
+      if (dec !== null) fs.writeFileSync(path.join(d, 'DECISIONS.md'), dec);
+      return d;
+    };
+    const chk = (d, j) => node(CR, ['--estate', d, '--render-from', j, '--check']);
+    const J = renderJson();
+    // T14 — equal bytes: green, both documents named.
+    {
+      const r = chk(estate(DDTXT, DECTXT), J);
+      check('T14: --check on files = render PASSES, 0 differences', r.status === 0 && /0 differences/.test(r.out) &&
+        (r.out.match(/^✔ /mg) || []).length === 2, r.out.trim().split('\n').pop() + ' | exit ' + r.status);
+    }
+    // T15 — THE NEEDLE: one byte of a hand edit reddens, naming the file and the line.
+    {
+      const r = chk(estate(DDTXT.replace('per item', 'per itEm'), DECTXT), J);
+      check('T15: a one-byte hand edit FAILS --check, naming the file and line 7',
+        r.status === 1 && /✘ DATA-DICTIONARY\.md differs .*line 7, column/.test(r.out) && /✔ DECISIONS\.md/.test(r.out), r.out.split('\n')[0].slice(0, 160));
+    }
+    // T16 — a line-ending-only change is a difference, and says so.
+    {
+      const r = chk(estate(DDTXT, DECTXT.replace(/\r\n/g, '\n')), J);
+      check('T16: CRLF → LF in DECISIONS FAILS --check as LINE ENDINGS ONLY', r.status === 1 && /DECISIONS\.md differs .*LINE ENDINGS ONLY/.test(r.out), r.out.split('\n')[1] ? r.out.split('\n')[1].slice(0, 160) : r.out);
+    }
+    // T17 — a trailing byte (an appended line) is a difference too.
+    {
+      const r = chk(estate(DDTXT + '| R2 | hand-added | g | s | ACTIVE | 2026-10-02 |  | x |\n', DECTXT), J);
+      check('T17: a hand-appended register row FAILS --check', r.status === 1 && /✘ DATA-DICTIONARY\.md/.test(r.out), r.out.split('\n')[0].slice(0, 160));
+    }
+    // T18 — a missing file FAILS.
+    {
+      const r = chk(estate(DDTXT, null), J);
+      check('T18: a missing DECISIONS.md FAILS --check', r.status === 1 && /✘ DECISIONS\.md .*the file is missing/.test(r.out), r.out.trim().split('\n')[1] || r.out);
+    }
+    // T19 — a render whose text does not hash to the database sha256 is REFUSED (transit loss).
+    {
+      const bad = renderJson(l => { l[1].render = l[1].render.replace(/\r\n/g, '\n'); return l; });
+      const r = chk(estate(DDTXT, DECTXT), bad);
+      check('T19: a render that lost bytes in transit is REFUSED (exit 2), never compared or written',
+        refused(r, /a byte was lost in transit/), tail(r));
+    }
+    // T20 — write mode writes exactly the two names, byte-exact; a dated name is REFUSED.
+    {
+      const d = estate(null, null);
+      const r = node(CR, ['--estate', d, '--render-from', J]);
+      const files = fs.readdirSync(d).sort().join(',');
+      check('T20: render writes exactly DATA-DICTIONARY.md + DECISIONS.md, byte-exact, and prints both sha256',
+        r.status === 0 && files === 'DATA-DICTIONARY.md,DECISIONS.md' &&
+        fs.readFileSync(path.join(d, 'DECISIONS.md')).equals(Buffer.from(DECTXT, 'utf8')) &&
+        r.out.includes(h(DDTXT)) && r.out.includes(h(DECTXT)), files + ' | exit ' + r.status);
+      const dated = renderJson(l => { l[0].file_name = 'DATA-DICTIONARY-2026-10-19.md'; return l; });
+      const r2 = node(CR, ['--estate', d, '--render-from', dated]);
+      check('T20: a render naming any other file (a dated one) is REFUSED', refused(r2, /writes only DATA-DICTIONARY\.md/) &&
+        fs.readdirSync(d).length === 2, tail(r2));
+    }
+    // T21 — a render that lacks a document (the login cannot see the org) is REFUSED.
+    {
+      const one = renderJson(l => l.slice(0, 1));
+      const r = chk(estate(DDTXT, DECTXT), one);
+      check('T21: a render with one document is REFUSED (org not loaded, or not visible to the login)', refused(r, /lacks decisions/), tail(r));
+    }
+    // T22 — --emit-sql reads through canon.render_document, by org code, and contacts nothing.
+    {
+      const r = node(CR, ['--org-code', 'FX', '--emit-sql']);
+      check('T22: canon_render --emit-sql prints the read through canon.render_document for the org code',
+        r.status === 0 && r.out.includes('canon.render_document(d.org_id, d.doc_key)') && r.out.includes("org_code = 'FX'"), tail(r));
+    }
+  }
+}
+
 // ---- report ---------------------------------------------------------------------------------
 let bad = 0;
 console.log('gate self-test — ' + GATE);
@@ -1507,5 +1745,7 @@ if (bad) {
   console.log('       and a new tile is checked against the guide of the board that carries it,');
   console.log('       a titled text header included (by its title_text);');
   console.log('       and a folder Look retires on its own, declared in scope.retired_looks.');
+  console.log('       and the canon writer emits one call with its ruling, refusing what the procedures');
+  console.log('       refuse, while canon --check reddens on a one-byte or line-ending hand edit.');
 }
 process.exit(bad ? 1 : 0);
