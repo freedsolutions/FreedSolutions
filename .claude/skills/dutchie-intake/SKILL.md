@@ -577,6 +577,10 @@ The path. Each step waits for the step before it (Operator ruling: the Dutchie f
 2. **Ruling (the business, in mail).** The ruling covers three things: the cost (a credit, or a revised invoice),
    the MSRP of the item as it really is, and the vendor-deal protocol (the package tag, R62 R84 R127). Write it with a
    `rule` op that carries the mail's id. No mail, no ruling: a ruling relayed in chat is a NOTE until it is in mail.
+   The lane SENDS the question to the person who rules (an internal mail, the mail rule below), on the case's Gmail
+   thread, with the options numbered. The tenant's inbox flow logs the sent question and the reply on the case. The
+   lane writes the RULED event itself: `cases.rule_case` (a `rule` op) citing the REPLY's message id, through one
+   guided script. The lane never writes the question NOTE too: the flow writes it, and two writers duplicate it.
 3. **Vendor ask.** The lane drafts ONE email to the vendor. It asks for the updated invoice (the size or qty that
    shipped) and the credit the ruling chose. A person sends it. Write `VENDOR_ASKED` when the draft exists (the detail
    names the draft), then a `status` op to `AWAITING_VENDOR`. The vendor's answer is `VENDOR_REPLIED` with its mail id
@@ -601,7 +605,10 @@ The path. Each step waits for the step before it (Operator ruling: the Dutchie f
 
 How the lane writes. `intake_cases.py` writes a NEW `.sql` file of procedure calls in ONE transaction (`open` from the
 prep sheet, `sql --ops <ops.json>` for every later step), with a read-back, and prints ONE command for the Operator:
-the tenant's guided runner with the file and its md5. **Mail on a case** (the tenant's inbox flow matches mail to a case
+the tenant's guided runner with the file and its md5. **The mail rule** (Operator ruling 2026-10-19): the lane writes
+from the tenant's agent mailbox, never from the Operator's own account. It SENDS internal questions to the tenant's
+staff itself, on the case's Gmail thread, with the operator CC during a pilot. Mail to vendors and partners, and the
+release notice, stay drafts in the agent mailbox, and a person sends them. **Mail on a case** (the tenant's inbox flow matches mail to a case
 by thread id first, then by vendor + subject): an `open` links EVERY Gmail thread already known for the case (`--thread`;
 the flow never re-reads mail that came before the case), the first is the anchor, and each thread link's note is the
 BARE subject (`--subject`; `Re:` / `Fw:` stripped). A link note cannot change after the write, so get it right at the
