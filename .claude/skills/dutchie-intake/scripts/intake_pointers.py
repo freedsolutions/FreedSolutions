@@ -50,7 +50,9 @@ OPTIONAL_PL_KEY = "PL key"
 # at the create stop on every new line (intake_derive.py).
 OPTIONAL_CLASS_KEY = "FL EQ classes"
 # The after-receipt branch (intake_cases.py): the tenant's case store = its warehouse org code + the ONE-command guided
-# runner that writes a case SQL file (`<ORG_CODE> via <runner.ps1>`). Optional: absent, `intake_cases.py` ABORTs.
+# runner that writes a case SQL file (`<ORG_CODE> via <runner.ps1>`). Optional: absent, `intake_cases.py open` / `sql`
+# ABORT, and the open-cases read scoped by the same org code (`intake_cases.py stop` at the STOP, `receive.py --prep`
+# at the receipt) prints a quiet INFO.
 OPTIONAL_CASE_KEY = "Case store"
 CASE_STORE_SHAPE = re.compile(r"^[A-Z][A-Z0-9_]*\s+via\s+\S.*\.ps1$")
 # Keys a tenant contract may no longer carry, with the reason. A stale line is a contract gap, never silently read.

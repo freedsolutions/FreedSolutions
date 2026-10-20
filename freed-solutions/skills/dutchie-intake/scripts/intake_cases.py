@@ -7,6 +7,8 @@ tenant's case store, and the lane logs each step as a case event (Operator rulin
                               [--thread <gmail thread ref>... --subject <mail subject>]
                               [--title-prefix <text>] [--out-dir <dir>]
   python intake_cases.py sql --ops <ops.json> --tenant <CLAUDE.md> [--out-dir <dir>]
+  python intake_cases.py stop --intake <intake-vN.csv> --tenant <CLAUDE.md> [--lines <lines.csv>] [--vendor <name>]...
+                              [--party-key <k>]... [--result <rows.json>] [--out-dir <dir>]
   python intake_cases.py --selftest
 
 It reads files and writes NEW files only. It never connects to the warehouse, never sends mail and never opens a
@@ -41,7 +43,34 @@ Ops (a list under "ops"):
 The checks repeat the store's own (case type, status, link type, event, the Gmail id shape `<left@right>` or
 `<mailbox>:<hex id>`), so a bad op is refused here before any login. Text never carries the `$cases$` quote tag.
 
-Exit: 0 clean (no case to open is clean), 2 ABORT (refused input, usage). Nothing here is a DEFECT.
+`stop` - the BEFORE-create read: part 7 of the ONE pre-create stop lists the invoice vendor's OPEN cases, CREDIT_DUE
+first, each with its detail text (a ruling filed as a case is seen at the next intake, not only if someone looks). Two
+calls, no login in either:
+  1. without `--result`: writes a NEW `<intake stem>-open-cases-<ts>.sql` - ONE read-only SELECT (no write, no
+     procedure call) - and prints the block as `CASES_UNREAD`. The lane runs that SELECT through its OWN read-only
+     warehouse route (the tenant's reader role, e.g. a Neon MCP `run_sql` with a reader `role_name`), never through the
+     case writer runner, and saves the rows it returns, as returned, to `<same stem>.json`.
+  2. with `--result <rows.json>` and the SAME vendor arguments: prints part 7 and writes it as a NEW `-open-cases-<ts>.md`.
+The vendor = every `vendor` cell of `--lines`, every `lane_Vendor` cell of `--intake`, and each `--vendor`; a name
+matches a party by its Dutchie vendor record name, display name, payee legal name or a DBA name, compared on letters
+and digits only with a trailing company form (Inc, LLC, Corp, Co, Ltd, LP) dropped. `--party-key` names a party
+outright. The SQL carries a fingerprint of the org and the names; a result with another fingerprint ABORTs (a read
+for another vendor, or a stale one). The SELECT filters on the org code itself, so it reads the same under a reader
+role (RLS) and under the owner.
+Flags (never a failure; the block is part 7 of the STOP):
+  CASE_CREDIT_DUE         R103 R62 (the case rules)  STOP  an open CREDIT_DUE case on the vendor: read its detail and
+                                                           its ruling before you reply - they say whether a credit on
+                                                           this invoice goes into package cost
+  CASE_OPEN               case store                 INFO  any other open case on the vendor
+  VENDOR_PARTY_UNMATCHED  case store                 STOP  no party matches the vendor's names: no case can be seen;
+                                                           re-run with --party-key <k>, or confirm the vendor has none
+  CASES_UNREAD            case store                 STOP  the tenant has a case store and the read has not run
+  CASE_READ_FAILED        case store                 STOP  the read returned an error; run it again
+  CASE_STORE_ABSENT       case store                 INFO  no `Case store:` pointer, or the warehouse has no `cases`
+                                                           schema: nothing to read (quiet, never a failure)
+
+Exit: 0 clean (no case to open is clean; every `stop` flag is clean), 2 ABORT (refused input, usage). Nothing here is a
+DEFECT.
 """
 import hashlib
 import json
@@ -436,6 +465,310 @@ def run_sql(argv):
     return EXIT_OK
 
 
+# ------------------------------------------------------------ `stop`: the vendor's open cases at the pre-create stop
+
+STOP_FLAGS = [("CASE_CREDIT_DUE", "R103 R62 (the case rules)", "STOP"), ("CASE_OPEN", "case store", "INFO"),
+              ("VENDOR_PARTY_UNMATCHED", "case store", "STOP"), ("CASES_UNREAD", "case store", "STOP"),
+              ("CASE_READ_FAILED", "case store", "STOP"), ("CASE_STORE_ABSENT", "case store", "INFO")]
+STOP_CLASS = {f: c for f, _, c in STOP_FLAGS}
+# a trailing company form, dropped before two vendor names are compared (`HVV Inc.` == `HVV`); the SQL repeats it
+COMPANY_FORM = r"\s+(inc|llc|corp|co|ltd|lp)$"
+MISSING_STORE = re.compile(r"(relation|schema) \"?cases(\.\w+)?\"? does not exist", re.I)
+EVENTS_SHOWN = 5
+
+
+def vendor_norm(s):
+    """Letters and digits only, a trailing company form dropped: the key a vendor name matches a party on."""
+    t = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", (s or "").lower())).strip()
+    return re.sub(COMPANY_FORM, "", t).replace(" ", "")
+
+
+def _sql_norm(col):
+    return ("replace(regexp_replace(btrim(regexp_replace(regexp_replace(lower(" + col + "), '[^a-z0-9 ]', ' ', 'g'), "
+            "'\\s+', ' ', 'g')), '" + COMPANY_FORM + "', ''), ' ', '')")
+
+
+def stop_fingerprint(org, names, keys):
+    doc = json.dumps({"org": org, "names": sorted(set(names)), "keys": sorted(set(keys))}, sort_keys=True)
+    return hashlib.sha1(doc.encode("utf-8")).hexdigest()[:12]
+
+
+def stop_sql(org, names, keys):
+    """ONE read-only SELECT: the parties the names / keys match in the org, and every open case on them, one row."""
+    fp = stop_fingerprint(org, names, keys)
+    arr = lambda xs: "array[" + ", ".join(q(x) for x in sorted(set(xs))) + "]::text[]"  # noqa: E731
+    hit = lambda col: f"{_sql_norm(col)} = any (select n from want)"  # noqa: E731
+    party_cols = "p.org_id, p.party_id, p.party_key, p.display_name"
+    on_case = "e.org_id = c.org_id and e.case_id = c.case_id"
+    return "\n".join([
+        f"-- dutchie-intake `intake_cases.py stop`: the vendor's open cases for the pre-create stop (fingerprint {fp}).",
+        "-- READ ONLY: one SELECT, no write, no procedure call. Run it through the lane's read-only warehouse route",
+        "-- (the tenant's reader role), never through the case writer runner. It filters on the org code itself.",
+        f"with org as (select org_id from security.organizations where org_code = {q(org)}),",
+        f"want(n) as (select unnest({arr(names)})),",
+        f"keys(k) as (select unnest({arr(keys)})),",
+        "cand as (",
+        f"  select {party_cols}, 'party key' as how, p.party_key as matched",
+        "    from ref.vendor_party p join org o on o.org_id = p.org_id where p.party_key = any (select k from keys)",
+        "  union all",
+        f"  select {party_cols}, 'Dutchie record', r.dutchie_vendor_name",
+        "    from ref.vendor_dutchie_record r join org o on o.org_id = r.org_id",
+        "    join ref.vendor_party p on p.org_id = r.org_id and p.party_id = r.party_id",
+        f"   where {hit('r.dutchie_vendor_name')}",
+        "  union all",
+        f"  select {party_cols}, 'party name', p.display_name",
+        f"    from ref.vendor_party p join org o on o.org_id = p.org_id where {hit('p.display_name')}",
+        "  union all",
+        f"  select {party_cols}, 'payee legal name', p.payee_legal_name",
+        f"    from ref.vendor_party p join org o on o.org_id = p.org_id where {hit('p.payee_legal_name')}",
+        "  union all",
+        f"  select {party_cols}, 'DBA', d.dba",
+        "    from ref.vendor_party p join org o on o.org_id = p.org_id cross join lateral unnest(p.dba_names) as d(dba)",
+        f"   where {hit('d.dba')}",
+        "),",
+        "party as (",
+        "  select org_id, party_id, party_key, display_name,",
+        "         string_agg(distinct how || ' \"' || matched || '\"', '; ') as matched_by",
+        "    from cand group by org_id, party_id, party_key, display_name",
+        ")",
+        f"select {q(fp)}::text as read_fp, now() as read_at, (select count(*) from org)::integer as org_found,",
+        "  coalesce((select json_agg(json_build_object('party_id', party_id, 'party_key', party_key,",
+        "                   'display_name', display_name, 'matched_by', matched_by) order by party_id) from party),",
+        "           '[]'::json) as parties,",
+        "  coalesce((select json_agg(json_build_object(",
+        "      'case_id', c.case_id, 'party_key', p.party_key, 'case_type', c.case_type, 'status', c.status,",
+        "      'title', c.title, 'source_rule', c.source_rule, 'owner', c.owner, 'ruling', c.ruling,",
+        "      'ruled_by', c.ruled_by, 'ruled_at', c.ruled_at, 'opened_at', c.opened_at,",
+        "      'opened_detail', (select e.detail from cases.case_events e",
+        f"                         where {on_case} and e.event = 'OPENED' order by e.at, e.event_id limit 1),",
+        "      'events', (select json_agg(json_build_object('at', e.at, 'event', e.event, 'actor', e.actor,",
+        "                   'detail', e.detail, 'gmail', e.gmail_message_id) order by e.at, e.event_id)",
+        f"                   from cases.case_events e where {on_case} and e.event <> 'OPENED'),",
+        "      'links', (select json_agg(json_build_object('type', l.link_type, 'ref', l.ref, 'note', l.note)",
+        "                   order by l.link_id)",
+        "                  from cases.case_links l where l.org_id = c.org_id and l.case_id = c.case_id))",
+        "      order by (c.case_type = 'CREDIT_DUE') desc, c.opened_at, c.case_id)",
+        "     from cases.cases c join party p on p.org_id = c.org_id and p.party_id = c.party_id",
+        "    where c.status not in ('RESOLVED', 'CANCELLED')), '[]'::json) as cases;",
+        ""])
+
+
+def load_stop_result(path):
+    """The saved read: ({'row': row} | {'error': text}). Accepts the rows as returned (a list of one row, or the row,
+    or {"rows": [...]}), JSON columns as objects or as JSON text, or an error the read returned ({"error": "..."})."""
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            raw = f.read()
+        doc = json.loads(raw) if raw.strip().startswith(("[", "{")) else {"error": raw.strip()}
+    except (OSError, json.JSONDecodeError) as e:
+        abort(f"--result {path}: {e}")
+    if isinstance(doc, dict) and "rows" in doc:
+        doc = doc["rows"]
+    if isinstance(doc, dict) and set(doc) <= {"error", "message"}:
+        return {"error": str(doc.get("error") or doc.get("message") or "")}
+    row = doc[0] if isinstance(doc, list) and len(doc) == 1 else doc
+    if not isinstance(row, dict) or "read_fp" not in row:
+        abort(f"--result {path}: not the one row the stop SELECT returns (no `read_fp`)")
+    for k in ("parties", "cases"):
+        v = row.get(k)
+        row[k] = json.loads(v) if isinstance(v, str) else (v or [])
+    return {"row": row}
+
+
+def _case_order(c):
+    return (0 if c.get("case_type") == "CREDIT_DUE" else 1, str(c.get("opened_at") or ""), int(c.get("case_id") or 0))
+
+
+def _day(v):
+    return str(v or "")[:10] or "-"
+
+
+def _credit_lines(lines):
+    """The invoice's credit / discount lines (order-level, or a discount on a product line)."""
+    out = []
+    for ln in lines or []:
+        kind = (ln.get("order_level_kind") or "").strip()
+        if kind in ("credit", "discount"):
+            out.append(f"line {ln.get('line_no')} {ln.get('description') or kind} {ln.get('ext_cost')} "
+                       f"({'order-level' if (ln.get('is_order_level') or '').upper() == 'Y' else 'line'} {kind})")
+    return out
+
+
+def stop_block(state, org=None, names=(), keys=(), lines=None, sql_path=None,
+               rerun="re-run `intake_cases.py stop` with `--result`", credit_note=None):
+    """(markdown, [(flag, detail)]): part 7 of the STOP. `state` = None (no store), 'unread', {'error'} or {'row'}.
+    `rerun` = the call that reads the saved rows, `credit_note` = the line under a CREDIT_DUE case (receive.py --prep
+    names its own `--cases` and the receipt's credit)."""
+    esc = lambda s: str(s or "").replace("|", "\\|")  # noqa: E731
+    flags = []
+    out = ["### Open cases on this vendor (case store)", ""]
+    who = ", ".join(f"`{n}`" for n in names) or "-"
+    if keys:
+        who += " / party key " + ", ".join(f"`{k}`" for k in keys)
+    if state is None:
+        flags.append(("CASE_STORE_ABSENT", "the tenant has no `Case store:` pointer"))
+        out.append("INFO CASE_STORE_ABSENT: the tenant has no case store, so there are no cases to read.")
+        return "\n".join(out), flags
+    if state == "unread":
+        flags.append(("CASES_UNREAD", f"the open-cases read has not run (store {org})"))
+        out += [f"STOP CASES_UNREAD: the read of the open cases has not run (store `{org}`, vendor {who}).",
+                f"Run `{os.path.basename(sql_path) if sql_path else '<the stop SQL>'}` read-only through the lane's "
+                f"warehouse read route, save the rows, and {rerun}. A ruling filed "
+                "as a case is not seen until then."]
+        return "\n".join(out), flags
+    if "error" in state:
+        if MISSING_STORE.search(state["error"]):
+            flags.append(("CASE_STORE_ABSENT", "the warehouse has no `cases` schema"))
+            out.append(f"INFO CASE_STORE_ABSENT: the warehouse has no case store yet ({esc(state['error'][:160])}).")
+        else:
+            flags.append(("CASE_READ_FAILED", state["error"][:200]))
+            out.append(f"STOP CASE_READ_FAILED: the read returned an error - run it again: {esc(state['error'][:300])}")
+        return "\n".join(out), flags
+    row = state["row"]
+    parties, cases = row["parties"], sorted(row["cases"], key=_case_order)
+    out.append(f"Read {str(row.get('read_at') or '')[:19]} (read-only, store `{org}`). Vendor: {who}.")
+    if not row.get("org_found"):
+        flags.append(("CASE_READ_FAILED", f"no org {org} in the warehouse"))
+        out += ["", f"STOP CASE_READ_FAILED: the warehouse has no org `{org}` - check the `Case store:` pointer."]
+        return "\n".join(out), flags
+    if not parties:
+        flags.append(("VENDOR_PARTY_UNMATCHED", f"no party matches {who}"))
+        out += ["", f"STOP VENDOR_PARTY_UNMATCHED: no vendor party matches {who}, so no case on this vendor can be "
+                "seen. Re-run with `--party-key <key>`, or confirm in the reply that the vendor has no party yet."]
+        return "\n".join(out), flags
+    out.append("Party: " + "; ".join(f"`{p['party_key']}` ({esc(p.get('display_name'))}; by {esc(p.get('matched_by'))})"
+                                    for p in parties) + ".")
+    if not cases:
+        out += ["", "No open case on this vendor."]
+        return "\n".join(out), flags
+    out += ["", "| # | Case | Type | Status | Owner | Opened | Ruling | Title |", "|---|---|---|---|---|---|---|---|"]
+    for i, c in enumerate(cases, 1):
+        out.append(f"| {i} | {c['case_id']} | {c['case_type']} | {c['status']} | {esc(c.get('owner')) or '-'} | "
+                   f"{_day(c.get('opened_at'))} | {'in mail ' + _day(c.get('ruled_at')) if c.get('ruling') else 'none'} | "
+                   f"{esc(c.get('title'))} |")
+    credits = _credit_lines(lines)
+    for c in cases:
+        cd = c["case_type"] == "CREDIT_DUE"
+        flags.append(("CASE_CREDIT_DUE" if cd else "CASE_OPEN", f"case {c['case_id']} {c['case_type']} {c['status']}"))
+        out += ["", f"**Case {c['case_id']} - {c['case_type']} - {c['status']}** "
+                    f"({'STOP' if cd else 'INFO'} {'CASE_CREDIT_DUE' if cd else 'CASE_OPEN'}; party `{c.get('party_key')}`, "
+                    f"owner {c.get('owner') or '-'}, opened {_day(c.get('opened_at'))})",
+                f"- Title: {c.get('title')}",
+                f"- Detail: {c.get('opened_detail') or '(the OPENED event carries no detail)'}"]
+        if c.get("ruling"):
+            out.append(f"- Ruling ({c.get('ruled_by')}, {_day(c.get('ruled_at'))}, in mail): {c['ruling']}")
+        else:
+            out.append("- Ruling: none in mail. A ruling relayed in chat is a NOTE until it is in mail; read the detail "
+                       "and the notes.")
+        evs = c.get("events") or []
+        if len(evs) > EVENTS_SHOWN:
+            out.append(f"- Events: {len(evs) - EVENTS_SHOWN} earlier event(s) not shown.")
+        for e in evs[-EVENTS_SHOWN:]:
+            out.append(f"- {_day(e.get('at'))} {e.get('event')} ({e.get('actor')}): {e.get('detail') or '-'}")
+        links = c.get("links") or []
+        if links:
+            out.append("- Links: " + "; ".join(f"{ln['type']} {ln['ref']}" + (f" ({ln['note']})" if ln.get("note") else "")
+                                               for ln in links))
+        if cd:
+            out.append(credit_note or "- At this stop: the case says whether a credit belongs in package cost. Read it "
+                       "before you reply. It never blocks the create and never holds a release.")
+            if credits:
+                out.append("- This invoice prints credit / discount line(s): " + "; ".join(credits) + ". `intake_exceptions` "
+                           "spread them into the landed unit (R103) and read R62 on that unit; if a line is this case's "
+                           "credit, the case decides whether it stays there.")
+            elif lines is not None:
+                out.append("- This invoice prints no credit or discount line.")
+    return "\n".join(out), flags
+
+
+def vendor_inputs(raw, raw_keys, who="stop"):
+    """(names, keys, shown): the normalized vendor names (the fingerprint's), the party keys, and one name as typed per
+    normalized name. ABORTs on a misshapen party key, and when there is neither a name nor a key."""
+    shown = {}
+    for s in raw:
+        if vendor_norm(s):
+            shown.setdefault(vendor_norm(s), s.strip())
+    keys = sorted({k.strip() for k in raw_keys if k and k.strip()})
+    for k in keys:
+        if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", k):
+            abort(f"--party-key {k!r} is not a party key (lower-case words joined by `-`)")
+    if not shown and not keys:
+        abort(f"{who}: no vendor name to read the open cases on and no --party-key")
+    return sorted(shown), keys, [shown[n] for n in sorted(shown)]
+
+
+def stop_inputs(argv):
+    """(names, keys, shown, lines rows or None, intake path) from --intake / --lines / --vendor / --party-key."""
+    ip = get_flag(argv, "--intake")
+    if not ip:
+        abort("stop needs --intake <intake-vN.csv> (its lane_Vendor cells and the output folder)")
+    _, intake = read_csv(ip, [], "--intake")
+    lp = get_flag(argv, "--lines")
+    lines = read_csv(lp, ["vendor"], "--lines")[1] if lp else None
+    raw = [r.get("lane_Vendor") for r in intake] + [ln.get("vendor") for ln in lines or []] + get_all(argv, "--vendor")
+    return vendor_inputs(raw, get_all(argv, "--party-key")) + (lines, ip)
+
+
+def store_org(res):
+    """The org code of the tenant's `Case store:` pointer (from a loaded pointer read), else None (no case store)."""
+    import intake_pointers
+    m = CASE_STORE.match((res["intake"].get(intake_pointers.OPTIONAL_CASE_KEY) or "").strip())
+    return m.group("org") if m else None
+
+
+def stop_state(org, names, keys, result_path, again="re-run `stop` without --result and run the new SQL"):
+    """The saved read as a stop_block state. ABORTs when its fingerprint is not this org's and these names' read."""
+    state = load_stop_result(result_path)
+    if "row" in state and state["row"]["read_fp"] != stop_fingerprint(org, names, keys):
+        abort(f"{result_path}: fingerprint {state['row']['read_fp']} is not this vendor's read "
+              f"({stop_fingerprint(org, names, keys)}): {again}")
+    return state
+
+
+def write_stop_sql(out_dir, stem, org, names, keys):
+    """Writes the ONE read-only SELECT as a NEW `<stem>-open-cases-<ts>.sql`; returns its path."""
+    path = new_path(out_dir, f"{stem}-open-cases-{stamp()}", ".sql")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(stop_sql(org, names, keys))
+    return path
+
+
+def run_stop(argv):
+    tenant = get_flag(argv, "--tenant")
+    if not tenant:
+        abort("stop needs --tenant")
+    import intake_pointers
+    res = intake_pointers.load_for(tenant, [], [intake_pointers.OPTIONAL_CASE_KEY])
+    names, keys, shown, lines, ip = stop_inputs(argv)
+    org = store_org(res)
+    if not org:
+        text, _ = stop_block(None)
+        print(text)
+        return EXIT_OK
+    d_, stem = os.path.split(os.path.splitext(ip)[0])
+    out_dir = get_flag(argv, "--out-dir") or d_
+    rp = get_flag(argv, "--result")
+    if not rp:
+        path = write_stop_sql(out_dir, re.sub(r'-v[0-9]+$', '', stem), org, names, keys)
+        print(f"wrote {path} (fingerprint {stop_fingerprint(org, names, keys)})\n"
+              f"Run it READ ONLY through the lane's warehouse read route; save the rows as "
+              f"{os.path.splitext(path)[0]}.json; then re-run with --result <that file>.\n")
+        print(stop_block("unread", org, shown, keys, lines, path)[0])
+        return EXIT_OK
+    state = stop_state(org, names, keys, rp)
+    text, flags = stop_block(state, org, shown, keys, lines)
+    path = new_path(out_dir, f"{re.sub(r'-v[0-9]+$', '', stem)}-open-cases-{stamp()}", ".md")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text + "\n")
+    for f_, cls in STOP_CLASS.items():
+        n = sum(1 for k, _ in flags if k == f_)
+        if n:
+            print(f"{f_:24} {cls:5} {n}")
+    print(f"wrote {path}\n")
+    print(text)
+    return EXIT_OK
+
+
 def selftest():
     t = Selftest("intake_cases")
     classes = flag_classes()
@@ -544,16 +877,81 @@ def selftest():
                 p1 != p2 and m1 == m2 and runner in cmd and p1 in cmd and m1 in cmd)
         with open(p1, "rb") as f:
             t.check("write: the file on disk is the md5 printed", hashlib.md5(f.read()).hexdigest() == m1)
+
+    # `stop`: the vendor's open cases at the pre-create stop
+    t.check("vendor names: punctuation, case and a trailing company form do not split a vendor",
+            len({vendor_norm(s) for s in ("Example Farms, Inc.", "EXAMPLE FARMS", "example farms inc", "Example-Farms LLC")})
+            == 1 and vendor_norm("Co-op Farms Co") == "coopfarms" and vendor_norm("Inc") == "inc")
+    names = [vendor_norm("Example Farms Inc.")]
+    ssql = stop_sql("EXAMPLE", names, ["example-farms"])
+    bare = re.sub(r"'[^']*'", "''", re.sub(r"--[^\n]*", "", ssql))   # no comments, no string literals
+    t.check("stop SQL: ONE read-only SELECT - no write, no procedure call, no transaction",
+            not re.search(r"\b(insert|update|delete|call|begin|commit|truncate|alter|create|grant|perform|do)\b", bare, re.I)
+            and bare.count(";") == 1 and bare.strip().startswith("with org as"), bare[:200])
+    t.check("stop SQL: filters on the org code and carries the fingerprint and the names",
+            "org_code = 'EXAMPLE'" in ssql and f"'{stop_fingerprint('EXAMPLE', names, ['example-farms'])}'::text" in ssql
+            and "'examplefarms'" in ssql and "'example-farms'" in ssql)
+    t.check("stop SQL: the fingerprint moves with the vendor (another vendor's read is refused)",
+            stop_fingerprint("EXAMPLE", names, []) != stop_fingerprint("EXAMPLE", ["otherco"], []))
+    cd = {"case_id": 9, "party_key": "example-farms", "case_type": "CREDIT_DUE", "status": "AWAITING_VENDOR",
+          "title": "Credit owed", "owner": "Pat", "ruling": None, "opened_at": "2026-10-20T15:00:00Z",
+          "opened_detail": "Keep full purchased cost; the credit stays OUT of package cost.",
+          "events": [{"at": "2026-10-21T10:00:00Z", "event": "NOTE", "actor": "Pat", "detail": "vendor confirmed"}],
+          "links": [{"type": "DUTCHIE_RECEIPT", "ref": "900", "note": "the mis-paid receipt"}]}
+    sz = {"case_id": 4, "party_key": "example-farms", "case_type": "SIZE_MISMATCH", "status": "AWAITING_RULING",
+          "title": "line 2 Haze 1g: MANIFEST_ITEM_SIZE_MISMATCH after receipt", "owner": "Pat", "ruling": "credit",
+          "ruled_by": "Lee", "ruled_at": "2026-10-19T12:00:00Z", "opened_at": "2026-10-18T09:00:00Z",
+          "opened_detail": "Received before the prep questions were settled.", "events": None, "links": None}
+    party = [{"party_id": 1, "party_key": "example-farms", "display_name": "Example Farms",
+              "matched_by": 'Dutchie record "Example Farms, Inc."'}]
+    row = lambda cases, parties=party: {"row": {"read_fp": "x", "read_at": "2026-10-22T08:00:00Z", "org_found": 1,  # noqa: E731
+                                                "parties": parties, "cases": cases}}
+    credit_ln = [{"line_no": "902", "description": "Credit", "ext_cost": "-10", "is_order_level": "Y",
+                  "order_level_kind": "credit"}]
+    txt, fl = stop_block(row([sz, cd]), "EXAMPLE", ["Example Farms Inc."], [], credit_ln)
+    t.check("FIRES: an open CREDIT_DUE case is listed FIRST (whatever order the read returns) with its detail text",
+            txt.index("**Case 9 - CREDIT_DUE") < txt.index("**Case 4 - SIZE_MISMATCH")
+            and "| 1 | 9 | CREDIT_DUE |" in txt and "credit stays OUT of package cost" in txt, txt)
+    t.check("FIRES: CASE_CREDIT_DUE (STOP) for the credit case, CASE_OPEN (INFO) for the other",
+            [k for k, _ in fl] == ["CASE_CREDIT_DUE", "CASE_OPEN"], str(fl))
+    t.check("the block prints the ruling only when it is in mail, the notes, the links and the invoice's credit line",
+            "Ruling (Lee, 2026-10-19, in mail): credit" in txt and "Ruling: none in mail" in txt
+            and "NOTE (Pat): vendor confirmed" in txt and "DUTCHIE_RECEIPT 900 (the mis-paid receipt)" in txt
+            and "line 902 Credit -10 (order-level credit)" in txt)
+    t.check("stable: the same read in any row order prints the same block",
+            stop_block(row([cd, sz]), "EXAMPLE", ["Example Farms Inc."], [], credit_ln)[0] == txt)
+    t.check("QUIET: a vendor with no open case prints `No open case` and no flag",
+            stop_block(row([]), "EXAMPLE", ["x"])[1] == [] and "No open case on this vendor." in stop_block(row([]), "EXAMPLE", ["x"])[0])
+    t.check("FIRES: no party matches the vendor -> VENDOR_PARTY_UNMATCHED (STOP), never a silent `no case`",
+            [k for k, _ in stop_block(row([], []), "EXAMPLE", ["x"])[1]] == ["VENDOR_PARTY_UNMATCHED"])
+    t.check("FIRES: a case store with no read -> CASES_UNREAD (STOP)",
+            [k for k, _ in stop_block("unread", "EXAMPLE", ["x"])[1]] == ["CASES_UNREAD"])
+    t.check("QUIET: no case store (no pointer, or no `cases` schema) is an INFO, never a STOP",
+            [k for k, _ in stop_block(None)[1]] == ["CASE_STORE_ABSENT"]
+            and [k for k, _ in stop_block({"error": 'ERROR: relation "cases.cases" does not exist'}, "EXAMPLE")[1]]
+            == ["CASE_STORE_ABSENT"])
+    t.check("FIRES: any other read error -> CASE_READ_FAILED (STOP)",
+            [k for k, _ in stop_block({"error": "connection timed out"}, "EXAMPLE")[1]] == ["CASE_READ_FAILED"])
+    with tempfile.TemporaryDirectory() as d:
+        rp = os.path.join(d, "r.json")
+        with open(rp, "w", encoding="utf-8") as f:
+            json.dump([{"read_fp": "x", "read_at": "t", "org_found": 1, "parties": json.dumps(party), "cases": "[]"}], f)
+        got = load_stop_result(rp)
+        t.check("result: the rows as the read returns them, JSON columns as text, load as one row",
+                got["row"]["parties"] == party and got["row"]["cases"] == [])
+        with open(rp, "w", encoding="utf-8") as f:
+            f.write('ERROR: relation "cases.cases" does not exist')
+        t.check("result: a saved error text loads as an error", "does not exist" in load_stop_result(rp).get("error", ""))
     return t.done()
 
 
 def main(argv):
     if "--selftest" in argv:
         return selftest()
-    if not argv or argv[0] not in ("open", "sql"):
+    if not argv or argv[0] not in ("open", "sql", "stop"):
         print(__doc__)
         return EXIT_ABORT
-    return run_open(argv[1:]) if argv[0] == "open" else run_sql(argv[1:])
+    return {"open": run_open, "sql": run_sql, "stop": run_stop}[argv[0]](argv[1:])
 
 
 if __name__ == "__main__":

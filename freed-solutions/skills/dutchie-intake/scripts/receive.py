@@ -5,6 +5,7 @@ are stubs that exit 2.
                     [--intake <intake-vN.csv>] [--manifest <manifest.csv>] [--item <line>=<ProductId>]...
                     [--program <line>=<disposition>]... --tenant <CLAUDE.md> [--out-dir <dir>] [--slug <s>]
                     [--vendor-record <Dutchie vendor>] [--txn-id <final invoice no | SO no>]
+                    [--cases <rows.json>] [--party-key <k>]...
                     [--payload <new.json> [--cite <line>=<text>]... [--apex-item <line>=<Apex name>]...
                      [--receipt-date <YYYY-MM-DD>] [--invoice-no <no>] [--apex-invoice <no>]]
   python receive.py --enter | --check | --vendor ...   phase 2 stubs; exit 2
@@ -41,6 +42,7 @@ Inputs (columns are checked; a missing one ABORTs, never reads as blank):
                `deal`, `tier <n>`, `none`, `cost change`. Beats every default. A sample the vendor states only in an
                email is `--program <line>=sample`.
   --vendor-record / --txn-id  the receive-form header values (below); default the lines' `vendor` / `invoice_no` cells.
+  --cases <rows.json> / --party-key <k>   the vendor's OPEN cases (below), the saved rows of the read-only SELECT.
   --payload    also write the receipt-inputs payload: the same inputs as ONE JSON object for the warehouse ingest
                (keys slug, receipt_date, invoice_no, vendor_record, txn_id, apex_invoice, lines, manifest, intake_rows,
                bindings). Rows go as read (every column, `uom` included); manifest / intake_rows are null when not
@@ -106,6 +108,20 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     count (platform KB "Metrc package quantity is in the item's unit of measure"). A qty that is not a finite number
     (`inf`, `nan`) on any package is unreadable: MANIFEST_QTY_UNREAD (or MANIFEST_GRAMS_UNSIZED on a `g` package), a
     STOP with no count and no qty tie, never a crash; such a package never blends a Buy-Get deal.
+
+Open cases (the read of `intake_cases.py stop`, reused: the same SELECT, fingerprint, block and flags). The header
+credit (R126) and the Buy-Get blend (R103) are where a receipt puts a credit into package cost, so the questions file
+prints the vendor's open cases (CREDIT_DUE first, with the OPENED detail) and names each open CREDIT_DUE case beside the
+header credit and beside each Buy-Get deal. No login here, in two calls:
+  1. without `--cases`, on a tenant with a `Case store:` pointer: writes a NEW `<sheet stem>-open-cases-<ts>.sql` (ONE
+     read-only SELECT) and asks CASES_UNREAD. The lane runs that SELECT through its OWN read-only warehouse route (the
+     tenant's reader role), never the case writer runner, and saves the rows as returned to a `.json` file.
+  2. `--cases <rows.json>` with the SAME vendor arguments: prints the block. The vendor = every `vendor` cell of
+     `--lines`, every `lane_Vendor` cell of `--intake`, `--vendor-record`, and `--party-key`. A read with another
+     fingerprint ABORTs before any file is written.
+No `Case store:` pointer (or no `--tenant`) = a quiet INFO CASE_STORE_ABSENT; `--cases` without the pointer ABORTs.
+Flags: CASE_CREDIT_DUE STOP, CASE_OPEN INFO, VENDOR_PARTY_UNMATCHED STOP, CASES_UNREAD STOP, CASE_READ_FAILED STOP,
+CASE_STORE_ABSENT INFO (intake_cases.py STOP_FLAGS).
 
 Exit: 0 clean (STOP / INFO never fail), 1 DEFECT, 2 ABORT.
 """
@@ -174,7 +190,14 @@ QUESTION = {
     "MANIFEST_UOM_UNREAD": "The manifest unit does not fit the item. Flower, pre-rolls, kief and infused flower / pre-rolls are `g` in Metrc; every other category is `ea`. Read the unit from the Incoming grid (the Packages export prints a bare number) and type it in the `uom` cell, then re-run.",
     "MANIFEST_GRAMS_UNSIZED": "A `g` package whose Metrc item names no unit size (or whose grams do not divide by it), so its count is unknown. The runner never guesses a size. Read the size from Metrc or the vendor, then re-run.",
     "MANIFEST_QTY_UNREAD": "The manifest qty is not a readable number (`inf` / `nan`), so the package count is unknown. Read the qty from Metrc and type it in the `qty` cell, then re-run.",
+    # the vendor's open cases (intake_cases.py STOP_FLAGS)
+    "CASE_CREDIT_DUE": "An open CREDIT_DUE case on this vendor. Read its detail and its ruling (Open cases, above) before you enter a header credit or a Buy-Get blend: the case says whether a credit on this receipt goes into package cost.",
+    "VENDOR_PARTY_UNMATCHED": "No vendor party matches the vendor's names, so no case on this vendor can be seen. Re-run with `--party-key <key>`, or confirm that the vendor has no party yet.",
+    "CASES_UNREAD": "The open-cases read has not run. Run the `-open-cases-` SQL file read-only through the lane's reader route, save the rows, and re-run with `--cases <rows.json>`.",
+    "CASE_READ_FAILED": "The open-cases read returned an error, or found no org. Check the `Case store:` pointer and run the read again.",
 }
+# a case flag that leaves the vendor's cases unseen: no CREDIT_DUE case can be checked beside a credit
+CASES_BLIND = ("CASES_UNREAD", "VENDOR_PARTY_UNMATCHED", "CASE_READ_FAILED")
 PREP_COLS = ["row", "line", "invoice_item", "dutchie_productid", "dutchie_sku", "dutchie_name", "expected_qty",
              "unit_cost_invoice", "ext_cost", "landed_unit_cost", "blended_unit_cost", "cost_entered", "deal", "catalog_cost",
              "on_hand_pkg_costs", "physical_count", "qty_match", "metrc_package_id", "metrc_item", "manifest_qty",
@@ -743,6 +766,9 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             add("BUY_GET_UNTIED", "", "+".join(g["lines"]), f"{g['id']}: entered ${g['entered']:.4f} vs the deal's invoice "
                                                               f"${g['total']:.2f} - the last package's 4-place unit cannot carry the remainder")
     summary = {"packages": len(mapped), "product_lines": len(prod), "order_level": o_all, "share": share,
+               "blend_packages": n_pk,
+               "order_lines": [{"line": ln["line_no"], "description": ln.get("description", ""),
+                                "kind": ln["order_level_kind"], "ext": num(ln.get("ext_cost")) or 0.0} for ln in order],
                "manifest": manifest is not None, "product_ext": base, "new_line_tag": new_line_tag,
                "new_line_packages": sum(1 for r in rows if r.get("new_line_tag_on_package", "").startswith("yes")),
                "flips": dict(sorted(flips.items())), "discontinue_tag": discontinue_tag,
@@ -830,7 +856,38 @@ def header_block(h):
             f"- Source: {KB_RECEIVE}.", ""]
 
 
-def questions(exc, summary, stem, header=None):
+def open_cases(state, org=None, shown=(), keys=(), sql_path=None):
+    """Pure. The vendor's open cases for the questions file, from intake_cases.stop_block on the saved read (`state` =
+    None no store, 'unread', {'error'} or {'row'}). Returns {text, exc (the case flags as exceptions), credit_due (the
+    open CREDIT_DUE cases, oldest first), blind (the flag that leaves the cases unseen, or '')}."""
+    import intake_cases as CS
+    text, flags = CS.stop_block(state, org, shown, keys, None, sql_path, "re-run `receive.py --prep` with `--cases`",
+                                "- At this receipt: the case says whether a credit belongs in package cost - the header "
+                                "credit (R126) and a Buy-Get blend (R103). Read it before you enter either.")
+    rule = {f: r for f, r, _ in CS.STOP_FLAGS}
+    exc = [{"flag": f, "rule": rule[f], "class": CS.STOP_CLASS[f], "row": "", "line": "", "detail": d} for f, d in flags]
+    cd = []
+    if any(f == "CASE_CREDIT_DUE" for f, _ in flags):
+        cd = [c for c in sorted(state["row"]["cases"], key=CS._case_order) if c.get("case_type") == "CREDIT_DUE"]
+    return {"text": text, "exc": exc, "credit_due": cd, "blind": next((f for f, _ in flags if f in CASES_BLIND), "")}
+
+
+def credit_case_lines(cases, where):
+    """The lines that name each open CREDIT_DUE case beside a credit `where` the receipt enters (or say none is seen)."""
+    if not cases:
+        return []
+    out = [f"- Open CREDIT_DUE case {c['case_id']} ({c.get('title') or '-'}; "
+           f"{'ruling in mail ' + str(c.get('ruled_at') or '')[:10] if c.get('ruling') else 'no ruling in mail'}): "
+           f"read its detail (Open cases, above) before you enter {where}. The case says whether this credit goes "
+           "into package cost (STOP CASE_CREDIT_DUE)." for c in cases["credit_due"]]
+    if cases["blind"]:
+        out.append(f"- {cases['blind']}: the vendor's open cases are not seen, so no CREDIT_DUE case can be checked "
+                   f"beside {where}.")
+    return out
+
+
+def questions(exc, summary, stem, header=None, cases=None):
+    """The questions file. `cases` = open_cases(...) (None = no case read at all; the unit checks)."""
     stops = [e for e in exc if e["class"] in ("STOP", "DEFECT")]
     out = [f"# Receipt prep - questions before the receipt ({stem})", "",
            f"Product lines {summary['product_lines']} · packages {summary['packages']}"
@@ -848,6 +905,18 @@ def questions(exc, summary, stem, header=None):
                 "RECORDED EXCEPTION, never a block: the item keeps the tag; fill `exception_reason` on the sheet and "
                 "name the reason on the PO."]
         out += [f"- line {e['line']}: {e['detail']}" for e in summary["discontinued_buys"]] + [""]
+    if cases is not None:
+        out += [cases["text"], ""]
+    # a CREDIT_DUE case and a blind read never come together: the section prints on a credit line or an open case
+    if summary.get("order_lines") or (cases and cases["credit_due"]):
+        out.append("Header credit (R126): entered ONCE in the receipt header; Dutchie blends it EQUALLY across the "
+                   "receipt's packages.")
+        for o in summary.get("order_lines") or []:
+            out.append(f"- line {o['line']} {o['description'] or o['kind']} {o['ext']:+.2f} ({o['kind']}): "
+                       f"{summary['share']:+.4f} per package across {summary.get('blend_packages', 0)} package(s)")
+        if not summary.get("order_lines"):
+            out.append("- This receipt enters no header credit.")
+        out += credit_case_lines(cases, "this header credit") + [""]
     if summary.get("buy_get"):
         out += [f"Buy-Get deals (R103): blended over every package of the deal, each `{summary.get('deal_tag', '')}`; "
                 "`cost_entered` is what each package row takes. The invoice total and catalog Cost do not change."]
@@ -859,6 +928,7 @@ def questions(exc, summary, stem, header=None):
                        + f" = ${g['total']:.2f} · blended unit ${g['blended']:.2f} · packages {g['packages']} · remainder on "
                        f"{last[1] or 'row ' + str(last[0])} at ${last[3]} · entered ${g['entered']:.2f} = invoice ${g['total']:.2f}")
             out += [f"  - row {r[0]} {r[1] or '(no package id yet)'}: {r[2]} x ${r[3]}" for r in g["rows"]]
+        out += credit_case_lines(cases, "a Buy-Get blend (the blend puts the deal's discount into package cost, R103)")
         out.append("")
     if not stops:
         return "\n".join(out + ["No STOP and no DEFECT. The sheet is ready for entry.", ""])
@@ -876,10 +946,14 @@ def run_prep(argv):
     tenant = get_flag(argv, "--tenant")
     deal_tag, sample_tag, display_tag = get_flag(argv, "--deal-tag"), DEFAULT_SAMPLE_TAG, DEFAULT_DISPLAY_TAG
     new_line_tag, active_tag, discontinue_tag = DEFAULT_NEW_LINE_TAG, DEFAULT_ACTIVE_TAG, DEFAULT_DISCONTINUE_TAG
+    import intake_cases as CS
+    org = None
     if tenant:
         import intake_pointers
-        # --prep reads the tag pointers only: a gap there ABORTs, any other gap is a WARNING line
-        ptr = intake_pointers.load_for(tenant, [] if deal_tag else ["Vendor deal tag"], TENANT_OPTIONAL)["intake"]
+        # --prep reads the tag pointers and the case store only: a gap there ABORTs, any other gap is a WARNING line
+        res = intake_pointers.load_for(tenant, [] if deal_tag else ["Vendor deal tag"],
+                                       TENANT_OPTIONAL + [intake_pointers.OPTIONAL_CASE_KEY])
+        ptr, org = res["intake"], CS.store_org(res)
         deal_tag = deal_tag or ptr.get("Vendor deal tag")
         sample_tag = ptr.get("Sample tag") or sample_tag
         display_tag = ptr.get("Display tag") or display_tag
@@ -904,6 +978,20 @@ def run_prep(argv):
                                   parse_directions(argv, "--apex-item"), s, get_flag(argv, "--receipt-date") or day,
                                   get_flag(argv, "--invoice-no") or "", get_flag(argv, "--vendor-record") or "",
                                   get_flag(argv, "--txn-id") or "", get_flag(argv, "--apex-invoice") or "")
+    # the vendor's open cases: read and checked BEFORE any file is written (a stale or foreign read writes nothing)
+    cases_p, case_args = get_flag(argv, "--cases"), None
+    if not org:
+        if cases_p:
+            abort("--cases needs the tenant's `Case store: <ORG_CODE> via <runner.ps1>` pointer (the read is scoped by "
+                  "its org code)")
+        state = None
+    else:
+        names, keys, shown = CS.vendor_inputs([ln.get("vendor") for ln in lines] + [r.get("lane_Vendor") for r in intake or []]
+                                              + [get_flag(argv, "--vendor-record")], get_all(argv, "--party-key"),
+                                              "receive --prep (give --vendor-record or --party-key)")
+        case_args = (org, names, keys, shown)
+        state = (CS.stop_state(org, names, keys, cases_p, "re-run --prep without --cases and run the new SQL")
+                 if cases_p else "unread")
     rows, exc, summary = prep(lines, catalog, inv, intake, man, items, programs, deal_tag, sample_tag, display_tag,
                               new_line_tag, active_tag, discontinue_tag)
     out_dir = get_flag(argv, "--out-dir") or os.path.dirname(os.path.abspath(lines_p))
@@ -916,9 +1004,22 @@ def run_prep(argv):
         print(f"wrote payload {pl_path} ({len(payload['lines'])} line(s), "
               f"{'no manifest' if payload['manifest'] is None else str(len(payload['manifest'])) + ' package(s)'}, "
               f"{len(payload['bindings'])} binding(s); md5 {hashlib.md5(text_pl.encode('utf-8')).hexdigest()})")
+    if case_args:
+        org, names, keys, shown = case_args
+        sql_path = None
+        if state == "unread":
+            sql_path = CS.write_stop_sql(out_dir, os.path.splitext(os.path.basename(out))[0], org, names, keys)
+            print(f"wrote {sql_path} (fingerprint {CS.stop_fingerprint(org, names, keys)})\n"
+                  "Run it READ ONLY through the lane's warehouse read route; save the rows as "
+                  f"{os.path.splitext(sql_path)[0]}.json; then re-run --prep with the same arguments and --cases "
+                  "<that file>.\n")
+        cases = open_cases(state, org, shown, keys, sql_path)
+    else:
+        cases = open_cases(None)
+    exc = exc + cases["exc"]
     qpath = new_path(out_dir, os.path.splitext(os.path.basename(out))[0] + "-questions", ".md")
     text = questions(exc, summary, os.path.basename(out),
-                     header_values(lines, get_flag(argv, "--vendor-record"), get_flag(argv, "--txn-id")))
+                     header_values(lines, get_flag(argv, "--vendor-record"), get_flag(argv, "--txn-id")), cases)
     with open(qpath, "w", encoding="utf-8") as f:
         f.write(text)
     counts = {}

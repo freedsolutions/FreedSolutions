@@ -21,9 +21,11 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 /dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
 /dutchie-intake notice <intake-vN.csv>                draft the notice; print the floor-sheet command
 /dutchie-intake receive --prep <lines.csv> [manifest]  the receipt prep sheet: one row per Metrc package + questions
+                                                     (+ the vendor's open cases: `--cases <rows.json>`, read-only)
 /dutchie-intake receive --enter | --check | --vendor   phase 2 stubs - exit 2
 /dutchie-intake cases open --prep <prep.csv> --received <pkg>   after receipt: a missed STOP becomes a case (SQL + ONE command)
 /dutchie-intake cases sql --ops <ops.json>             a case event / ruling / status / link as SQL + ONE command
+/dutchie-intake cases stop --intake <vN.csv> [--result <rows.json>]   at the STOP: the vendor's open cases (read-only)
 ```
 
 ## When to Use
@@ -70,13 +72,15 @@ the second is the `bi-change` block the tenant already has.
 - Catalog state: <stateLibrary>      (the global-link step's state library, as `search-catalog-products` prints
   it; absent, nothing is linked and every create with hits is a `no match` question - create step 2)
 - Case store: <ORG_CODE> via <runner.ps1>   (optional; the after-receipt branch: the warehouse org code and the
-  tenant's ONE-command guided case writer; absent, `intake_cases.py` ABORTs)
+  tenant's ONE-command guided case writer; absent, `intake_cases.py open` / `sql` ABORT. The same org code scopes
+  the STOP's open-cases read, `intake_cases.py stop`, and the receipt's, `receive.py --prep --cases`; absent, each
+  read is a quiet INFO - intake step 6, receive step 3)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
 `python scripts/intake_pointers.py --tenant <CLAUDE.md>` validates it; every runner calls the same
 parser through `--tenant` and ABORTs on a missing key or a value still written `<like this>`. A runner that
-reads only some keys (`receive --prep` reads the tag pointers) ABORTs only on a gap in a key it reads; any other
+reads only some keys (`receive --prep` reads the tag pointers and `Case store`) ABORTs only on a gap in a key it reads; any other
 gap prints a `WARNING:` line (`intake_pointers.load_for`).
 Every runner loads only the keys it reads (its `tenant_keys`); `Drive invoices folder` gates only the Drive-filing
 step (`pull`, gate `intake_pointers.py --tenant <CLAUDE.md> --for pull`).
@@ -283,7 +287,21 @@ through connector bodies only.
    counts, flags) and prints the STOP block. It writes no Price: the Operator sets the confirmed number in the
    lane cells at the stop (the confirmed number is the lane Price, R50). R125 states the rule; the $5 points,
    the radius and the 20 % `MSRP_SPREAD` are this script's parameters.
-6. Send the STOP message (below), with the Apex cost block and the MSRP block, and stop.
+6. **Open cases on the vendor** - a standard step on every intake (Operator ruling 2026-10-20: a credit ruling filed as a
+   case must reach the next intake of that vendor). No login and no write: the scripts never connect to the warehouse.
+   - `intake_cases.py stop --intake <v2 or v3> --lines <lines.csv> --tenant <CLAUDE.md> [--vendor <name>]
+     [--party-key <k>]` writes a NEW `<stem>-open-cases-<ts>.sql`: ONE read-only SELECT, scoped by the `Case store:`
+     org code, with a fingerprint of the org and the vendor names.
+   - The lane runs that SELECT through its OWN read-only warehouse route: the tenant's reader role (for example a Neon
+     MCP `run_sql` with a reader `role_name`). Never the case writer runner, never a credential hunt. Save the rows as
+     returned to `<same stem>.json` (a read error: save its text).
+   - Run `stop` again with `--result <that file>` and the same vendor arguments. It prints part 7 of the STOP and
+     writes a NEW `-open-cases-<ts>.md`. A result with another fingerprint ABORTs.
+   - The vendor = the lines' `vendor`, the intake's `lane_Vendor` and each `--vendor`. A name matches a party by its
+     Dutchie vendor record name, display name, payee legal name or DBA (letters and digits only, a trailing Inc / LLC /
+     Corp / Co / Ltd / LP dropped). `--party-key` names the party outright.
+   - No `Case store:` pointer, or a warehouse with no `cases` schema: `CASE_STORE_ABSENT`, a quiet INFO, never a failure.
+7. Send the STOP message (below), with the Apex cost block, the MSRP block and the open-cases block, and stop.
 
 **`create`** - the only Dutchie write, run as ONE batch from ONE approved plan file (R124). Operator's login.
 Rows: `approved = Y` creates (`NEW_ITEM_WITH_SIBLING`, `NEW_PL`, `NEW_BRAND`) and un-retires (`RETIRED_MATCH`,
@@ -473,7 +491,8 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
    tied (`APEX_UNIT_IS_CASE`, INFO). A blank `line` cell makes the runner PROPOSE a line by unit price and item words;
    a proposal is a STOP (`MAP_PROPOSED`) until the reader types it. Never type a mapping you cannot evidence.
 3. `receive.py --prep --lines <lines.csv> --catalog <active.csv> --inventory <inventory.csv> [--intake <vN.csv>]
-   [--manifest <manifest.csv>] [--item <line>=<ProductId>] [--program <line>=<disposition>] --tenant <CLAUDE.md>`.
+   [--manifest <manifest.csv>] [--item <line>=<ProductId>] [--program <line>=<disposition>] --tenant <CLAUDE.md>
+   [--cases <rows.json>] [--party-key <k>]`.
    The Inventory export is the receive-time snapshot (freeze it with the `Export refresh` pointer first). Without a
    manifest the sheet has one row per product line and blank package ids; re-run when the manifest is read.
    `--vendor-record` and `--txn-id` set the header values (default: the lines' `vendor` and `invoice_no` cells).
@@ -493,7 +512,23 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      normal (R62 keeps the highest cost on the catalog; only an unmarked LOWER price is asked). `on_hand_pkg_costs` is
      information only (Operator ruling 2026-10-09).
    - Credit: entered once in the receipt header. Dutchie blends it EQUALLY across the packages; the sheet prints that
-     blend per package, and `CREDIT_BLEND_NEGATIVE` / `CREDIT_TRIPS_R62` are STOPs.
+     blend per package, and `CREDIT_BLEND_NEGATIVE` / `CREDIT_TRIPS_R62` are STOPs. The questions file lists each
+     order-level line under `Header credit (R126)`.
+   - Open cases (ruled 2026-10-20): the header credit (R126) and the Buy-Get blend (R103) put a credit into package
+     cost, so the questions file prints the vendor's open cases. It reuses the read of `intake_cases.py stop` (the same
+     SELECT, fingerprint, block and flags; part 7 below). It names each open CREDIT_DUE case beside the header credit
+     and beside each Buy-Get deal. Do the read in three steps:
+     1. Run `--prep` without `--cases`. On a tenant with a `Case store:` pointer, it writes a NEW
+        `<sheet stem>-open-cases-<ts>.sql` (ONE read-only SELECT) and asks `CASES_UNREAD`.
+     2. Run that SELECT through the lane's OWN read-only route (the tenant's reader role). Never use the case writer
+        runner. Save the rows as returned to a `.json` file.
+     3. Run `--prep` again with the SAME arguments and `--cases <rows.json>`. The vendor is every `vendor` cell of
+        `--lines`, every `lane_Vendor` cell of `--intake`, `--vendor-record`, and `--party-key`. A read with another
+        fingerprint ABORTs, and no file is written.
+     Read each `CASE_CREDIT_DUE` (STOP) case before you enter a header credit or a Buy-Get blend: its detail and its
+     ruling say whether the credit goes into package cost. `CASES_UNREAD`, `VENDOR_PARTY_UNMATCHED` and
+     `CASE_READ_FAILED` (STOP) leave the cases unseen; the header credit says so. No `Case store:` pointer is a quiet
+     INFO (`CASE_STORE_ABSENT`). `--cases` without the pointer ABORTs.
    - Buy-Get deal (R103, R84): the invoice often prices the free case of a Buy-Get deal on ONE line at a penny. The
      lane reads a deal when the same item sits on a paid line AND a penny line, or a line discount names the deal
      (`buy 4 get 1`, `b4g1`, `bogo`, `free case`). A sample or display line, or a line stated anything but `deal`, stays
@@ -566,7 +601,9 @@ and qty mismatches, a manifest cost mismatch and every other open STOP. INFO nev
 that staff have NOT received stays a question in the run. The type is the most specific flag on the package (SIZE >
 QTY > PRICE > OTHER). A re-run opens no twin. **CREDIT_DUE** is a case of its own (an `ops` file): a credit that is
 promised but is not on an invoice or a credit memo yet. It NEVER holds a release, because the credit can land on the
-next order or on a credit memo.
+next order or on a credit memo. Write the treatment of the credit (in package cost or not) in its OPENED detail: the
+next intake of that vendor prints the detail at the STOP (part 7, `intake_cases.py stop`), and the next receipt prep
+prints it beside the header credit and the Buy-Get blend (`receive.py --prep --cases`, receive step 3).
 
 The path. Each step waits for the step before it (Operator ruling: the Dutchie fix runs after the ruling):
 1. **HOLD.** `open` writes the case (OPENED, status `AWAITING_RULING`, the package and item links). People move the
@@ -621,8 +658,9 @@ repeat the store's own checks (type, status, link, event, the Gmail id shape), s
 Nothing is created before the Operator's reply. Everything that needs no ruling and no login runs
 first. The message has three parts printed by `intake_exceptions.py` (its flag notes carry the R129 dose
 check, item 5), plus a fourth printed by
-`intake_msrp.py` whenever the intake carries a new line, and a sixth printed by `intake_apex_cost.py` whenever a new
-line is sample-only:
+`intake_msrp.py` whenever the intake carries a new line, a sixth printed by `intake_apex_cost.py` whenever a new
+line is sample-only, and a seventh printed by `intake_cases.py stop` on every intake. The parts print in this order
+(1 to 7); a new part goes at the end, so the order the Operator reads stays the same:
 
 1. **Verdict table** - `# | Invoice line | Verdict | Sibling / match | Final name | Landed unit |
    Flags | approved`, one row per product line, plus the verdict counts.
@@ -649,6 +687,20 @@ line is sample-only:
 6. **Cost on a sample-only new line (R125)** - `# | Line | Invoice line | Sample price | Cost | Source | Flags`, printed by
    `intake_apex_cost.py`: the Cost read from the vendor's Apex PO or catalog listing, named with its read date. A row at
    `COST_UNKNOWN` is a question: Apex has no PO and no listing, so the Operator types the Cost (never a sibling's).
+7. **Open cases on this vendor** - printed by `intake_cases.py stop` (intake step 6). The party the names matched,
+   then `# | Case | Type | Status | Owner | Opened | Ruling | Title`, then each case with its detail text (the OPENED
+   detail), its ruling (only a ruling in mail), its last five events and its links. CREDIT_DUE cases print first,
+   then the others by date opened and case id, whatever order the read returns.
+   - `CASE_CREDIT_DUE` (STOP): a credit is owed on this vendor. Read the detail and the ruling before you reply. They
+     say whether a credit on this invoice goes into package cost (R103 landed cost, R62 tag). When the invoice prints a
+     credit or discount line, the block names it: `intake_exceptions` spread it into the landed unit, and the case
+     decides whether it stays there. A CREDIT_DUE case never blocks the create and never holds a release.
+   - `CASE_OPEN` (INFO): any other open case on the vendor (a held package, a question to the business).
+   - `VENDOR_PARTY_UNMATCHED` (STOP): no party matches the vendor's names, so no case can be seen. Re-run with
+     `--party-key`, or say in the reply that the vendor has no party yet.
+   - `CASES_UNREAD` / `CASE_READ_FAILED` (STOP): the tenant has a case store, but the read did not run or returned an
+     error. Run the read; never send the STOP as if the vendor had no case.
+   - `CASE_STORE_ABSENT` (INFO): no case store. Nothing to read.
 
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
 Under R124 the plan summary (`intake_plan.py`) rides this stop: the Operator's approval of the plan
@@ -716,13 +768,14 @@ output · exit 1 only on DEFECT · abort on a missing column.
 `intake_exceptions.py` · `intake_apex_cost.py` (R125: a sample-only new line's Cost from the Apex PO / listing) ·
 `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
-`intake_cases.py` (the after-receipt branch: a case open from the prep sheet, case ops as SQL + ONE command) ·
+`intake_cases.py` (the after-receipt branch: a case open from the prep sheet, case ops as SQL + ONE command; and
+`stop`, the vendor's open cases at the STOP from ONE read-only SELECT, reused by `receive.py --prep --cases`) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
 The batch runner is `gridBatch` in `dutchie-bi-looker/scripts/backoffice_grid_write.js`.
 
 After ANY edit here run both, and both must pass:
 - `python scripts/selftest_all.py` - every script's `--selftest` and the `gridBatch` cases of
-  `backoffice_grid_write_selftest.js`, then 147 fixture checks on `fixtures/` (the R124 batch rides
+  `backoffice_grid_write_selftest.js`, then 180 fixture checks on `fixtures/` (the R124 batch rides
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.

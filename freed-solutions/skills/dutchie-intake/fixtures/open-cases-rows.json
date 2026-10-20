@@ -1,0 +1,25 @@
+[
+ {
+  "read_fp": "set-by-the-test",
+  "read_at": "2026-10-22T08:00:00.000Z",
+  "org_found": 1,
+  "parties": [
+   {"party_id": 7, "party_key": "northwind-distribution", "display_name": "Northwind Distribution",
+    "matched_by": "Dutchie record \"Northwind Distribution, Inc.\"; party name \"Northwind Distribution\""}
+  ],
+  "cases": [
+   {"case_id": 4, "party_key": "northwind-distribution", "case_type": "SIZE_MISMATCH", "status": "AWAITING_RULING",
+    "title": "line 2 Haze 1g: MANIFEST_ITEM_SIZE_MISMATCH after receipt", "source_rule": "MANIFEST_ITEM_SIZE_MISMATCH",
+    "owner": "Pat Example", "ruling": null, "ruled_by": null, "ruled_at": null, "opened_at": "2026-10-18T09:00:00.000Z",
+    "opened_detail": "Received before the prep questions were settled; open codes: MANIFEST_ITEM_SIZE_MISMATCH.",
+    "events": null,
+    "links": [{"type": "DUTCHIE_PACKAGE", "ref": "PKG-C", "note": "Metrc item Preroll - 0.5g - Haze"}]},
+   {"case_id": 9, "party_key": "northwind-distribution", "case_type": "CREDIT_DUE", "status": "AWAITING_VENDOR",
+    "title": "Northwind: $500.00 discount owed on the next order", "source_rule": null, "owner": "Pat Example",
+    "ruling": null, "ruled_by": null, "ruled_at": null, "opened_at": "2026-10-20T15:00:00.000Z",
+    "opened_detail": "A bill of another vendor was paid to Northwind. Ruling in chat (a NOTE until it is in mail): the next Northwind receipt keeps FULL purchased cost; the $500.00 stays OUT of package cost (no header credit, no R103 blend, no vendor deal tag).",
+    "events": null,
+    "links": [{"type": "DUTCHIE_RECEIPT", "ref": "900", "note": "the receipt whose bill sits on Northwind"}]}
+  ]
+ }
+]

@@ -16,6 +16,7 @@ Three layers, exit 1 on any failure:
 """
 import copy
 import csv
+import json
 import os
 import shutil
 import subprocess
@@ -28,6 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FX = os.path.join(os.path.dirname(HERE), "fixtures")
 sys.path.insert(0, HERE)
 import intake_apex_cost as AC  # noqa: E402
+import intake_cases as CS  # noqa: E402
 import intake_certify as IC  # noqa: E402
 import intake_derive as ID  # noqa: E402
 import intake_common as C  # noqa: E402
@@ -1547,6 +1549,87 @@ CHECKS += [
      lambda c: apex_certify(c) == [], "11", "9", "the created item kept Brand B's Cost 9"),
 ]
 
+
+def rows_json(name):
+    with open(fx(name), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def open_cases(mutate=None, error=None):
+    """The STOP's part 7 on the fixture read (`open-cases-rows.json`), after one named mutation of its row."""
+    if error is not None:
+        return CS.stop_block({"error": error}, "EXAMPLE", ["Northwind Distribution"])
+    row = copy.deepcopy(rows_json("open-cases-rows.json")[0])
+    if mutate:
+        mutate(row)
+    return CS.stop_block({"row": row}, "EXAMPLE", ["Northwind Distribution"], [], rows_of("invoice-lines.csv"))
+
+
+def _retype(row, case_id, case_type):
+    next(c for c in row["cases"] if c["case_id"] == case_id)["case_type"] = case_type
+
+
+CHECKS += [
+    ("open cases at the STOP: the vendor's CREDIT_DUE case prints FIRST with its detail text and fires CASE_CREDIT_DUE",
+     lambda b: ("CASE_CREDIT_DUE", "case 9 CREDIT_DUE AWAITING_VENDOR") in b[1]
+     and b[0].index("**Case 9 - CREDIT_DUE") < b[0].index("**Case 4 - ") and "stays OUT of package cost" in b[0],
+     open_cases(), open_cases(lambda r: _retype(r, 9, "OTHER")), "the credit case filed as OTHER"),
+    ("open cases at the STOP: a vendor no party matches is VENDOR_PARTY_UNMATCHED, never a silent `no case`",
+     lambda b: "VENDOR_PARTY_UNMATCHED" not in [k for k, _ in b[1]] and "Party: `northwind-distribution`" in b[0],
+     open_cases(), open_cases(lambda r: r.update(parties=[], cases=[])), "no party matched the vendor's names"),
+    ("open cases at the STOP: a warehouse with no `cases` schema is a quiet INFO (no STOP-class flag)",
+     lambda b: [CS.STOP_CLASS[k] for k, _ in b[1]] == ["INFO"],
+     open_cases(error='ERROR: relation "cases.cases" does not exist'), open_cases(error="connection timed out"),
+     "the read failed for another reason (CASE_READ_FAILED, STOP)"),
+]
+
+
+def rc_questions(c, state="rows", mutate=None):
+    """receive --prep's questions file on a receive fixture context, with the vendor's open cases: the fixture read
+    (`open-cases-rows.json`, after one named mutation of its row), 'unread', or None (no case store)."""
+    _, exc, summ = RC.prep(c["lines"], c["catalog"], c["inventory"], c.get("intake"), c["manifest"],
+                           c.get("items", RC_ITEMS), c.get("programs"), "PKG - Vendor Deal")
+    if state == "rows":
+        row = copy.deepcopy(rows_json("open-cases-rows.json")[0])
+        if mutate:
+            mutate(row)
+        state = {"row": row}
+    cases = RC.open_cases(state, "EXAMPLE", ["Northwind Distribution"], [], "x-open-cases.sql") if state else RC.open_cases(None)
+    return RC.questions(exc + cases["exc"], summ, "x", None, cases)
+
+
+def section(text, head):
+    """The paragraph of the questions file that starts with `head` (up to the next blank line), else ''."""
+    i = text.find(head)
+    return text[i:text.find("\n\n", i)] if i >= 0 else ""
+
+
+def _resolve_credit(row):
+    row["cases"] = [c for c in row["cases"] if c["case_type"] != "CREDIT_DUE"]
+
+
+CHECKS += [
+    ("receipt questions: an open CREDIT_DUE case is named beside the header credit (R126) and asked as a STOP",
+     lambda q: "line 90 Credit for returned stock -10.00" in section(q, "Header credit (R126)")
+     and "Open CREDIT_DUE case 9 " in section(q, "Header credit (R126)") and "| CASE_CREDIT_DUE | STOP |" in q,
+     rc_questions(RCX), rc_questions(RCX, mutate=lambda r: _retype(r, 9, "OTHER")), "the credit case filed as OTHER"),
+    ("receipt questions: an open CREDIT_DUE case is named beside the Buy-Get blend (R103)",
+     lambda q: "Open CREDIT_DUE case 9 " in section(q, "Buy-Get deals (R103)"),
+     rc_questions(bg_ctx()), rc_questions(bg_ctx(), mutate=_resolve_credit), "the CREDIT_DUE case is not in the read"),
+    ("receipt questions: the open cases print CREDIT_DUE first with the OPENED detail; a clean deal receipt is not "
+     "`ready for entry` while one is open",
+     lambda q: 0 <= q.find("**Case 9 - CREDIT_DUE") < q.find("**Case 4 - SIZE_MISMATCH") and "stays OUT of package cost" in q
+     and "No STOP and no DEFECT" not in q,
+     rc_questions(bg_ctx()), rc_questions(bg_ctx(), mutate=lambda r: _retype(r, 9, "OTHER")), "the credit case filed as OTHER"),
+    ("receipt questions: no Case store pointer is a quiet INFO - no case STOP, no case named beside the credit",
+     lambda q: "INFO CASE_STORE_ABSENT" in q and "| CASE" not in q and "CASES_UNREAD" not in q,
+     rc_questions(RCX, None), rc_questions(RCX, "unread"), "a case store whose read has not run"),
+    ("receipt questions: an unread case store says beside the header credit that no CREDIT_DUE case can be checked",
+     lambda q: "CASES_UNREAD: the vendor's open cases are not seen" in section(q, "Header credit (R126)"),
+     rc_questions(RCX, "unread"), rc_questions(rc_drop("lines", lambda r: r["line_no"] == "90"), "unread"),
+     "no credit line on the receipt (no header credit to name it beside)"),
+]
+
 def run_checks():
     bad = []
     for name, pred, good, broken, how in CHECKS + RECEIVE_CHECKS + POINTER_CHECKS:
@@ -1654,6 +1737,43 @@ def cli_chain():
             bad.append("STOP message")
             print("  FAIL  the STOP message was not printed")
         v2 = next(os.path.join(t, n) for n in os.listdir(t) if n.endswith("-v2.csv"))
+        # part 7 of the STOP: the vendor's open cases (its own folder: the receive steps count `-cases-` files in t)
+        oc = os.path.join(t, "open-cases")
+        os.makedirs(oc)
+        octen = os.path.join(oc, "tenant-cases.md")
+        with open(fx("tenant-CLAUDE.md"), encoding="utf-8") as fh:
+            fh_text = fh.read()
+        with open(octen, "w", encoding="utf-8") as fh:
+            fh.write(fh_text.replace("- Watermark: 500\n", "- Watermark: 500\n- Case store: EXAMPLE via ./case_write.ps1\n"))
+        sargs = ["intake_cases.py", "stop", "--intake", v2, "--lines", lines, "--out-dir", oc]
+        out = step("stop: no Case store pointer is a quiet INFO", sargs + ["--tenant", fx("tenant-CLAUDE.md")], 0)
+        ok = "CASE_STORE_ABSENT" in out and not os.listdir(oc)[1:]
+        print(f"  {'PASS' if ok else 'FAIL'}  no case store: INFO CASE_STORE_ABSENT, exit 0, nothing written")
+        if not ok:
+            bad.append("stop without a case store")
+        out = step("stop: the case store with no read yet (CASES_UNREAD + ONE SELECT file)", sargs + ["--tenant", octen], 0)
+        fp = out.split("(fingerprint ", 1)[1].split(")", 1)[0] if "(fingerprint " in out else ""
+        osql = [n for n in os.listdir(oc) if n.endswith(".sql")]
+        ok = "STOP CASES_UNREAD" in out and len(osql) == 1 and len(fp) == 12
+        print(f"  {'PASS' if ok else 'FAIL'}  the unread store prints CASES_UNREAD and writes ONE read-only SELECT")
+        if not ok:
+            bad.append("stop unread")
+        res = rows_json("open-cases-rows.json")
+        res[0]["read_fp"] = fp
+        rpath = os.path.join(oc, "rows.json")
+        with open(rpath, "w", encoding="utf-8") as fh:
+            json.dump(res, fh)
+        out = step("stop --result: the vendor's open cases at the STOP", sargs + ["--tenant", octen, "--result", rpath], 0)
+        ok = ("CASE_CREDIT_DUE          STOP  1" in out and "CASE_OPEN                INFO  1" in out
+              and out.index("**Case 9 - CREDIT_DUE") < out.index("**Case 4 - SIZE_MISMATCH")
+              and "stays OUT of package cost" in out and any(n.endswith(".md") for n in os.listdir(oc)))
+        print(f"  {'PASS' if ok else 'FAIL'}  the STOP lists the CREDIT_DUE case first with its detail, then the other open case")
+        if not ok:
+            bad.append("stop open cases")
+        res[0]["read_fp"] = "000000000000"
+        with open(rpath, "w", encoding="utf-8") as fh:
+            json.dump(res, fh)
+        step("stop --result: another vendor's read (fingerprint) ABORTs", sargs + ["--tenant", octen, "--result", rpath], 2)
         _, rows = C.read_csv(v2, IM.INTAKE_COLS)
         for r in rows:
             if r["verdict"] == "NEW_ITEM_WITH_SIBLING":
@@ -1750,7 +1870,47 @@ def cli_chain():
             bad.append("cases quiet before receipt")
         step("cases open without a Case store pointer ABORTs", ["intake_cases.py", "open", "--prep", os.path.join(t, wsprep),
                                                               "--tenant", fx("tenant-CLAUDE.md"), "--received", "PKG-C"], 2)
-        bgargs = ["receive.py", "--prep", "--lines", fx("receive-buyget-lines.csv"), "--catalog", fx("receive-catalog.csv"),
+        # the receipt's questions name the vendor's open cases (the `stop` read, reused); its own folder: the steps
+        # above count `.sql` files in t
+        rc_d = os.path.join(t, "receipt-cases")
+        os.makedirs(rc_d)
+        rcargs = [cten if a == fx("tenant-CLAUDE.md") else (rc_d if a == t else a) for a in rargs]
+        rcargs += ["--manifest", fx("receive-manifest.csv")]
+        out = step("receive --prep on a case store with no read yet (CASES_UNREAD + ONE SELECT file)", rcargs, 0)
+        fp = out.split("(fingerprint ", 1)[1].split(")", 1)[0] if "(fingerprint " in out else ""
+        rsql = [n for n in os.listdir(rc_d) if n.endswith(".sql")]
+        ok = ("STOP CASES_UNREAD" in out and len(rsql) == 1 and rsql[0].startswith("rcv-receipt-prep-2026-01-01-v1-open-cases-")
+              and len(fp) == 12 and "CASES_UNREAD: the vendor's open cases are not seen" in out)
+        print(f"  {'PASS' if ok else 'FAIL'}  the unread store asks CASES_UNREAD beside the header credit and writes ONE SELECT")
+        if not ok:
+            bad.append("receive cases unread")
+        res = rows_json("open-cases-rows.json")
+        res[0]["read_fp"] = fp
+        rrows = os.path.join(t, "receipt-case-rows.json")
+        with open(rrows, "w", encoding="utf-8") as fh:
+            json.dump(res, fh)
+        step("receive --prep --cases: the vendor's open cases in the questions file", rcargs + ["--cases", rrows], 0)
+        rq = max((n for n in os.listdir(rc_d) if n.endswith("-questions.md")), key=lambda n: int(n.split("-v")[-1].split("-")[0]))
+        with open(os.path.join(rc_d, rq), encoding="utf-8") as fh:
+            qtext = fh.read()
+        ok = (rq.startswith("rcv-receipt-prep-2026-01-01-v2") and qtext.index("**Case 9 - CREDIT_DUE") < qtext.index("**Case 4 - ")
+              and "stays OUT of package cost" in qtext and "Open CREDIT_DUE case 9 " in section(qtext, "Header credit (R126)")
+              and "| CASE_CREDIT_DUE | STOP |" in qtext)
+        print(f"  {'PASS' if ok else 'FAIL'}  the questions file lists the CREDIT_DUE case first and names it beside the header credit")
+        if not ok:
+            bad.append("receive cases questions")
+        before = sorted(os.listdir(rc_d))
+        res[0]["read_fp"] = "000000000000"
+        with open(rrows, "w", encoding="utf-8") as fh:
+            json.dump(res, fh)
+        step("receive --prep --cases: another vendor's read (fingerprint) ABORTs", rcargs + ["--cases", rrows], 2)
+        step("receive --prep --cases without a Case store pointer ABORTs",
+             [fx("tenant-CLAUDE.md") if a == cten else a for a in rcargs] + ["--cases", rrows], 2)
+        ok = sorted(os.listdir(rc_d)) == before
+        print(f"  {'PASS' if ok else 'FAIL'}  a refused case read writes no sheet, no questions file and no SQL")
+        if not ok:
+            bad.append("receive cases refusal wrote a file")
+        bgargs =["receive.py", "--prep", "--lines", fx("receive-buyget-lines.csv"), "--catalog", fx("receive-catalog.csv"),
                   "--inventory", fx("receive-inventory.csv"), "--manifest", fx("receive-buyget-manifest.csv"), "--tenant",
                   fx("tenant-CLAUDE.md"), "--out-dir", t, "--slug", "bg", "--asof", "2026-01-01", "--program", "2=deal"]
         bgargs += sum([["--item", f"{k}={v}"] for k, v in BGX["items"].items()], [])

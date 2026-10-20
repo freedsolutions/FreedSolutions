@@ -52,7 +52,10 @@ record that ruled it in the tenant's DECISIONS.
                                          # prints `stateLibrary`. Absent: nothing is linked, every create with hits is a `no match`
                                          # question for the business (intake_plan.py --catalog-state overrides it)
 - Case store: <ORG_CODE> via <runner.ps1>  # OPTIONAL: the after-receipt branch (intake_cases.py) - the warehouse org code and
-                                         # the tenant's ONE-command guided case writer (md5 check, dry run, a typed word)
+                                         # the tenant's ONE-command guided case writer (md5 check, dry run, a typed word).
+                                         # The org code also scopes the open-cases read at the STOP (`intake_cases.py
+                                         # stop`) and at the receipt (`receive.py --prep --cases`): read-only, the
+                                         # lane's reader route; absent, each read is a quiet INFO
 ```
 
 The MSRP keys are read only by `intake_msrp.py`; the other runners ignore them. `MSRP anchor` and
