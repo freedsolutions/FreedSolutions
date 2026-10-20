@@ -37,8 +37,7 @@ is gitignored and absent from task worktrees.
 ## Current state (<date>) — replace at close-out, never append
 
 Caps, checked by `node .claude/skills/bi-change/scripts/kickoff_check.js --pointer clients/<client>/<tenant>`: ≤ 8 bullets, each ≤ 2 lines; file ≤ 120 lines; no line over 300 chars; ≤ 10 loose files at the tenant root.
-Three conventions this section keeps losing: a bullet is REPLACED at close-out and never appended to; a line never runs past 300 chars; and a bullet NEVER tracks an in-flight version number.
-Point at the unversioned record and let the version live inside it, or write the bullet once when the work is approved. Three superseding amendments to one bullet in a day, each legal alone, is the append-log failure in new clothes.
+Three conventions this section keeps losing: a bullet is REPLACED at close-out, never appended to; no line runs past 300 chars; a bullet NEVER tracks an in-flight version — point at the unversioned record, or write it once when the work is approved (three amendments in a day = an append log).
 
 - **Estate:** <boards in Shared folder <folder_id> — id and name each; snapshot date>.
 - **Dictionary:** <R-range on the 8-column contract; the record is `bi-estate/DECISIONS.md`; stamp date>.

@@ -93,3 +93,31 @@ here and never restates a cadence.
 proceed to make these rules canon but don't worry about active QC or BI Tools (which is not an option
 either way)."* The rule is the standard; the surface is an implementation detail that may change when
 Dutchie ships a field.
+
+---
+
+## 6 · Canonical one-pagers
+
+The business-facing documents this estate hands the business — designed PDFs, each produced by a GENERATOR
+in §4 — are registered in **`onepagers.json`** beside this file: key, title, generator, delivered file and
+date, the rule ids the document prints, and a seal (`sealed` date + `rule_text_sha1` per rule, the same
+hash `kickoff_check.js --seal` writes). `bi_impact_scan.js --estate <dir> --stale` reads the register and
+reports a document as **ONE-PAGER BEHIND** when a printed rule was ruled (`Since`) after the later of its
+delivery and its seal, when a printed rule's text hash differs from the seal, when a printed rule is not
+ACTIVE, when the generator was edited after the delivered file, or when the document is unsealed. The class
+counts toward the sweep's exit code. No `onepagers.json` = nothing registered, and `--stale` says so.
+
+**The cure, stated once:** regenerate to a NEW versioned name and move `delivered` / `delivered_on`, or a
+human reads the document, confirms it still reads true, and re-seals it — `--seal-onepager <key>` (a
+re-seal is that person's attestation date). Never edit a delivered PDF or HTML by hand.
+
+| key | document | generator | audience |
+|---|---|---|---|
+
+**File names are business-facing:** `<Title on the page> - v<n>.<ext>` under `deliverables/`. No date in the
+name (the page's sub line and `delivered_on` carry it), no tenant token (the folder is the tenant), the version
+counter never resets, and the HTML source shares the base name. Technical renders under `renders/` (SOP, WI)
+keep their own convention; the business never sees them.
+
+Per-run generators (a floor sheet printed per intake) are not canonical documents and are not registered; a
+new canonical one-pager gets a row here, an entry in `onepagers.json`, and a seal on delivery.

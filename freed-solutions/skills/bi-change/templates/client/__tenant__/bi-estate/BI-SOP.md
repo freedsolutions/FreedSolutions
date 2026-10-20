@@ -115,7 +115,10 @@ for any new flag, a tiles-at-a-glance edit for any new/changed tile, and a dated
 (and refresh circulating Google Doc copies). A stamp older than the latest harvest =
 stale document. **The dictionary must not run ahead of the operator docs:** a rule changed
 in Step 1 whose SOP/WI/guide still sit on the prior stamp is an unrippled change, and
-`--stale` flags it. **Close the kickoff:** append an as-built Status section to the kickoff
+`--stale` flags it. **The canonical one-pagers are part of this step:** `onepagers.json` lists each
+business-facing document and the rules it prints, and `--stale` reads one as BEHIND when a printed rule
+was ruled after delivery or its text moved since the seal — regenerate to a NEW version, or a human
+confirms it still reads true and re-seals (`--seal-onepager <key>`; register §6). **Close the kickoff:** append an as-built Status section to the kickoff
 document, because a build with no as-built record cannot be audited later.
 **The WI why-handshake (Adam 8/29):** the WI is only useful with intent attached. If
 the change request already states the business WHY and what the operator should now do

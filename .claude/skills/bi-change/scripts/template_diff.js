@@ -85,6 +85,12 @@ const SECTIONS = [
     instanceDir: 'bi-estate',
     start: /^## The three surfaces/,
     end: /^## 1 · /,
+    exclude: [
+      // The Product export row cites the tenant's own bulk-load SOP section and a dated header
+      // file; neither exists in a scaffolded tenant, so the template must not carry the row.
+      { why: 'instance-only row: the Product export (a tenant write-path mirror, cites tenant-only docs)',
+        re: /^\| \*\*Product export\*\*[^\n]*\n/gm },
+    ],
   },
 ];
 
