@@ -23,110 +23,10 @@ This is a **LinkedIn carousel slide designer** — a single-page React app that 
 - `preview.html` loads React/Babel from unpkg CDN
 - This constraint is intentional — the artifact must work as a single self-contained file loaded by `preview.html`
 
-## Tool Selection Rules
-Claude Code has dedicated tools that are faster and never trigger permission prompts. Always prefer them:
-
-| Instead of Bash...    | Use this tool | Why                                    |
-|-----------------------|---------------|----------------------------------------|
-| `cat`, `head`, `tail` | `Read`       | Better UX, no permission needed        |
-| `echo "…" > file`    | `Write`       | Atomic writes, no shell quoting issues |
-| `sed`, `awk`          | `Edit`        | Structural edits, not regex gambles    |
-| `find`, `ls -R`       | `Glob`        | Faster, cross-platform                 |
-| `grep`, `rg`          | `Grep`        | Optimized, permission-free             |
-
-**Bash is the right choice for:** `node projects/linkedin-carousel/build.js`, `node projects/linkedin-carousel/scripts/*.js`, all `git` commands, `npx serve`, `npx playwright`, and quick one-liners where no dedicated tool exists (`wc -l`, `pwd`, `mkdir -p`).
-
 ## Source Manifest
 `build.js` defines an explicit `ORDER` array that lists all 21 source files and their concatenation sequence. **This array is the single source of truth** for what ships in the artifact and in what order.
 
 Dependencies flow top-to-bottom in `ORDER`: each file may reference symbols defined in files above it.
-
-**Structure at a glance:**
-| Layer | Files | Purpose |
-|-------|-------|---------|
-| Imports | `imports.js` | React/ReactDOM imports (first in ORDER, no other file imports) |
-| Constants | `constants.js`, `layoutTokens.js` | Shared constants, design tokens, style helpers |
-| Canvas | `canvas/*.js` (7 files) | Pure rendering: backgrounds, text, overlays, screenshots, slide composition |
-| Data | `slideFactory.js`, `undoRedo.js`, `pdfBuilder.js` | Slide model, undo stack, PDF generation |
-| UI components | `ColorPickerInline.jsx`, `SizeControl.jsx`, `SlideSelector.jsx` | Reusable React components |
-| Hooks | `useSlideManagement.js`, `useCanvasRenderer.js`, `usePdfExport.js`, `usePresets.js` | State management, rendering, export, presets |
-| App | `App.jsx` | Root component, layout, event wiring |
-| LSP | `globals.d.ts`, `react-globals.d.ts` | Ambient type declarations for cross-file LSP navigation (not in build) |
-
-## Symbol GPS
-
-Quick-reference of key symbols per source file. All symbols share global scope (concatenated artifact).
-
-### Imports Layer
-**`imports.js`** — React/ReactDOM imports (first in ORDER, isolated for TS module detection)
-
-### Constants Layer
-**`constants.js`** — Canvas dimensions, font system, geometric shapes
-- `W` (800), `H` (1000) — canvas pixel dimensions
-- `MARGIN`, `BORDER_RADIUS`, `BORDER_WIDTH` — frame geometry
-- `CANVAS` — layout tokens object (padding, line heights, card/screenshot/footer geometry)
-- `FONT_OPTIONS`, `DEFAULT_FONT` — typography system
-- `GEO_SHAPES` — `[{id, label}]` for background pattern picker
-- `composeFont(family, size, weight, italic)` → ctx.font string
-
-**`layoutTokens.js`** — UI design system
-- `SPACE`, `RADIUS`, `Z`, `SIZE` — spacing/radius/z-index/component-size scales
-- `SURFACE` — UI surface color palette (dark theme, 20+ keys)
-- `CLR` — semantic colors (primary, danger, overlays, shadows)
-- Style helpers: `panelBtn()`, `toggleBtn(isOn)`, `uploadFrameStyle()`, `uploadBtnStyle(hasFile)`, `dividerStyle()`, `dialogOverlay()`, `dialogBox(maxWidth)`, `dialogBtn(isPrimary)`
-
-### Canvas Layer (pure rendering, no React)
-**`canvas/hexToRgba.js`** — `hexToRgba(hex, opacity)` → rgba string
-
-**`canvas/backgrounds.js`** — Background rendering
-- `renderBg(ctx, bgType, solidColor, customImg, geoLines, geoEnabled, geoOpacity, geoShape)` — top-level entry point
-- `drawSolidBg(ctx, color)`, `drawCustomBg(ctx, img)`, `drawGeoBg(ctx, baseColor, lineColor, geoOpacity, geoShape)`
-- Shape renderers: `drawGeoLines`, `drawGeoBokeh`, `drawGeoWaves`, `drawGeoStripes`, `drawGeoHex`
-
-**`canvas/text.js`** — Text layout and rendering
-- `wrapText(ctx, text, maxWidth, fontSize, fontWeight, fontFamily, fontItalic)` → string[]
-- `extractAccentMarkers(text)` → `{cleanText, markers[]}` (parses `**bold**` markers)
-- `renderLineWithAccents(ctx, line, x, y, fontSize, baseWeight, baseColor, accentColor, markers, lineOffset, fontFamily, fontItalic)`
-
-**`canvas/overlays.js`** — Footer, corners, border frame
-- `drawCenteredFooter(ctx, profileImg, name, borderBottom, footerBg, footerText, textSize, opacity, fontFamily, fontBold, fontItalic)`
-- `drawTopCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity)`
-- `drawBottomCorner(ctx, text, color, opacity, size, fontFamily, fontBold, fontItalic, bgColor, bgOpacity)`
-- `drawBorderFrame(ctx, top, bottom, hasFooter, strokeColor)`
-
-**`canvas/screenshot.js`** — `drawScreenshot(ctx, screenshot, x, y, w, h, scale, edgeToEdge)`
-
-**`canvas/renderSlideContent.js`** — `renderSlideContent(ctx, slide, screenshot, colors, sizes, scale, frameTop, frameBottom)` — lays out heading, body/cards, screenshot within frame bounds
-
-**`canvas/renderSlide.js`** — `renderSlideToCanvas(ctx, slideIndex, seriesSlides, slideAssets)` — top-level orchestrator: bg → corners → content → frame → footer
-
-### Data Layer
-**`slideFactory.js`** — `makeDefaultSlide(title, body)` → full slide object (~80 properties with defaults)
-
-**`undoRedo.js`** — `createUndoManager()` → `{pushSnapshot, undo, redo, canUndo, canRedo}` (max 20 snapshots)
-
-**`pdfBuilder.js`** — PDF generation (hand-rolled encoder, no dependencies)
-- `sanitizePrefix(raw)` → safe filename string
-- `buildPdfFromJpegs(jpegPages, pageW, pageH)` → Blob
-
-### UI Components (React)
-**`ColorPickerInline.jsx`** — `ColorPickerInline` — swatch button + portal dropdown with color grid, opacity slider, typography controls, geo shape picker. Also: `drawShapeThumbnail(ctx, shapeId, w, h)`
-
-**`SizeControl.jsx`** — `SizeControl` — font-size stepper with optional color picker, opacity, and typography controls
-
-**`SlideSelector.jsx`** — `SlideSelector` — numbered slide buttons with drag-to-reorder, remove overlay, add/duplicate
-
-### Hooks
-**`useSlideManagement.js`** — `useSlideManagement(deps)` — slide CRUD, reorder, card management, image uploads. Returns 30+ functions/state values (see file header for full list).
-
-**`useCanvasRenderer.js`** — `useCanvasRenderer(canvasRef, seriesSlides, slideAssets, activeSlide)` — 40ms debounced rendering. Returns `{renderSlide}`.
-
-**`usePdfExport.js`** — `usePdfExport(canvasRef, renderSlide, seriesSlides, activeSlide, exportPrefix)` → `{pdfDownload, pdfError, downloadCurrentPDF, downloadAllPDF, clearPdfDownload}`
-
-**`usePresets.js`** — `usePresets(deps)` — preset serialize/deserialize, export/import with legacy font migration. Defines `PRESET_SLIDE_KEYS` (60+ property keys), `normalizeLegacyFontFamily()`.
-
-### App
-**`App.jsx`** — Root component. Hoisted styles: `inputStyle`, `labelStyle`, `INLINE_SWATCHES`, `smallBtnStyle`, `pickerDropdownStyle`. Wires all hooks, renders three-column layout.
 
 ## LSP Configuration
 - `jsconfig.json` configures TypeScript Language Server for navigation.
@@ -137,17 +37,6 @@ Quick-reference of key symbols per source file. All symbols share global scope (
 - **Claude Code LSP:** Currently only `workspaceSymbol` returns results. Position-dependent operations (`hover`, `goToDefinition`, `findReferences`, `documentSymbol`) return empty — this appears to be a Claude Code LSP bridge limitation rather than a project config issue (even pure `.d.ts` declarations produce no results). This may improve as Claude Code's LSP integration matures.
 - **VS Code:** Full LSP features (hover, go-to-def, find-refs) work with the standard TypeScript extension using the same `jsconfig.json` and `.d.ts` declarations.
 - **Module/script model:** All source files are scripts (global scope), not ES modules. The React `import` statements live in `src/imports.js` (first in build ORDER) to keep them isolated from TS module detection. No source file should contain `import` or `export` statements — this ensures TS treats every file as a script, matching the concatenation build model.
-
-### Code Intelligence
-Prefer LSP over Grep/Read for code navigation when it returns results — it’s faster, precise, and avoids reading entire files:
-- `workspaceSymbol` to find where something is defined
-- `findReferences` to see all usages across the codebase
-- `goToDefinition` / `goToImplementation` to jump to source
-- `hover` for type info without reading the file
-
-Use Grep only when LSP isn’t available or returns empty, or for text/pattern searches (comments, strings, config).
-
-After writing or editing code, check LSP diagnostics and fix errors before proceeding.
 
 ## Workflow: Write → Build → See → Push
 
@@ -225,14 +114,7 @@ This is the single pause point before code changes begin.
 - Patch issues, rebuild, repeat until clean
 
 **Smoke test (via Playwright MCP):**
-Use `/smoke` (test only) or `/build-test` (build + test) skills for structured smoke testing. These skills handle pre-flight checks, navigation, interaction, screenshots, and mandatory browser cleanup automatically. Available skills:
-- `/smoke-preflight` — validate prerequisites (server, build freshness, git state, Playwright)
-- `/smoke [description]` — run smoke test (defaults to FEATURE_CARD.md scope, or pass `full` for standard checklist)
-- `/smoke-close` — guarantee clean browser teardown (auto-invocable safety net)
-- `/smoke-deep [area]` — extended 12-step test (color pickers, geo shapes, toggles, sizes, slide CRUD with confirm dialogs)
-- `/build-test [description]` — build artifact then immediately smoke test
-
-Manual Playwright MCP usage is still permitted when skills don't cover the scenario. Core rules remain:
+Drive Playwright MCP directly (the former `/smoke*` and `/build-test` skills no longer exist): pre-flight (server on `:5173`, fresh build, clean git, Playwright responsive), open `preview.html`, exercise the `FEATURE_CARD.md` scope (or the standard checklist for `full`), screenshot, then tear the browser down. Core rules:
 - Always close the Playwright page/context/browser after each smoke-test attempt (pass or fail)
 - If issues found: close Playwright first, then patch, rebuild, and re-test in a fresh Playwright browser session
 - If Playwright MCP is unavailable or the local server isn't running, stop and ask the user to fix it before continuing
@@ -276,7 +158,7 @@ Claude Code pauses only after the Commit gate is complete. Review the diff. Then
 - Commit-time artifact hygiene is automated by `projects/linkedin-carousel/.githooks/pre-commit` (one-time setup per clone: `git config core.hooksPath projects/linkedin-carousel/.githooks`).
 
 ## Permission Preflight
-- Local permissions (`settings.local.json`) grant unrestricted Bash access. Permission prompts should never appear during normal workflow.
+- Local permissions (`.claude/settings.local.json`) pre-approve the build, serve, Playwright and git commands used here. Permission prompts should not appear during normal workflow.
 - If a prompt does appear, it indicates configuration drift. Before requesting approval:
   1. Check `.claude/settings.local.json` then `.claude/settings.json`
   2. Verify the action is not in a `deny` list

@@ -1,23 +1,8 @@
 # FreedSolutions - Multi-Project Repo
 
-## Repo Structure
-```text
-FreedSolutions/
-|- index.html              # Landing page (GitHub Pages)
-|- CNAME, .nojekyll        # GitHub Pages config
-|- projects/
-|  |- linkedin-carousel/   # LinkedIn carousel slide designer
-|- clients/                # Client engagement folders - local only (.gitignore)
-|- ops/                    # Migration prompts, internal ops, and private service scaffolds
-|  |- notion-workspace/      # Notion CRM automation docs + workflow config
-|- privacy-policy/         # Privacy policy page (GitHub Pages)
-|- website/                # Website static assets (favicons, OG images, photos)
-|- scripts/                # Repo-level utility scripts (codex_review.py)
-|- tests/                  # Repo-level test suite (codex review, closeout sanity, local DB)
-|- brand/                  # Brand assets - local only (.gitignore)
-```
-
-> **Note:** `scripts/` and `tests/` at the repo root are repo-level utilities, distinct from `ops/notion-workspace/scripts/` which contains Notion-workspace-specific automation scripts.
+## Non-obvious locations
+- `freed-solutions/skills/` is the skill SOURCE; `.claude/skills/` is the generated copy made by `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`. Edit the source, then re-sync. The four `notion-*` / `pandoc-deliverable` skills are sourced from the TheoryWellness repo into `~/.claude/skills/`.
+- `scripts/` and `tests/` at the repo root are repo-level utilities (Codex review runner, closeout-sanity and local-DB tests), distinct from `ops/notion-workspace/scripts/`. `ops/local_db/` and `ops/typesafe/` are private service scaffolds.
 
 ## Project Routing
 Each project has its own CLAUDE.md or README with workflow details.
@@ -28,12 +13,11 @@ Each project has its own CLAUDE.md or README with workflow details.
 - Source: `projects/linkedin-carousel/src/`
 - Hooks: `git config core.hooksPath projects/linkedin-carousel/.githooks`
 
-**Notion Workspace** -> `ops/notion-workspace/CLAUDE.md`
-- Docs: `ops/notion-workspace/docs/`
-- Notes: instruction docs and session handoff are local source of truth; CRM data stays in Notion (via MCP)
+**Notion Workspace (RETIRED 2026-10-21)** -> `ops/notion-workspace/NOTION-WORKSPACE-DESIGN.md`
+- Adam no longer uses Notion. The folder stays as the design reference (CRM/PMO/automation principles, gate taxonomy) for the New Wave Cannabis build. Do not run its session protocol, Notion sync, or closeout gates; its `scripts/` still host the skill-wrapper sync.
 
 ## Client Engagements
-Client engagement folders live under `clients/<client-slug>/` and are **local-only** (see `.gitignore`). Each client folder gets a lightweight `CLAUDE.md` (engagement context, POC, status) and topic subfolders (`discovery/`, `deliverables/`, etc.) as needed. CRM source of truth for client work (Action Items, Meetings, Emails, Contacts) stays in Notion; working artifacts and final deliverables live locally and are never committed. Do not reference specific client names, engagements, or discovery content in any tracked file.
+Client engagement folders live under `clients/<client-slug>/` and are **local-only** (see `.gitignore`): engagement context, discovery, working artifacts and deliverables are never committed. Tracked files may name a client in routing, fixtures or test data, but never carry discovery content, deliverable text, or contact details. The active engagements are moving to a new repo and process set (2026-10); treat this repo's client handling as legacy.
 
 ## Artifact Cleanup
 - After any session that uses Playwright MCP, delete all files in `.playwright-mcp/` before closeout
@@ -46,8 +30,3 @@ Client engagement folders live under `clients/<client-slug>/` and are **local-on
 - No `package.json` or `node_modules` at the repo root - zero-dep repo
 - `index.html` at root is the Freed Solutions landing page (GitHub Pages)
 - Do not edit `index.html` without confirming the current CTA strategy (may change when Workspace email goes live)
-
-## Landing Page
-- Hosted via GitHub Pages from repo root
-- Custom domain: `www.freedsolutions.com` (configured via `CNAME` file)
-- CTA currently links to Calendly booking (`https://calendly.com/freedsolutions/30min`)
