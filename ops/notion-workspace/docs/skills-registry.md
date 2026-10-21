@@ -14,13 +14,13 @@ Skills for Notion CRM/PMO automation. Canonical source: `ops/notion-workspace/sk
 | `notion-agent-config` | Audit/update Notion Custom Agent settings | Yes | S75 |
 | `notion-meeting-prep` | Pre-call context brief for meeting attendees | Yes | S75 |
 
-## Claude-Only Skills
+## Repo Skills
 
-Skills that live only in `.claude/skills/` and are not sourced from `ops/notion-workspace/skills/`.
+Skills sourced from `freed-solutions/skills/` and synced to `.claude/skills/` by the sync workflow below.
 
 | Skill | Purpose | Last Updated |
 |-------|---------|--------------|
-| `codex-review` | Run a Codex-backed review of the current git worktree | Pre-S75 |
+| `codex-review` | Run a Codex-backed review of the current git worktree | 2026-10-21 (moved under `freed-solutions/skills/`) |
 
 ## Sync Workflow
 
@@ -34,4 +34,4 @@ Skills that live only in `.claude/skills/` and are not sourced from `ops/notion-
 - Repo is always the source of truth
 - Claude.ai copies are generated wrappers, not independently maintained
 - Name in repo = name in Claude.ai (no aliases)
-- `codex-review` is maintained directly in `.claude/skills/` and is not part of the sync pipeline
+- `codex-review` became a synced skill on 2026-10-21; its source is `freed-solutions/skills/codex-review/`

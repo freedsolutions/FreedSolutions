@@ -29,6 +29,10 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.env.*
+*.pem
+*.key
+token.json
 client_secret_*.apps.googleusercontent.com.json
 
 # Dependencies (zero-dep project - defensive only)

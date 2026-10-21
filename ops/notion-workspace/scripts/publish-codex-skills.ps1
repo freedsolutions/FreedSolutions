@@ -10,7 +10,6 @@ $workspaceRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $repoRoot = Resolve-Path (Join-Path (Join-Path $workspaceRoot "..") "..")
 # Skill source roots, in order. Must match sync-claude-skill-wrappers.ps1.
 $sourceRoots = @(
-    (Join-Path $workspaceRoot "skills"),
     (Join-Path $repoRoot "freed-solutions/skills")
 ) | Where-Object { Test-Path $_ }
 

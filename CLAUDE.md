@@ -2,7 +2,7 @@
 
 ## Non-obvious locations
 - `freed-solutions/skills/` is the skill SOURCE; `.claude/skills/` is the generated copy made by `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`. Edit the source, then re-sync. The four `notion-*` / `pandoc-deliverable` skills are sourced from the TheoryWellness repo into `~/.claude/skills/`.
-- `scripts/` and `tests/` at the repo root are repo-level utilities (Codex review runner, closeout-sanity and local-DB tests), distinct from `ops/notion-workspace/scripts/`. `ops/local_db/` and `ops/typesafe/` are private service scaffolds.
+- `scripts/` and `tests/` at the repo root are repo-level utilities (Codex review runner, closeout-sanity and local-DB tests), distinct from `ops/notion-workspace/scripts/`. `ops/local_db/` and `ops/typesafe/` are private service scaffolds. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1` runs every repo check in order and stops at the first failure.
 
 ## Project Routing
 Each project has its own CLAUDE.md or README with workflow details.

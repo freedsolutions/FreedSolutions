@@ -410,7 +410,10 @@ aimed at one unbuilt one.
   **tenant id presented as a real value** — a quoted run of bare integers beside an `lsp_id` /
   `loc_id` / `LspId` / `LocId` key, which is the form an embed user attribute gets quoted back in;
   a schema line (`lsp_id|number`), an elided payload (`"LspId":…`) and a `"<lsp id>"` placeholder
-  are the mechanism and pass. Last class is **not** a client leak and is named apart: a concrete
+  are the mechanism and pass. An encoded line break inside a `.json` string (`\r\n`) splits the
+  line too, so a vendor spec's `"lspId": 123,` example does not pair with the next key's quote;
+  `--selftest` proves every class on a breaker fixture and is its own step in `scripts/check.ps1`.
+  Last class is **not** a client leak and is named apart: a concrete
   **backoffice server host** (`<label>.backoffice.dutchie.com`) pins one Dutchie SERVER CLUSTER
   that many tenants share — genericise it to `<server>`, but do not read it as a tenant name. The
   shared Looker host is generic and is not a hit. Exit 1 on any hit. It excludes only itself, and prints that exclusion every run.

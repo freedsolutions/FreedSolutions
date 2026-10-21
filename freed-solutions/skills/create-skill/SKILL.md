@@ -1,11 +1,11 @@
 ---
 name: create-skill
-description: Scaffold a new SKILL for Adam's workspace — choose the correct bucket (freed-solutions vs ops/notion-workspace), draft a focused frontmatter description with triggers, set up the folder + SKILL.md, and run the sync pipeline so the wrapper lands under .claude/skills/. Use when Adam asks to create or formalize a new skill.
+description: Scaffold a new SKILL for Adam's workspace — confirm it belongs in this repo's single source root (freed-solutions/skills/), draft a focused frontmatter description with triggers, set up the folder + SKILL.md, and run the sync pipeline so the wrapper lands under .claude/skills/. Use when Adam asks to create or formalize a new skill.
 ---
 
 # Create Skill
 
-Scaffold a new SKILL end-to-end: pick the right bucket, write the frontmatter, draft the body with house-style sections, and wire it into the sync pipeline so the wrapper is generated and the skill becomes invocable via `/<name>`.
+Scaffold a new SKILL end-to-end: confirm it belongs in this repo, write the frontmatter, draft the body with house-style sections, and wire it into the sync pipeline so the wrapper is generated and the skill becomes invocable via `/<name>`.
 
 ## When to Use
 
@@ -18,21 +18,14 @@ Scaffold a new SKILL end-to-end: pick the right bucket, write the frontmatter, d
 - **Skill name** (required): kebab-case slug, short and scoped. Examples: `google-sheets-patterns`, `notion-action-items`, `pandoc-deliverable`.
 - **Purpose** (required): 1-sentence description of what the skill does.
 - **Trigger conditions** (required): when should this skill be invoked automatically? When should it be skipped?
-- **Bucket** (required): `freed-solutions/skills/` (default for cross-project, brand-neutral technical toolkit) or `ops/notion-workspace/skills/` (Notion-specific).
+- **Bucket** (required): `freed-solutions/skills/` is the only source root in this repo (cross-project, brand-neutral technical toolkit). Notion-operator skills are canonical in the TheoryWellness repo and published at user scope; they get no wrapper here.
 - **Model hint** (optional): if the skill needs a specific model (e.g., Opus for longer reasoning), note it.
 
 If any required input is ambiguous, use `AskUserQuestion` before scaffolding.
 
 ## Bucket Decision
 
-Pick based on the skill's scope and audience:
-
-| Bucket | Use when |
-|---|---|
-| `freed-solutions/skills/` | Cross-project technical patterns, client-agnostic toolkit, Adam's personal workflows (resume, sheets, codex reviews). |
-| `ops/notion-workspace/skills/` | Notion-specific automation — reads/writes the CRM, relies on Notion schema, uses `notion-` MCP. |
-
-If the skill straddles both, ask Adam which primary audience to optimize for.
+`freed-solutions/skills/` holds cross-project technical patterns, the client-agnostic toolkit, and Adam's personal workflows (resume, sheets, codex reviews). `ops/notion-workspace/skills/` was retired on 2026-05-23: Notion-specific automation (reads/writes the CRM, relies on Notion schema, uses `notion-` MCP) is canonical in the TheoryWellness repo. If a skill is Notion-specific, ask Adam before scaffolding it here.
 
 ## Frontmatter Rules
 
@@ -93,12 +86,12 @@ Skip sections that don't apply. Don't pad.
    ```
    This generates a wrapper at `.claude/skills/<name>/SKILL.md` that points at the source.
 7. **Verify discovery**: the skill should now appear in `/` slash-command listings and be invocable. Adam can test with a trigger query matching the description.
-8. **Commit** (if not in a protected path). The `.claude/skills/` wrapper is safe to commit; the source in `freed-solutions/skills/` or `ops/notion-workspace/skills/` is the real content.
+8. **Commit** (if not in a protected path). The `.claude/skills/` wrapper is safe to commit; the source in `freed-solutions/skills/` is the real content.
 
 ## Sync Pipeline Details
 
 `sync-claude-skill-wrappers.ps1` lives at `ops/notion-workspace/scripts/` and:
-- Scans the two source roots (`ops/notion-workspace/skills/` and `freed-solutions/skills/`) for any folder containing a `SKILL.md`.
+- Scans the source root (`freed-solutions/skills/`) for any folder containing a `SKILL.md`.
 - Generates a wrapper at `.claude/skills/<name>/SKILL.md` that re-exports the source.
 - Validates frontmatter presence and well-formedness.
 - `-ValidateOnly` flag: dry-run without writing.
@@ -174,7 +167,6 @@ When using this skill to create a new skill, the irony is not lost. But the patt
 - Existing skills for reference:
   - `freed-solutions/skills/resume-builder/SKILL.md` — longest, most workflow-heavy example
   - `freed-solutions/skills/cannabis-tech-sitemap/SKILL.md` — mid-length, domain-specific
-  - `ops/notion-workspace/skills/notion-meeting-prep/SKILL.md` — Notion-integrated example
-  - `ops/notion-workspace/skills/pandoc-deliverable/SKILL.md` — tool-wrapper example
+  - `freed-solutions/skills/codex-review/SKILL.md` — tool-wrapper example (a script plus a mode switch)
 - Sync script: `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`
 - Claude Code skill discovery docs: see `claude-code-guide` for harness behavior.

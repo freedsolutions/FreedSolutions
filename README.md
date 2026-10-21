@@ -24,6 +24,16 @@ FreedSolutions/
 
 > `scripts/` and `tests/` at the repo root are repo-level utilities, distinct from `ops/notion-workspace/scripts/`.
 
+## Checks
+
+One command runs every repo check in order and stops at the first failure:
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1
+```
+
+It covers the Python tests, the seven Notion-workspace PowerShell tests, both skill-pipeline validators (Claude wrappers in sync, Codex validator green), the bi-change gate self-test and leak proof, and the dutchie-intake self-test. `.github/workflows/checks.yml` runs the Python tests and the two node self-tests on every push to `main` and on pull requests.
+
 ### Projects
 
 - **[LinkedIn Carousel](projects/linkedin-carousel/)** - A single-page React app that renders LinkedIn carousel slides to HTML5 Canvas for pixel-accurate export. See its own [CLAUDE.md](projects/linkedin-carousel/CLAUDE.md) for development workflow.

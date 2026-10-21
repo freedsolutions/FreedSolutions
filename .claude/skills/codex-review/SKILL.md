@@ -1,8 +1,9 @@
 ---
 name: codex-review
-description: Run a Codex-backed review of the current git worktree, save a structured JSON report, and either present findings or apply fixes.
-argument-hint: "[review|apply] [optional focus area]"
+description: Run a Codex-backed review of the current git worktree, save a structured JSON report, and either present findings or apply fixes. Arguments - [review|apply] [optional focus area].
 ---
+
+<!-- Generated from "freed-solutions/skills/codex-review/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Codex Review
 

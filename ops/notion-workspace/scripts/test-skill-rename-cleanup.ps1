@@ -58,8 +58,8 @@ $resolvedCodexHome = if ($PSBoundParameters.ContainsKey('CodexHome')) {
 }
 
 $codexSkillsRoot = Join-Path $resolvedCodexHome 'skills'
-$repoSkillRoot = Join-Path $resolvedRepoRoot "ops/notion-workspace/skills/$NewName"
-$repoOldSkillRoot = Join-Path $resolvedRepoRoot "ops/notion-workspace/skills/$OldName"
+$repoSkillRoot = Join-Path $resolvedRepoRoot "freed-solutions/skills/$NewName"
+$repoOldSkillRoot = Join-Path $resolvedRepoRoot "freed-solutions/skills/$OldName"
 $claudeSkillRoot = Join-Path $resolvedRepoRoot ".claude/skills/$NewName"
 $claudeOldSkillRoot = Join-Path $resolvedRepoRoot ".claude/skills/$OldName"
 $codexSkillRoot = Join-Path $codexSkillsRoot $NewName
