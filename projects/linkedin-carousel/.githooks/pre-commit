@@ -15,7 +15,10 @@ fi
 # They measure the WORKING TREE, not the staged blobs: a partially staged skill file can
 # therefore pass here and land dirty. Committing whole files keeps the two identical, and a
 # staged-blob check would need a temp checkout for a gate that already reads a whole tree.
-if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(freed-solutions|\.claude)/skills/'; then
+#
+# The filter includes deletions (D): removing a source file leaves a stale wrapper, which the
+# third check below is there to catch.
+if git diff --cached --name-only --diff-filter=ACMRD | grep -qE '^(freed-solutions|\.claude)/skills/'; then
   node freed-solutions/skills/bi-change/scripts/gate_selftest.js
   status=$?
   if [ $status -ne 0 ]; then
@@ -27,6 +30,15 @@ if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^(freed-solution
   status=$?
   if [ $status -ne 0 ]; then
     echo "pre-commit: a tracked skill file names a client — see the hits above"
+    exit $status
+  fi
+
+  # Every .claude/skills/ wrapper must match its freed-solutions/skills/ source; a source edit
+  # without a re-sync, or a hand edit to a generated copy, fails here instead of landing.
+  powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 -ValidateOnly
+  status=$?
+  if [ $status -ne 0 ]; then
+    echo "pre-commit: .claude/skills/ is out of sync with freed-solutions/skills/ — rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 and stage the result"
     exit $status
   fi
 fi

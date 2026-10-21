@@ -1244,8 +1244,9 @@ Source: a Backoffice Product export and a four-file bulk update applied in the s
 The documented integrator API. It is NOT the Backoffice internal REST layer (section "Backoffice
 Internal REST API" in the SKILL/patterns): no login, no session context, one key per location.
 Spec: `https://api.pos.dutchie.com/swagger/v001/swagger.json` (OpenAPI 3.0.4, "Dutchie Point of
-Sale API v1.0.0"; browsable at `/swagger/index.html`). Save a dated copy beside the work that
-reads it; the endpoint descriptions carry contract facts that the schemas do not.
+Sale API v1.0.0"; browsable at `/swagger/index.html`). A copy saved 2026-09-25 sits beside this
+file as `swagger.json`, with its product field list in `documented_fields.txt`; the endpoint
+descriptions carry contract facts that the schemas do not.
 
 ### Auth [DOC]
 

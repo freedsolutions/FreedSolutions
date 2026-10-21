@@ -1,0 +1,23 @@
+{
+  "include_root_claude": true,
+  "include_root_readme": true,
+  "include_nearest_claude": true,
+  "include_nearest_readme": true,
+  "extra_context_files": [],
+  "exclude_globs": [
+    ".git/**",
+    ".playwright-mcp/**",
+    "brand/**",
+    "node_modules/**",
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.webp",
+    "**/*.pdf"
+  ],
+  "max_context_file_chars": 24000,
+  "max_total_chars": 350000
+}

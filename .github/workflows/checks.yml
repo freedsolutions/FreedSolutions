@@ -1,0 +1,41 @@
+# The runner-portable subset of scripts/check.ps1: the Python tests and the two node self-tests.
+# The PowerShell set stays local: test-approval-baseline reads the workstation's Claude and Codex
+# settings, publish-codex-skills needs the validator under ~/.codex, and the rest are Windows
+# PowerShell 5.1 scripts that scripts/check.ps1 already runs before every commit lands.
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # tests/ has no __init__.py, so unittest discover cannot see it; name the modules by path.
+      # test_closeout_sanity skips its PowerShell-backed cases off Windows and says so.
+      - name: Python tests
+        env:
+          PYTHONUTF8: '1'
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python -m unittest -v tests/test_codex_review.py tests/test_local_db.py tests/test_closeout_sanity.py
+
+      - name: bi-change gate self-test
+        run: node .claude/skills/bi-change/scripts/gate_selftest.js
+
+      - name: bi-change skill leak proof self-test
+        run: node .claude/skills/bi-change/scripts/skill_leak_proof.js --selftest
+
+      - name: bi-change skill leak proof
+        run: node .claude/skills/bi-change/scripts/skill_leak_proof.js

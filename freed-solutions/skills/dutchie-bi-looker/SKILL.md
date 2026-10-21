@@ -273,6 +273,10 @@ its lock. The holder file is `%LOCALAPPDATA%\ms-playwright-mcp\HOLDER.json` (mac
   bulk-edit grid → Recipe*.
 - **`references/mdm-product-line-rules.md`** — portable product-line/QC rule patterns. The
   client's `DATA-DICTIONARY.md` outranks it.
+- **`references/swagger.json`** — the Dutchie POS public API spec (OpenAPI 3.0.4, saved
+  2026-09-25 from `api.pos.dutchie.com/swagger/v001/swagger.json`), and
+  **`references/documented_fields.txt`** — the product fields that spec documents, one per line.
+  The KB section *POS public API* reads against them.
 - **Ripple scanning** is the `bi-change` skill's job:
   `<bi-change skill>/scripts/bi_impact_scan.js --estate <estate dir> "<needle>" | --verify | --stale`
   attributes every hit to dashboard + tile and reports doc freshness.

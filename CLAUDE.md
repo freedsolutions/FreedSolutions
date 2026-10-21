@@ -17,7 +17,7 @@ FreedSolutions/
 |- brand/                  # Brand assets - local only (.gitignore)
 ```
 
-> **Note:** `scripts/` and `tests/` at the repo root are repo-level utilities, distinct from `ops/notion-workspace/scripts/` which contains Notion-workspace-specific automation scripts.
+> **Note:** `scripts/` and `tests/` at the repo root are repo-level utilities, distinct from `ops/notion-workspace/scripts/` which contains Notion-workspace-specific automation scripts. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1` runs every repo check in order and stops at the first failure.
 
 ## Project Routing
 Each project has its own CLAUDE.md or README with workflow details.

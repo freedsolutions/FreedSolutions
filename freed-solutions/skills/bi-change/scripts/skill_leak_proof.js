@@ -19,6 +19,8 @@
 // genericising, but do not read a `server identifier` hit as a client leak.
 //
 // Exit 1 on any hit, so it can gate a commit.
+//   node <skill>/scripts/skill_leak_proof.js [skills root]   scan the tracked skill sources
+//   node <skill>/scripts/skill_leak_proof.js --selftest      prove every rule on breaker fixtures
 const fs = require('fs');
 const path = require('path');
 
@@ -93,43 +95,103 @@ const RULES = [
 // The exclusion is one filename, and it is printed on every run so it can never be a silent hole.
 const SELF_NAME = path.basename(__filename);
 
-const files = [];
-(function walk(d) {
-  for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) { walk(p); continue; }
-    if (e.name === SELF_NAME) continue;
-    if (/\.(md|js|sh|py|ps1|json|txt)$/i.test(e.name)) files.push(p);
-  }
-})(ROOT);
+// A JSON string encodes its line breaks as the two characters `\n` (or four, `\r\n`), so a
+// markdown document embedded in a .json file — Dutchie's OpenAPI spec carries its Getting-Started
+// guide that way — arrives as ONE physical line. The tenant-id rule reads "within one line", and
+// on that physical line the spec's example `"lspId": 123,\r\n "locId": 456` paired the key's
+// closing quote with the NEXT key's opening quote and read `: 123,\r\n "` as a quoted value
+// (2026-10-21, the first scan after the spec moved under the skill). An encoded break is therefore
+// a line break for the rules too; the reported line number stays the physical one, so a hit is
+// still findable in the file. Not a carve-out: the same example with the id QUOTED
+// (`\"lspId\": \"123\"`) still fails, and `--selftest` holds both halves of that pair.
+const ENCODED_BREAK = /\\r\\n|\\n/;
 
-const hits = [];
-for (const f of files) {
-  const rel = path.relative(ROOT, f).replace(/\\/g, '/');
-  const lines = fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n').split('\n');
-  lines.forEach((l, i) => {
-    for (const r of RULES) {
-      // A scoped rule runs only on the paths it names. The scope is on the RULE, not on the file
-      // walk, so a scoped rule can never quietly narrow what the unscoped rules see.
-      if (r.only && !r.only.test(rel)) continue;
-      r.re.lastIndex = 0;
-      let m;
-      while ((m = r.re.exec(l))) {
-        if (r.name === 'concrete client path') {
-          const around = l.slice(Math.max(0, m.index), m.index + 40);
-          if (ALLOWED_PLACEHOLDER.test(around)) continue;
-        }
-        // The placeholder escape, judged on the ONE span the rule captured — not on the whole
-        // match, where a placeholder sitting in the surrounding prose would clear a real value.
-        if (r.allow && m[1] !== undefined && r.allow.test(m[1])) continue;
-        hits.push({
-          file: path.relative(ROOT, f).replace(/\\/g, '/'),
-          line: i + 1, rule: r.name, text: m[0], ctx: l.trim().slice(0, 110),
-        });
-      }
+function scanRoot(root) {
+  const files = [];
+  (function walk(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) { walk(p); continue; }
+      if (e.name === SELF_NAME) continue;
+      if (/\.(md|js|sh|py|ps1|json|txt)$/i.test(e.name)) files.push(p);
     }
-  });
+  })(root);
+
+  const hits = [];
+  for (const f of files) {
+    const rel = path.relative(root, f).replace(/\\/g, '/');
+    const lines = fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n').split('\n');
+    lines.forEach((physical, i) => {
+      for (const l of physical.split(ENCODED_BREAK)) {
+        for (const r of RULES) {
+          // A scoped rule runs only on the paths it names. The scope is on the RULE, not on the
+          // file walk, so a scoped rule can never quietly narrow what the unscoped rules see.
+          if (r.only && !r.only.test(rel)) continue;
+          r.re.lastIndex = 0;
+          let m;
+          while ((m = r.re.exec(l))) {
+            if (r.name === 'concrete client path') {
+              const around = l.slice(Math.max(0, m.index), m.index + 40);
+              if (ALLOWED_PLACEHOLDER.test(around)) continue;
+            }
+            // The placeholder escape, judged on the ONE span the rule captured — not on the whole
+            // match, where a placeholder sitting in the surrounding prose would clear a real value.
+            if (r.allow && m[1] !== undefined && r.allow.test(m[1])) continue;
+            hits.push({ file: rel, line: i + 1, rule: r.name, text: m[0], ctx: l.trim().slice(0, 110) });
+          }
+        }
+      }
+    });
+  }
+  return { files, hits };
 }
+
+// --selftest: every rule proven to FAIL on a breaker and to PASS on the documented mechanism, on
+// fixtures written to a temp root. A green scan of the real tree says nothing about whether the
+// detector can still see anything; this does. Each fixture is one file and the exact number of
+// hits it must raise. Exit 1 on any fixture whose count is not the expected one.
+if (process.argv[2] === '--selftest') {
+  const os = require('os');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-leak-proof-'));
+  const fixtures = [
+    // [relative path, content, expected hits, what the fixture proves]
+    ['tenant-name.md', 'the HSCG estate\n', 1, 'a tenant name hits'],
+    ['tenant-name-token.md', 'see hscg-rules.md\n', 1, 'a lowercase filename token hits'],
+    ['client-path.md', 'see clients/acme/discovery/\n', 1, 'a concrete client path hits'],
+    ['client-path-placeholder.md', 'see clients/<slug>/discovery/\n', 0, 'the clients/<slug>/ placeholder passes'],
+    ['templates/client/x.md', 'per R12 the line\n', 1, 'a rule id inside templates/client/ hits'],
+    ['templates/kickoff.md', 'per R12 the line\n', 0, 'a rule id outside templates/client/ passes'],
+    ['tenant-id.md', 'lsp_id: "11, 12"\n', 1, 'a quoted tenant id hits'],
+    ['tenant-id-mechanism.md', 'lsp_id|number\n"LspId":…\nlsp_id: "<lsp id 1>, <lsp id 2>"\nLspId: 11\n', 0,
+      'a schema line, an elided payload, a numbered placeholder and an unquoted fixture literal pass'],
+    ['spec-example.json', '{"description": "```json\\r\\n{\\r\\n  \\"lspId\\": 123,\\r\\n  \\"locId\\": 456\\r\\n}"}\n', 0,
+      'an id on one ENCODED line and a quote on the next do not pair into a value'],
+    ['spec-quoted-id.json', '{"description": "\\"lspId\\": \\"123\\""}\n', 1, 'a quoted id inside an encoded line still hits'],
+    ['host.md', 'curl https://nj-prod.backoffice.dutchie.com/\n', 1, 'a concrete backoffice host hits'],
+    ['host-placeholder.md', 'curl https://<server>.backoffice.dutchie.com/\n', 0, 'the <server> host passes'],
+  ];
+  for (const [rel, content] of fixtures) {
+    const p = path.join(tmp, rel);
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, content, 'utf8');
+  }
+  const counts = {};
+  for (const h of scanRoot(tmp).hits) counts[h.file] = (counts[h.file] || 0) + 1;
+  fs.rmSync(tmp, { recursive: true, force: true });
+
+  let failed = 0;
+  console.log('skill_leak_proof --selftest: ' + fixtures.length + ' fixtures');
+  for (const [rel, , expected, proves] of fixtures) {
+    const got = counts[rel] || 0;
+    const ok = got === expected;
+    if (!ok) failed++;
+    console.log('  ' + (ok ? 'PASS' : 'FAIL') + '  ' + rel + ': ' + proves + ' (expected ' + expected + ', got ' + got + ')');
+  }
+  console.log(failed ? '\nFAIL — ' + failed + ' fixture(s) did not behave.' : '\nPASS — every rule fails on its breaker and passes on its mechanism.');
+  process.exit(failed ? 1 : 0);
+}
+
+const { files, hits } = scanRoot(ROOT);
 
 console.log('client-leakage proof — ' + ROOT);
 console.log('  ' + files.length + ' tracked skill file(s) scanned');
