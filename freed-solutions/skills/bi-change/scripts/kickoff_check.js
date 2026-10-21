@@ -42,6 +42,18 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
+// Caps in chars / lines, ruled 2026-09-08. Defined ahead of the argument parsing so that a sibling
+// tool can require() this file for them: close.js validates a close-out against THESE numbers and
+// never a copy of them, so a cap moved here moves for every writer at once.
+const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readmeStamp: 200, looseFiles: 10, stateBullet: 2, stateBullets: 8 };
+// The tenant pointer's line terminator, by convention (SKILL.md, "The client pointer block"). C9
+// measures against this one constant and always names what it FOUND, so a tenant whose convention is
+// ever LF changes this value, not the check.
+const POINTER_EOL = 'CRLF';
+// Required, not run: hand back the constants and the estate finder (a hoisted declaration below)
+// and stop before the command line is read. A top-level return is legal in a CommonJS module.
+if (require.main !== module) { module.exports = { CAPS, POINTER_EOL, findEstate }; return; }
+
 const args = process.argv.slice(2);
 // Flags that consume the NEXT argument, which therefore is not a candidate kickoff path. Without
 // this, `--phase build` left "build" eligible as the kickoff — harmless only by the convention that
@@ -65,12 +77,7 @@ const seal = args.includes('--seal');
 // fixture proves each check both FIRES and REDDENS, rather than passing vacuously.
 const CAP_MODE = args.includes('--caps') ? args[args.indexOf('--caps') + 1] : null;
 if (CAP_MODE && !['info', 'fail'].includes(CAP_MODE)) { console.log('--caps must be info|fail, got: ' + CAP_MODE); process.exit(1); }
-// Caps in chars / lines, ruled 2026-09-08.
-const CAPS = { rule: 600, preamble: 40, claudeLines: 120, claudeLine: 300, readmeStamp: 200, looseFiles: 10, stateBullet: 2, stateBullets: 8 };
-// The tenant pointer's line terminator, by convention (SKILL.md, "The client pointer block"). C9
-// measures against this one constant and always names what it FOUND, so a tenant whose convention is
-// ever LF changes this value, not the check.
-const POINTER_EOL = 'CRLF';
+// The caps themselves (CAPS) and the pointer terminator (POINTER_EOL) sit at the top of the file.
 // ENFORCEMENT IS PER CAP, not global (scaffold-cleanup §6 step 5).
 //   C3 CLAUDE.md · C4 README stamp · C5 guide change logs -> 'fail'. P4 brought them under the
 //     caps in Phase A, so a breach from here is new drift and should redden.

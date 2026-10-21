@@ -38,6 +38,9 @@
 //      unapplied or query-moved Look fails `scope <id> looks` (O1 fails against the pre-2026-10-15 gate).
 //   T. the canon tools (HELD until the flip): canon_write.js emits one procedure call with its ruling
 //      and refuses what the procedures refuse; canon_render.js --check is red on any byte (T15).
+//   U. the close command: close.js replaces a Current-state bullet, adds ONE change-log line, folds the
+//      oldest line at the cap, appends a DECISIONS row, keeps each file's line endings, writes NOTHING
+//      on a refusal, restores every file on a red gate, and gives the twin verdict (U1-U13).
 //
 // Every case runs at `--phase plan`, which stops before the estate/scope/scan machinery — the caps
 // and the seal check both run ahead of that early return, so the fixture needs no Looker JSON.
@@ -1719,6 +1722,215 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
   }
 }
 
+// =============================================================================================
+// U. THE CLOSE COMMAND (close.js, 2026-10-21). One call replaces the per-session one-off script
+// that replaced a Current-state bullet, added the change-log line, folded the oldest line into the
+// archive, appended a DECISIONS row and kept CRLF. Every case runs on a synthetic tenant in the
+// temp root. U1 proves --dry-run writes nothing; U2 the whole close, byte-checked; U3 the fold at
+// the line cap; U4-U9 that each refusal writes NOTHING (md5 of every file unchanged); U10 that a
+// red gate after the write restores every file; U11 the twin verdict both ways; U12 that close.js
+// carries no cap number of its own (the caps are the gate's); U13 that a mixed append-only archive
+// takes the fold in its dominant ending.
+// =============================================================================================
+{
+  const CLOSE = path.join(path.dirname(GATE), 'close.js');
+  if (!fs.existsSync(CLOSE)) {
+    check('U0: close.js sits beside the gate', false, path.dirname(GATE));
+  } else {
+    const G = require(GATE);
+    const ARCH_REL = 'bi-estate/archive/pointer-archive.md';
+    const ARCH = path.join(CLIENT, ARCH_REL);
+    const PTR = path.join(CLIENT, 'CLAUDE.md');
+    const DEC = path.join(EST, 'DECISIONS.md');
+    const KO_REL = 'bi-estate/fx-kickoff-2026-09-08.md';
+    const OLDEST = '- 2026-09-07 (sync) — oldest fixture line — `' + KO_REL + '`';
+    const uPointer = (filler, eol = '\r\n') => [
+      '# Fixture tenant', '',
+      '## Current state (2026-09-08) — replace at close-out, never append', '',
+      'Framing prose ahead of the first bullet.', '',
+      '- **Estate:** one fixture board, harvested 2026-09-08 — `bi-estate/dashboard-99999-fixture.md`',
+      '- **Dictionary:** R1–R2, stamped 2026-09-08.',
+      '- **In flight:** two lines is legal, being exactly the cap.',
+      '  Second line, still inside the cap — `' + KO_REL + '`',
+      '',
+      '## Notes', '', ...Array.from({ length: filler }, (_, i) => 'filler line ' + i), '',
+      '## Change log', '',
+      'One line per session: `date (lane) — what — record`.', '',
+      '- 2026-09-08 (rule) — newest fixture line — `' + KO_REL + '`',
+      OLDEST,
+      '- Earlier (3 folded, to 2026-09-06: origin) — one line each in `' + ARCH_REL + '`',
+      '',
+    ].join(eol);
+    const BASE_LINES = uPointer(0).split(/\r?\n/).length;
+    const ARCH_TEXT = '﻿# Fixture pointer archive\n\n- 2026-09-06 (rule) — origin — `' + KO_REL + '`\n';
+    const setup = ({ filler = 0, eol = '\r\n', decEol = '\n' } = {}) => {
+      buildClean();
+      fs.writeFileSync(PTR, uPointer(filler, eol));
+      fs.mkdirSync(path.dirname(ARCH), { recursive: true });
+      fs.writeFileSync(ARCH, ARCH_TEXT);
+      fs.writeFileSync(DEC, decisions(CLEAN_DECISIONS).replace(/\n/g, decEol));
+    };
+    const close = args => {
+      const r = spawnSync(process.execPath, [CLOSE, ...args], { encoding: 'utf8' });
+      return { status: r.status, out: (r.stdout || '').replace(/\r\n/g, '\n'), err: (r.stderr || '').replace(/\r\n/g, '\n') };
+    };
+    const sums = () => [PTR, ARCH, DEC].map(f => crypto.createHash('md5').update(fs.readFileSync(f)).digest('hex')).join(',');
+    const base = (extra = []) => ['--tenant', CLIENT, '--date', '2026-09-09', '--lane', '`sync` build, fixture',
+      '--what', 'FIXTURE CLOSE: one line', '--record', KO_REL, ...extra];
+    const NEWLOG = '- 2026-09-09 (`sync` build, fixture) — FIXTURE CLOSE: one line — `' + KO_REL + '`';
+    const said = r => (r.err.trim() || r.out.trim()).split('\n').pop().slice(0, 170) + ' | exit ' + r.status;
+    const refusedU = (r, re) => r.status === 2 && re.test(r.err);
+    const NEW_ESTATE = 'one fixture board, re-harvested 2026-09-09 (0 diff) — `bi-estate/dashboard-99999-fixture.md`';
+
+    // U1 — --dry-run prints the diff and writes nothing.
+    setup();
+    {
+      const s0 = sums();
+      const r = close(base(['--state', 'Estate', NEW_ESTATE, '--decision', 'R1', 'Fixture ruling.', '--dry-run']));
+      check('U1: --dry-run exits 0, prints the -/+ diff and the DECISIONS row, and writes NOTHING',
+        r.status === 0 && sums() === s0 && r.out.includes('+ ' + NEWLOG) && r.out.includes('- - **Estate:** one fixture board, harvested') &&
+        r.out.includes('+ | 2026-09-09 | R1 | Fixture ruling. | `fx-kickoff-2026-09-08.md` |') && /DRY RUN/.test(r.out), said(r));
+    }
+
+    // U2 — the whole close: bullet REPLACED, literal swapped, heading dated, one log line on top, one
+    // DECISIONS row, CRLF kept in the pointer AND in a CRLF DECISIONS, the gate green.
+    setup({ decEol: '\r\n' });
+    {
+      const r = close(base(['--state', 'Estate', NEW_ESTATE, '--sub', 'stamped 2026-09-08', 'stamped 2026-09-09',
+        '--decision', 'R1', 'Fixture ruling, with a `code span` and an escaped \\| pipe.']));
+      const p = fs.readFileSync(PTR, 'utf8');
+      const L = p.split('\r\n');
+      const d = fs.readFileSync(DEC, 'utf8');
+      check('U2: a full close exits 0 and the gate it runs is green', r.status === 0 && /gate: All checks passed/.test(r.out), said(r));
+      check('U2: the Estate bullet is REPLACED (old text gone, new once), not appended to',
+        !p.includes('harvested 2026-09-08') && p.split('- **Estate:** ' + NEW_ESTATE).length === 2 &&
+        L.filter(l => /^- \*\*Estate:\*\*/.test(l)).length === 1, L.find(l => l.startsWith('- **Estate:**')));
+      check('U2: --sub swapped its literal and the Current-state heading moved to the close date',
+        p.includes('R1–R2, stamped 2026-09-09.') && L.includes('## Current state (2026-09-09) — replace at close-out, never append'),
+        L.find(l => l.startsWith('## Current state')));
+      check('U2: ONE change-log line, directly above the newest dated line',
+        L.filter(l => l === NEWLOG).length === 1 && L[L.indexOf(NEWLOG) + 1].startsWith('- 2026-09-08 (rule)'), NEWLOG);
+      check('U2: the pointer stays pure CRLF and one line longer (no fold under the cap)',
+        !/(?<!\r)\n/.test(p) && L.length === BASE_LINES + 1, L.length + ' lines');
+      check('U2: one DECISIONS row appended, record = the kickoff basename, CRLF kept, nothing else moved',
+        d.endsWith('| 2026-09-09 | R1 | Fixture ruling, with a `code span` and an escaped \\| pipe. | `fx-kickoff-2026-09-08.md` |\r\n') &&
+        !/(?<!\r)\n/.test(d) && d.startsWith(decisions(CLEAN_DECISIONS).replace(/\n/g, '\r\n')), d.trim().split('\n').pop().slice(0, 120));
+    }
+
+    // U3 — at the line cap: the oldest dated line moves to the archive, Earlier counts up and its
+    // `to` date moves, the archive keeps its BOM and LF, and the pointer stays AT the cap.
+    setup({ filler: G.CAPS.claudeLines - BASE_LINES });
+    {
+      const r = close(base());
+      const p = fs.readFileSync(PTR, 'utf8');
+      const a = fs.readFileSync(ARCH, 'utf8');
+      check('U3: at ' + G.CAPS.claudeLines + ' lines a close folds ONE line and stays at the cap, gate green',
+        r.status === 0 && p.split(/\r?\n/).length === G.CAPS.claudeLines && /fold: 1 oldest/.test(r.out) && /All checks passed/.test(r.out), said(r));
+      check('U3: the folded line is the OLDEST and leaves the pointer',
+        !p.includes(OLDEST) && p.includes('- 2026-09-08 (rule) — newest fixture line'), OLDEST.slice(0, 60));
+      check('U3: Earlier 3 → 4 folded, `to` 2026-09-06 → 2026-09-07',
+        p.includes('- Earlier (4 folded, to 2026-09-07: origin)'), (p.split('\r\n').find(l => l.startsWith('- Earlier')) || '').slice(0, 80));
+      check('U3: the archive ends with the folded line, its BOM and LF kept, nothing else moved',
+        a === ARCH_TEXT + OLDEST + '\n', JSON.stringify(a.slice(-60)));
+    }
+
+    // U4 — a fold that would archive the line the close adds is REFUSED; nothing written.
+    setup();
+    {
+      const s0 = sums();
+      const r = close(base(['--fold', '3']));
+      check('U4: --fold past the oldest real line is REFUSED (exit 2) and writes nothing',
+        refusedU(r, /would archive the line this close adds/) && sums() === s0, said(r));
+    }
+    // U5 — a change-log line over the line cap is REFUSED; nothing written.
+    setup();
+    {
+      const s0 = sums();
+      const r = close(['--tenant', CLIENT, '--date', '2026-09-09', '--lane', 'sync', '--what', 'x'.repeat(G.CAPS.claudeLine), '--record', KO_REL]);
+      check('U5: a change-log line over ' + G.CAPS.claudeLine + ' chars is REFUSED and writes nothing',
+        refusedU(r, /the change-log line is \d+ chars, the cap is/) && sums() === s0, said(r));
+    }
+    // U6 — a replacement bullet over the bullet cap, or a key that is unknown or ambiguous, is REFUSED.
+    setup();
+    {
+      const s0 = sums();
+      const a = close(base(['--state', 'Estate', 'one\ntwo\nthree']));
+      check('U6: a ' + (G.CAPS.stateBullet + 1) + '-line replacement bullet is REFUSED', refusedU(a, /3 lines, the cap is/), said(a));
+      const b = close(base(['--state', 'Nowhere', 'x']));
+      check('U6: an unknown bullet key is REFUSED, naming the keys there are', refusedU(b, /matches 0 bullet\(s\).*Estate · Dictionary · In flight/), said(b));
+      const c = close(base(['--state', 'Estate', 'x', '--state', 'estate', 'y']));
+      check('U6: two --state on one bullet are REFUSED', refusedU(c, /already replaced/), said(c));
+      check('U6: …and none of the three wrote anything', sums() === s0, '');
+    }
+    // U7 — an LF pointer is REFUSED (a rewrite must not convert it), naming what it found.
+    setup({ eol: '\n' });
+    {
+      const s0 = sums();
+      const r = close(base());
+      check('U7: an LF pointer is REFUSED, naming LF and the ' + G.POINTER_EOL + ' convention', refusedU(r, /line endings are LF, the convention is CRLF/) && sums() === s0, said(r));
+    }
+    // U8 — a record that does not exist is REFUSED.
+    setup();
+    {
+      const s0 = sums();
+      const r = close(['--tenant', CLIENT, '--lane', 'sync', '--what', 'x', '--record', 'bi-estate/no-such-kickoff.md']);
+      check('U8: a change-log record that does not exist is REFUSED', refusedU(r, /record not found/) && sums() === s0, said(r));
+    }
+    // U9 — a DECISIONS ruling with an unescaped pipe is REFUSED (the gate reads the record as the LAST cell).
+    setup();
+    {
+      const s0 = sums();
+      const r = close(base(['--decision', 'R1', 'a raw | pipe']));
+      check('U9: a DECISIONS ruling with an unescaped pipe is REFUSED and writes nothing', refusedU(r, /unescaped pipe/) && sums() === s0, said(r));
+    }
+    // U10 — the gate is red AFTER the write (here: a tenant root over its loose-file cap, which the
+    // in-memory check does not measure): every file is restored byte for byte, exit 1.
+    setup();
+    {
+      for (let i = 0; i <= G.CAPS.looseFiles; i++) fs.writeFileSync(path.join(CLIENT, 'loose-' + i + '.txt'), 'x');
+      const s0 = sums();
+      const r = close(base(['--decision', 'R1', 'Fixture ruling.']));
+      check('U10: a red gate after the write exits 1 and RESTORES every file (md5 unchanged)',
+        r.status === 1 && sums() === s0 && /RED after the write — every file restored; the tenant was already red/.test(r.out), said(r));
+    }
+    // U11 — the twin verdict: SAME exits 0; DIFFER exits 1 and blocks the close; line endings named.
+    setup();
+    {
+      const a = path.join(ROOT, 'twin-a.csv'), b = path.join(ROOT, 'twin-b.csv'), c = path.join(ROOT, 'twin-c.csv');
+      fs.writeFileSync(a, 'id,n\n1,2\n3,4\n'); fs.writeFileSync(b, 'id,n\n1,2\n3,4\n'); fs.writeFileSync(c, 'id,n\r\n1,2\r\n3,4\r\n');
+      const s = close(['--verify-twin', a, b]);
+      check('U11: identical files → ONE line, twin: SAME with the md5 and 3 rows, exit 0',
+        s.status === 0 && /^twin: SAME — md5 [0-9a-f]{32} · 3 row\(s\)/.test(s.out) && s.out.trim().split('\n').length === 1, s.out.trim());
+      const d = close(['--verify-twin', a, c]);
+      check('U11: a line-ending-only difference → twin: DIFFER … LINE ENDINGS ONLY, exit 1',
+        d.status === 1 && /^twin: DIFFER — .* rows 3 vs 3 · LINE ENDINGS ONLY/.test(d.out), d.out.trim());
+      const s0 = sums();
+      const e = close(base(['--verify-twin', a, c]));
+      check('U11: a DIFFER twin blocks the close — exit 1, nothing written', e.status === 1 && sums() === s0 && /NOT written/.test(e.out), said(e));
+    }
+    // U13 — an append-only file with MIXED endings is not refused (it is never rewritten): the folded
+    // line takes the dominant terminator, the report names the mix, and the existing bytes stay put.
+    setup({ filler: G.CAPS.claudeLines - BASE_LINES });
+    {
+      const mixed = ARCH_TEXT + '- 2026-09-05 (rule) — a CRLF line a peer appended — `' + KO_REL + '`\r\n';
+      fs.writeFileSync(ARCH, mixed);
+      const r = close(base());
+      const a = fs.readFileSync(ARCH, 'utf8');
+      check('U13: a MIXED archive takes the fold in its dominant ending (LF), names the mix, keeps its bytes',
+        r.status === 0 && a === mixed + OLDEST + '\n' && /the archive has MIXED line endings \(1 CRLF, 3 LF\); appended in LF/.test(r.out), said(r));
+    }
+    // U12 — close.js takes every cap from the gate and holds no cap number of its own. The one-digit
+    // caps (the 2-line bullet) are too common a literal to search for; every cap of 10 or more is.
+    {
+      const src = fs.readFileSync(CLOSE, 'utf8');
+      const nums = Object.values(G.CAPS).filter(n => n >= 10).map(String);
+      const own = nums.filter(n => new RegExp('(?<![\\w.])' + n + '(?![\\w.])').test(src.replace(/^\s*\/\/.*$/mg, '')));
+      check('U12: close.js requires the gate for CAPS / POINTER_EOL and holds no cap number in code',
+        /require\(GATE\)/.test(src) && own.length === 0, own.length ? 'literal(s) in code: ' + own.join(', ') : 'none');
+    }
+  }
+}
+
 // ---- report ---------------------------------------------------------------------------------
 let bad = 0;
 console.log('gate self-test — ' + GATE);
@@ -1746,6 +1958,7 @@ if (bad) {
   console.log('       a titled text header included (by its title_text);');
   console.log('       and a folder Look retires on its own, declared in scope.retired_looks.');
   console.log('       and the canon writer emits one call with its ruling, refusing what the procedures');
-  console.log('       refuse, while canon --check reddens on a one-byte or line-ending hand edit.');
+  console.log('       refuse, while canon --check reddens on a one-byte or line-ending hand edit;');
+  console.log('       and close.js closes a pointer in one call inside the gate caps, or writes nothing.');
 }
 process.exit(bad ? 1 : 0);

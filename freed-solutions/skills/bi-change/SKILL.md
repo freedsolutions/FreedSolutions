@@ -18,6 +18,7 @@ block in the gitignored client `CLAUDE.md`; nothing in this file names a client.
 /bi-change check <kickoff.md>       any session  — the gate; reads only, needs no login
 /bi-change run <path> "<ask>"       plan + build in ONE session, ONE stop — one change at a time
 /bi-change qc [export.csv]          run every export-side rule against the freshest Catalog export
+/bi-change close <tenant dir> ...   close-out of the tenant pointer in one call (scripts/close.js)
 ```
 
 `<path>` is one of the seven taxonomy values below and is never a file. The modes that take a file
@@ -227,7 +228,9 @@ run history. Re-seal is not needed — a cadence run rules nothing new.
 2. Dictionary impl cell(s) and header stamp; SOP / WI / guide / README stamps; renders.
 3. Memory: one project line if the change taught something not derivable from the docs.
 4. Client `CLAUDE.md`: ONE line under `## Change log` pointing at the kickoff. The kickoff is the
-   record; the log is an index.
+   record; the log is an index. Use `scripts/close.js` for this step (see Scripts). Do not write a
+   one-off script. One call replaces the Current-state bullets, adds the line, folds at the cap,
+   appends the DECISIONS rows and runs `--pointer`.
 5. Browser phase ends: close the browser, then release HOLDER (playwright) — in that order.
    Delete `.playwright-mcp/` files.
 6. Commit skill-side changes only; `clients/` is never committed and never named in a tracked file.
@@ -300,6 +303,18 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   you touch the tenant `CLAUDE.md`. It finds the estate by the Dictionary, not by a folder name.
   **C9** fails a pointer whose line endings are not all CRLF, and names what it found (LF, mixed, first bad line).
   **C10** fails a "Current state" section with more than 8 top-level bullets (`- ` at column 0; nested lines do not count).
+- `scripts/close.js --tenant <dir> --lane "<lane>" --what "<what>" --record <path> [--date D]
+  [--state <Key> "<text>"]... [--sub "<old>" "<new>"]... [--fold N] [--decision <rule> "<ruling>"]...
+  [--decision-record "<cell>"] [--verify-twin <a> <b>] [--spec <file.json>] [--dry-run]` — the
+  close-out in ONE call. `--state` REPLACES the bullet with that bold key; it never appends. `--sub`
+  swaps a literal that occurs once in Current state. The change-log line is
+  `date (lane) — what — record`, and the record must exist. When the pointer is over the line cap
+  (or `--fold N`), the oldest dated line moves to the archive that the `Earlier (N folded …)` line
+  names, and N goes up. `--decision` appends one DECISIONS row. `--verify-twin` prints ONE md5 +
+  row-count verdict; DIFFER stops the close. Every cap comes from `kickoff_check.js`. Each file keeps
+  its line endings and BOM. A refusal writes nothing (exit 2). A red `--pointer` gate after the write
+  restores every file (exit 1). Run `--dry-run` first: it prints the diff. `--spec` takes the same
+  fields as JSON, so quotes need no shell escaping.
 - `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   `--stale` also reads `<estate>/onepagers.json` (the canonical business one-pagers: generator, delivered file, the rules it prints, a seal) and reports ONE-PAGER BEHIND; `--seal-onepager <key>|all` re-seals after a human confirms the document or a regeneration.
