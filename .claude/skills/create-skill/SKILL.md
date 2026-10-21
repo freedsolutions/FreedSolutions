@@ -27,7 +27,7 @@ If any required input is ambiguous, use `AskUserQuestion` before scaffolding.
 
 ## Bucket Decision
 
-`freed-solutions/skills/` holds cross-project technical patterns, the client-agnostic toolkit, and Adam's personal workflows (resume, sheets, codex reviews). `ops/notion-workspace/skills/` was retired on 2026-05-23: Notion-specific automation (reads/writes the CRM, relies on Notion schema, uses `notion-` MCP) is canonical in the TheoryWellness repo. If a skill is Notion-specific, ask Adam before scaffolding it here.
+`freed-solutions/skills/` holds cross-project technical patterns, the client-agnostic toolkit, and Adam's personal workflows (resume, sheets). `ops/notion-workspace/skills/` was retired on 2026-05-23: Notion-specific automation (reads/writes the CRM, relies on Notion schema, uses `notion-` MCP) is canonical in the TheoryWellness repo. If a skill is Notion-specific, ask Adam before scaffolding it here.
 
 ## Frontmatter Rules
 
@@ -98,7 +98,7 @@ Skip sections that don't apply. Don't pad.
 - Validates frontmatter presence and well-formedness.
 - `-ValidateOnly` flag: dry-run without writing.
 
-If you add a new source root later, update both `sync-claude-skill-wrappers.ps1` and `publish-codex-skills.ps1` (the sibling script that publishes to Codex).
+If you add a new source root later, update `sync-claude-skill-wrappers.ps1`.
 
 ## Template: New SKILL.md
 
@@ -169,6 +169,5 @@ When using this skill to create a new skill, the irony is not lost. But the patt
 - Existing skills for reference:
   - `freed-solutions/skills/resume-builder/SKILL.md` — longest, most workflow-heavy example
   - `freed-solutions/skills/cannabis-tech-sitemap/SKILL.md` — mid-length, domain-specific
-  - `freed-solutions/skills/codex-review/SKILL.md` — tool-wrapper example (a script plus a mode switch)
 - Sync script: `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`
 - Claude Code skill discovery docs: see `claude-code-guide` for harness behavior.

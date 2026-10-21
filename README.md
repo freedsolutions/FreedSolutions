@@ -18,7 +18,7 @@ FreedSolutions/
 |- ops/                          # Internal ops, migration docs, and private service scaffolds
 |- privacy-policy/               # Privacy policy page (GitHub Pages)
 |- website/                      # Website static assets (favicons, OG images, photos)
-|- scripts/                      # Repo-level utility scripts (codex_review.py)
+|- scripts/                      # Repo-level utility scripts (check.ps1)
 |- tests/                        # Repo-level test suite
 ```
 
@@ -32,7 +32,7 @@ One command runs every repo check in order and stops at the first failure:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1
 ```
 
-It covers the Python tests, the seven Notion-workspace PowerShell tests, both skill-pipeline validators (Claude wrappers in sync, Codex validator green), the bi-change gate self-test and leak proof, and the dutchie-intake self-test. `.github/workflows/checks.yml` runs the Python tests and the two node self-tests on every push to `main` and on pull requests.
+It covers the Python tests, the seven Notion-workspace PowerShell tests, the skill-wrapper sync validator, the bi-change gate self-test and leak proof, and the dutchie-intake self-test. `.github/workflows/checks.yml` runs the Python tests and the two node self-tests on every push to `main` and on pull requests.
 
 ### Projects
 

@@ -1,7 +1,6 @@
 # The runner-portable subset of scripts/check.ps1: the Python tests and the two node self-tests.
-# The PowerShell set stays local: test-approval-baseline reads the workstation's Claude and Codex
-# settings, publish-codex-skills needs the validator under ~/.codex, and the rest are Windows
-# PowerShell 5.1 scripts that scripts/check.ps1 already runs before every commit lands.
+# The PowerShell set stays local: test-approval-baseline reads the workstation Claude settings, and
+# the rest are Windows PowerShell 5.1 scripts that scripts/check.ps1 already runs before every commit lands.
 name: checks
 
 on:
@@ -29,7 +28,7 @@ jobs:
         env:
           PYTHONUTF8: '1'
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python -m unittest -v tests/test_codex_review.py tests/test_local_db.py tests/test_closeout_sanity.py
+        run: python -m unittest -v tests/test_local_db.py tests/test_closeout_sanity.py
 
       - name: bi-change gate self-test
         run: node .claude/skills/bi-change/scripts/gate_selftest.js

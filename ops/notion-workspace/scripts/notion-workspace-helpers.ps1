@@ -12,14 +12,6 @@ function Get-NotionWorkspaceRoot {
     return $script:NotionWorkspaceRoot
 }
 
-function Get-CodexConfigPath {
-    if ($env:CODEX_HOME) {
-        return Join-Path $env:CODEX_HOME 'config.toml'
-    }
-
-    return Join-Path $HOME '.codex\config.toml'
-}
-
 function Resolve-RepoScopedPath {
     param(
         [Parameter(Mandatory = $true)]
@@ -88,68 +80,3 @@ function Resolve-RepoScopedPath {
     }
 }
 
-function Get-TomlSections {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Path
-    )
-
-    if (-not (Test-Path $Path -PathType Leaf)) {
-        throw "TOML file not found: $Path"
-    }
-
-    $sections = @{}
-    $currentSection = $null
-
-    foreach ($rawLine in Get-Content -Path $Path -Encoding UTF8) {
-        $line = $rawLine.Trim()
-        if (-not $line -or $line.StartsWith('#')) {
-            continue
-        }
-
-        if ($line -match '^\[(?<section>[^\]]+)\]\s*$') {
-            $currentSection = $matches.section
-            if (-not $sections.ContainsKey($currentSection)) {
-                $sections[$currentSection] = @{}
-            }
-            continue
-        }
-
-        if (-not $currentSection) {
-            continue
-        }
-
-        if ($line -match '^(?<key>[A-Za-z0-9_.-]+)\s*=\s*(?<value>.+?)\s*$') {
-            $value = $matches.value.Trim()
-            if (
-                $value.Length -ge 2 -and
-                $value.StartsWith('"') -and
-                $value.EndsWith('"')
-            ) {
-                $value = $value.Substring(1, $value.Length - 2)
-            }
-
-            $sections[$currentSection][$matches.key] = $value
-        }
-    }
-
-    return $sections
-}
-
-function Get-CodexProfileSettings {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ProfileName,
-
-        [string]$ConfigPath = (Get-CodexConfigPath)
-    )
-
-    $sections = Get-TomlSections -Path $ConfigPath
-    $sectionName = "profiles.$ProfileName"
-
-    if (-not $sections.ContainsKey($sectionName)) {
-        return $null
-    }
-
-    return $sections[$sectionName]
-}

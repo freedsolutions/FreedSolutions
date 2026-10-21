@@ -1,7 +1,3 @@
-param(
-    [string]$CodexProfileName
-)
-
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -117,69 +113,16 @@ function Assert-GitIgnoredAndUntracked {
     }
 }
 
-function Assert-CodexProfile {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ProfileName,
-
-        [Parameter(Mandatory = $true)]
-        [hashtable]$ExpectedValues
-    )
-
-    $configPath = Get-CodexConfigPath
-    if (-not (Test-Path $configPath -PathType Leaf)) {
-        throw "Codex config not found: $configPath"
-    }
-
-    $profileSettings = Get-CodexProfileSettings -ProfileName $ProfileName -ConfigPath $configPath
-    if (-not $profileSettings) {
-        throw "Codex profile '$ProfileName' is missing from $configPath"
-    }
-
-    foreach ($entry in $ExpectedValues.GetEnumerator()) {
-        if (-not $profileSettings.ContainsKey($entry.Key)) {
-            throw "Codex profile '$ProfileName' is missing '$($entry.Key)'."
-        }
-
-        if ([string]$profileSettings[$entry.Key] -ne [string]$entry.Value) {
-            throw "Codex profile '$ProfileName' expected $($entry.Key)='$($entry.Value)' but found '$($profileSettings[$entry.Key])'."
-        }
-    }
-}
-
-$expectedCodexProfiles = @{
-    ops_notion_workspace_quiet = @{
-        approval_policy = 'never'
-        sandbox_mode = 'workspace-write'
-    }
-    ops_notion_workspace = @{
-        approval_policy = 'on-failure'
-        sandbox_mode = 'workspace-write'
-    }
-}
-
-if ($CodexProfileName) {
-    if (-not $expectedCodexProfiles.ContainsKey($CodexProfileName)) {
-        throw "Unknown Codex profile baseline: $CodexProfileName"
-    }
-
-    Assert-CodexProfile -ProfileName $CodexProfileName -ExpectedValues $expectedCodexProfiles[$CodexProfileName]
-    Write-Output "Approval baseline OK: Codex profile '$CodexProfileName' matches the documented Notion-workspace baseline."
-    exit 0
-}
-
 $requiredClaudeAllowEntries = @(
     'Bash(Get-ChildItem *)',
     'Bash(Get-Content *)',
     'Bash(rg *)',
     'Bash(Select-String *)',
     'Bash(grep *)',
-    'Bash(python scripts/codex_review.py *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/compare-notion-sync.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-compare-notion-sync.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-closeout-sanity.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-closeout-sanity-guard.ps1" *)',
-    'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/publish-codex-skills.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-approval-baseline.ps1" *)',
     'Bash(powershell -ExecutionPolicy Bypass -File "ops/notion-workspace/scripts/test-discovery-scope.ps1" *)',
@@ -260,16 +203,4 @@ if ($projectMcpServerNames.Count -ne 1 -or $projectMcpServerNames[0] -ne 'playwr
     throw '.mcp.json must keep only the project-managed playwright server.'
 }
 
-foreach ($profileName in $expectedCodexProfiles.Keys) {
-    Assert-CodexProfile -ProfileName $profileName -ExpectedValues $expectedCodexProfiles[$profileName]
-}
-
-$configPath = Get-CodexConfigPath
-$tomlSections = Get-TomlSections -Path $configPath
-foreach ($requiredServer in @('mcp_servers.notion', 'mcp_servers.playwright', 'mcp_servers.google-workspace')) {
-    if (-not $tomlSections.ContainsKey($requiredServer)) {
-        throw "Codex config is missing required section [$requiredServer]."
-    }
-}
-
-Write-Output 'Approval baseline OK: Claude settings, project MCP surface, and Codex Notion-workspace profiles match the documented baseline.'
+Write-Output 'Approval baseline OK: Claude settings and project MCP surface match the documented baseline.'

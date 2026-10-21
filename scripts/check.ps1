@@ -12,7 +12,7 @@
     -ShowOutput streams every step's output as it runs.
 
     Steps, in order:
-      1. python -m unittest on the three repo test modules (tests/ has no __init__.py, so
+      1. python -m unittest on the two repo test modules (tests/ has no __init__.py, so
          discover cannot find them; the modules are named by path)
       2-8. the seven ops/notion-workspace/scripts/test-*.ps1 checks. test-skill-rename-cleanup.ps1
          takes a rename pair, so it runs on a synthetic one: a retired name minted at run time
@@ -20,12 +20,10 @@
          and the wrapper root
       9. sync-claude-skill-wrappers.ps1 -ValidateOnly: every .claude/skills/ wrapper matches its
          freed-solutions/skills/ source
-     10. publish-codex-skills.ps1 -ValidateOnly: every skill source passes the Codex validator
-         (needs ~/.codex; this step is the one that cannot run on a CI runner)
-     11. bi-change gate_selftest.js
-     12. bi-change skill_leak_proof.js --selftest: every leak rule fails on a breaker fixture
-     13. bi-change skill_leak_proof.js: no tracked skill file names a client
-     14. dutchie-intake selftest_all.py
+     10. bi-change gate_selftest.js
+     11. bi-change skill_leak_proof.js --selftest: every leak rule fails on a breaker fixture
+     12. bi-change skill_leak_proof.js: no tracked skill file names a client
+     13. dutchie-intake selftest_all.py
 
     No dependencies beyond what the steps already need: Windows PowerShell 5.1, python, node.
     .github/workflows/checks.yml runs steps 1, 11, 12 and 13 on push and pull request.
@@ -70,9 +68,9 @@ function New-PsStep {
 $retiredSkillName = 'retired-skill-' + [guid]::NewGuid().ToString('N')
 
 $steps = @(
-    (New-Step 'python unittest: test_codex_review, test_local_db, test_closeout_sanity' @(
+    (New-Step 'python unittest: test_local_db, test_closeout_sanity' @(
         'python', '-m', 'unittest',
-        'tests/test_codex_review.py', 'tests/test_local_db.py', 'tests/test_closeout_sanity.py')),
+        'tests/test_local_db.py', 'tests/test_closeout_sanity.py')),
     (New-PsStep 'test-approval-baseline.ps1' "$workspaceScripts/test-approval-baseline.ps1"),
     (New-PsStep 'test-closeout-sanity-guard.ps1' "$workspaceScripts/test-closeout-sanity-guard.ps1"),
     (New-PsStep 'test-closeout-sanity.ps1' "$workspaceScripts/test-closeout-sanity.ps1"),
@@ -82,7 +80,6 @@ $steps = @(
     (New-PsStep 'test-skill-rename-cleanup.ps1 (synthetic retired name -> create-skill)' "$workspaceScripts/test-skill-rename-cleanup.ps1" @(
         '-OldName', $retiredSkillName, '-NewName', 'create-skill', '-RequireClaudeCopy')),
     (New-PsStep 'sync-claude-skill-wrappers.ps1 -ValidateOnly' "$workspaceScripts/sync-claude-skill-wrappers.ps1" @('-ValidateOnly')),
-    (New-PsStep 'publish-codex-skills.ps1 -ValidateOnly' "$workspaceScripts/publish-codex-skills.ps1" @('-ValidateOnly')),
     (New-Step 'bi-change gate_selftest.js' @('node', '.claude/skills/bi-change/scripts/gate_selftest.js')),
     (New-Step 'bi-change skill_leak_proof.js --selftest' @('node', '.claude/skills/bi-change/scripts/skill_leak_proof.js', '--selftest')),
     (New-Step 'bi-change skill_leak_proof.js' @('node', '.claude/skills/bi-change/scripts/skill_leak_proof.js')),

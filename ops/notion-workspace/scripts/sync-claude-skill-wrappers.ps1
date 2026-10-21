@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $workspaceRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $repoRoot = Resolve-Path (Join-Path (Join-Path $workspaceRoot "..") "..")
 # Skill source roots, in order. A skill directory with a SKILL.md under any of these is a valid source.
-# Adding a new root: append here and every downstream consumer (publish-codex-skills.ps1) picks it up.
+# Adding a new root: append here.
 # ops/notion-workspace/skills/ was a root until 2026-05-23; its skills moved to the TheoryWellness repo.
 $sourceRoots = @(
     (Join-Path $repoRoot "freed-solutions/skills")

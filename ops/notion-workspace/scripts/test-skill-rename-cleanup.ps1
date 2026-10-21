@@ -6,9 +6,7 @@ param(
     [string]$NewName,
 
     [string]$RepoRoot,
-    [string]$CodexHome,
-    [switch]$RequireClaudeCopy,
-    [switch]$RequireInstalledCopy
+    [switch]$RequireClaudeCopy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,21 +47,10 @@ $resolvedRepoRoot = if ($PSBoundParameters.ContainsKey('RepoRoot')) {
     Resolve-RequiredPath -Path (Join-Path (Join-Path $workspaceRoot '..') '..') -Label 'Repo root'
 }
 
-$resolvedCodexHome = if ($PSBoundParameters.ContainsKey('CodexHome')) {
-    Get-NormalizedPath -Path $CodexHome
-} elseif ($env:CODEX_HOME) {
-    Get-NormalizedPath -Path $env:CODEX_HOME
-} else {
-    Get-NormalizedPath -Path (Join-Path $HOME '.codex')
-}
-
-$codexSkillsRoot = Join-Path $resolvedCodexHome 'skills'
 $repoSkillRoot = Join-Path $resolvedRepoRoot "freed-solutions/skills/$NewName"
 $repoOldSkillRoot = Join-Path $resolvedRepoRoot "freed-solutions/skills/$OldName"
 $claudeSkillRoot = Join-Path $resolvedRepoRoot ".claude/skills/$NewName"
 $claudeOldSkillRoot = Join-Path $resolvedRepoRoot ".claude/skills/$OldName"
-$codexSkillRoot = Join-Path $codexSkillsRoot $NewName
-$codexOldSkillRoot = Join-Path $codexSkillsRoot $OldName
 
 function Get-OldNameMatches {
     param(
@@ -112,9 +99,6 @@ function Get-OldNameMatches {
 }
 
 $searchRoots = @($resolvedRepoRoot)
-if (Test-Path $codexSkillsRoot) {
-    $searchRoots += (Resolve-Path $codexSkillsRoot).Path
-}
 
 $issues = New-Object System.Collections.Generic.List[string]
 $matches = Get-OldNameMatches -SearchTerm $OldName -Roots $searchRoots
@@ -131,17 +115,13 @@ if ($RequireClaudeCopy) {
     $requiredPaths += $claudeSkillRoot
 }
 
-if ($RequireInstalledCopy) {
-    $requiredPaths += $codexSkillRoot
-}
-
 foreach ($path in $requiredPaths) {
     if (-not (Test-Path $path)) {
         $issues.Add("Expected renamed path is missing: $path")
     }
 }
 
-$retiredPaths = @($repoOldSkillRoot, $claudeOldSkillRoot, $codexOldSkillRoot)
+$retiredPaths = @($repoOldSkillRoot, $claudeOldSkillRoot)
 foreach ($path in $retiredPaths) {
     if (Test-Path $path) {
         $issues.Add("Retired path still exists: $path")

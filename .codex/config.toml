@@ -1,6 +1,0 @@
-[mcp_servers.notion]
-url = "https://mcp.notion.com/mcp"
-
-[mcp_servers.playwright]
-command = "npx"
-args = ["-y", "@playwright/mcp@latest"]
