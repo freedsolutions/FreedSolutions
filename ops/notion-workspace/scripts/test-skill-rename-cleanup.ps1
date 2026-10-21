@@ -102,7 +102,7 @@ function Get-OldNameMatches {
 
     $matches = @()
     foreach ($file in $files) {
-        $result = Select-String -Path $file.FullName -SimpleMatch -Pattern $SearchTerm -ErrorAction SilentlyContinue
+        $result = Select-String -LiteralPath $file.FullName -SimpleMatch -Pattern $SearchTerm -ErrorAction SilentlyContinue
         foreach ($match in $result) {
             $matches += '{0}:{1}:{2}' -f $file.FullName, $match.LineNumber, $match.Line.Trim()
         }
