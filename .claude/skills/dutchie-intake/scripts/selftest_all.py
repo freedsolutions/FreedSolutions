@@ -44,7 +44,8 @@ import receive as RC  # noqa: E402
 
 SCRIPTS = ["intake_pointers.py", "intake_parse.py", "intake_match.py", "intake_exceptions.py",
            "intake_plan.py", "intake_certify.py", "intake_notice.py", "intake_ui_run.py", "receive.py",
-           "intake_msrp.py", "intake_derive.py", "intake_apex_cost.py", "intake_cases.py", "receive_snapshot.py"]
+           "intake_msrp.py", "intake_derive.py", "intake_apex_cost.py", "intake_cases.py", "receive_snapshot.py",
+           "intake_po.py"]
 # The batch runner lives in the sibling skill (one allowlist, one refusal set for every lane): its batch
 # cases run here too, so the whole R124 chain - plan, gridBatch, certify - is proven by one command.
 GRID_SELFTEST = os.path.join(os.path.dirname(os.path.dirname(HERE)), "dutchie-bi-looker", "scripts",

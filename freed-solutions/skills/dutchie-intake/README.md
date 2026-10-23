@@ -35,6 +35,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 | `intake` | `intake_parse.py` -> `intake_match.py` -> `intake_exceptions.py` -> `intake_apex_cost.py` (sample-only new lines; the Apex read is read-only, in the write channel) -> `intake_msrp.py` (new lines only) | none (Apex: read only) | lines CSV, intake v1 + v2 (+ v3), exceptions CSV, apex-read CSV, `-msrp-<ts>.md`, STOP message |
 | `create` | `intake_plan.py`, then `gridBatch` + `intake_ui_run.py` (UI rows) in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL, the keyMap |
 | `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
+| `po` | `intake_po.py write` (after certify) / `close` (after the receipt): the Dutchie PO, for checking and close-out, not entry | POS API key (`POS key:`) | the PO + `po-<key>-<ts>-*.json` (responses + `-record.json`) |
 | `notice` | `intake_notice.py` | none | `-notice-<ts>.md` (a draft; the Operator sends) |
 | `receive` | `receive_snapshot.py` (the POS API snapshot; the export is the fallback), then `receive.py --prep` (`--enter` / `--check` / `--vendor` stubs, exit 2) | none | `inventory-api-<ts>.json` + `.csv`, `-receipt-prep-<date>-vN.csv` + `-questions.md` |
 
@@ -57,6 +58,7 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 | `scripts/intake_notice.py` | the new-items notice draft |
 | `scripts/receive.py` | phase 2: `--prep`, the receipt prep sheet (other modes stubs) |
 | `scripts/receive_snapshot.py` | the receive-time Inventory snapshot: ONE read-only `/reporting/inventory` GET, frozen raw + derived CSV |
+| `scripts/intake_po.py` | the Dutchie PO: `write` = ONE `POST /purchase-order` from the certified intake + exact read-back; `close` = PO vs receipt diff by ProductId, then Closed + `dateReceived` |
 | `fixtures/receive-*.csv` | the synthetic receipt: a split package, a sample package, a new-line item, an order-level credit |
 | `scripts/intake_common.py` | shared plumbing |
 | `scripts/selftest_all.py` | every selftest + the `gridBatch` cases + the fixture checks + the CLI chain |

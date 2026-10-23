@@ -1320,6 +1320,34 @@ descriptions carry contract facts that the schemas do not.
 - `GET /tags` returns 404. There is no single-product GET: read a product by listing and filtering.
 - Responses are bare JSON (no envelope); dates are ISO-8601 UTC with `Z`; ids are integers.
 
+### Purchase orders: `/purchase-order` [PROBE 2026-10-21 · 2026-10-23, one pilot PO end to end]
+
+The `dutchie-intake` lane writes ONE PO per vendor document and closes it after the receipt (`intake_po.py`).
+- **Create** = `POST /purchase-order` with `{"purchaseOrders": [ ... ]}` and no `purchaseOrderId`. A new PO must
+  carry `status` (`Open` | `Submitted` | `Closed`) and an INTEGER `purchaseOrderNumber` (it need not be unique);
+  without them the POST is HTTP 400 and nothing is created. The response is `{createdPurchaseOrderIds,
+  updatedPurchaseOrderIds}`.
+- **Update** = the same POST with `purchaseOrderId`. The header is sparse: an omitted field keeps its value. Blank
+  strings write blank.
+- **Lines:** a line needs an EXISTING `productId` (a new item has none until it is created). It has `quantity`,
+  `subtotal` and `tax`, and no unit cost (unit = subtotal / quantity). Send `unitId` 1 (Quantity) on every line: an
+  omitted `unitId` stores 0, and a later header write that omits the lines re-merges them and fails HTTP 500 (FK on
+  `dbo.Units`). That 500 is NOT atomic: the header change can land. GET before any retry.
+- **No line removal and no delete on the API.** `purchaseOrderItems: []` does NOT remove lines (four writes read the
+  line back). A line or a PO is removed only in Backoffice, and a UI delete is a hard delete (a GET by id then reads
+  HTTP 400 "not found"; there is no Deleted status).
+- **Free text:** `shippingInformation` and `vendorContact` only. There is no notes and no document field: the
+  document link goes in `shippingInformation`.
+- **Read:** `GET /purchase-order?PurchaseOrderId=<id>&IncludeItemDetails=true`. A list read takes `FromDateCreated`,
+  `ToDateCreated`, `PageNumber`, `PageSize`. `PageNumber` is 0-BASED: page 1 of a one-page list is empty, so a guard
+  that starts at 1 reads no PO.
+- **Receipt link:** a receipt (`GET /inventory/receivedinventory?receiveInventoryHistoryId=<id>`) has
+  `purchaseOrderId`. The receive form's `Purchase order` picker lists NO Open PO, and the Edit dialog after the
+  receipt has no PO field, so an Open PO stays unlinked. OPEN: whether a `Submitted` PO lists in the picker and links
+  to the receipt (test on the next PO receipt). Metrc receipts cannot prefill from a PO.
+- **Close** = a sparse header write: `status` Closed + `dateReceived` (the receipt's `deliveredOn`). The stored lines
+  stay as they were.
+
 ## Discounts (Backoffice Marketing › Discounts) [PROBE 2026-09-26/27, discount lanes]
 
 - **A discount rename rewrites history, on both surfaces.** The Backoffice Discount Detail report shows the CURRENT
@@ -1564,7 +1592,7 @@ descriptions carry contract facts that the schemas do not.
   Metrc (the page's `get-pending-transfers-v2` returns `Data: []` until then).
 - **Header:** Vendor and Room must be set. Both flow down to every row. Vendor license, order title and Delivered on come
   from the transfer. The header has no Transaction ID field. [READ 2026-10-23] It also carries `Purchase order` (a
-  picker), `Total credits`, `Shipping charges`, `Apply cost options` and Documents.
+  picker; it lists no Open PO, section "Purchase orders: `/purchase-order`"), `Total credits`, `Shipping charges`, `Apply cost options` and Documents.
 - **Expiration date = the Metrc lab testing expiration (LTE), prefilled.** [PROBE 2026-10-23, 9 of 9 rows] Once the
   transfer syncs, every pending-transfer row carries `ExpirationDate` = the Metrc lab result's `ExpirationDateTime`
   (tenant Metrc setting `ExpirationDateFieldId` 2), and the row form shows it. The Metrc transfer package itself has no

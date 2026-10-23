@@ -1,6 +1,6 @@
 ---
 name: dutchie-intake
-description: Run a vendor invoice through the Dutchie intake lane — pull, intake (parse, catalog match, R102 exception flags, landed cost), one pre-create stop, Copy-item create, attributed-diff certify, new-items notice, and after a receipt the case flow (a missed STOP becomes a case; the lane logs each step). Use when an invoice or PO lands, the Operator asks to intake, create or certify new items, a package was received before its questions were settled, or types /dutchie-intake.
+description: Run a vendor invoice through the Dutchie intake lane — pull, intake (parse, catalog match, R102 exception flags, landed cost), one pre-create stop, Copy-item create, attributed-diff certify, the Dutchie PO (the reconciled order, for checking and close-out), new-items notice, and after a receipt the PO close-out and the case flow (a missed STOP becomes a case; the lane logs each step). Use when an invoice or PO lands, the Operator asks to intake, create or certify new items, a package was received before its questions were settled, or types /dutchie-intake.
 ---
 
 # Dutchie Intake
@@ -19,6 +19,9 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 /dutchie-intake create <intake-vN.csv>                freeze -> ONE plan file -> approval -> ONE paced batch (R124)
 /dutchie-intake certify --plan <plan.csv> <pre-active> <pre-retired> <post-active> <post-retired>
 /dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
+/dutchie-intake po write --intake <vN.csv> --vendor-id <id> --title <doc no> --arrival <date> --doc-link <url>
+                                                     after certify: ONE Dutchie PO, read back exact
+/dutchie-intake po close --po <id> --receipt <id>     after the receipt: PO vs receipt diff, then Closed + dateReceived
 /dutchie-intake notice <intake-vN.csv>                draft the notice; print the floor-sheet command
 /dutchie-intake receive --prep <lines.csv> [manifest]  the receipt prep sheet: one row per Metrc package + questions
                                                      (+ the vendor's open cases: `--cases <rows.json>`, read-only)
@@ -77,7 +80,8 @@ the second is the `bi-change` block the tenant already has.
   the STOP's open-cases read, `intake_cases.py stop`, and the receipt's, `receive.py --prep --cases`; absent, each
   read is a quiet INFO - intake step 6, receive step 3)
 - POS key: <ENV VAR NAME>   (optional; the variable that holds the POS API key, never the key - the receive-time
-  Inventory snapshot, `receive_snapshot.py`; absent, it ABORTs and the Inventory export is the snapshot - receive step 3)
+  Inventory snapshot, `receive_snapshot.py`; absent, it ABORTs and the Inventory export is the snapshot - receive step 3.
+  The PO steps read it too, `intake_po.py`; absent, they ABORT and the lane has no PO)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
@@ -101,7 +105,9 @@ invoice.pdf --intake_parse--> lines.csv --intake_match--> intake-v1.csv --intake
    --intake_plan--> <stem>-plan-vN.csv + plan summary  ==> Operator approves the plan (the ONE STOP)
    --create (write channel, Operator's login): gridBatch + UI steps, paced--> -plan-vN-progress-<ts>.jsonl
    --lane pulls Active + Retired--> intake_certify --plan (ONE certify, the union)--> -certify-<ts>.md
+   --intake_po write (POS API)--> ONE Dutchie PO, read back exact + po-<title>-<ts>-*.json
    --intake_notice--> -notice-<ts>.md
+   ... receipt (entry keys from the prep sheet) --intake_po close--> PO vs receipt diff, Closed + dateReceived
 ```
 
 Every output is a NEW file (a new `-vN`, or a timestamp): delivered files are the Operator's, and a
@@ -468,6 +474,34 @@ result: pull again later. The single-pair mode (`--pre --post --intake`, `--no-c
 ...]`) stays for hand-made writes on existing items. The report goes to the kickoff's Status; C cells go to
 the plan lane.
 
+**`po write`** - the Dutchie PO, the reconciled order (Operator ruling 2026-10-23: a gain for CHECKING and CLOSE-OUT,
+not for entry). The PO is not the order of record: orders stay where the buyers place them. It is not the receive-form
+source either: receive entry still keys from the prep sheet (`receive.py --prep`), because the receive form cannot load
+an Open PO. The PO gives the receipt a machine diff and the order a closed record (`po close`, receive step 5).
+1. **When.** After the certify and before the receipt. A PO line needs an existing ProductId, so the PO waits for the
+   create. A receipt that lands before the PO exists gets no back-written PO: record "PO missed: received first".
+2. **The approval.** The PO write rides the ONE pre-create STOP (below): the Operator's plan approval covers this one
+   write. There is no second ask.
+3. **Dry run, then the write.** `intake_po.py write --tenant <CLAUDE.md> --intake <the certified vN> --vendor-id <id>
+   --title <the vendor's document no> --arrival <YYYY-MM-DD> --doc-link <the filed document's Drive link>`. Without
+   `--live` it reads and prints the planned body only. Add `--live` for the ONE `POST /purchase-order`, then a GET by id:
+   every planned field must read back exact (exit 0), else exit 1.
+   - Lines: one per ProductId (`--item <row>=<id>` > `new_productid` > the EXISTS / RETIRED_MATCH match, receive's
+     order); rows that share a ProductId are summed. Quantity = `units_total`. Subtotal = `unit_cost` x `units_total`
+     (the purchased cost, R50). `unitId` 1 on every line. A row with no ProductId ABORTs: a partial PO is never written.
+   - Header: the vendor's Dutchie record (`--vendor-id`, the record the receipt will carry), the title, the expected
+     arrival, `status` Open (`--status Submitted` only for the open test in receive step 5), an integer
+     `purchaseOrderNumber` (default: the digits of the intake `invoice_no`; `--number` overrides), and
+     `shippingInformation` = `<title> (<n> lines, <units> units, $<total>). Document: <link>`.
+   - Guards (exit 2, nothing written): a PO with the same title exists (one PO per document); the vendor record is
+     not found, or its name differs from the intake's `lane_Vendor`.
+   - Every response is saved as a new `po-<title>-<ts>-<call>.json` beside the intake CSV, plus a `-record.json`.
+     Name the PO id, number and the read-back verdict in the run record.
+4. **Substitutions and shorts.** The Operator (or the buyer) may edit the PO in Backoffice before the receipt. The
+   lane never re-writes it to match a receipt.
+Platform facts (create needs `status` + an integer number, `unitId` 1, no line removal on the API, 0-based
+`PageNumber`): `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Purchase orders: `/purchase-order`".
+
 **`notice`** - `intake_notice.py --intake <vN> --tenant <CLAUDE.md>` fills the tenant's template
 (a copy of `templates/notice.md`). It refuses (DEFECT) while an approved create row lacks its read-back
 SKU. Created items = approved create rows (verdict NEW_ITEM_WITH_SIBLING / NEW_PL / NEW_BRAND, `approved = Y`),
@@ -627,6 +661,20 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
    display tag) never carries the new-line tag: it strips with every other `ITM - ` tag (R47), so the
    `new_line_tag_on_package` column reads `no`. A sample-only receipt flips nothing; the column reads
    `no flip - sample-only receipt` and the item keeps the new-line tag until sellable stock arrives (R83).
+5. **PO close-out (Operator ruling 2026-10-23),** after the receipt read-back, when the order has a Dutchie PO
+   (`po write`). Run `intake_po.py close --tenant <CLAUDE.md> --po <id> --receipt <receiveInventoryHistoryId>`
+   without `--live` first. It reads the PO and the receipt and diffs them BY PRODUCTID: quantity, and $ (the PO line
+   subtotal against the summed receipt `totalCost`; a product received as several packages sums).
+   - STOP (exit 1, no write): any line diff (a short, an over, a substitution, a $ difference); the PO is already
+     Closed; the receipt's vendor differs from the PO's; the receipt links another PO; a stored PO line has a unit
+     other than 1. A diff goes to the Operator. After the ruling, `--accept-diff` closes the PO with the diff on record.
+   - Then `--live`: ONE sparse header write, `status` Closed + `dateReceived` = the receipt's `deliveredOn`. The GET
+     back must show status and date exact and every other header field and line unchanged.
+   - Record the diff (`-record.json`: lines, matched, totals, diffs) and the read-back verdict in the receipt record.
+   - **OPEN TEST (Operator 2026-10-23).** On the next PO receipt, write the PO with `--status Submitted` and check,
+     before any row is staged, whether the receive form's `Purchase order` picker lists it. If it lists, pick it and
+     read the receipt's `purchaseOrderId` after the receipt (the close record prints it as
+     `receipt_purchaseOrderId`). An Open PO does not list (2026-10-23). Record the answer in the platform KB.
 The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt Detail package tag).
 
 **After the receipt: cases** (Operator ruling 2026-10-19, trained on a wrong-size pre-roll ship that staff received
@@ -752,6 +800,8 @@ line is sample-only, and a seventh printed by `intake_cases.py stop` on every in
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
 Under R124 the plan summary (`intake_plan.py`) rides this stop: the Operator's approval of the plan
 file is the go-ahead for every write in the batch, and nothing else is (create mode, step 3).
+The Dutchie PO rides it too (`po write`): name the vendor record, the title, the arrival, the status, and the lines,
+units and total in the same message. The approval covers that ONE PO write after the certify.
 
 ## Login stop
 
@@ -816,6 +866,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
 `receive_snapshot.py` (the receive-time Inventory snapshot from the POS API; the export is its fallback) ·
+`intake_po.py` (the Dutchie PO: `write` after certify, `close` after the receipt; POS API) ·
 `intake_cases.py` (the after-receipt branch: a case open from the prep sheet, case ops as SQL + ONE command; and
 `stop`, the vendor's open cases at the STOP from ONE read-only SELECT, reused by `receive.py --prep --cases`) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
