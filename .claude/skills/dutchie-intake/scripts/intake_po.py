@@ -2,7 +2,7 @@
 
   python intake_po.py write --tenant <CLAUDE.md> --intake <intake-vN.csv> --lines <lines.csv> --vendor-id <id> --title <text>
                             --arrival <YYYY-MM-DD> --doc-link <url> [--number <int>] [--status Open|Submitted]
-                            [--item <row>=<ProductId>]... [--out-dir <dir>] [--live]
+                            [--vendor-record <payee>] [--item <row>=<ProductId>]... [--out-dir <dir>] [--live]
   python intake_po.py close --tenant <CLAUDE.md> --po <purchaseOrderId> --receipt <receiveInventoryHistoryId>
                             [--accept-diff] [--out-dir <dir>] [--live]
   python intake_po.py --selftest
@@ -22,14 +22,20 @@ diff of the receipt and a closed record of the order.
     `intake_exceptions.py` pairs them (ABORT on a count or description mismatch); a blank `ext_cost`, or a discount
     above its ext, is a problem. `unitId` 1 (Quantity) on every line: a line stored with no unit fails a later header
     write (HTTP 500).
-  * header: the vendor's Dutchie record (`--vendor-id`), `--title` (the vendor's document number), expected arrival
+  * header: the PAYEE's Dutchie record (`--vendor-id`; the vendor canon, Operator 2026-10-23: the receipt vendor and
+    the accounting vendor = the payee, the remit-to on the invoice; the item's catalog Vendor stays the manufacturer,
+    so the two can differ), `--title` (the vendor's document number), expected arrival
     (`--arrival`), `status` (Open; Submitted only for the open receive-form test), an integer `purchaseOrderNumber`
     (default: the digits of the intake `invoice_no`; it need not be unique), and the document link in
     `shippingInformation` (the API has no document or notes field).
   * a new PO without `status` and an integer number is HTTP 400 (nothing is created).
   Guards before the write (STOP, exit 2, nothing written): a PO with the same title already exists (one PO per
   document; the guard reads every PO created in the last 120 days); `GET /vendor/vendors` finds no record for the id,
-  or its name differs from the intake's `lane_Vendor`. Then GET by id: every planned field must read back exact.
+  or its name differs from the payee: `--vendor-record`, else the `vendor` cells of `--lines` (the invoice vendor;
+  receive.py sets the receive-form header Vendor from the same two). Names compare as `intake_cases` compares them
+  (letters and digits, a trailing company form dropped); no payee, or two, is a STOP too. The intake's `lane_Vendor`
+  is the CATALOG vendor (the manufacturer): when it differs from the record it is an INFO note
+  (`CATALOG_VENDOR`), never a STOP. Then GET by id: every planned field must read back exact.
 
 `close` (after the receipt read-back). Reads the PO and the receipt, then diffs them BY PRODUCTID: quantity and $
 (PO line subtotal vs the sum of the receipt's `totalCost` for that ProductId; a product split over packages sums).
@@ -74,8 +80,9 @@ STATUSES = ("Open", "Submitted")          # what `write` may create; Closed is t
 UNIT_QUANTITY = 1
 GUARD_DAYS = 120
 CENT = 0.005
-# the lines-CSV columns the net ext reads: a hand-typed lines file (the intake's `parse_source`) carries these too
-LINES_NEEDED = ["line_no", "description", "units_total", "ext_cost", "is_order_level", "order_level_kind"]
+# the lines-CSV columns the net ext and the payee read: a hand-typed lines file (the intake's `parse_source`) carries
+# these too
+LINES_NEEDED = ["vendor", "line_no", "description", "units_total", "ext_cost", "is_order_level", "order_level_kind"]
 
 
 # ---------------------------------------------------------------- pure: plan, read-back, diff
@@ -233,6 +240,39 @@ def close_stops(po, receipt, po_id, diffs, accept_diff):
     return stops
 
 
+def payee_names(lines, vendor_record=None):
+    """The PAYEE the PO and the receipt carry: `--vendor-record`, else every `vendor` cell of the parsed lines (the
+    invoice vendor). receive.py sets the receive-form header Vendor from the same two."""
+    if (vendor_record or "").strip():
+        return {vendor_record.strip()}
+    return {(ln.get("vendor") or "").strip() for ln in lines} - {""}
+
+
+def vendor_stops(vendor_id, record_name, payee):
+    """The PO vendor record against the payee (the vendor canon: receipt vendor = accounting vendor = the payee). [] = pass.
+    Names compare as intake_cases does (letters and digits, a trailing company form dropped)."""
+    from intake_cases import vendor_norm
+    keys = {vendor_norm(p) for p in payee} - {""}
+    if not keys:
+        return ["VENDOR: no payee read (the lines carry no `vendor` cell); give --vendor-record <the payee's Dutchie "
+                "record name>"]
+    if len(keys) > 1:
+        return [f"VENDOR: the lines name {len(keys)} payees {sorted(payee)}; give --vendor-record <the payee>"]
+    if vendor_norm(record_name) not in keys:
+        return [f"VENDOR: record {vendor_id} is {record_name!r}; the payee (the receipt vendor) is {sorted(payee)}"]
+    return []
+
+
+def catalog_notes(record_name, lane_vendors):
+    """INFO only: the catalog Vendor (`lane_Vendor`) is the manufacturer and may differ from the payee. Never a STOP."""
+    from intake_cases import vendor_norm
+    other = sorted(v for v in lane_vendors if vendor_norm(v) != vendor_norm(record_name))
+    if record_name is None or not other:
+        return []
+    return [f"CATALOG_VENDOR (INFO): the catalog Vendor (lane_Vendor, the manufacturer) is {other}; the PO and the "
+            f"receipt carry the payee {record_name!r}. No change."]
+
+
 def received_at(receipt):
     return str(receipt.get("deliveredOn") or "")[:19]
 
@@ -374,6 +414,7 @@ def run_write(argv):
         abort(f"{len(probs)} intake row(s) cannot be a PO line; nothing written:\n  - " + "\n  - ".join(probs))
     body = build_body(title, vendor_id, arrival, status, po_number(intake, get_flag(argv, "--number")),
                       ship_info(title, lines, link), lines)
+    payee = payee_names(parsed, get_flag(argv, "--vendor-record"))
     lane_vendors = {(r.get("lane_Vendor") or "").strip() for r in intake} - {""}
     out_dir = get_flag(argv, "--out-dir") or os.path.dirname(os.path.abspath(src))
     api = Api(_load_tenant(tenant), out_dir, re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-"), stamp)
@@ -390,13 +431,13 @@ def run_write(argv):
         stops.append(f"PO_EXISTS: PO(s) {dup} already carry the title {title!r}; one PO per document")
     if len(vend) != 1:
         stops.append(f"VENDOR: no single Dutchie vendor record {vendor_id} ({len(vend)} found)")
-    elif lane_vendors and {(vend[0].get("vendorName") or "").strip()} != lane_vendors:
-        stops.append(f"VENDOR: record {vendor_id} is {vend[0].get('vendorName')!r}; the intake's lane_Vendor is "
-                     f"{sorted(lane_vendors)}")
-    rec.update(guard_same_title=dup, vendor=vend[:1], stops=stops)
+    else:
+        stops += vendor_stops(vendor_id, vend[0].get("vendorName"), payee)
+    notes = catalog_notes(vend[0].get("vendorName") if len(vend) == 1 else None, lane_vendors)
+    rec.update(guard_same_title=dup, vendor=vend[:1], payee=sorted(payee), stops=stops, notes=notes)
     if stops or not live:
         rec["verdict"] = "STOP" if stops else "DRY RUN"
-        print(json.dumps({k: rec[k] for k in ("verdict", "stops", "body")}, indent=1))
+        print(json.dumps({k: rec[k] for k in ("verdict", "stops", "notes", "body")}, indent=1))
         print(f"record {api.save('record', rec)}")
         return EXIT_ABORT if stops else EXIT_OK
     try:
@@ -636,6 +677,66 @@ def selftest():
             same_title(f, "T5", datetime(2026, 1, 2)) == [5] and f.pages == [0, 1], str(f.pages))
     t.check("guard: a title on a later page is found", same_title(Fake(pos), " T200 ", datetime(2026, 1, 2)) == [200])
     t.check("guard: no match is an empty list", same_title(Fake(pos[:3]), "T9", datetime(2026, 1, 2)) == [])
+
+    # the vendor canon: the PO vendor record = the PAYEE (the invoice vendor); the catalog Vendor (lane_Vendor, the
+    # MFG) may differ and is a note only. _row's lane_Vendor is the MFG "Acme Supply"; the payee is another party.
+    payee_ln = [dict(x, vendor="Example Distribution") for x in _lines(intake)]
+    t.check("payee: the lines' vendor cells", payee_names(payee_ln) == {"Example Distribution"})
+    t.check("payee: --vendor-record beats the lines", payee_names(payee_ln, " Other Payee ") == {"Other Payee"})
+    t.check("vendor: a payee that is not the MFG passes",
+            vendor_stops(900, "Example Distribution, LLC", {"Example Distribution"}) == [])
+    cn = catalog_notes("Example Distribution, LLC", {"Acme Supply"})
+    t.check("vendor: the catalog Vendor differing from the payee is ONE INFO note, never a stop",
+            len(cn) == 1 and cn[0].startswith("CATALOG_VENDOR (INFO)"), str(cn))
+    t.check("vendor: a catalog Vendor equal to the payee prints no note",
+            catalog_notes("Acme Supply LLC", {"Acme Supply"}) == [])
+    st = vendor_stops(900, "Acme Supply", {"Example Distribution"})
+    t.check("vendor: a PO vendor that is not the payee STOPs (even when it is the MFG)",
+            len(st) == 1 and "the payee" in st[0], str(st))
+    for label, payee, needle in (("no payee", set(), "no payee read"),
+                                 ("two payees", {"Example Distribution", "Other Payee"}, "2 payees")):
+        st = vendor_stops(900, "Example Distribution", payee)
+        t.check(f"vendor: {label} STOPs", len(st) == 1 and needle in st[0], str(st))
+    t.check("breaker: one letter off in the record name STOPs (the check can fail)",
+            vendor_stops(900, "Example Distributiom", {"Example Distribution"}) != [])
+    t.check("breaker: the old rule (lane_Vendor as the payee) refuses the correct PO",
+            vendor_stops(900, "Example Distribution", {"Acme Supply"}) != [])
+    # wired: `write` dry runs on a fake API. The payee record passes with the MFG catalog Vendor; the MFG record STOPs.
+    with tempfile.TemporaryDirectory() as d:
+        ip, lp = os.path.join(d, "intake.csv"), os.path.join(d, "lines.csv")
+        for path, rows in ((ip, intake), (lp, payee_ln)):
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        g, out = globals(), {}
+        saved = g["_load_tenant"], Api.call
+
+        def wired(record_name):
+            def call(self, method, path, tag, params=None, body=None):
+                if method != "GET":
+                    raise AssertionError("a dry run wrote")
+                return [{"vendorId": 900, "vendorName": record_name}] if path == VENDOR_PATH else []
+            g["_load_tenant"], Api.call = (lambda tenant: "UNUSED_VAR"), call
+            import contextlib
+            import io
+            buf = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(buf):
+                    code = run_write(["--tenant", "x", "--intake", ip, "--lines", lp, "--vendor-id", "900",
+                                      "--title", "INV-0042", "--arrival", "2026-01-02", "--doc-link", "https://x.invalid",
+                                      "--out-dir", os.path.join(d, record_name.replace(" ", "-"))])
+            finally:
+                g["_load_tenant"], Api.call = saved
+            return code, json.loads(buf.getvalue().rsplit("\nrecord ", 1)[0])
+        out["payee"], out["mfg"] = wired("Example Distribution LLC"), wired("Acme Supply")
+    code, res = out["payee"]
+    t.check("write (wired): the payee record with an MFG catalog Vendor is a clean DRY RUN plus the INFO note",
+            code == EXIT_OK and res["verdict"] == "DRY RUN" and res["stops"] == [] and len(res["notes"]) == 1, str(res))
+    code, res = out["mfg"]
+    t.check("write (wired): the MFG record against the payee STOPs (exit 2)",
+            code == EXIT_ABORT and res["verdict"] == "STOP" and len(res["stops"]) == 1
+            and res["stops"][0].startswith("VENDOR:") and res["notes"] == [], str(res))
     return t.done()
 
 

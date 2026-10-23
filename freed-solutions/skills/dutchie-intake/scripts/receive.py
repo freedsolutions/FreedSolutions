@@ -56,7 +56,9 @@ Inputs (columns are checked; a missing one ABORTs, never reads as blank):
 
 Receive form header (printed at the top of the questions file; platform KB "Receive inventory from a pending Metrc
 transfer [PROBE 2026-10-09]" in dutchie-bi-looker/references/dutchie-platform-kb.md):
-  * Vendor and Room (`Intake`, R126) are header values that flow down to every row.
+  * Vendor and Room (`Intake`, R126) are header values that flow down to every row. Vendor = the PAYEE (vendor canon,
+    Operator 2026-10-23): the remit-to on the invoice, never the transporter; the item's catalog Vendor stays the
+    manufacturer, so the two can differ.
   * Transaction ID (Operator ruling 2026-10-09): the vendor's final invoice number when it exists, else the sales-order
     number until one arrives; the mapping that lands in the accounting system is open. The receive form has no
     Transaction ID field (same KB section): a record value on this sheet, never a form field.
@@ -845,7 +847,9 @@ def header_block(h):
     """The receive form header, printed before any question (KB_RECEIVE; Operator rulings 2026-10-09)."""
     return ["## Receive form header", "",
             f"- Vendor: {h.get('vendor') or 'NOT READ - give --vendor-record <the Dutchie vendor record>'}"
-            " (set once in the header; it flows down to every row)",
+            " (the PAYEE, the remit-to on the invoice, never the transporter: add a transporter to the header after"
+            " the save; the item's catalog Vendor stays the manufacturer, so the two can differ; set once in the"
+            " header; it flows down to every row)",
             f"- Room: {h.get('room') or RECEIVE_ROOM} (R126; set once in the header; it flows down to every row)",
             f"- Transaction ID: {h.get('txn') or 'NOT READ - give --txn-id'} - the vendor's final invoice number when it "
             "exists, else the sales-order number until one arrives (the mapping that lands in the accounting system is "

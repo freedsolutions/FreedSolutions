@@ -21,7 +21,7 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 /dutchie-intake create <intake-vN.csv>                freeze -> ONE plan file -> approval -> ONE paced batch (R124)
 /dutchie-intake certify --plan <plan.csv> <pre-active> <pre-retired> <post-active> <post-retired>
 /dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
-/dutchie-intake po write --intake <vN.csv> --lines <lines.csv> --vendor-id <id> --title <doc no> --arrival <date> --doc-link <url>
+/dutchie-intake po write --intake <vN.csv> --lines <lines.csv> --vendor-id <payee id> --title <doc no> --arrival <date> --doc-link <url>
                                                      after certify: ONE Dutchie PO, read back exact
 /dutchie-intake po close --po <id> --receipt <id>     after the receipt: PO vs receipt diff, then Closed + dateReceived
 /dutchie-intake notice <intake-vN.csv>                draft the notice; print the floor-sheet command
@@ -495,12 +495,16 @@ an Open PO. The PO gives the receipt a machine diff and the order a closed recor
      to the intake rows as `intake_exceptions` pairs them. A sample line printed at a price and discounted to $0 on the
      same line writes $0, never its gross; never hand-edit an input copy to get there. Order-level credits and
      shipping stay off the lines. `unitId` 1 on every line. A row with no ProductId ABORTs: a partial PO is never written.
-   - Header: the vendor's Dutchie record (`--vendor-id`, the record the receipt will carry), the title, the expected
+   - Header: the PAYEE's Dutchie record (`--vendor-id`, the record the receipt will carry; receive step 4: the payee,
+     not the item's catalog Vendor, which stays the manufacturer), the title, the expected
      arrival, `status` Open (`--status Submitted` only for the open test in receive step 5), an integer
      `purchaseOrderNumber` (default: the digits of the intake `invoice_no`; `--number` overrides), and
      `shippingInformation` = `<title> (<n> lines, <units> units, $<total>). Document: <link>`.
    - Guards (exit 2, nothing written): a PO with the same title exists (one PO per document); the vendor record is
-     not found, or its name differs from the intake's `lane_Vendor`.
+     not found, or its name differs from the payee (`--vendor-record`, else the lines' `vendor` cells: the same
+     source as the receive-form header Vendor), or no payee or two payees are read. Names compare on letters and
+     digits, a trailing company form dropped. The intake's `lane_Vendor` is the catalog vendor (the manufacturer):
+     when it differs from the record, the run prints a `CATALOG_VENDOR` INFO note and goes on.
    - Every response is saved as a new `po-<title>-<ts>-<call>.json` beside the intake CSV, plus a `-record.json`.
      Name the PO id, number and the read-back verdict in the run record.
 4. **Substitutions and shorts.** The Operator (or the buyer) may edit the PO in Backoffice before the receipt. The
@@ -573,7 +577,8 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
    (paired proof 2026-10-23); the export splits one package in one room into rows by inventory date, and the room
    sum absorbs it. Without a
    manifest the sheet has one row per product line and blank package ids; re-run when the manifest is read.
-   `--vendor-record` and `--txn-id` set the header values (default: the lines' `vendor` and `invoice_no` cells).
+   `--vendor-record` (the payee, step 4) and `--txn-id` set the header values (default: the lines' `vendor` and
+   `invoice_no` cells).
    - Item: `--item` > intake `new_productid` > the EXISTS / RETIRED_MATCH match; none = `ITEM_PENDING` (STOP; its
      detail names the intake row's verdict). Intake rows pair to product lines by description, each row once. The
      intake gives the ITEM ID only: catalog Cost and the item's tags come from `--catalog` by ProductId, never from
@@ -642,7 +647,12 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
 4. Send the `-questions.md` it writes to the Operator BEFORE the delivery is received; every STOP is a question there.
    Its header block carries the receive form's header values (platform KB "Receive inventory from a pending Metrc
    transfer [PROBE 2026-10-09]" in `dutchie-bi-looker/references/dutchie-platform-kb.md`):
-   - **Vendor** and **Room** (`Intake`, R126): set once in the form header; they flow down to every row.
+   - **Vendor** = the PAYEE (vendor canon, Operator ruling 2026-10-23): the accounting system's vendor, the remit-to
+     on the invoice. Never the transporter: when there is one, add the transporter to the receipt header after the
+     save. The item's catalog Vendor stays the manufacturer, so the receipt vendor and the catalog Vendor can differ;
+     that is correct, never a fix. `--vendor-record` names the payee's Dutchie record when the invoice's vendor name
+     is not it.
+   - **Room** (`Intake`, R126): set once in the form header. Vendor and Room flow down to every row.
    - **Transaction ID** (Operator ruling 2026-10-09): the vendor's final invoice number when it exists, else the
      sales-order number until one arrives. The mapping that lands in the accounting system is open. The receive form
      has no Transaction ID field (same KB section): it is a record value on the sheet, never a form field.
@@ -806,8 +816,8 @@ line is sample-only, and a seventh printed by `intake_cases.py stop` on every in
 Re-read the CSV the Operator saved before `create`; a peer relay of the approvals is not the record.
 Under R124 the plan summary (`intake_plan.py`) rides this stop: the Operator's approval of the plan
 file is the go-ahead for every write in the batch, and nothing else is (create mode, step 3).
-The Dutchie PO rides it too (`po write`): name the vendor record, the title, the arrival, the status, and the lines,
-units and total in the same message. The approval covers that ONE PO write after the certify.
+The Dutchie PO rides it too (`po write`): name the vendor record (the payee), the title, the arrival, the status,
+and the lines, units and total in the same message. The approval covers that ONE PO write after the certify.
 
 ## Login stop
 
