@@ -505,6 +505,13 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
    `MANIFEST_ITEM_SIZE_MISMATCH` (STOP): a wrong-item ship, not a short count. Ask the vendor before the receipt.
    Dutchie converts the grams by the picked item's grams, so receiving into the wrong-size item halves or doubles the
    count (platform KB "Metrc package quantity is in the item's unit of measure").
+   **Read each package's lab testing expiration (LTE) in the same pass (Operator ruling 2026-10-23).** A received
+   package's Expiration date is its Metrc LTE. The transfer package's own `ExpirationDate`, `SellByDate` and
+   `UseByDate` are blank. The LTE is on the package's lab test results: expand the package row, open the `Lab Results`
+   tab (read-only) and read `ExpirationDateTime`. Metrc prints it as UTC midnight: take the DATE part, never a
+   local-time conversion (it shifts the date one day back). Type it in the manifest CSV's `expiry` cell as
+   `YYYY-MM-DD`. This read is the lane's check on the date Dutchie prefills (step 4). All the results of one package
+   carry one date; two dates on one package, or no lab date, is a STOP question for the receipt.
 2. **Map every package to its invoice line** from the documents, not from a name: the PO (an Apex document can be
    the PO), the SO or invoice the vendor bills, and the manifest. Evidence, strongest first: ship $ and qty tie to
    the line; the same unit price; the item words. A line that ships as several packages types the product `line_no`
@@ -603,10 +610,17 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      transfer lands as pending in Dutchie. The sheet sets `physical_count` = the package count (the manifest qty; a
      `g` package counts grams / its unit size) and `qty_match` = Y on every mapped package. The lane asks no count
      question.
-   - **Expiry** (Operator ruling 2026-10-09): vendors vary on package-level expiry and every label shows it. The lane
-     leaves expiry blank on entry; staff add each package's expiration date as a confirmation step after the pending
-     receipt is saved (why the save allows it: the KB section above). The sheet's `expiry` column is reference only.
-     Later idea, NOT built: pull the expiration date from Metrc's lab-testing record automatically.
+   - **Expiry** (Operator ruling 2026-10-23, replaces 2026-10-09): every package's Expiration date is its Metrc LTE
+     (step 1). Dutchie prefills it on each pending-transfer row once the transfer syncs from Metrc (the sync can lag
+     about an hour). Only a date chosen in the field's CALENDAR persists at the page Save. A prefilled (shown) date or
+     a typed date is dropped. So on every row: compare the shown date with the sheet's `expiry` cell, then choose that
+     date in the calendar. A label date that differs from the LTE is a note for the receipt record, not a change.
+   - **Read back every row after the page Save, before `Receive`.** Read the saved order's detail (each row's
+     ProductId and Expiration date) against the sheet. Two form defects reach the save only (platform KB, same
+     section): an expiry that did not persist, and a row re-bound to another row's catalog product (the product picked
+     last). Fix a miss in its row form, Save again and read again. `Receive` only when every row's product and expiry
+     are exact. Use ONE page Save as the checkpoint, not a save per row. After the receipt, the POS API
+     `/reporting/inventory` `expirationDate` reads back the package expiry as saved; it is never an LTE source.
    After the receipt, a new line's
    items flip from the new-line tag to the active tag in one bulk update (the `item_tag_flip` column; R126) - but
    only an item with at least one SELLABLE package on this receipt. A sample or display package (the sample /

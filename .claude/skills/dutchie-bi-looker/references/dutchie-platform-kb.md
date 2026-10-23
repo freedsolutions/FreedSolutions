@@ -1562,8 +1562,24 @@ descriptions carry contract facts that the schemas do not.
 - **Path:** Products › Inventory › `Receive inventory` › Source `Pending transfer`, then pick the transfer
   (`<date> - <shipper> - <manifest no>`). A received or saved order is not in `Receive history` until it is received.
   The transfer loads one row per Metrc package with the Metrc item name, qty and package id; no catalog item, cost or brand.
+  [PROBE 2026-10-23] The transfer lists only after Dutchie syncs it from Metrc, which can lag about an hour behind
+  Metrc (the page's `get-pending-transfers-v2` returns `Data: []` until then).
 - **Header:** Vendor and Room must be set. Both flow down to every row. Vendor license, order title and Delivered on come
-  from the transfer. The header has no Transaction ID field.
+  from the transfer. The header has no Transaction ID field. [READ 2026-10-23] It also carries `Purchase order` (a
+  picker), `Total credits`, `Shipping charges`, `Apply cost options` and Documents.
+- **Expiration date = the Metrc lab testing expiration (LTE), prefilled.** [PROBE 2026-10-23, 9 of 9 rows] Once the
+  transfer syncs, every pending-transfer row carries `ExpirationDate` = the Metrc lab result's `ExpirationDateTime`
+  (tenant Metrc setting `ExpirationDateFieldId` 2), and the row form shows it. The Metrc transfer package itself has no
+  expiry (`ExpirationDate`, `SellByDate`, `UseByDate` blank); the LTE is on its `Lab Results` tab, as UTC midnight
+  (take the date part).
+- **Only a CALENDAR pick of the Expiration date persists.** [PROBE 2026-10-23] The page Save kept the prefilled (shown)
+  date on 2 of 9 rows; a date typed as `MM/DD/YYYY` showed in the field and was also dropped. Choosing the date in the
+  field's calendar (month arrow, then the day) persisted on 9 of 9 (saved order, receipt and `/reporting/inventory`
+  exact). Pick the date in the calendar on every row, then read the saved order back (`get-saved-order-detail`).
+- **The POS API `/reporting/inventory` carries the package expiry, not the LTE.** [READ 2026-10-23] Its
+  `expirationDate` is the package's saved Expiration date (it equals the Inventory export's `Expiration date`; local
+  midnight prints as `T04:00:00`, so compare the date part). `testedDate` and `labResults` read null. A read-back, not
+  an LTE source.
 - **Row form (`Receive package`):** opens on the row's product cell. Picking the Catalog product fills Cost and Price per
   unit, grams, flower equiv and Strain from the item, and ticks the ITEM's tags on the package (an `ITM - ` tag carries
   through). Untick them in the row form to strip at package grain before the receipt. Expiration date turns required
@@ -1582,8 +1598,11 @@ descriptions carry contract facts that the schemas do not.
   Save: reload, open each row form, and read `Catalog product` against the plan before hand-off.
   **Reproduced 2026-10-13 on a second order (9 rows):** after the page Save, one gummy row came back bound to the product
   picked LAST in that session (a re-pick on another row), again keeping its own cost and expiry. Same fix held.
-  Both orders were entered by browser automation; NOT yet reproduced by hand, so a Dutchie defect is unproven (draft
-  ticket held until a manual repro).
+  **Reproduced 2026-10-23, 3rd order (9 rows):** the saved order detail (`get-saved-order-detail`) showed one row bound
+  to the product picked LAST, its own cost kept; the grid looked right. A re-pick and Save fixed it. Separately, one
+  row's form opened with a stale product (another row's, cost 0) BEFORE any pick: re-pick it.
+  All three orders were entered by browser automation; NOT yet reproduced by hand, so a Dutchie defect is unproven
+  (draft ticket held until a manual repro). After every page Save, read EVERY row's product back from the saved order.
 - **[PROBE 2026-10-13] Editing a row of a staff-started saved order without re-picking the product.** In the row form,
   set Room (type the room name, take the option), Cost per unit (real keystrokes; Total package cost follows), untick
   each `ITM - ` tag, then `Save package`. Expiry and Package ID the staff entered survive; the page Save persists it.

@@ -63,9 +63,10 @@ transfer [PROBE 2026-10-09]" in dutchie-bi-looker/references/dutchie-platform-kb
   * Count (Operator ruling 2026-10-09): staff verify the drop against Metrc and fix any count issue BEFORE the transfer
     lands as pending in Dutchie. The sheet defaults `physical_count` = the package count (the manifest qty; a `g`
     package counts grams / its unit size) and `qty_match` = Y on every mapped package; no count question is asked.
-  * Expiry (Operator ruling 2026-10-09): blank on entry. Staff add each package's expiration date as a confirmation
-    step after the pending receipt is saved (why the save allows it: the same KB section). The `expiry` column is what
-    the manifest read or the lines carried, for reference only.
+  * Expiry (Operator ruling 2026-10-23, replaces 2026-10-09): the Metrc lab testing expiration (LTE) from the
+    manifest read's `expiry` cell. Dutchie prefills it on the pending-transfer row, but only a CALENDAR pick persists
+    at the page Save (same KB section): pick it on every row, then read every row's product and expiry back from the
+    saved order before Receive.
 
 Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
   * room: `Intake` on every package (R126). On-hand by room from the snapshot is FIFO guidance, never a room write.
@@ -852,8 +853,10 @@ def header_block(h):
             "- Count: staff verify the drop against Metrc and fix any count issue BEFORE the transfer lands as pending; "
             "the sheet sets physical_count = the package count (the manifest qty; a gram package counts grams / its unit "
             "size) and qty_match = Y on every mapped package. No count question.",
-            "- Expiry: blank on entry. Staff add each package's expiration date as a confirmation step after the pending "
-            "receipt is saved. The `expiry` column is reference only.",
+            "- Expiry: the Metrc lab testing expiration (LTE), the `expiry` column. Dutchie prefills it on each row, but "
+            "only a date chosen in the field's calendar persists at Save: pick it on every row.",
+            "- After the page Save, before Receive: read every row's product and expiry back from the saved order (a row "
+            "can come back re-bound to another row's product, or with its expiry dropped).",
             f"- Source: {KB_RECEIVE}.", ""]
 
 
@@ -1453,7 +1456,8 @@ def selftest():
     hq = questions(base[1], base[2], "x", header_values([dict(lines[0], vendor="Acme Supply", invoice_no="SO-1001")]))
     t.check("the questions header prints Vendor, Room and the Transaction ID (receive form header values)",
             "- Vendor: Acme Supply" in hq and "- Room: Intake" in hq and "- Transaction ID: SO-1001" in hq
-            and "physical_count = the package count" in hq and "Expiry: blank on entry" in hq)
+            and "physical_count = the package count" in hq and "Expiry: the Metrc lab testing expiration" in hq
+            and "read every row's product and expiry back" in hq and "blank on entry" not in hq)
     t.check("FIRES: an unread vendor / transaction id is named, never blank",
             "Vendor: NOT READ" in questions(base[1], base[2], "x", header_values(lines))
             and "- Transaction ID: INV-9" in questions(base[1], base[2], "x", header_values(lines, txn="INV-9")))
