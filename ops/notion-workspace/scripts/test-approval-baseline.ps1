@@ -134,7 +134,6 @@ $requiredClaudeAllowEntries = @(
     'WebFetch(domain:localhost)',
     'mcp__notion',
     'mcp__google-workspace',
-    'mcp__playwright',
     'mcp__claude_ai_Notion__notion-fetch',
     'mcp__claude_ai_Notion__notion-search',
     'mcp__claude_ai_Notion__notion-update-page',
@@ -177,14 +176,6 @@ foreach ($settingsPath in $settingsPaths) {
     $allowList = @($settings.permissions.allow)
 
     Assert-AllowListContains -AllowList $allowList -RequiredEntries $requiredClaudeAllowEntries -Label $settingsPath
-
-    if (-not $settings.enableAllProjectMcpServers) {
-        throw "$settingsPath must keep enableAllProjectMcpServers set to true."
-    }
-
-    if ('playwright' -notin @($settings.enabledMcpjsonServers)) {
-        throw "$settingsPath must include 'playwright' in enabledMcpjsonServers."
-    }
 }
 
 $repoClaudeSettings = Get-JsonFile -Path $repoSettingsPath
@@ -196,11 +187,18 @@ if ($repoAdditionalDirectories.Count -gt 0) {
     throw '.claude/settings.json must not declare additionalDirectories; keep workstation-only paths in .claude/settings.local.json.'
 }
 
+# The repo declares no project MCP servers (the Playwright server was removed 2026-10-23).
+# A missing .mcp.json counts as zero servers.
 $projectMcpPath = Join-Path $repoRoot '.mcp.json'
-$projectMcp = Get-JsonFile -Path $projectMcpPath
-$projectMcpServerNames = @($projectMcp.mcpServers.PSObject.Properties.Name)
-if ($projectMcpServerNames.Count -ne 1 -or $projectMcpServerNames[0] -ne 'playwright') {
-    throw '.mcp.json must keep only the project-managed playwright server.'
+$projectMcpServerNames = @()
+if (Test-Path $projectMcpPath -PathType Leaf) {
+    $projectMcp = Get-JsonFile -Path $projectMcpPath
+    if ($null -ne $projectMcp -and $projectMcp.PSObject.Properties['mcpServers'] -and $null -ne $projectMcp.mcpServers) {
+        $projectMcpServerNames = @($projectMcp.mcpServers.PSObject.Properties | ForEach-Object { $_.Name })
+    }
+}
+if ($projectMcpServerNames.Count -gt 0) {
+    throw ".mcp.json must declare no project MCP servers; found: $($projectMcpServerNames -join ', ')"
 }
 
 Write-Output 'Approval baseline OK: Claude settings and project MCP surface match the documented baseline.'
