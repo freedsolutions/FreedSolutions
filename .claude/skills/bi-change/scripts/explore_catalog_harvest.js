@@ -1,7 +1,7 @@
 // explore_catalog_harvest.js — the COMPLETE explore / view / field catalog of the Looker model, read from
 // the embed session's internal API. Runs INSIDE the page (leaflogix.looker.com/embed/preload) through
-// Playwright `browser_evaluate` with `filename` (the saved file is double-encoded: JSON.parse twice), or
-// through the Browser pane's javascript_tool (a large result spills to a tool-results file on disk).
+// BrowserOS neo `evaluate` / `run` (a large result is saved to a file and the path returned), or through
+// the Browser pane's javascript_tool (a large result spills to a tool-results file on disk).
 // Read-only. Output shape:
 //   { harvested_at, model, explore_count, explores: [ { name, label, views: [..],
 //       dimensions: [{name,label,type,view,hidden,description}], measures: [..], filters: [..] } ] }

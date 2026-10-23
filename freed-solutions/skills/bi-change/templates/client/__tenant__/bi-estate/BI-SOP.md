@@ -44,8 +44,8 @@ process drift apart in exactly the clauses nobody re-reads.
 untouched (scope diff against the pre-build snapshot, rule text unchanged since seal, impl cells no
 longer NOT BUILT, `--stale` and `--verify`, Status + done block). Paths: `rule` · `tile` · `new-tile`
 · `dashboard` · `retire` · `config` · `sync`. The steps below stay the canon; the skill sequences and
-gates them, it does not restate them. Write channel: Playwright under HOLDER.json; the login is
-Adam's and the build lane stops and notifies for it.
+gates them, it does not restate them. Write channel: BrowserOS neo, one tab per lane; the login
+is Adam's and the build lane stops and notifies for it.
 
 A master-data business rule change is not done until it has rippled through four
 surfaces. **The order matters** — the dictionary leads, BI follows, documents trail,
@@ -89,7 +89,7 @@ assert a custom dim's slug is in `fields` before editing its expression (a missi
 and silently keeps the old expression) and never put a table-calc slug in `fields`; verify
 `run/json` 200 **before** repointing any tile, even for a sort-only change; content-verify
 after every bind (a 200 is not proof); mirror any change on shared/twin queries to all
-sharers; Playwright channel only, under the HOLDER protocol.
+sharers; the tenant pointer's write channel only (neo, in the lane's own tab).
 
 **Step 4 — Re-harvest, diff, and verify the residual.**
 Re-harvest the touched boards; the estate diff is the verification that the change (and only

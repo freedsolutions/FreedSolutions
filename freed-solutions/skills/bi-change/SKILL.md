@@ -126,7 +126,7 @@ worktrees do not contain `clients/`):
 #                                    ship in this skill under scripts/ and take --estate <dir>
 - Render: <command>                 # DOCX + PDF beside a source .md
 - Backoffice login: <url>           # where the login stop opens
-- Write channel: playwright | pane  # see below; reads may use any channel
+- Write channel: neo | pane         # see below; reads may use any channel
 - Export refresh: <command>         # after every export pull: freeze + place + retire (see Scripts)
 - Canon: Dictionary > rule patterns reference > skill > memory; runbook = BI-SOP.md §2
 #   optional clause on the Canon line, only for a tenant whose canon has a warehouse mirror:
@@ -161,10 +161,11 @@ an estate has not migrated.
 
 Set in the pointer block, not here. Reads and verification may use any channel.
 
-- **`playwright`** — persistent profile; the login survives across sessions until the tenant
-  expires it; a separate browser window; shared across sessions under the HOLDER.json protocol
-  (skill `dutchie-bi-looker`, "Playwright browser coordination"); harvest to disk via
-  `browser_evaluate` + `filename` (double-encoded: two `JSON.parse` passes).
+- **`neo`** — BrowserOS neo (`mcp__browseros-neo__*`, skill `browseros-neo`): the agent browser,
+  a persistent profile whose login survives across sessions until the tenant expires it. Each lane
+  opens its own tab and leaves other lanes' tabs alone; two sessions may drive neo at once, so
+  there is no lock protocol. Large `run` / `evaluate` results are saved to a file and the path
+  returned: write that file's JSON as `estate-<id>.json`.
 - **`pane`** — the Claude Code Browser pane (`mcp__Claude_Browser__*`): one pane per session, so
   no lock protocol and no orphaned browser trees; Adam types the login in-app; opens at the login
   wall in a fresh session (profile persistence across sessions unverified). Large
@@ -231,8 +232,8 @@ run history. Re-seal is not needed — a cadence run rules nothing new.
    record; the log is an index. Use `scripts/close.js` for this step (see Scripts). Do not write a
    one-off script. One call replaces the Current-state bullets, adds the line, folds at the cap,
    appends the DECISIONS rows and runs `--pointer`.
-5. Browser phase ends: close the browser, then release HOLDER (playwright) — in that order.
-   Delete `.playwright-mcp/` files.
+5. Browser phase ends: make no further writes in the lane's tab. Leave other lanes' neo tabs as
+   you found them.
 6. Commit skill-side changes only; `clients/` is never committed and never named in a tracked file.
 7. **Canon mirror sync (shadow period only).** Do this step when the tenant pointer's `Canon:` line
    says `Mirror: SHADOW` AND this close changed `DATA-DICTIONARY.md` or `DECISIONS.md`. Otherwise

@@ -35,7 +35,7 @@ This file is the brief; it does not restate either.
 
 1. No-login work first: measure, simulate on the freshest export, draft doc deltas.
 2. Put §5 to Adam in ONE message; set `ratified: true` in the header when every row has a ruling.
-3. Login stop → HOLDER acquire → build (run before bind, verify after bind, count invariance).
+3. Login stop → own neo tab → build (run before bind, verify after bind, count invariance).
 4. Re-harvest to `estate-<id>.json`; `--verify` each retire needle; docs + renders; Dictionary impl cells.
 5. `node .claude/skills/bi-change/scripts/kickoff_check.js <this file>` green; Status + done block; close-out.
 

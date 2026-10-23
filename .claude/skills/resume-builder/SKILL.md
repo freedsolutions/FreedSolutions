@@ -126,7 +126,7 @@ Do not commit the rendered DOCX files. Source MD goes in the repo.
 ### 7. Online submission (optional)
 
 If Adam wants the application submitted through Indeed / LinkedIn / company ATS:
-- Use Playwright MCP. Sign-in is Adam's step (his credentials).
+- Use BrowserOS neo (skill `browseros-neo`), in your own tab. Sign-in is Adam's step (his credentials).
 - Upload resume DOCX from the OneDrive path. Indeed converts to PDF automatically.
 - Fill contact info from Canonical Facts.
 - Fill screener questions. Adam reviews before the final submit click.
@@ -151,7 +151,7 @@ If Adam wants the application submitted through Indeed / LinkedIn / company ATS:
 | Operation | Gate | Notes |
 |---|---|---|
 | Draft / tailor resume + cover letter + answers, render DOCX via pandoc, save to OneDrive, place source MD in repo | `UNGATED` | Standard recipe; no external state mutation. |
-| Submit application online via Playwright; commit source MD to repo | `UNGATED` after explicit execution request | Still pause for Adam's final "submit" confirmation before the last click. |
+| Submit application online via BrowserOS neo; commit source MD to repo | `UNGATED` after explicit execution request | Still pause for Adam's final "submit" confirmation before the last click. |
 | Notion AI page `Status` updates after application completion | `UNGATED` bounded target update | Follow-through after explicit execution request. |
 | Modify Adam's canonical base resumes, push to a public profile (LinkedIn, Indeed profile update), or submit without final confirmation | `HARDENED_GATE` | Ask before executing. |
 | Schema changes, bulk edits, destructive git operations | `GOVERNANCE_GATE` | Out of scope for this skill. |

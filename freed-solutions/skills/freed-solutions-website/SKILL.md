@@ -73,32 +73,33 @@ Edit in place using the existing markup pattern. Common recipes:
 
 ### 3. Visually QA
 
-Serve locally and verify with Playwright MCP at desktop + mobile widths. Run `npx serve` in the background and poll for "Accepting connections" before navigating — don't `sleep`.
+Serve locally and verify in the Claude Browser pane (`mcp__Claude_Browser__*`) at desktop + mobile widths. Start the server with `preview_start` by name, never with Bash. If `.claude/launch.json` (local-only, gitignored) has no entry for the site, add one first:
 
-```bash
-npx --yes serve C:/Users/adamj/Code/FreedSolutions --listen 5173
+```json
+{ "name": "freed-solutions-site", "runtimeExecutable": "npx",
+  "runtimeArgs": ["--yes", "serve", "C:/Users/adamj/Code/FreedSolutions", "--listen", "5173"], "port": 5173 }
 ```
 
-Via Playwright:
-- Navigate to `http://localhost:5173/`
-- `browser_resize` to 1280×800 (desktop) and 390×844 (mobile); snapshot each
-- **If the change touches `.nav-links`** (LinkedIn, new nav anchor, etc.): at mobile width also `browser_click` the `button.hamburger` and snapshot the open menu. Anything in `.nav-links` is `display:none` at mobile until the hamburger expands it — a desktop-only pass will miss broken layout in the open menu.
-- Use `browser_evaluate` to scroll long pages (`window.scrollTo(0, document.body.scrollHeight)`) so footer-area changes land in the viewport snapshot.
+In the pane:
+- `preview_start` with `{name: "freed-solutions-site"}`; it opens `http://localhost:5173/`
+- `resize_window` to 1280×800 (desktop) and 390×844 (mobile); `read_page` and `screenshot` each. Reset with preset `desktop` when done.
+- **If the change touches `.nav-links`** (LinkedIn, new nav anchor, etc.): at mobile width also click the `button.hamburger` and read the open menu. Anything in `.nav-links` is `display:none` at mobile until the hamburger expands it — a desktop-only pass will miss broken layout in the open menu.
+- Use `javascript_tool` to scroll long pages (`window.scrollTo(0, document.body.scrollHeight)`) so footer-area changes land in the viewport screenshot.
 - Confirm: edited block renders, no broken images, nav not overlapping, CTAs still clickable.
 
 For new external links, prefer attribute extraction over a click — many destinations (LinkedIn, auth-walled apps) bot-block and a click-and-wait probe will look like a failure:
 
 ```js
-// browser_evaluate
-() => {
+// javascript_tool
+(() => {
   const a = document.querySelector('.nav-social');
   return { href: a?.href, target: a?.target, rel: a?.rel, label: a?.getAttribute('aria-label') };
-}
+})()
 ```
 
 Then `curl -sIL -o /dev/null -w "%{http_code} %{url_effective}\n" "<href>"` to confirm the URL is well-formed and reaches the host. A `999` from LinkedIn (or similar bot-blocking response) is fine — it confirms the request reached the destination's edge; real-browser visits work normally.
 
-Fix any regressions in the same edit pass before committing. Delete files in `.playwright-mcp/` and any `qa-*.png` screenshots at session end (closeout sanity gate enforces `.playwright-mcp/`; QA screenshots at repo root are your own to scrub).
+Fix any regressions in the same edit pass before committing. Delete any `qa-*.png` screenshots you saved at the repo root at session end; no gate checks for them. Stop the preview server with `preview_stop`.
 
 ### 4. Commit + push
 
@@ -110,7 +111,7 @@ git commit -m "<short imperative summary>"
 git push
 ```
 
-Do not stage `.playwright-mcp/`, `clients/`, or `brand/` — all gitignored.
+Do not stage `clients/` or `brand/` — both gitignored.
 
 ### 5. Verify deploy
 
@@ -142,7 +143,7 @@ Pick a marker that uniquely identifies the change (a new class name like `footer
 ## Known Limitations
 
 - Single ~890-line file with no component framework. Treat as a feature: edits are local and reviewable in one diff.
-- Playwright QA needs Node + `npx serve`. If unavailable, fall back to a `file://` open in a browser; some font/CDN behavior will differ from live.
+- Pane QA needs Node + `npx serve`. If unavailable, open the file with `preview_start` `{url: "file:///C:/Users/adamj/Code/FreedSolutions/index.html"}`; some font/CDN behavior will differ from live.
 - GitHub Pages cache can lag a few minutes after push. If a change isn't live, wait before re-pushing.
 
 ## References

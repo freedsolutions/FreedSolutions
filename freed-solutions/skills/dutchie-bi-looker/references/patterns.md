@@ -539,7 +539,7 @@ Keep the unit measures visible too (Total Quantity, Inventory Total Quantity) as
 
 **When NOT to use gram-weighted**: any tile where Product Grams is already a dim (Buyers_2 Cat+Grams, Buyers_3 Brand+Cat+Grams+Size, Buyers_4 SKU). Each row already has consistent per-unit grams, so unit-based math is meaningful.
 
-### Adding a Custom Measure / dim selection via Playwright (cross-origin React)
+### Adding a Custom Measure / dim selection (cross-origin React)
 
 The field-picker treeitems in the source-query inner editor (loaded as same-origin iframe `editQueryDialogId1`) **do NOT respond to `.click()` or synthetic mouse events** — Looker uses React `onKeyDown` for selection toggle.
 
@@ -587,7 +587,7 @@ Use this to verify before adding — `sum_distinct` ≠ `sum`, and the same-labe
 // 1. Focus the existing title input (.value contains old title)
 const i = Array.from(document.querySelectorAll('input[type="text"]')).find(x => x.value.includes('(Copy)'));
 i.focus(); i.select();
-// 2. Press Ctrl+A then Delete via Playwright keyboard (NOT synthetic events)
+// 2. Press Ctrl+A then Delete as real keystrokes (neo `act` press; NOT synthetic events)
 // 3. Then in evaluate:
 document.execCommand('insertText', false, 'New Title');
 // 4. Tab/Enter to commit; click dashboard Save
@@ -683,7 +683,7 @@ When merge Save commits but the dashboard tile is still in edit mode, navigating
 
 ### Cross-origin iframe blocks direct JS access
 
-`iframe.contentDocument` access from the parent throws SecurityError. Use Playwright's `contentFrame()` API for all iframe-internal operations. Direct JS only works for setting `iframe.src` (the property setter is allowed cross-origin).
+`iframe.contentDocument` access from the parent throws SecurityError. Escape the iframe instead: open the Looker URL as a top-level tab on `leaflogix.looker.com` (`explore-field-catalog.md`, "Escape the iframe entirely"), where `evaluate` / `javascript_tool` work directly. Direct JS from the parent only works for setting `iframe.src` (the property setter is allowed cross-origin).
 
 ## Workflow: Common Tasks
 
@@ -699,8 +699,8 @@ When merge Save commits but the dashboard tile is still in edit mode, navigating
 
 1. Open tile-bound merge editor.
 2. Column dropdown on the target calc → "Edit calculation".
-3. Focus the expression textarea (cross-origin requires Playwright `evaluate` with `el.focus()`).
-4. `Ctrl+A`, `Delete`, type new formula (`pressSequentially` for short, `fill` for long).
+3. Focus the expression textarea (`evaluate` with `el.focus()`, top-level on the Looker origin).
+4. `Ctrl+A`, `Delete`, type new formula (keystroke `type` for short, `fill` for long).
 5. Verify expression in snapshot before saving — Looker says "Expression incomplete" if syntax is malformed. Add missing parens at end if needed.
 6. Save calc dialog. Run. Save outer.
 
@@ -797,8 +797,8 @@ Full field diff + first QC run: the client's dutchie-internal-api-catalog note (
   global-link QC): parsed correctly, **0 of 330 names carried a mojibake marker, and all 328 that
   the CSV export also carries matched EXACTLY** after normalization. The practical advice survives
   — normalize before comparing names across sources — but do not "fix" accents you believe the API
-  mangled; check your parse depth first. (Same double-encode shape as `browser_evaluate`'s
-  `filename` save, below — when a payload looks like garbage, count the parses.)
+  mangled; check your parse depth first. (Same double-encode shape as the file save
+  below — when a payload looks like garbage, count the parses.)
 
 ### 2026-09-03 session — R62/R63 build: inventory-cost semantics + channel corrections
 
@@ -841,11 +841,12 @@ tile — not three problems. Count owning tiles before concluding a ripple faile
   across the whole document, then chunking) is **refused by the auto-mode classifier as a redaction
   workaround, and that refusal is correct — do not push on it.** Splitting ONE id for a specific
   legitimate use is fine; transforming a document to defeat the redactor is not.
-  **When a snapshot must reach disk, the answer is `mcp__playwright__browser_evaluate` with a
-  `filename`** (writes straight to disk, no tool-output round-trip, no redaction question) — get
-  the Playwright profile logged in rather than reaching for a cleverer encoding. ⚠ That save is
-  **double-encoded**: the file's first character is a quote and it needs **two** `JSON.parse`
-  passes before it is the document.
+  **When a snapshot must reach disk, use the write channel, not a cleverer encoding:** neo
+  `run` / `evaluate` saves a large result to a file and returns the path, and the pane's
+  `javascript_tool` spills a large result to a `tool-results/*.txt` file intact. Get neo logged
+  in rather than fighting the redactor. (The 2026-09-03 save went through the since-retired
+  Playwright channel and was **double-encoded** — whatever channel writes the file, count the
+  `JSON.parse` passes before treating it as the document.)
 - **Reported by a parallel session (2026-09-03), not verified here:** rendering results into a
   `<pre>` in the page and reading it with `get_page_text` returned **37 KB in one shot**, bypassing
   the `javascript_tool` return cap, and **24-char hex ObjectIds survived unredacted**. That is a

@@ -195,12 +195,12 @@ the CDP budget and the evaluate times out before you can call anything.
 ### Embed session expiry reads as profile loss
 The browser profile's cookie jar survives process kills and relaunches. When it shows the login
 page, that is **server-side session expiry**, not profile loss — the fix is one human login, not
-a profile rebuild. If every browser call errors *"Browser is already in use"*, pre-reconnect
-processes hold the lock: kill scoped by the profile path in the command line; cookies survive.
+a profile rebuild.
 
-### `browser_evaluate` `filename` saves are double-encoded
-The result is wrapped as a JSON string literal. Unwrap with one parse pass before treating the
-file as the document — an object-walk on a wrapped file parses to a bare string and silently
+### A result saved to disk may be double-encoded
+A channel that saves a large result to a file can wrap it as a JSON string literal (the retired
+Playwright `filename` save did). When the file's first character is a quote, unwrap with one
+parse pass before treating the file as the document — an object-walk on a wrapped file parses to a bare string and silently
 "finds nothing", which is vacuous verification.
 
 ### Chrome-channel JS output is capped and redacted
@@ -229,8 +229,8 @@ old query body. Estate snapshots date fast on active days; the API is the only c
 ## 5. UI automation, when the API cannot do it
 
 - **Ace editor**: direct clicks are blocked by the `.ace_content` overlay. Focus the textarea ref
-  directly, `Ctrl+A` + `Delete`, then type. Short formulas: `pressSequentially`. Long ones
-  (>~1000 chars): `pressSequentially` times out — use `fill()`, then one trailing keystroke to
+  directly, `Ctrl+A` + `Delete`, then type. Short formulas: keystroke `type`. Long ones
+  (>~1000 chars): keystroke typing times out — use `fill`, then one trailing keystroke to
   force a reparse, then **read back the expression before saving** (fill + Ace can leave a
   missing or extra paren).
 - **Chip inputs** commit headless via React fiber: native value setter + `input` event, then

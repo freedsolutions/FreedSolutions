@@ -8,7 +8,7 @@ Not a real tenant. Relative paths resolve against this file's folder.
 
 - **Estate dir:** `./` - fixture only
 - **Backoffice login:** `https://<server>.backoffice.dutchie.com/` - the login stop opens this
-- **Write channel:** `neo` (agent browser, one tab) -> fallback `playwright` -> `pane`. Reads: any channel.
+- **Write channel:** `neo` (agent browser, one tab) -> fallback `pane`. Reads: any channel.
 
 ## Intake Pointers
 - Operator: Pat Example                  # the human at the pre-create STOP

@@ -1,6 +1,6 @@
 ---
 name: dutchie-bi-looker
-description: Edit Looker tiles and merge queries embedded in Dutchie Backoffice (leaflogix.looker.com) — table calc syntax, Ace editor automation via Playwright, signed embed token navigation, dashboard column/sort cleanup, save flow. Use when Adam needs to add or modify a metric, calc, or column on any dashboard tile in Dutchie Backoffice → BI tools.
+description: Edit Looker tiles and merge queries embedded in Dutchie Backoffice (leaflogix.looker.com) — table calc syntax, Ace editor automation via BrowserOS neo, signed embed token navigation, dashboard column/sort cleanup, save flow. Use when Adam needs to add or modify a metric, calc, or column on any dashboard tile in Dutchie Backoffice → BI tools.
 ---
 
 <!-- Generated from "freed-solutions/skills/dutchie-bi-looker/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
@@ -231,25 +231,16 @@ Save flow: calc-dialog Save updates the in-memory draft → outer **Run** re-exe
 
 ## Browser coordination (multi-session)
 
-One shared persistent Playwright profile carries the logins, and concurrent sessions contend for
-its lock. The holder file is `%LOCALAPPDATA%\ms-playwright-mcp\HOLDER.json` (machine-scoped):
+The write channel is the client's call; the client pointer block names it (`neo`, then `pane`).
+BrowserOS neo (skill `browseros-neo`) carries the logins in one persistent profile that several
+sessions may drive at once, so there is no lock file:
 
-```json
-{"profile": "mcp-chrome-<hash>", "session": "<your name from ListAgents>",
- "claude_pid": 12345, "purpose": "<board> writes", "acquired_at": "<ISO>"}
-```
-
-1. **Acquire** before the first browser call of a *phase*: read the file. Absent or its
-   `claude_pid` dead → take it. Held by a live session → `SendMessage` that **named** session and
-   wait for confirmation. **Never broadcast release requests** — a stale broadcast once nearly
-   closed a live browser mid-write. Countermand explicitly if your plans change.
-2. **Release** when the browser phase ends, not at session end: `browser_close`, verify no
-   `mcp-chrome` processes remain, *then* clear the file. Declare the handoff only after the close.
-3. **Staleness**: `Get-CimInstance Win32_Process -Filter "ProcessId=<claude_pid>"` returns nothing
-   ⇒ the entry is stale. Find your own pid by walking parents from `$PID` to `claude.exe`.
-4. **Seed the file from OBSERVED ownership** (chrome tree → owning `claude.exe`), never intent.
-5. Most reads need no profile at all — a separate browser channel or plain internal-API fetches
-   are contention-free. The write channel is the client's call; the client pointer block names it.
+1. **Own tab.** Open your own tab and do every write there. Leave other lanes' tabs as you found
+   them.
+2. **One writer per board.** Two lanes never write the same dashboard at the same time. When
+   another lane holds a board, `SendMessage` that **named** session; never broadcast.
+3. Most reads need no write channel at all — the pane or plain internal-API fetches are
+   contention-free.
 
 ## References
 

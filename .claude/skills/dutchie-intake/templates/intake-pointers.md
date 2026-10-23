@@ -62,4 +62,4 @@ The MSRP keys are read only by `intake_msrp.py`; the other runners ignore them. 
 `MSRP floor x cost` are the business's pricing ruling: write the ruled values and name the record.
 
 The `Write channel` line in `## BI Change Pointers` is read as an ORDERED LADDER: the first channel
-named is tried first, the next is the fallback. Example: `neo` -> `playwright` -> `pane`.
+named is tried first, the next is the fallback. Example: `neo` -> `pane`.

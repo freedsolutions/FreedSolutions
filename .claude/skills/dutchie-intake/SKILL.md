@@ -731,7 +731,7 @@ the Operator's reply. Keep the stop cheap: every login-free step runs before it.
 
 ## Write channel
 
-The `Write channel` pointer is an ordered ladder (for example `neo` -> `playwright` -> `pane`); reads
+The `Write channel` pointer is an ordered ladder (for example `neo` -> `pane`); reads
 may use any channel. Rules the gate cannot see:
 - An intake write batch runs from ONE approved plan file (R124): a guard read of the one item before each
   write (the field equals its planned before, else `GUARD_MISMATCH` STOPS the batch; equal to the target is
@@ -774,7 +774,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 1. Status line + certify verdict in the tenant's kickoff; the certify `.md` named there.
 2. Tenant `CLAUDE.md`: ONE change-log line pointing at the record.
 3. Memory: one line only if the run taught something not derivable from the docs.
-4. Browser phase ends: close the browser, then release any holder lock; delete `.playwright-mcp/` files.
+4. Browser phase ends: make no further writes in the lane's tab; leave other lanes' neo tabs as you found them.
 5. Commit skill-side changes only; the tenant tree is never committed or named in a tracked file.
 
 ## Scripts and proofs

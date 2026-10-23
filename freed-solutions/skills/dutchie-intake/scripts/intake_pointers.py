@@ -9,7 +9,7 @@ names no tenant, no path and no person: all of that lives in the tenant's gitign
 
 Accepted line shapes (both are in use):
   - Operator: <name>                     # comment after two spaces and a hash
-  - **Write channel:** `neo` -> fallback `playwright` -> `pane` - prose after the value
+  - **Write channel:** `neo` -> fallback `pane` - prose after the value
 When a value carries backticks, the FIRST backticked span is the value and the rest is prose.
 
 Exit 0 when every required key is present and filled; 2 (ABORT) otherwise, naming each gap.
@@ -39,7 +39,7 @@ REQUIRED_INTAKE = ["Operator", "Mail label", "Drive invoices folder", "Intake di
 REQUIRED_BI = ["Backoffice login", "Write channel"]
 PATH_KEYS = ["Intake dir", "Exports dir", "Notice template", "Estate dir", "Scripts dir", "Market archive", "FL EQ classes",
              "PL key"]
-CHANNELS = ["neo", "playwright", "pane"]
+CHANNELS = ["neo", "pane"]
 PO_SOURCES = ["apex", "vendor pdf", "none"]
 OPTIONAL_TAG_KEYS = ["New line tag", "Active tag", "Discontinue tag"]   # R83 / R96 / R48 R68; absent = the generic default
 # R68 (amended 2026-10-11): the tenant's PRODUCT LINE key, `<file.py>:<function>` (one Catalog row -> a key). Optional:
@@ -119,7 +119,7 @@ def is_placeholder(v):
 
 
 def ladder(value):
-    """`neo -> playwright -> pane` (or `|`, `,`, an arrow) -> ['neo', 'playwright', 'pane'], in order."""
+    """`neo -> pane` (or `|`, `,`, an arrow) -> ['neo', 'pane'], in order."""
     out = []
     for w in re.findall(r"\b(" + "|".join(CHANNELS) + r")\b", (value or "").lower()):
         if w not in out:
@@ -291,7 +291,7 @@ SAMPLE = """# Tenant
 ## BI Change Pointers
 - **Estate dir:** `./bi-estate` - the estate
 - **Backoffice login:** `https://<server>.backoffice.dutchie.com/` - login stop
-- **Write channel:** `neo` (agent browser) -> fallback `playwright` -> `pane`. Reads: any channel.
+- **Write channel:** `neo` (agent browser) -> fallback `pane`. Reads: any channel.
 
 ## Intake Pointers
 - Operator: Pat Example                  # the human at the pre-create STOP
@@ -318,7 +318,10 @@ def selftest():
     t.check("all required keys parsed", validate(r) == [], str(validate(r)))
     t.check("value after two-space hash comment", r["intake"]["Operator"] == "Pat Example", r["intake"]["Operator"])
     t.check("bold key + backticked value", r["bi"]["Estate dir"] == "./bi-estate")
-    t.check("ladder order neo > playwright > pane", ladder(r["raw"]["bi:Write channel"]) == CHANNELS)
+    t.check("ladder order neo > pane", ladder(r["raw"]["bi:Write channel"]) == CHANNELS)
+    pw = SAMPLE.replace("`neo` (agent browser) -> fallback `pane`", "`playwright`")
+    t.check("FIRES: the retired `playwright` channel alone names no known channel",
+            any("Write channel" in p for p in validate(parse_text(pw))), str(validate(parse_text(pw))))
     t.check("a key outside the block is ignored", r["intake"]["Operator"] != "not-a-pointer (outside the block)")
     broken = SAMPLE.replace("- Watermark: 1000\n", "")
     t.check("FIRES: a missing key is named", any("Watermark" in p for p in validate(parse_text(broken))))

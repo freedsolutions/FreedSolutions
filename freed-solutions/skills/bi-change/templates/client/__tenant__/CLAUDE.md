@@ -29,7 +29,7 @@ is gitignored and absent from task worktrees.
 - **Export refresh:** `python .claude/skills/bi-change/scripts/export_refresh.py --exports-dir <abs path>\exports --mirror-dir "<abs mirror folder>" --src <download dir> [--apply]` — after every export pull: freeze, refresh `exports\latest\` (fixed names + MANIFEST.json), mirror. Read `latest\`.
 - **Explore catalog sync:** `.claude/skills/bi-change/scripts/explore_catalog_harvest.js` → `bi-estate/explore-catalog-<date>.json` → `explore_catalog_index.js <dump>`
 - **Backoffice login:** `<backoffice_url>` — Looker read surface `https://leaflogix.looker.com/embed/preload` (internal API needs `X-CSRF-Token` + `X-Requested-With: XMLHttpRequest`)
-- **Write channel:** `playwright` under HOLDER.json; the login is Adam's — the build lane opens the login page and notifies, never handles credentials. Reads: any channel.
+- **Write channel:** `neo` (one tab per lane) -> `pane`; the login is Adam's — the build lane opens the login page and notifies, never handles credentials. Reads: any channel.
 - **Canon:** DATA-DICTIONARY.md > skill `dutchie-bi-looker` > memory. Runbook: BI-SOP.md §2. Tickets: skill `dutchie-support-ticket` + the routing block above.
 - **Model routing:** plan on the session Adam is in; build in a NEW session; check anywhere.
 - **Standing runs:** every lane, its runner and its cadence live in ONE place — `bi-estate/qc-surface-register.md` §5, the cadence table. Read it there; never restate a cadence here.
