@@ -743,6 +743,30 @@ function batchCases() {
       });
     });
   }).then(function () {
+    // a sibling copy's image rows, as intake_plan.py emits them after CONTENT: IMAGE_ADD, then IMAGE_REMOVE
+    // (the 2026-10-23 HVV 018119 plan was refused PLAN_ORDER_INVALID because IMAGE_ADD was not in the order)
+    return batchEnv().then(function (env) {
+      const p = rehash(env, JSON.parse(JSON.stringify(plan)).concat([
+        { seq: '8', step: 'IMAGE_ADD', line_no: '2', product_key: 'new:2', field: '_image_add', before: 'a.jpg',
+          target: 'own art: create step 5 sourcing', channel: 'image_add_form', depends_on: '1', provenance: 'synthetic' },
+        { seq: '9', step: 'IMAGE_REMOVE', line_no: '2', product_key: 'new:2', field: '_images', before: 'a.jpg',
+          target: '', channel: 'image_remove', depends_on: '1;8', provenance: 'synthetic' },
+      ]));
+      return env.sandbox.window.gridBatch(p, { ids: BATCH_IDS }).then(function (r) {
+        eq(r.ok, true, 'batch image rows — IMAGE_ADD > IMAGE_REMOVE after CONTENT passes the order check' +
+          (r.ok ? '' : ' [' + r.reason + ': ' + r.detail + ']'));
+        eq(r.handoff, 4, 'batch image rows — both image rows are UI rows handed off (4 with COPY + CONTENT)');
+        eq(r.planned, 5, 'batch image rows — still N = 5 grid writes');
+        const q = JSON.parse(JSON.stringify(p));
+        q[7].step = 'IMAGE_REMOVE'; q[8].step = 'IMAGE_ADD';
+        rehash(env, q);
+        return env.sandbox.window.gridBatch(q, { ids: BATCH_IDS });
+      }).then(function (r) {
+        eq(r.reason, 'PLAN_ORDER_INVALID', 'batch image rows — IMAGE_REMOVE before IMAGE_ADD is still out of order');
+        eq(env.calls.length - env.primeCalls, 0, 'batch image rows — zero requests of any kind');
+      });
+    });
+  }).then(function () {
     // refusals that fire BEFORE the first request
     const pre = [
       ['PLAN_SHA_MISMATCH', 'one edited row', function (p) { p[2].target = '17'; return p; }, false],

@@ -21,7 +21,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
           create (write channel, Operator's login): ONE paced batch - gridBatch (grid rows, a guard read per
           write, no read-back; the un-retire mutation) + the UI rows (intake_ui_run emit -> one neo `run` per
           row, intake_ui_rows.js in the page; record -> progress + keyMap) ──▶ -plan-vN-progress-<ts>.jsonl
-              │   order = MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_REMOVE, LINK
+              │   order = MINT_STRAIN, CREATE_BRAND, UNRETIRE_ALIGN, UNRETIRE, COPY, ALIGN, CONTENT, IMAGE_ADD, IMAGE_REMOVE, LINK
               ├──post pull (Active + Retired) ──intake_certify --plan ──▶ -certify-<ts>.md (ONE certify, A / B / C)
               └──intake_notice ──▶ -notice-<ts>.md  (+ floor-sheet command when a NEW_PL / NEW_BRAND item was created)
                                                      receive --prep ──▶ <slug>-receipt-prep-<date>-vN.csv + -questions.md (one row per Metrc package)

@@ -775,7 +775,7 @@
   var BATCH = root.__gridBatch = root.__gridBatch || { lastRowAt: 0, backoffMs: 0, backoffUntil: 0,
     log: [], strains: null };
   var STEP_ORDER = ['MINT_STRAIN', 'CREATE_BRAND', 'UNRETIRE_ALIGN', 'UNRETIRE', 'COPY', 'ALIGN',
-    'CONTENT', 'IMAGE_REMOVE', 'LINK'];
+    'CONTENT', 'IMAGE_ADD', 'IMAGE_REMOVE', 'LINK'];
   var HASH_KEYS = ['seq', 'step', 'line_no', 'product_key', 'field', 'before', 'target', 'channel',
     'depends_on', 'provenance'];
   var MIN_ROW_MS = 2000;
