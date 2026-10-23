@@ -56,6 +56,9 @@ record that ruled it in the tenant's DECISIONS.
                                          # The org code also scopes the open-cases read at the STOP (`intake_cases.py
                                          # stop`) and at the receipt (`receive.py --prep --cases`): read-only, the
                                          # lane's reader route; absent, each read is a quiet INFO
+- POS key: <ENV VAR NAME>                # OPTIONAL: the environment variable that holds the POS API key - its NAME,
+                                         # never the key. receive_snapshot.py reads the receive-time Inventory snapshot
+                                         # with it; absent, it ABORTs and the frozen Inventory export is the snapshot
 ```
 
 The MSRP keys are read only by `intake_msrp.py`; the other runners ignore them. `MSRP anchor` and

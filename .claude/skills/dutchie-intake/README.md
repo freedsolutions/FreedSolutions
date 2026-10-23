@@ -38,7 +38,7 @@ lives in the tenant's gitignored `CLAUDE.md`. The workflow and the rules of the 
 | `create` | `intake_plan.py`, then `gridBatch` + `intake_ui_run.py` (UI rows) in the write channel | Operator's (batch only) | `-plan-vN.csv`, the progress JSONL, the keyMap |
 | `certify` | `intake_certify.py --plan` (the batch); `--pre --post` / `--no-create` for hand writes | none | `-certify-<ts>.md` |
 | `notice` | `intake_notice.py` | none | `-notice-<ts>.md` (a draft; the Operator sends) |
-| `receive` | `receive.py --prep` (`--enter` / `--check` / `--vendor` stubs, exit 2) | none | `-receipt-prep-<date>-vN.csv` + `-questions.md` |
+| `receive` | `receive_snapshot.py` (the POS API snapshot; the export is the fallback), then `receive.py --prep` (`--enter` / `--check` / `--vendor` stubs, exit 2) | none | `inventory-api-<ts>.json` + `.csv`, `-receipt-prep-<date>-vN.csv` + `-questions.md` |
 
 Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selftest_all.py`.
 
@@ -58,6 +58,7 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 | `scripts/intake_certify.py` | `--plan`: the ONE batch certify on the Active + Retired union; single-pair mode for hand writes |
 | `scripts/intake_notice.py` | the new-items notice draft |
 | `scripts/receive.py` | phase 2: `--prep`, the receipt prep sheet (other modes stubs) |
+| `scripts/receive_snapshot.py` | the receive-time Inventory snapshot: ONE read-only `/reporting/inventory` GET, frozen raw + derived CSV |
 | `fixtures/receive-*.csv` | the synthetic receipt: a split package, a sample package, a new-line item, an order-level credit |
 | `scripts/intake_common.py` | shared plumbing |
 | `scripts/selftest_all.py` | every selftest + the `gridBatch` cases + the fixture checks + the CLI chain |

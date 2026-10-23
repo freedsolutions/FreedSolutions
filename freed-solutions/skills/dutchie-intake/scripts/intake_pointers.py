@@ -55,6 +55,10 @@ OPTIONAL_CLASS_KEY = "FL EQ classes"
 # at the receipt) prints a quiet INFO.
 OPTIONAL_CASE_KEY = "Case store"
 CASE_STORE_SHAPE = re.compile(r"^[A-Z][A-Z0-9_]*\s+via\s+\S.*\.ps1$")
+# The receive-time Inventory snapshot (receive_snapshot.py): the NAME of the environment variable that holds the POS API
+# key, never the key. Optional: absent, receive_snapshot.py ABORTs and the lane freezes the Inventory export instead.
+OPTIONAL_POS_KEY = "POS key"
+ENV_NAME_SHAPE = re.compile(r"^[A-Z][A-Z0-9_]*$")
 # Keys a tenant contract may no longer carry, with the reason. A stale line is a contract gap, never silently read.
 # R130: the package THC cap is per Master Category in the class map (`package_cap_mg`, read by load_caps below),
 # not one tenant-wide pointer.
@@ -179,6 +183,11 @@ def problems_keyed(res):
     cs = res["intake"].get(OPTIONAL_CASE_KEY)
     if cs is not None and not is_placeholder(cs) and not CASE_STORE_SHAPE.match(cs.strip()):
         probs.append((OPTIONAL_CASE_KEY, f"`{OPTIONAL_CASE_KEY}` must read `<ORG_CODE> via <runner.ps1>`, got {cs!r}"))
+    pk = res["intake"].get(OPTIONAL_POS_KEY)
+    if pk is not None and not is_placeholder(pk) and not ENV_NAME_SHAPE.match(pk.strip()):
+        # the value is never echoed: a line of the wrong shape may be the key itself
+        probs.append((OPTIONAL_POS_KEY, f"`{OPTIONAL_POS_KEY}` must name an environment variable (`UPPER_SNAKE`), never "
+                                        "the key; the value is not shown"))
     for k, why in RETIRED_KEYS.items():
         if k in res["intake"]:
             probs.append((k, f"`{k}` is {why}"))
@@ -377,6 +386,13 @@ def selftest():
     t.check("QUIET: a `Case store` of the shape `<ORG_CODE> via <runner.ps1>` passes", validate(rcs) == [], str(validate(rcs)))
     rcb = parse_text(SAMPLE.replace("- Watermark: 1000\n", "- Watermark: 1000\n- Case store: ./w.ps1\n"))
     t.check("FIRES: a `Case store` with no org code is named", any("Case store" in p for p in validate(rcb)))
+    t.check("QUIET: the POS key is optional", OPTIONAL_POS_KEY not in r["intake"] and validate(r) == [])
+    rpk = parse_text(SAMPLE.replace("- Watermark: 1000\n", "- Watermark: 1000\n- POS key: EXAMPLE_POS_KEY\n"))
+    t.check("QUIET: a `POS key` that names a variable passes", validate(rpk) == [] and rpk["intake"][OPTIONAL_POS_KEY]
+            == "EXAMPLE_POS_KEY", str(validate(rpk)))
+    rpb = parse_text(SAMPLE.replace("- Watermark: 1000\n", "- Watermark: 1000\n- POS key: 3f9a-secret-value\n"))
+    t.check("FIRES: a `POS key` that is not a variable name is refused, its value not echoed",
+            any("POS key" in p for p in validate(rpb)) and not any("3f9a" in p for p in validate(rpb)), str(validate(rpb)))
     fl = SAMPLE.replace("## Change log", "- FL EQ classes: ./category-qc/intent.toml   # R1-R3, R6: fl_eq per Master Category\n\n## Change log", 1)
     rf = parse_text(fl)
     t.check("the FL EQ classes value parses with its trailing comment stripped",

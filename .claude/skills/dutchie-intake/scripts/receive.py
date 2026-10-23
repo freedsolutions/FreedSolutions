@@ -19,7 +19,8 @@ Inputs (columns are checked; a missing one ABORTs, never reads as blank):
   --lines      the invoice lines CSV (intake_parse output or the hand-typed lines): line_no, description, units_total,
                unit_cost, ext_cost, is_order_level, order_level_kind. Order-level rows (credit / shipping) ride along.
   --catalog    the Catalog Active export: ProductId, SKU, Product, Master category, Cost, Tags.
-  --inventory  the Inventory export frozen at receive time (the FIFO snapshot): SKU, Room, Available, Cost.
+  --inventory  the receive-time Inventory snapshot (the FIFO snapshot): SKU, Room, Available, Cost. The default is the
+               CSV `receive_snapshot.py` writes from the POS API; the frozen Inventory export is the fallback.
   --intake     optional intake CSV vN: per line `new_productid`, else `copy_source_productid` on EXISTS / RETIRED_MATCH.
                Rows pair to product lines by `invoice_line` == description, each row at most once. The intake gives the
                ITEM ID only: once an item id is known (`--item`, `new_productid`, the EXISTS / RETIRED_MATCH source),

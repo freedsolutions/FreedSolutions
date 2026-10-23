@@ -78,6 +78,8 @@ the second is the `bi-change` block the tenant already has.
   tenant's ONE-command guided case writer; absent, `intake_cases.py open` / `sql` ABORT. The same org code scopes
   the STOP's open-cases read, `intake_cases.py stop`, and the receipt's, `receive.py --prep --cases`; absent, each
   read is a quiet INFO - intake step 6, receive step 3)
+- POS key: <ENV VAR NAME>   (optional; the variable that holds the POS API key, never the key - the receive-time
+  Inventory snapshot, `receive_snapshot.py`; absent, it ABORTs and the Inventory export is the snapshot - receive step 3)
 ## BI Change Pointers   (read here: Backoffice login, Write channel)
 ```
 
@@ -515,7 +517,16 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
 3. `receive.py --prep --lines <lines.csv> --catalog <active.csv> --inventory <inventory.csv> [--intake <vN.csv>]
    [--manifest <manifest.csv>] [--item <line>=<ProductId>] [--program <line>=<disposition>] --tenant <CLAUDE.md>
    [--cases <rows.json>] [--party-key <k>]`.
-   The Inventory export is the receive-time snapshot (freeze it with the `Export refresh` pointer first). Without a
+   **The receive-time snapshot is a POS API read (Operator ruling 2026-10-23).** Right before `--prep`, run
+   `receive_snapshot.py --tenant <CLAUDE.md>`: ONE read-only GET of `/reporting/inventory` with room quantities,
+   frozen in the `Exports dir` as `inventory-api-<date>-<time>.json` (the raw response) and `.csv` (SKU, Room,
+   Available, Cost: one row per package per room with stock), each printed with its sha256. Pass that CSV as
+   `--inventory`. The `POS key:` pointer names the key's environment variable; the key is never printed.
+   **Fallback:** when the read fails (exit 2: no key, an HTTP error, or a shape check such as a package with stock
+   and no room split), nothing is written: freeze the Inventory export with the `Export refresh` pointer and pass it
+   instead. Name the snapshot file the prep read in the receipt record. The two agree on `on_hand` by room and cost
+   (paired proof 2026-10-23); the export splits one package in one room into rows by inventory date, and the room
+   sum absorbs it. Without a
    manifest the sheet has one row per product line and blank package ids; re-run when the manifest is read.
    `--vendor-record` and `--txn-id` set the header values (default: the lines' `vendor` and `invoice_no` cells).
    - Item: `--item` > intake `new_productid` > the EXISTS / RETIRED_MATCH match; none = `ITEM_PENDING` (STOP; its
@@ -792,6 +803,7 @@ output · exit 1 only on DEFECT · abort on a missing column.
 `intake_exceptions.py` · `intake_apex_cost.py` (R125: a sample-only new line's Cost from the Apex PO / listing) ·
 `intake_msrp.py` (the MSRP read at the STOP) · `intake_plan.py` (the R124 plan file) · `intake_certify.py` · `intake_notice.py` ·
 `intake_ui_run.py` + `intake_ui_rows.js` (the neo `run` driver for the plan's UI rows) · `receive.py` (`--prep`; the other modes are stubs) ·
+`receive_snapshot.py` (the receive-time Inventory snapshot from the POS API; the export is its fallback) ·
 `intake_cases.py` (the after-receipt branch: a case open from the prep sheet, case ops as SQL + ONE command; and
 `stop`, the vendor's open cases at the STOP from ONE read-only SELECT, reused by `receive.py --prep --cases`) ·
 `intake_common.py` (shared plumbing). Python 3 stdlib only; run with `PYTHONUTF8=1`.
