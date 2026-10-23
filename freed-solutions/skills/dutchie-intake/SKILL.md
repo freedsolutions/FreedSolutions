@@ -67,6 +67,7 @@ the second is the `bi-change` block the tenant already has.
   absent, the generic `Category | <dose> | Brand` - see "the line's tag state" below)
 - Export QC / Inventory QC: (the BI Change Pointers lines)
 - Market center / Market radius mi / Own store (+ optional Market box, Market archive, MSRP anchor, MSRP floor x cost)
+- MSRP confirm: <Name <address>>    (optional; the buyer who confirms a new line's MSRP by email - intake step 5)
 - FL EQ classes: <abs path to the tenant's fl_eq class map .toml>   (optional; R1-R3, R6 - see "derived" below;
   R130: the same map carries each master's market limits - `package_cap_mg` is the dose read's cap)
 - Catalog state: <stateLibrary>      (the global-link step's state library, as `search-catalog-products` prints
@@ -284,9 +285,14 @@ through connector bodies only.
    challenge since 2026-09-23 - read the archive only, never work around the challenge. The tenant's own
    store (`Own store:`) is dropped BEFORE matching and the report asserts zero own-store rows (else DEFECT).
    Writes a NEW `<v2 stem>-msrp-<ts>.md` (per line: same-product table, comparables, own lanes, evidence
-   counts, flags) and prints the STOP block. It writes no Price: the Operator sets the confirmed number in the
-   lane cells at the stop (the confirmed number is the lane Price, R50). R125 states the rule; the $5 points,
-   the radius and the 20 % `MSRP_SPREAD` are this script's parameters.
+   counts, flags) and prints the STOP block. It writes no Price: the lane writes the recommendation into the
+   lane cells (the lane Price, R50). R125 states the rule; the $5 points, the radius and the 20 % `MSRP_SPREAD`
+   are this script's parameters.
+   **The MSRP is not an Operator question** (Operator ruling 2026-10-23). The lane creates at the recommendation
+   and DRAFTS ONE internal email from the tenant's agent mailbox to the buyer (pointer `MSRP confirm:`): per new
+   line the price, the cost and the basis, and one ask - keep it or name the price. The Operator CC rides the
+   draft; a person sends it. A reply with another price is a Price edit after the create (grid path, certify).
+   Absent the pointer, the MSRP stays a line in the Operator's STOP message.
 6. **Open cases on the vendor** - a standard step on every intake (Operator ruling 2026-10-20: a credit ruling filed as a
    case must reach the next intake of that vendor). No login and no write: the scripts never connect to the warehouse.
    - `intake_cases.py stop --intake <v2 or v3> --lines <lines.csv> --tenant <CLAUDE.md> [--vendor <name>]
@@ -686,8 +692,10 @@ line is sample-only, and a seventh printed by `intake_cases.py stop` on every in
    NEW_CATEGORY and STRAIN_MISSING are never created by this lane.
 4. **MSRP - pending business confirmation (R125)** - `# | Line | Rows | Unit cost | MSRP | Margin | Basis |
    Evidence (same / comps / lanes) | Flags`, one row per new line, each number marked *pending business
-   confirmation*. The Operator confirms it with the business (or replaces it) and writes the confirmed Price
-   into the lane cells (`NEW_LINE_FIELDS`); the derived cells (Flower equiv, Servings per Unit, CBD content,
+   confirmation*. With a `MSRP confirm:` pointer this part is information only: the lane writes the number
+   into the lane cells (`NEW_LINE_FIELDS`) and drafts the buyer's email (intake step 5); the Operator is not
+   asked. Without the pointer, the Operator confirms it with the business (or replaces it) and writes the Price
+   into the lane cells. The derived cells (Flower equiv, Servings per Unit, CBD content,
    the dose segment - the row's `derived` column) are not retyped. The flags are INFO: `MSRP_THIN`, `MSRP_SPREAD` (the number is
    more than 20 % from a market read that did not set it), `MSRP_FLOOR_RAISED`, `MSRP_MARGIN_LOW`,
    `MSRP_ARCHIVE_ONLY`, `MSRP_NO_EVIDENCE` (price it by hand with the business).
