@@ -19,7 +19,6 @@ Edit the public site at www.freedsolutions.com — a single-file static landing 
 ## When NOT to Use
 
 - Brand-new design system or visual rebrand — out of scope; deserves its own engagement.
-- LinkedIn carousel slide work — separate project (`projects/linkedin-carousel/`).
 - Notion CRM record updates — go through `notion-action-items`.
 
 ## Inputs

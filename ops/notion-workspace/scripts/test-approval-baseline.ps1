@@ -144,8 +144,6 @@ $requiredClaudeAllowEntries = @(
 )
 
 $disallowedRepoClaudeAllowEntries = @(
-    'Bash(node projects/linkedin-carousel/build.js)',
-    'Bash(node projects/linkedin-carousel/scripts/*)',
     'Bash(node -e *)',
     'Bash(NODE_PATH=* node -e *)',
     'Bash(npx serve *)',

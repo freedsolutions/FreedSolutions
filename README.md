@@ -13,8 +13,6 @@ FreedSolutions/
 |- CLAUDE.md                     # AI workflow config and project routing
 |- CNAME                         # Custom domain (freedsolutions.com)
 |- brand/                        # Brand assets - local only (.gitignore)
-|- projects/
-|  |- linkedin-carousel/         # LinkedIn carousel slide designer
 |- ops/                          # Internal ops, migration docs, and private service scaffolds
 |- privacy-policy/               # Privacy policy page (GitHub Pages)
 |- website/                      # Website static assets (favicons, OG images, photos)
@@ -33,10 +31,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1
 ```
 
 It covers the Python tests, the seven Notion-workspace PowerShell tests, the skill-wrapper sync validator, the bi-change gate self-test and leak proof, and the dutchie-intake self-test. `.github/workflows/checks.yml` runs the Python tests and the two node self-tests on every push to `main` and on pull requests.
-
-### Projects
-
-- **[LinkedIn Carousel](projects/linkedin-carousel/)** - A single-page React app that renders LinkedIn carousel slides to HTML5 Canvas for pixel-accurate export. See its own [CLAUDE.md](projects/linkedin-carousel/CLAUDE.md) for development workflow.
 
 ### Global Assets
 

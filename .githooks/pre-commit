@@ -1,13 +1,6 @@
 #!/bin/sh
 
-node projects/linkedin-carousel/scripts/validate-order.js
-status=$?
-if [ $status -ne 0 ]; then
-  echo "pre-commit: ORDER validation failed — see errors above"
-  exit $status
-fi
-
-# Skill proofs — only when this commit touches a skill file, so a carousel or ops commit
+# Skill proofs — only when this commit touches a skill file, so any other commit
 # pays nothing. Both proofs are the reason a change to the skills can be trusted, and both
 # are proven to fail rather than merely to pass; this repo has shipped an inert check
 # before, so they run here rather than resting on a line in SKILL.md.
@@ -41,13 +34,6 @@ if git diff --cached --name-only --diff-filter=ACMRD | grep -qE '^(freed-solutio
     echo "pre-commit: .claude/skills/ is out of sync with freed-solutions/skills/ — rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1 and stage the result"
     exit $status
   fi
-fi
-
-node projects/linkedin-carousel/scripts/archive-smoke-artifacts.js
-status=$?
-if [ $status -ne 0 ]; then
-  echo "pre-commit: failed to archive Playwright/smoke artifacts"
-  exit $status
 fi
 
 exit 0
