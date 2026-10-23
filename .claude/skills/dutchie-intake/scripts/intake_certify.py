@@ -282,6 +282,10 @@ def cell_eq(field, export_val, plan_val):
         b = link_name(b).strip()   # a LINK target carries the call ids, then the record name the export prints
     if field == "Tags":
         return tag_set(a) == tag_set(b)
+    if field in ("Online title", "Online description"):
+        # the Catalog export drops line breaks from these cells (2026-10-23: a 3-paragraph description read back
+        # with every \n gone); the record keeps them, so compare with line breaks removed
+        a, b = (x.replace("\r", "").replace("\n", "") for x in (a, b))
     if not a or not b:
         return a == b
     if field in PM:
@@ -564,6 +568,10 @@ def main(argv):
 def selftest():
     t = Selftest("intake_certify")
     hdr = ["SKU", "Available", "Product", "Price", "Tags", "Online title"]
+    t.check("Online description: a planned multi-paragraph target equals the export's line-break-free cell",
+            cell_eq("Online description", "Para one.Para two.", "Para one.\n\n\nPara two."))
+    t.check("Online description breaker: a changed word is still a mismatch",
+            not cell_eq("Online description", "Para one.Para TWO.", "Para one.\n\nPara two."))
 
     def ex(rows):
         return {r["SKU"]: dict(zip(hdr, [r.get(c, "") for c in hdr])) for r in rows}

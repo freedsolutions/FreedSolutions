@@ -420,6 +420,26 @@ def link_result(kind, conf, rec, why, nearest):
     return f"{conf}: {why}" + (f"; nearest: {nearest}" if nearest else "")
 
 
+def sibling_own_text(desc, peer_descs, floor=40):
+    """The part of a sibling's Online description its line does NOT share: the sibling's own (strain) paragraph.
+    Peers = the other active items of the same Brand + Category + Product grams. The text is compared with line
+    breaks removed (the Catalog export drops them). The longest suffix shared with any peer is the line's template;
+    what is left in front of it is the sibling's own text. No peer = nothing to tell template from own text, so the
+    whole description counts as own. Returns '' when the own text is under `floor` chars (the template alone)."""
+    flat = lambda s: (s or "").replace("\r", "").replace("\n", "").strip()
+    s = flat(desc)
+    if not s:
+        return ""
+    best = 0
+    for p in peer_descs:
+        q, k = flat(p), 0
+        while k < min(len(s), len(q)) and s[-1 - k] == q[-1 - k]:
+            k += 1
+        best = max(best, k)
+    own = s[:len(s) - best].strip()
+    return own if len(own) >= floor else ""
+
+
 def build_plan(intake, active, retired, strains, categories, brands, channels=None, grid_fields=None,
                form_fields=None, guard=None, dead_tag=DEFAULT_DEAD_TAG, prefix=ITEM_PREFIX, fl_eq_classes=None,
                pl_key_fn=pl_key_default, discontinue_tag=DEFAULT_DISCONTINUE_TAG, active_tag=DEFAULT_ACTIVE_TAG,
@@ -710,7 +730,18 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                        f"a CROSS_BRAND_COPY replaces the source brand's {fld} with the new brand's own words "
                        f"(`{icol}` on the intake row, set at the STOP); a blank clear is not the ruled path")
             elif not xb and fld == "Online description" and not tgt:
-                notes.append(f"line {n}: the sibling's Online description is kept; its strain paragraph is a UI tail, not a planned write")
+                peers = [x.get("Online description", "") for pid, x in act.items() if pid != src_id
+                         and all(norm(x.get(c)) == norm(eff(src_id, c)) for c in ("Brand", "Category", "Product grams"))]
+                own = sibling_own_text(bef, peers)
+                if own:
+                    refuse("DESC_UNSOURCED", "CONTENT", n, key, fld, "item_form", "",
+                           f"the sibling's Online description carries {len(own)} chars its line does not share "
+                           f"({own[:70]!r}...): the sibling's own strain paragraph. The lane sources this product's "
+                           f"words (create step 1b: brand asset, brand site, other Dutchie menus) into "
+                           f"`online_description` before the STOP; the copy never keeps another product's text")
+                else:
+                    notes.append(f"line {n}: the sibling's Online description is the line's shared template "
+                                 f"(no text of its own); kept")
         later.append((n, r, key, src_id, cseq, xb))
     # Copy item duplicates EVERY source image row under new blob names (2026-10-13). A sibling copy: the product's own
     # art first (IMAGE_ADD), then the copied rows out; a cross-brand copy: the copied rows out (its art is step 5).
@@ -985,6 +1016,32 @@ def selftest():
             and ("new:3", "_images") in by and ("new:3", "_image_add") not in by
             and by[("new:3", "_images")]["channel"] == "image_remove")
     t.check("the sibling copy plans no description clear", ("new:2", "Online description") not in by)
+    # --- a sibling's own strain paragraph is never kept (2026-10-23: three copies kept another strain's text) ---
+    tmpl = " Brand A pre-rolls are hand-rolled from whole flower and finished by hand."
+    fd = _fixture()
+    fd["active"][0]["Online description"] = "Strain X: piney and sweet, with a long earthy finish." + tmpl
+    fd["active"].append(_item("602", "Brand A | Pre-Roll | Strain Y | 1g", Strain="Strain Y",
+                              **{"Online description": "Strain Y: bright citrus over a soft floral middle." + tmpl}))
+    _, rd, _ = _build(fd, guard=_probed())
+    t.check("FIRES DESC_UNSOURCED: a sibling copy with no `online_description` whose source carries text its line "
+            "does not share (its own strain paragraph)",
+            [x["reason"] for x in rd] == ["DESC_UNSOURCED"] and rd[0]["product_key"] == "new:2", str(rd))
+    fd["intake"][1]["online_description"] = "Strain Q: sharp lemon zest and pine." + tmpl
+    rq, rd2, _ = _build(fd, guard=_probed())
+    bq = {(r["product_key"], r["field"]): r for r in rq}
+    t.check("quiet once sourced: `online_description` set -> a CONTENT row writes the product's own words",
+            rd2 == [] and bq[("new:2", "Online description")]["target"].startswith("Strain Q:"), str(rd2))
+    fg = _fixture()
+    fg["active"][0]["Online description"] = "Every Brand A pre-roll is hand-rolled from whole flower."
+    fg["active"].append(_item("602", "Brand A | Pre-Roll | Strain Y | 1g", Strain="Strain Y",
+                              **{"Online description": "Every Brand A pre-roll is hand-rolled\nfrom whole flower."}))
+    _, rg, ng = _build(fg, guard=_probed())
+    t.check("quiet on a shared template: the line's members carry the same text (line breaks ignored) -> kept, noted",
+            rg == [] and any("shared template" in x for x in ng), str(rg))
+    t.check("sibling_own_text: no peer -> the whole text is own; a peer with the same tail -> only the head",
+            sibling_own_text("A" * 50, []) == "A" * 50
+            and sibling_own_text("Head text that is specific to one strain here." + tmpl,
+                                 ["Other head for another strain entirely." + tmpl]).startswith("Head text"))
     # --- images: Copy item duplicates every source image row; a sibling copy carries the sibling's label art ---
     ia, ir = by.get(("new:2", "_image_add")), by.get(("new:2", "_images"))
     t.check("IMAGES sibling: own art added FIRST (file input, no form Save), then the copied rows removed, the remove "

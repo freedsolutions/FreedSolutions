@@ -320,6 +320,18 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    subcategory, size, strain_type, created` (`line_no` = the intake row's position; one row with a blank `id`
    records a search with zero hits, and a blank `brand_id` too records a brand with no global catalog entries -
    not every vendor has them).
+   **Description sourcing** (operator ruling 2026-10-23: the lane does it, no hand-back). A copy keeps its source's
+   Online description (`Copy online details` CHECKED), so a sibling copy would carry the SIBLING's strain paragraph.
+   Before the plan, for every create row with a blank `online_description`, the lane writes this product's own words
+   into it, in a NEW intake version: the brand's own assets first (a brand kit or sell sheet on file), then the brand's
+   own product page, then another Dutchie menu that lists the same product - the image chain of create step 5, read in
+   the same pass. A sibling copy keeps the line's shape: the product's own strain paragraph (name, lineage and effect
+   lines when the brand prints them) in place of the sibling's, then the sibling's shared template text unchanged.
+   Cite the page in `online_desc_source`. `intake_plan` refuses `DESC_UNSOURCED` while a sibling's description
+   carries text its line does not share (the longest tail shared with another active item of the same Brand +
+   Category + Product grams is the template; what is left in front is the sibling's own text); a line whose members
+   share one template keeps it, noted. Nothing found in the chain: the refusal names the row, and the notice asks
+   the business - never a copy that keeps another product's text.
 2. **Plan.** `intake_plan.py --intake <vN> --active --retired --strains --categories --brands --catalog-search
    <csv> --tenant <CLAUDE.md>` writes a NEW `<stem>-plan-vN.csv`, one row per write: `seq, step, line_no,
    product_key, field, before, target, channel, depends_on, provenance, row_sha1`. Steps run in this order, which
@@ -393,8 +405,10 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    replace both with the new brand's own words, none of the source's survive) -> images per the KB (the plan's
    IMAGE_ADD / IMAGE_REMOVE rows, after the item's last form Save) -> Save. Global Category / Sub carry from the
    source on every copy. In the batch the plan carries these as rows: Brand, Vendor (proven P7), Strain and Flavor are
-   ALIGN grid rows; the cross-brand title and description are CONTENT rows whose target is the new brand's
-   words (`online_title`, and `online_description` added at the STOP; a blank one refuses `CONTENT_UNWRITTEN`);
+   ALIGN grid rows; the title and description are CONTENT rows - the cross-brand copy's target is the new brand's
+   words (`online_title`, and `online_description` added at the STOP; a blank one refuses `CONTENT_UNWRITTEN`), a
+   sibling copy's is the description the lane sourced in step 1 (a blank one over the sibling's own text refuses
+   `DESC_UNSOURCED`). The certify reads both cells with line breaks removed (the export drops them);
    the copied images are an IMAGE_REMOVE row run after the item's last form Save (on a sibling copy, after its
    IMAGE_ADD row); the global link is a LINK row (a replay, no Save; a 2026-10-13 link moved ONLY
    `BrandCatalogProductId`, the item's own image and description untouched). The new ProductId goes into
