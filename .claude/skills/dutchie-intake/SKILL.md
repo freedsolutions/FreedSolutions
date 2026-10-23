@@ -21,7 +21,7 @@ paths, thresholds, the Operator's name) comes from the tenant `CLAUDE.md`; nothi
 /dutchie-intake create <intake-vN.csv>                freeze -> ONE plan file -> approval -> ONE paced batch (R124)
 /dutchie-intake certify --plan <plan.csv> <pre-active> <pre-retired> <post-active> <post-retired>
 /dutchie-intake certify <pre.csv> <post.csv> <intake-vN.csv> [--no-create --allow <col>]   (hand writes)
-/dutchie-intake po write --intake <vN.csv> --vendor-id <id> --title <doc no> --arrival <date> --doc-link <url>
+/dutchie-intake po write --intake <vN.csv> --lines <lines.csv> --vendor-id <id> --title <doc no> --arrival <date> --doc-link <url>
                                                      after certify: ONE Dutchie PO, read back exact
 /dutchie-intake po close --po <id> --receipt <id>     after the receipt: PO vs receipt diff, then Closed + dateReceived
 /dutchie-intake notice <intake-vN.csv>                draft the notice; print the floor-sheet command
@@ -484,13 +484,17 @@ an Open PO. The PO gives the receipt a machine diff and the order a closed recor
    create. A receipt that lands before the PO exists gets no back-written PO: record "PO missed: received first".
 2. **The approval.** The PO write rides the ONE pre-create STOP (below): the Operator's plan approval covers this one
    write. There is no second ask.
-3. **Dry run, then the write.** `intake_po.py write --tenant <CLAUDE.md> --intake <the certified vN> --vendor-id <id>
-   --title <the vendor's document no> --arrival <YYYY-MM-DD> --doc-link <the filed document's Drive link>`. Without
+3. **Dry run, then the write.** `intake_po.py write --tenant <CLAUDE.md> --intake <the certified vN> --lines <the
+   lines CSV the intake was matched from (its parse_source)> --vendor-id <id> --title <the vendor's document no>
+   --arrival <YYYY-MM-DD> --doc-link <the filed document's Drive link>`. Without
    `--live` it reads and prints the planned body only. Add `--live` for the ONE `POST /purchase-order`, then a GET by id:
    every planned field must read back exact (exit 0), else exit 1.
    - Lines: one per ProductId (`--item <row>=<id>` > `new_productid` > the EXISTS / RETIRED_MATCH match, receive's
-     order); rows that share a ProductId are summed. Quantity = `units_total`. Subtotal = `unit_cost` x `units_total`
-     (the purchased cost, R50). `unitId` 1 on every line. A row with no ProductId ABORTs: a partial PO is never written.
+     order); rows that share a ProductId are summed. Quantity = `units_total`. Subtotal = the line's NET ext: its
+     `ext_cost` minus its own line discount (R103, the basis the invoice total uses), read from `--lines`, which pair
+     to the intake rows as `intake_exceptions` pairs them. A sample line printed at a price and discounted to $0 on the
+     same line writes $0, never its gross; never hand-edit an input copy to get there. Order-level credits and
+     shipping stay off the lines. `unitId` 1 on every line. A row with no ProductId ABORTs: a partial PO is never written.
    - Header: the vendor's Dutchie record (`--vendor-id`, the record the receipt will carry), the title, the expected
      arrival, `status` Open (`--status Submitted` only for the open test in receive step 5), an integer
      `purchaseOrderNumber` (default: the digits of the intake `invoice_no`; `--number` overrides), and

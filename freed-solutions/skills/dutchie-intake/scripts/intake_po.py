@@ -1,6 +1,6 @@
 """intake_po.py - the Dutchie PO: the reconciled order (`po` step after certify; `po-close` step after the receipt).
 
-  python intake_po.py write --tenant <CLAUDE.md> --intake <intake-vN.csv> --vendor-id <id> --title <text>
+  python intake_po.py write --tenant <CLAUDE.md> --intake <intake-vN.csv> --lines <lines.csv> --vendor-id <id> --title <text>
                             --arrival <YYYY-MM-DD> --doc-link <url> [--number <int>] [--status Open|Submitted]
                             [--item <row>=<ProductId>]... [--out-dir <dir>] [--live]
   python intake_po.py close --tenant <CLAUDE.md> --po <purchaseOrderId> --receipt <receiveInventoryHistoryId>
@@ -15,8 +15,13 @@ diff of the receipt and a closed record of the order.
   * one line per ProductId: the intake rows that resolve to it, summed. ProductId = `--item <row>=<id>` (row = the
     1-based intake row) > `new_productid` > `copy_source_productid` on EXISTS / RETIRED_MATCH (receive.py's order).
     A row with no id ABORTs: a PO line needs an existing item, so the PO waits for the create.
-  * quantity = `units_total`; subtotal = `unit_cost` x `units_total` (the purchased cost, R50; the API has no unit
-    cost); `unitId` 1 (Quantity) on every line: a line stored with no unit fails a later header write (HTTP 500).
+  * quantity = `units_total`; subtotal = the line's NET ext: its `ext_cost` minus its own line discount, from the
+    parsed `--lines` CSV the intake was matched from (R103's net ext, the basis the invoice total uses; the API has no
+    unit cost). A sample line printed at a price with a same-line discount to $0 writes $0, never its gross. Order-level
+    credits and shipping stay off the lines (the PO has no header credit). The lines pair to the intake rows exactly as
+    `intake_exceptions.py` pairs them (ABORT on a count or description mismatch); a blank `ext_cost`, or a discount
+    above its ext, is a problem. `unitId` 1 (Quantity) on every line: a line stored with no unit fails a later header
+    write (HTTP 500).
   * header: the vendor's Dutchie record (`--vendor-id`), `--title` (the vendor's document number), expected arrival
     (`--arrival`), `status` (Open; Submitted only for the open receive-form test), an integer `purchaseOrderNumber`
     (default: the digits of the intake `invoice_no`; it need not be unique), and the document link in
@@ -69,6 +74,8 @@ STATUSES = ("Open", "Submitted")          # what `write` may create; Closed is t
 UNIT_QUANTITY = 1
 GUARD_DAYS = 120
 CENT = 0.005
+# the lines-CSV columns the net ext reads: a hand-typed lines file (the intake's `parse_source`) carries these too
+LINES_NEEDED = ["line_no", "description", "units_total", "ext_cost", "is_order_level", "order_level_kind"]
 
 
 # ---------------------------------------------------------------- pure: plan, read-back, diff
@@ -90,8 +97,17 @@ def resolve_pid(row, override=""):
     return "", ""
 
 
-def plan_lines(intake, items=None):
-    """Intake rows -> (PO lines, problems). One line per ProductId; rows that share one are summed."""
+def line_nets(intake, lines):
+    """Per intake row, its line's net ext (ext_cost - its line discount, R103) from the parsed lines; None = no ext.
+    Pairing and the discount sum are intake_exceptions' own (`pair` ABORTs on a mismatch)."""
+    import intake_exceptions as IE
+    prod = IE.pair(intake, lines)
+    lc, _, _ = IE.landed(prod, lines)
+    return [None if _num(ln.get("ext_cost")) is None else round(lc[ln["line_no"]]["net_ext"], 2) for ln in prod]
+
+
+def plan_lines(intake, nets, items=None):
+    """Intake rows + their net ext -> (PO lines, problems). One line per ProductId; rows that share one are summed."""
     items, lines, probs, order = items or {}, {}, [], []
     for n, r in enumerate(intake, 1):
         label = f"row {n} {(r.get('invoice_line') or '')[:50]!r}"
@@ -103,19 +119,22 @@ def plan_lines(intake, items=None):
         if not pid.isdigit():
             probs.append(f"{label}: ProductId {pid!r} is not an integer")
             continue
-        q, c = _num(r.get("units_total")), _num(r.get("unit_cost"))
+        q, net = _num(r.get("units_total")), nets[n - 1]
         if q is None or q <= 0 or q != int(q):
             probs.append(f"{label}: units_total {r.get('units_total')!r} is not a positive whole count")
             continue
-        if c is None or c < 0:
-            probs.append(f"{label}: unit_cost {r.get('unit_cost')!r} is not a cost")
+        if net is None:
+            probs.append(f"{label}: its parsed line has no ext_cost")
+            continue
+        if net < -CENT:
+            probs.append(f"{label}: its line discount exceeds its ext (net {net:.2f})")
             continue
         if pid not in lines:
             lines[pid] = {"productId": int(pid), "unitId": UNIT_QUANTITY, "quantity": 0, "subtotal": 0.0, "rows": []}
             order.append(pid)
         ln = lines[pid]
         ln["quantity"] += int(q)
-        ln["subtotal"] = round(ln["subtotal"] + q * c, 2)
+        ln["subtotal"] = round(ln["subtotal"] + net, 2)
         ln["rows"].append(n)
     return [lines[p] for p in order], probs
 
@@ -326,12 +345,12 @@ def _int_flag(argv, name, required=True):
 
 
 def run_write(argv):
-    tenant, src = get_flag(argv, "--tenant"), get_flag(argv, "--intake")
+    tenant, src, lp = get_flag(argv, "--tenant"), get_flag(argv, "--intake"), get_flag(argv, "--lines")
     title, arrival, link = get_flag(argv, "--title"), get_flag(argv, "--arrival"), get_flag(argv, "--doc-link")
     status, live, stamp = get_flag(argv, "--status", "Open"), "--live" in argv, datetime.now()
     vendor_id = _int_flag(argv, "--vendor-id")
-    for name, v in (("--tenant", tenant), ("--intake", src), ("--title", title), ("--arrival", arrival),
-                    ("--doc-link", link)):
+    for name, v in (("--tenant", tenant), ("--intake", src), ("--lines", lp), ("--title", title),
+                    ("--arrival", arrival), ("--doc-link", link)):
         if not v:
             abort(f"give {name}")
     if status not in STATUSES:
@@ -348,7 +367,9 @@ def run_write(argv):
         intake = list(csv.DictReader(f))
     if not intake:
         abort(f"{src} holds no rows")
-    lines, probs = plan_lines(intake, items)
+    from intake_common import read_csv
+    _, parsed = read_csv(lp, LINES_NEEDED, "--lines")
+    lines, probs = plan_lines(intake, line_nets(intake, parsed), items)
     if probs:
         abort(f"{len(probs)} intake row(s) cannot be a PO line; nothing written:\n  - " + "\n  - ".join(probs))
     body = build_body(title, vendor_id, arrival, status, po_number(intake, get_flag(argv, "--number")),
@@ -356,7 +377,7 @@ def run_write(argv):
     lane_vendors = {(r.get("lane_Vendor") or "").strip() for r in intake} - {""}
     out_dir = get_flag(argv, "--out-dir") or os.path.dirname(os.path.abspath(src))
     api = Api(_load_tenant(tenant), out_dir, re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-"), stamp)
-    rec = {"step": "po write", "live": live, "intake": os.path.abspath(src), "body": body,
+    rec = {"step": "po write", "live": live, "intake": os.path.abspath(src), "lines": os.path.abspath(lp), "body": body,
            "rows": {str(ln["productId"]): ln["rows"] for ln in lines}}
     try:
         dup = same_title(api, title, stamp)
@@ -449,6 +470,20 @@ def _row(line, pid="", verdict="EXISTS", new="", qty="10", cost="5.00", inv="INV
             "copy_source_productid": pid, "new_productid": new, "lane_Vendor": vendor}
 
 
+def _lines(intake, ext=None):
+    """The parsed product lines the intake was matched from: ext_cost = units x unit cost unless `ext` sets it."""
+    ext = ext or {}
+    return [{"line_no": str(n), "description": r["invoice_line"], "units_total": r["units_total"],
+             "unit_cost": r["unit_cost"], "is_order_level": "", "order_level_kind": "",
+             "ext_cost": ext.get(n, f"{(_num(r['units_total']) or 0) * (_num(r['unit_cost']) or 0):.2f}")}
+            for n, r in enumerate(intake, 1)]
+
+
+def _adj(line_no, desc, ext, order_level, kind):
+    return {"line_no": line_no, "description": desc, "units_total": "", "unit_cost": "", "ext_cost": ext,
+            "is_order_level": order_level, "order_level_kind": kind}
+
+
 def _po(lines, status="Open", vendor=900, unit=UNIT_QUANTITY):
     return {"purchaseOrderId": 77, "purchaseOrderNumber": 42, "title": "INV-0042", "status": status, "vendorId": vendor,
             "vendorName": "Acme Supply", "expectedArrivalDate": "2026-01-02T00:00:00.0000000", "dateReceived": None,
@@ -467,34 +502,55 @@ def selftest():
     t = Selftest("intake_po")
     intake = [_row("Acme Gummies Lemon", "11"), _row("Acme Gummies Lemon (deal)", "11", qty="2", cost="0"),
               _row("Acme Vape Mint 1g", verdict="NEW_ITEM_WITH_SIBLING", new="21", qty="24", cost="12.50"),
-              _row("Acme Flower 3.5g", "13", verdict="RETIRED_MATCH", qty="6", cost="18.333")]
-    lines, probs = plan_lines(intake)
+              _row("Acme Flower 3.5g", "13", verdict="RETIRED_MATCH", qty="6", cost="18.333"),
+              _row("Acme Vape Mint 1g sample", "21", qty="15", cost="12.00"),
+              _row("Acme Tincture 30ml", "14", qty="10", cost="20.00")]
+    parsed = _lines(intake, {4: "110.00"}) + [
+        _adj("5", "Discounts for sample units", "-180", "N", "discount"),     # a sample line netted to $0
+        _adj("6", "Promo 15% off", "-30", "N", "discount"),                  # a partial line discount
+        _adj("", "Order credit", "-25", "Y", "credit"), _adj("", "Delivery", "15", "Y", "shipping")]
+    nets = line_nets(intake, parsed)
+    t.check("nets: a line's net = ext - its own line discount (R103); order-level lines stay off",
+            nets == [50.0, 0.0, 300.0, 110.0, 0.0, 170.0], str(nets))
+    lines, probs = plan_lines(intake, nets)
     by = {ln["productId"]: ln for ln in lines}
     t.check("plan: a clean intake has no problem", probs == [], str(probs))
     t.check("plan: rows sharing a ProductId sum into one line", by[11]["quantity"] == 12 and by[11]["subtotal"] == 50.0
             and by[11]["rows"] == [1, 2], str(by.get(11)))
-    t.check("plan: a created row reads new_productid", by[21]["quantity"] == 24 and by[21]["subtotal"] == 300.0)
-    t.check("plan: a RETIRED_MATCH row reads its source; subtotal rounds to cents", by[13]["subtotal"] == 110.0,
+    t.check("plan: a sample line discounted to $0 adds its units at $0, never its gross",
+            by[21]["quantity"] == 39 and by[21]["subtotal"] == 300.0 and by[21]["rows"] == [3, 5], str(by.get(21)))
+    t.check("plan: a partial line discount writes the net", by[14]["subtotal"] == 170.0, str(by.get(14)))
+    t.check("plan: a RETIRED_MATCH row reads its source; the printed ext stands", by[13]["subtotal"] == 110.0,
             str(by.get(13)))
     t.check("plan: every line carries unitId 1", all(ln["unitId"] == 1 for ln in lines))
-    _, pr = plan_lines([_row("Acme New Thing", verdict="NEW_PL")])
+    gross = plan_lines(intake, line_nets(intake, [x for x in parsed if x["order_level_kind"] != "discount"]))[0]
+    t.check("breaker: with the line discounts dropped the plan reads gross (the check can fail)",
+            {ln["productId"]: ln["subtotal"] for ln in gross}.get(21) == 480.0
+            and {ln["productId"]: ln["subtotal"] for ln in gross}.get(14) == 200.0)
+    one = [_row("Acme New Thing", verdict="NEW_PL")]
+    _, pr = plan_lines(one, line_nets(one, _lines(one)))
     t.check("plan: a row with no ProductId is a problem (the PO waits for the create)",
             len(pr) == 1 and "no Dutchie ProductId" in pr[0], str(pr))
-    l2, pr2 = plan_lines([_row("Acme New Thing", verdict="NEW_PL")], {1: "31"})
+    l2, pr2 = plan_lines(one, line_nets(one, _lines(one)), {1: "31"})
     t.check("plan: --item <row>=<id> beats the intake", pr2 == [] and l2[0]["productId"] == 31, str(pr2))
-    for label, bad, needle in (("a fractional count", _row("x", "11", qty="2.5"), "positive whole count"),
-                               ("a zero count", _row("x", "11", qty="0"), "positive whole count"),
-                               ("a blank cost", _row("x", "11", cost=""), "not a cost"),
-                               ("a non-integer id", _row("x", "A11"), "not an integer")):
-        _, p = plan_lines([bad])
+    for label, bad, ext, adj, needle in (
+            ("a fractional count", _row("x", "11", qty="2.5"), None, [], "positive whole count"),
+            ("a zero count", _row("x", "11", qty="0"), None, [], "positive whole count"),
+            ("a blank ext_cost", _row("x", "11"), {1: ""}, [], "no ext_cost"),
+            ("a line discount above its ext", _row("x", "11"), None, [_adj("1", "d", "-60", "N", "discount")],
+             "exceeds its ext"),
+            ("a non-integer id", _row("x", "A11"), None, [], "not an integer")):
+        _, p = plan_lines([bad], line_nets([bad], _lines([bad], ext) + adj))
         t.check(f"plan: {label} is a problem", len(p) == 1 and needle in p[0], str(p))
+    t.check("nets: lines that do not pair to the intake ABORT",
+            _exit_code(lambda: line_nets(intake, _lines(intake[:5]))) == EXIT_ABORT)
     t.check("number: the invoice digits", po_number(intake) == 42)
     t.check("number: --number beats the invoice", po_number(intake, "7") == 7)
     t.check("number: two invoice numbers ABORT", _exit_code(lambda: po_number(intake + [_row("y", "1", inv="B-9")]))
             == EXIT_ABORT)
     info = ship_info("INV-0042", lines, "https://example.invalid/doc")
     t.check("shippingInformation: title, counts, total and the link",
-            info == "INV-0042 (3 lines, 42 units, $460.00). Document: https://example.invalid/doc", info)
+            info == "INV-0042 (4 lines, 67 units, $630.00). Document: https://example.invalid/doc", info)
     body = build_body("INV-0042", 900, "2026-01-02", "Open", 42, info, lines)
     hdr = body["purchaseOrders"][0]
     t.check("body: a new PO carries status and an integer number", hdr["status"] == "Open" and hdr["purchaseOrderNumber"] == 42)

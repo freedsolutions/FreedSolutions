@@ -58,7 +58,7 @@ Exit codes everywhere: 0 clean, 1 DEFECT, 2 ABORT. Proof: `python scripts/selfte
 | `scripts/intake_notice.py` | the new-items notice draft |
 | `scripts/receive.py` | phase 2: `--prep`, the receipt prep sheet (other modes stubs) |
 | `scripts/receive_snapshot.py` | the receive-time Inventory snapshot: ONE read-only `/reporting/inventory` GET, frozen raw + derived CSV |
-| `scripts/intake_po.py` | the Dutchie PO: `write` = ONE `POST /purchase-order` from the certified intake + exact read-back; `close` = PO vs receipt diff by ProductId, then Closed + `dateReceived` |
+| `scripts/intake_po.py` | the Dutchie PO: `write` = ONE `POST /purchase-order` from the certified intake (subtotal = the line's net ext from the lines CSV) + exact read-back; `close` = PO vs receipt diff by ProductId, then Closed + `dateReceived` |
 | `fixtures/receive-*.csv` | the synthetic receipt: a split package, a sample package, a new-line item, an order-level credit |
 | `scripts/intake_common.py` | shared plumbing |
 | `scripts/selftest_all.py` | every selftest + the `gridBatch` cases + the fixture checks + the CLI chain |
