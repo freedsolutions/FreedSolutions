@@ -92,6 +92,10 @@ Capture once, reuse forever.
    if Adam already said them**. Never go looking for them.
 5. **Gmail draft.** `mcp__google-workspace__gmail_createDraft`, To and CC per routing, From
    `adam@freedsolutions.com`. **Never send.** Report it back and say plainly that it is a draft.
+6. **No parked drafts.** A draft lives one day: Adam sends it or withdraws it the day it is
+   drafted. A find that is not ready to send stays one `QUEUE.md` line (below), never a Gmail
+   draft. If a draft is still unsent at session close, ask Adam: send, or withdraw (delete the
+   draft, mark the record WITHDRAWN, file it per "The record").
 
 Screenshots: attach when they help, and narrate what each shows. Their first-response AI cannot read
 images, so an image-only evidence ticket bounces off the automated layer.
@@ -114,7 +118,13 @@ must stay that way**: product feedback is client-agnostic in its framing but rou
 evidence (SKU counts, brand coverage, sales figures).
 
 Analysis that will not fit belongs in the client estate, not here. When Dutchie replies, append
-`Dutchie ref: <id>` — one line. The directory listing is the ledger; Gmail labels carry status.
+`Dutchie ref: <id>` — one line. Gmail labels carry status.
+
+**The top of `tickets/` holds only what is outstanding**: unsent drafts (normally none) and
+`QUEUE.md`. When a ticket is sent, withdrawn or superseded, move its record to `tickets/archive/` and
+add one row to `tickets/archive/INDEX.md`: record, status (SENT / SUPERSEDED / SKIPPED / BAD), and
+the evidence (Gmail message id or Dutchie ref). An open Dutchie request is tracked where the lane
+tracks its open work, not by leaving the record at the top.
 
 ## Parking mid-session
 
