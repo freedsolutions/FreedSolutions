@@ -72,9 +72,9 @@ transfer [PROBE 2026-10-09]" in dutchie-bi-looker/references/dutchie-platform-kb
 
 Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
   * room: `Intake` on every package (R126). On-hand by room from the snapshot is FIFO guidance, never a room write.
-  * `PKG - ` tag (R127; R62 R84 R97): the invoice / email decide, never the price alone. A marked sample -> the sample
+  * `PKG - ` tag (R127; R62 R97): the invoice / email decide, never the price alone. A marked sample -> the sample
     tag; a marked display -> the display tag; a printed line discount, or `--program deal` -> the vendor deal tag;
-    `tier <n>` -> `PKG - Tier <n>` (R84, R72). An unmarked price <= SAMPLE_MAX, or an unmarked price below catalog Cost,
+    `tier <n>` -> `PKG - Tier <n>` (R127, R72). An unmarked price <= SAMPLE_MAX, or an unmarked price below catalog Cost,
     is a STOP question; its proposed default is the deal tag on a tiered master category (flower / pre-roll), else a
     catalog cost change (no tag). A price above catalog Cost is a STOP: the catalog keeps the highest cost. An on-hand
     package cost ABOVE the new unit cost is never a question when the new cost equals catalog Cost: price compression
@@ -93,7 +93,7 @@ Decisions (rules cited per flag; the tenant's R numbers live in RULE below):
     and stays quiet. The questions file lists every such line; it never blocks the receipt.
   * credit (R126): entered once in the receipt header; Dutchie blends it EQUALLY across the receipt's packages. The
     sheet prints that blend per package (and the R103 extended-cost landed unit for reference).
-  * Buy-Get deal (R103, R84): the invoice prices a Buy-Get deal on ONE line (the free case at a penny). The lane reads a
+  * Buy-Get deal (R103, R127): the invoice prices a Buy-Get deal on ONE line (the free case at a penny). The lane reads a
     deal when the same item sits on a paid line AND a penny line (<= SAMPLE_MAX), or a line discount names the deal
     (`buy 4 get 1`, `b4g1`, `bogo`, `free case`). A sample or display line, and a line stated anything but `deal`,
     stays out. It BLENDS: blended unit = (sum of the deal lines' ext - their line discounts) / (sum of the deal's
@@ -163,13 +163,13 @@ FLAGS = {
     "MANIFEST_QTY_MISMATCH": ("R126 (R102: PO > Invoice > Physical)", "STOP"), "MANIFEST_LINE_MISSING": ("R126", "STOP"),
     "MAP_PROPOSED": ("R126", "STOP"), "MAP_UNRESOLVED": ("R126", "STOP"), "APEX_UNIT_IS_CASE": ("R126", "INFO"),
     "SAMPLE_MERGED": ("R127", "STOP"), "SAMPLE": ("R127 (R97)", "INFO"), "DISPLAY": ("R127 (R97)", "INFO"),
-    "DEAL_PRINTED": ("R127 (R62 R84)", "INFO"), "TIER_RULED": ("R84 (R72)", "INFO"),
-    "PENNY_UNMARKED": ("R127", "STOP"), "PRICE_DROP_UNMARKED": ("R127 (R62 R84)", "STOP"),
+    "DEAL_PRINTED": ("R127 (R62)", "INFO"), "TIER_RULED": ("R127 (R72)", "INFO"),
+    "PENNY_UNMARKED": ("R127", "STOP"), "PRICE_DROP_UNMARKED": ("R127 (R62)", "STOP"),
     "CATALOG_COST_RAISE": ("R127", "STOP"), "COST_UNKNOWN": ("R127", "STOP"), "ITEM_PENDING": ("R126", "STOP"),
     "INTAKE_ROW_UNPAIRED": ("R126", "STOP"), "LINE_NO_INTAKE_ROW": ("R126", "STOP"),
     "CREDIT_TRIPS_R62": ("R62 (R126)", "STOP"), "CREDIT_BLEND_NEGATIVE": ("R126", "STOP"),
     "LANDED_UNRECONCILED": ("R103", "DEFECT"), "DISCONTINUED_BUY": ("R68 (R48)", "INFO"),
-    "BUY_GET_BLEND": ("R103 (R84)", "INFO"), "BUY_GET_UNTIED": ("R103", "STOP"),
+    "BUY_GET_BLEND": ("R103 (R127)", "INFO"), "BUY_GET_UNTIED": ("R103", "STOP"),
     "TIER_LIST_COST": ("R127 (R50)", "INFO"), "MANIFEST_COST_UNREAD": ("R126", "INFO"),
     "MANIFEST_ITEM_SIZE_MISMATCH": ("R126", "STOP"), "MANIFEST_UOM_UNREAD": ("R126", "STOP"),
     "MANIFEST_GRAMS_UNSIZED": ("R126", "STOP"), "MANIFEST_QTY_UNREAD": ("R126", "STOP"),
@@ -566,10 +566,10 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             lflag("DISPLAY", f"{'stated' if prog else 'invoice marks'} a display unit -> {display_tag}")
         elif prog.startswith("tier"):
             n = prog.split()[-1]
-            pkg_tag, rule = f"{PKG_PREFIX}Tier {n}", "R84 ruled tier (R72)"
+            pkg_tag, rule = f"{PKG_PREFIX}Tier {n}", "R127 ruled tier (R72)"
             lflag("TIER_RULED", f"tier {n} ruled -> {pkg_tag}")
         elif prog == "deal" or (not prog and disc.get(no)):
-            pkg_tag, rule = deal_tag, "R127 printed / stated deal (R62 R84)"
+            pkg_tag, rule = deal_tag, "R127 printed / stated deal (R62)"
             lflag("DEAL_PRINTED", f"{'stated deal' if prog else f'line discount {disc[no]:.2f} printed'} -> {deal_tag}")
         elif prog in ("none", "cost change"):
             rule = f"R127 stated: {prog}"
@@ -580,7 +580,7 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
                      f"sheet PROPOSES a Buy-Get blend (R103): confirm `--program {no}=deal`, or state `sample`" if dg else ""))
         if dg:
             pkg_tag = deal_tag
-            rule = ("R103 Buy-Get blend (R84)" if dg["confirmed"] else "R103 PROPOSED: Buy-Get blend (R84) - confirm the penny line")
+            rule = ("R103 Buy-Get blend (R127)" if dg["confirmed"] else "R103 PROPOSED: Buy-Get blend (R127) - confirm the penny line")
             lflag("BUY_GET_BLEND", f"{dg['id']} lines {'+'.join(dg['lines'])} ({dg['basis']}): {float(dg['units']):g} units, deal total "
                                    f"${dg['total']:.2f}, blended unit ${dg['blended']:.2f} over {dg['packages']} package(s), "
                                    f"each `{deal_tag}`; the last package takes the remainder")

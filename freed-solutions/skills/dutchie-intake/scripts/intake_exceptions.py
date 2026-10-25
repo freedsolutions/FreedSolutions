@@ -23,7 +23,7 @@ Flag table (rule, class; the R102 flags are STOP-class: they are listed in the S
 never fail the runner - only a DEFECT exits 1):
   COST_DRIFT           R102 (see R50)            STOP    list unit cost != the lane Cost (penny exact,
                                                           R50) and no discount or credit explains it
-  DEAL_UNDECIDED      R102 (see R62 R72 R84)    STOP    landed unit (R103, the cost the package is
+  DEAL_UNDECIDED      R102 (see R62 R72 R127)   STOP    landed unit (R103, the cost the package is
                                                           received at) <= 0.90 x lane Cost (R62) AND no
                                                           ruled Vendor Deal, Tier or margin program (PO
                                                           `program` column or --program) - whether or
@@ -49,7 +49,7 @@ from intake_match import INTAKE_COLS, LINES_REQUIRED, V3_COLS  # noqa: E402
 
 R62_RATIO = 0.90          # R62: package cost <= 0.90 x catalog cost, boundary inclusive (ruled, not tuned)
 PO_REQUIRED = ["po_no", "po_line", "sku", "description", "units", "unit_cost"]
-FLAGS = [("COST_DRIFT", "R102 (see R50)", "STOP"), ("DEAL_UNDECIDED", "R102 (see R62 R72 R84)", "STOP"),
+FLAGS = [("COST_DRIFT", "R102 (see R50)", "STOP"), ("DEAL_UNDECIDED", "R102 (see R62 R72 R127)", "STOP"),
          ("EXPIRY_NEAR", "R102", "STOP"), ("PO_MISMATCH", "R102", "STOP"), ("PKG_TAG_DUE", "R62 (see R72)", "INFO"),
          ("LANDED_UNRECONCILED", "R103", "DEFECT")]
 RULE = {f: r for f, r, _ in FLAGS}
@@ -173,7 +173,7 @@ def evaluate(intake, lines, po=None, expiry_days=90, asof=None, programs=None, d
             add("DEAL_UNDECIDED", f"landed unit {v['landed_unit']:.4f} <= {R62_RATIO:.2f} x lane Cost {lane:.2f} "
                                    f"and no Vendor Deal, Tier or margin program ruled"
                                    + (f" (line discount {v['disc']:.2f} printed)" if promo else " (no discount printed)")
-                                   + f" - `{deal_tag or 'the Vendor deal tag'}` until a tier is proven (R84)")
+                                   + f" - `{deal_tag or 'the Vendor deal tag'}` until a tier is proven (R127)")
         exp = r["expiry_date"]
         if exp:
             try:

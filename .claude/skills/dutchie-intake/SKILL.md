@@ -77,6 +77,8 @@ the second is the `bi-change` block the tenant already has.
   R130: the same map carries each master's market limits - `package_cap_mg` is the dose read's cap)
 - Catalog state: <stateLibrary>      (the global-link step's state library, as `search-catalog-products` prints
   it; absent, nothing is linked and every create with hits is a `no match` question - create step 2)
+- Minor cannabinoid roster: <smart tag name>   (optional; R28 - the smart tag whose strain rule is the manual list
+  of non-THC-cannabinoid strains; a minted composition Strain joins it in the same create - create step 4; absent, n/a)
 - Case store: <ORG_CODE> via <runner.ps1>   (optional; the after-receipt branch: the warehouse org code and the
   tenant's ONE-command guided case writer; absent, `intake_cases.py open` / `sql` ABORT. The same org code scopes
   the STOP's open-cases read, `intake_cases.py stop`, and the receipt's, `receive.py --prep --cases`; absent, each
@@ -408,6 +410,13 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    every form Save inspected BEFORE it leaves and blocked when a key the row does not touch would move). Run
    `intake_ui_run.py harvest --product <id>` once per tab first; `intake_ui_run.py record` writes each result to
    the progress JSONL and a COPY's new ProductId into the keyMap. Write channel (below) holds the pacing rules.
+   **Roster add (R28)**, on a tenant with a `Minor cannabinoid roster:` pointer (absent, n/a). A MINT_STRAIN row
+   whose entry names a cannabinoid other than THC - a ratio that names one (R36) or an added cannabinoid (R93); an
+   additive such as caffeine (R37) is not one - owes a roster add in the same create. The roster is a smart tag
+   whose strain rule is a manual list, so a new record joins it only by hand. The add is not a plan row. The STOP
+   names each owed add next to the plan summary, and the Operator's approval covers it. After the mint lands, open
+   the roster tag in the smart tag editor, tick the new record in the rule's strain picker (the count rises by
+   one), then Save (KB "Smart-tag save"). Write the strain and its StrainId to the progress JSONL as `roster_add`.
    **Un-retires first** (R101): per `unretire_set` member its UNRETIRE_ALIGN rows (Cost = `lane_Cost`, the
    invoice; Price confirmed current; the ONE decision tag, old one removed), then the un-retire (the grid's
    bulk-unretire mutation; Actions > Unretire is the UI fallback); the whole
@@ -459,7 +468,9 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
 7. **Post pull + ONE certify** (below). Then write `new_sku`, `new_productid`, `verified`, `action = CREATED`,
    `image_source` and `global_link_result` (the plan summary's value per create; a LINK row that STOPPED in the
    run reads `no match: the link did not land (<reason>)`) from the certify's create map and the run record into
-   a NEW intake version for the notice.
+   a NEW intake version for the notice. A step-4 roster add is read back with the certify: the roster tag's live
+   rule (`get-smart-tag-details`) lists each `roster_add` StrainId. A missing id goes into the certify report and
+   the add is made again; it is never waived.
 Platform mechanics: `dutchie-bi-looker/references/dutchie-platform-kb.md`, "Item creation by Copy item".
 
 **`certify`** - ONE certify per batch, at the end (R124). After the last write the lane pulls Catalog Active
@@ -536,7 +547,7 @@ recipients and sends; this skill sends nothing.
 **`receive`** - phase 2. `--prep` is built; `--enter`, `--check` and `--vendor` are stubs (exit 2). No login and
 no write: `--prep` reads files and writes a NEW sheet. The tenant's rules: one row per Metrc package, received into
 `Intake`, manifest tie-out and the order-level credit (R126); the `PKG - ` tag from the invoice and the vendor's
-email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
+email (R127, qualifying R62 R97); the package-grain `ITM - ` strip (R47).
 1. **Metrc manifest read (READ-ONLY).** In the write channel, open Metrc > Licensed Transfers > Incoming, expand each
    transfer row and read its packages. Never click Receive, Reject or any button but the row expanders: a Metrc
    receive is a compliance event and is Dutchie's to send. Type what you read into a NEW
@@ -617,7 +628,7 @@ email (R127, qualifying R62 R84 R97); the package-grain `ITM - ` strip (R47).
      ruling say whether the credit goes into package cost. `CASES_UNREAD`, `VENDOR_PARTY_UNMATCHED` and
      `CASE_READ_FAILED` (STOP) leave the cases unseen; the header credit says so. No `Case store:` pointer is a quiet
      INFO (`CASE_STORE_ABSENT`). `--cases` without the pointer ABORTs.
-   - Buy-Get deal (R103, R84): the invoice often prices the free case of a Buy-Get deal on ONE line at a penny. The
+   - Buy-Get deal (R103, R127): the invoice often prices the free case of a Buy-Get deal on ONE line at a penny. The
      lane reads a deal when the same item sits on a paid line AND a penny line, or a line discount names the deal
      (`buy 4 get 1`, `b4g1`, `bogo`, `free case`). A sample or display line, or a line stated anything but `deal`, stays
      out. The lane BLENDS: blended unit = (the deal lines' ext - their line discounts) / (the deal's package units),
@@ -724,7 +735,7 @@ The path. Each step waits for the step before it (Operator ruling: the Dutchie f
    package to the tenant's hold room. The lane never moves a room. The lane makes no Dutchie write on the package or
    the item.
 2. **Ruling (the business, in mail).** The ruling covers three things: the cost (a credit, or a revised invoice),
-   the MSRP of the item as it really is, and the vendor-deal protocol (the package tag, R62 R84 R127). Write it with a
+   the MSRP of the item as it really is, and the vendor-deal protocol (the package tag, R62 R127). Write it with a
    `rule` op that carries the mail's id. No mail, no ruling: a ruling relayed in chat is a NOTE until it is in mail.
    The lane SENDS the question to the person who rules (an internal mail, the mail rule below), on the case's Gmail
    thread, with the options numbered. The tenant's inbox flow logs the sent question and the reply on the case. The
@@ -741,7 +752,8 @@ The path. Each step waits for the step before it (Operator ruling: the Dutchie f
    Product grams, the derived fields (Flower equiv, Servings per Unit; `intake_derive.py`), the ruled Price and tag;
    (b) on the package, `Change product` into the same item. Read the package back: its quantity must equal the
    physical count (Metrc grams / the true unit size). A different count is a STOP, never an adjustment by guess.
-   (c) Set the package cost from the updated invoice. A credit goes on that ONE package (the post-receipt credit rule).
+   (c) Set the package cost from the updated invoice. A missed credit is blended over that invoice's packages still on hand, by extended cost (R103);
+   sold units are not re-costed. Then edit the receipt's line costs to the invoice, so the receipt ties to the bill.
    Certify by the attributed diff (the pre and post pulls), then write `DUTCHIE_FIXED` (the detail names the certify).
    [OPERATOR 2026-10-19: the `Change product` into-itself path is not probed yet. The first live run records it in the
    platform KB.]
