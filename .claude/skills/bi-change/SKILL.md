@@ -84,13 +84,16 @@ Every path ends with `check` green, a Status section with a done block, and the 
   fails a ratified kickoff whose minted rules have no such row (D1), and fails any run where a
   register rule has no row at all (D2): the register says what the rule IS, DECISIONS says who
   decided it and which change carries the evidence. Append only — never rewrite a row.
-  **May not** write to BI.
-- **build** may: write to BI inside `scope`, edit Dictionary **impl cells and the header stamp**,
+  In database mode every one of these canon writes is a `canon_write.js` spec (see "Canon in database
+  mode"), never a text edit. **May not** write to BI.
+- **build** may: write to BI inside `scope`, edit Dictionary **impl cells and the header stamp** (in
+  database mode: `canon_write.js impl` specs and `--stamp`, never a text edit),
   edit guide / SOP / WI / README, render, append Status. **May not**: edit rule text (the gate
   hashes every rule cell at seal time and fails on any change), touch elements outside `scope`,
   decide a retirement, mint an R row, or introduce vocabulary without the runbook's 2b peer read.
   If Adam re-rules mid-build, the plan lane re-seals; the build lane does not.
 - **check** reads only. It is the definition of done: `node .claude/skills/bi-change/scripts/kickoff_check.js <kickoff>`.
+  In database mode `canon_render.js --check` runs first; a red `--check` fails the check.
 
 ## The client pointer block
 
@@ -131,8 +134,10 @@ worktrees do not contain `clients/`):
 - Write channel: neo | pane         # see below; reads may use any channel
 - Export refresh: <command>         # after every export pull: freeze + place + retire (see Scripts)
 - Canon: Dictionary > rule patterns reference > skill > memory; runbook = BI-SOP.md §2
-#   optional clause on the Canon line, only for a tenant whose canon has a warehouse mirror:
-#   "Mirror: SHADOW, sync from <dir>" (absent = no mirror). See Close-out step 7.
+#   optional clause on the Canon line, only for a tenant whose canon is in a warehouse:
+#   "Mirror: SHADOW, sync from <dir>" (the files are canon, the warehouse a copy), or
+#   "Mode: DATABASE (org <code>, <dir>)" (the warehouse is canon, the files are renders).
+#   Absent = file mode, no warehouse. See "Canon in database mode" and Close-out step 7.
 ```
 
 The mirror clause sits on the existing `Canon:` line, not on a key of its own: C8 counts every
@@ -193,7 +198,8 @@ row count, because merge queries have no `run/json` endpoint (404); falsify ever
 positive. An export-side mirror reading zero corroborates a tile, it never replaces the count gate. Docs are anchored edits through `scripts/stamp_helpers.js` (`load`, `once`, `onceRe`,
 `swap`, `restamp` for SOP/guide/WI stamps, `restampDictionary`, `appendRegisterRow`) — it throws
 before writing when an anchor is missing or repeated, which is what keeps parallel sessions from
-clobbering each other.
+clobbering each other. In database mode `restampDictionary` and `appendRegisterRow` are NOT used:
+the Dictionary and DECISIONS change only through `canon_write.js`.
 
 ## Kickoff contract
 
@@ -225,21 +231,69 @@ the live harvest, so the diff is waved through as not applicable when it should 
 measured). One kickoff, one done block, always describing the latest run; the Status list is the
 run history. Re-seal is not needed — a cadence run rules nothing new.
 
+## Canon in database mode
+
+A tenant is in **database mode** when its pointer's `Canon:` line says `Mode: DATABASE (org <code>,
+<dir>)`. The warehouse `canon` schema is then the register AND the record. `DATA-DICTIONARY.md` and
+`DECISIONS.md` are renders of it: nobody edits them by hand. `canon_render.js --check` fails a hand
+edit, and `close.js` refuses `--decision`. Without the clause, or with `Mirror: SHADOW`, the tenant
+is in file mode and the rest of this skill applies as written.
+
+**The write path: one `canon_write.js` call per change, then one render.**
+
+1. The lane writes one spec JSON per call (`--spec`: no shell quoting). `mint`, `amend` and
+   `status` carry their DECISIONS row in the same call. `impl` moves Surface / Links / Record only.
+   `decision` is a `DD` or `SOP` row. `section` replaces the head or tail prose, verbatim (the §2b
+   bespoke dimensions and the export-only register sit in the tail). `--expected-version` is the
+   version the lane read from `canon.v_rules` or `canon.v_sections_current`; it is the lock.
+2. The lane emits every call with `--emit-sql` (the dry run refuses what the procedures refuse). A
+   call of a new shape is rehearsed on the twin first, in one transaction that rolls back.
+3. The writer is a person: the database refuses every `_agent`, `_analyst`, `_ingest` and `_surface`
+   login. The lane hands the operator ONE guided script per sitting: sha256 pins on every input and
+   tool, the dry run, a typed confirm word, the login loaded inside the script and cleared in
+   `finally`, the `--send` calls in order (stop at the first failure), then `canon_render.js` (it
+   writes both files and prints both sha256) and `canon_render.js --check`. The lane never handles
+   the login.
+4. The lane reads back as the agent login: the render sha256 = each file; `canon.v_current_mismatch`
+   0 rows; `canon.v_rules_without_decision` 0 rows; exactly the versions and DECISIONS rows the
+   calls should write, and no other.
+5. The Dictionary stamp line is `--stamp "<text>"` on the change's LAST call, in the same
+   transaction (same-day stamps count up). There is no `Prior:` chain: the history is
+   `canon.section_versions` and DECISIONS.
+
+**Seal and gate.** The rendered rule cell is `rule_text`, and `rule_sha1` is the gate's seal hash, so
+a seal taken from the render (or from the spec text before the write) is the same seal. In every
+build, and before every `check` of a database-mode kickoff, `canon_render.js --check` runs first,
+then `kickoff_check.js`. A green `--check` makes a gate read of the file a read of the database, so
+`kickoff_check.js` stays login-free. `--check` needs a read login; a lane without one reads the
+render sha256 through its read-only database tool and compares it with the file sha256 — the same
+proof.
+
+**Break-glass.** The warehouse is down and a ruling cannot wait: edit the markdown file, say so in
+the kickoff, and when the warehouse is back the operator takes the edit in with `canon_load.js
+--sync` (one guided script) and a `DD` row records it. `--check` stays red until then.
+
 ## Close-out (build lane)
 
-1. Status entry + done block; `check` green (paste its last line into Status).
-2. Dictionary impl cell(s) and header stamp; SOP / WI / guide / README stamps; renders.
+1. Status entry + done block; `check` green (paste its last line into Status). Database mode:
+   `canon_render.js --check` green first.
+2. Dictionary impl cell(s) and header stamp (database mode: the guided `canon_write.js` script, its
+   render and the read-back); SOP / WI / guide / README stamps; renders.
 3. Memory: one project line if the change taught something not derivable from the docs.
 4. Client `CLAUDE.md`: ONE line under `## Change log` pointing at the kickoff. The kickoff is the
    record; the log is an index. Use `scripts/close.js` for this step (see Scripts). Do not write a
    one-off script. One call replaces the Current-state bullets, adds the line, folds at the cap,
-   appends the DECISIONS rows and runs `--pointer`.
+   appends the DECISIONS rows and runs `--pointer`. Database mode: no `--decision` (the rows are
+   `canon_write.js` calls; `close.js` refuses them).
 5. Browser phase ends: make no further writes in the lane's tab. Leave other lanes' neo tabs as
    you found them.
 6. Commit skill-side changes only; `clients/` is never committed and never named in a tracked file.
-7. **Canon mirror sync (shadow period only).** Do this step when the tenant pointer's `Canon:` line
-   says `Mirror: SHADOW` AND this close changed `DATA-DICTIONARY.md` or `DECISIONS.md`. Otherwise
-   write "no mirror sync owed" in Status.
+7. **Canon parity.** Database mode (`Mode: DATABASE`): no sync is owed. Status carries the guided
+   script's renders, `--check` and the read-back (see "Canon in database mode"); a close that wrote
+   no canon says "no canon write" and still runs `--check`. File mode with `Mirror: SHADOW`: the
+   bullets below. File mode with no mirror: write "no mirror sync owed" in Status.
+   **Shadow sync.** Do this when the `Canon:` line says `Mirror: SHADOW` AND this close changed
+   `DATA-DICTIONARY.md` or `DECISIONS.md`.
    - The operator runs the shadow sync ONCE, in the same sitting, before any other canon edit. The
      operator is a person with the canon-writer login, never a lane. Run it in the directory the
      pointer names: `canon_load.js <tenant args> --sync --kickoff <kickoff basename> --changed-on
@@ -318,7 +372,16 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   its line endings and BOM. A refusal writes nothing (exit 2). A red `--pointer` gate after the write
   restores every file (exit 1). Run `--dry-run` first: it prints the diff. `--spec` takes the same
   fields as JSON, so quotes need no shell escaping.
-- `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script).
+- `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script). In
+  database mode, SOP / WI / guide / README stamps only.
+- `scripts/canon_write.js <mint|amend|status|impl|decision|section> --org-code <code> --kickoff <basename>
+  [--spec <file.json>] [--stamp "<text>"] (--emit-sql [--out f] | --url-env <ENV VAR NAME> --send)` — ONE
+  canon write through the warehouse writer procedures, in one transaction; a rule change carries its
+  DECISIONS row in the same call. `--url-env` names a variable; a URL on the command line is refused, and
+  so is an agent login. Exit 2 = refused, nothing sent.
+- `scripts/canon_render.js --estate <dir> --org-code <code> --url-env <NAME> [--check]` (or `--render-from
+  <render.json>`) — writes the two canon files from the warehouse and prints both sha256; `--check` writes
+  nothing and exits 1 on any byte of difference, naming the file, line and column.
 - Skill-side, estate passed in: `scripts/bi_impact_scan.js --estate <estate dir>` (`"<needle>"`, `--verify`, `--stale`)
   `--stale` also reads `<estate>/onepagers.json` (the canonical business one-pagers: generator, delivered file, the rules it prints, a seal) and reports ONE-PAGER BEHIND; `--seal-onepager <key>|all` re-seals after a human confirms the document or a regeneration.
   and the render script.
@@ -360,7 +423,7 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
 **Run both proofs after ANY edit to the gate or to a skill file — they are the reason a change to
 this skill can be trusted, and each is proven to fail, not merely to pass:**
 
-- `node scripts/gate_selftest.js` — 180 assertions over temp-dir fixtures. Every size cap must go
+- `node scripts/gate_selftest.js` — 257 assertions over temp-dir fixtures. Every size cap must go
   green on a clean fixture AND red on a fixture broken in exactly one place, must stay quiet under
   `--caps info`, and must redden under its shipped per-cap default; the seal grain must still FAIL
   an OPEN kickoff whose in-grain rule text moved; and `--pointer` must run with no kickoff, score

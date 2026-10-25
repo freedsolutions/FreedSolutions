@@ -1,6 +1,6 @@
 # <TENANT> BI Data Dictionary & Business Rules Register
 
-The standing business rules for the <TENANT> Dutchie/Looker estate. This file is CANON:
+The standing business rules for the <TENANT> Dutchie/Looker estate. This register is CANON:
 a rule changes here first, then in the BI surface, then in the operator docs.
 
 **Column contract** — `| # | Rule | Grain | Surface | Status | Since | Links | Record |`

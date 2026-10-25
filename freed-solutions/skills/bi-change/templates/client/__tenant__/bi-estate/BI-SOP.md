@@ -53,7 +53,10 @@ and the live catalog verifies.
 
 **Step 1 — Data Dictionary first.**
 Amend the rule in `DATA-DICTIONARY.md` (R-register row, or §2b for the bespoke
-dimensions). Record what changed, who ruled it, and the date. No BI edit happens before
+dimensions). When the tenant pointer's `Canon:` line says `Mode: DATABASE`, the warehouse
+`canon` schema is the register: the amendment is a `canon_write.js` call and the file is a
+render (`canon_render.js`), never edited by hand. Record what changed, who ruled it, and
+the date. No BI edit happens before
 the dictionary says so. Take the next free R-number by fresh-reading the register tail at
 write time — and if you only *reserve* a number for a proposal, write a placeholder row the
 same day, or the next mint takes the number.

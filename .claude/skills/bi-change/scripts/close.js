@@ -23,6 +23,8 @@
 //                     that Earlier line names in backticks, and bump N (and its `to <date>`).
 //   5. --decision     append one `| date | rule | ruling | record |` row per flag to the estate DECISIONS.md.
 //                     Record = --decision-record, else the change-log record's basename in backticks.
+//                     REFUSED when the pointer's Canon line says `Mode: DATABASE`: there DECISIONS.md is a
+//                     render, and the row is a `canon_write.js decision` call.
 //   6. caps           every number comes from kickoff_check.js (CAPS, POINTER_EOL) — never a copy here.
 //                     Any breach REFUSES: exit 2, nothing written.
 //   7. write + gate   archive, DECISIONS, pointer; then `kickoff_check.js --pointer <tenant>`. A red gate
@@ -329,6 +331,11 @@ function main() {
   if (kind !== POINTER_EOL) refuse('the pointer line endings are ' + kind + ', the convention is ' + POINTER_EOL +
     ' — convert the endings first, change nothing else');
   const EOL = EOLS[kind];
+  // Database mode (the Canon line says `Mode: DATABASE`): DECISIONS.md is a render of the warehouse, so a row
+  // appended here would fail canon_render.js --check. The row is a canon_write.js `decision` call.
+  const dbMode = /^- \*\*Canon:\*\*.*Mode:\s*DATABASE/m.test(ptrText);
+  if (dbMode && r.decisions.length) refuse('the Canon line says Mode: DATABASE — DECISIONS.md is a render; write the row with ' +
+    '`canon_write.js decision`, then `canon_render.js` (SKILL.md "Canon in database mode"); nothing written');
   const before = ptrText.split(EOL);
   const ed = editPointer(before, r, logLine);
   const capWhy = capCheck(ed.lines);
@@ -413,6 +420,7 @@ function main() {
   say('  gate: ' + gout[gout.length - 1] + ' (kickoff_check.js --pointer)');
   if (r.decisions.length && /^- \*\*Canon:\*\*.*Mirror:\s*SHADOW/m.test(ptrText))
     say('  canon: DECISIONS.md changed and the Canon line says Mirror: SHADOW — the mirror sync is owed (SKILL.md Close-out step 7).');
+  if (dbMode) say('  canon: Mode: DATABASE — the canon files are renders; `canon_render.js --check` before `kickoff_check.js` (SKILL.md Close-out step 7).');
   say('  written: ' + writes.map(([f]) => path.relative(tenant, f).split(path.sep).join('/')).join(', '));
   return 0;
 }

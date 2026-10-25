@@ -1730,7 +1730,8 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
 // the line cap; U4-U9 that each refusal writes NOTHING (md5 of every file unchanged); U10 that a
 // red gate after the write restores every file; U11 the twin verdict both ways; U12 that close.js
 // carries no cap number of its own (the caps are the gate's); U13 that a mixed append-only archive
-// takes the fold in its dominant ending.
+// takes the fold in its dominant ending; U14 that a database-mode tenant (Canon line `Mode: DATABASE`)
+// refuses a DECISIONS row, which there is a canon_write.js call (2026-10-25, the canon flip).
 // =============================================================================================
 {
   const CLOSE = path.join(path.dirname(GATE), 'close.js');
@@ -1919,6 +1920,30 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
       check('U13: a MIXED archive takes the fold in its dominant ending (LF), names the mix, keeps its bytes',
         r.status === 0 && a === mixed + OLDEST + '\n' && /the archive has MIXED line endings \(1 CRLF, 3 LF\); appended in LF/.test(r.out), said(r));
     }
+    // U14 — database mode (the Canon line says `Mode: DATABASE`): DECISIONS.md is a render, so --decision is
+    // REFUSED and nothing is written; a close without a row still runs and names the --check step.
+    setup({ decEol: '\r\n' });
+    {
+      fs.writeFileSync(PTR, fs.readFileSync(PTR, 'utf8').replace('## Notes\r\n\r\n',
+        '## Notes\r\n\r\n- **Canon:** fixture register. Mode: DATABASE (org FX, fixture dir): the database is canon.\r\n'));
+      const s0 = sums();
+      const a = close(base(['--decision', 'R1', 'Fixture ruling.']));
+      check('U14: in database mode --decision is REFUSED (exit 2) and writes nothing',
+        refusedU(a, /Mode: DATABASE — DECISIONS\.md is a render; write the row with `canon_write\.js decision`/) && sums() === s0, said(a));
+      const d0 = fs.readFileSync(DEC);
+      const b = close(base());
+      check('U14: in database mode a close with no row exits 0, leaves DECISIONS.md byte-equal and names --check',
+        b.status === 0 && fs.readFileSync(DEC).equals(d0) && /canon: Mode: DATABASE — .*canon_render\.js --check` before `kickoff_check\.js`/.test(b.out), said(b));
+    }
+    // U14 needle — the same pointer with the clause spelt `Mirror: SHADOW` takes the row (shadow mode).
+    setup({ decEol: '\r\n' });
+    {
+      fs.writeFileSync(PTR, fs.readFileSync(PTR, 'utf8').replace('## Notes\r\n\r\n',
+        '## Notes\r\n\r\n- **Canon:** fixture register. Mirror: SHADOW, sync from fixture dir.\r\n'));
+      const r = close(base(['--decision', 'R1', 'Fixture ruling.']));
+      check('U14: in shadow mode the same --decision is written and the mirror sync is named as owed',
+        r.status === 0 && /DECISIONS: \+1 row/.test(r.out) && /mirror sync is owed/.test(r.out), said(r));
+    }
     // U12 — close.js takes every cap from the gate and holds no cap number of its own. The one-digit
     // caps (the 2-line bullet) are too common a literal to search for; every cap of 10 or more is.
     {
@@ -1959,6 +1984,7 @@ if (bad) {
   console.log('       and a folder Look retires on its own, declared in scope.retired_looks.');
   console.log('       and the canon writer emits one call with its ruling, refusing what the procedures');
   console.log('       refuse, while canon --check reddens on a one-byte or line-ending hand edit;');
-  console.log('       and close.js closes a pointer in one call inside the gate caps, or writes nothing.');
+  console.log('       and close.js closes a pointer in one call inside the gate caps, or writes nothing,');
+  console.log('       refusing a DECISIONS row where the canon is the database.');
 }
 process.exit(bad ? 1 : 0);

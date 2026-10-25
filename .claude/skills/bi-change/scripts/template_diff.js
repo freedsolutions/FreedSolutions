@@ -50,6 +50,13 @@ const SECTIONS = [
     file: 'bi-estate/DATA-DICTIONARY.md',
     start: /^# .* BI Data Dictionary/,
     end: /^Last updated:/,
+    exclude: [
+      // A tenant in database mode (its Canon line says `Mode: DATABASE`) renders the Dictionary from the
+      // warehouse, and the render carries a GENERATED banner under the title. A scaffolded tenant starts
+      // in file mode, so the template must not carry it.
+      { why: 'instance-only line: the database-mode GENERATED banner (and the blank line after it)',
+        re: /^> \*\*GENERATED FILE — do not edit\.\*\*[^\n]*\n\n/gm },
+    ],
   },
   {
     name: 'Tenant CLAUDE.md — the pointer instruction block',
