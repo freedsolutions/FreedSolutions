@@ -7,6 +7,7 @@
                         `PL key:` / `Discontinue tag:`, else the generic key and `ITM - Discontinue`; R68)
                         --catalog-search <csv> [--catalog-state <stateLibrary>]   (default: the tenant pointer
                         `Catalog state:`; the global-link search the lane ran for every create, below)
+                        [--catalog-records <json>]   (the batch-catalog-products read of the hits: R111 rung (a))
   python intake_plan.py --selftest
 
 R124: the Operator approves one plan file that names every write - item, field, before-value, target. The
@@ -73,6 +74,15 @@ BrandCatalogProductVersion: 0, ProductId}`. Each create's result prints in the s
 step 7 writes it into the intake and the notice asks the business about every best guess and every no-match with
 candidates. The Operator may override at the STOP in `global_link_pick` (a listed id, or `none`).
 
+Online description, R111 rung (a) (K3, 2026-10-25). For a sibling copy whose link is an EXACT name, the plan reads
+that record from `--catalog-records` (the batch-catalog-products read, by id) and compares every fact the record
+states with ours: category / subcategory, weight (`options`, `suggestedWeightGrams`; never `weightGrams`, R99), dose,
+pack and the strain / flavor word. All agree: `OD_RUNG ... rung (a)` - the record's description is the product
+paragraph (taken whole when robust, a missing strain, flavor or effect part added; the sibling's template text
+stays). Any disagreement, a best guess, an Operator pick or no link: `rung (b)`, the brand's assets. The lane runs
+the plan `--dry-run` first, writes `online_description` and `online_desc_source` (the OD_RUNG text) in a NEW intake
+version, then plans.
+
 Derived fields (intake_derive.py; the intake row's `derived` cell, v6). A create row's Flower equiv, Servings per
 Unit and CBD content that the lane DERIVED carry their rule cite into the plan row's provenance. Flower equiv is
 RE-DERIVED here from the row's FINAL Product grams and Master category (the class map), so a grams correction at
@@ -95,6 +105,7 @@ Exit: 0 plan written (or a dry run with 0 refusals) · 2 refused or input refuse
 no DEFECT, only refusals. The summary printed is the pre-create STOP's plan block: writes per step and channel.
 """
 import hashlib
+import json
 import os
 import re
 import sys
@@ -102,10 +113,10 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from intake_common import (CATALOG_COLS, CATEGORIES_REQUIRED, CREATE_VERDICTS, DEFAULT_ACTIVE_TAG, DEFAULT_DEAD_TAG,  # noqa: E402
-                           DEFAULT_DISCONTINUE_TAG, DEFAULT_NEW_LINE_TAG, EXIT_ABORT, EXIT_OK, ITEM_PREFIX,
+                           DEFAULT_DISCONTINUE_TAG, DEFAULT_NEW_LINE_TAG, EXIT_ABORT, EXIT_OK, ITEM_PREFIX, PL_DOSE,
                            line_state, pl_index, pl_key_default, STRAINS_REQUIRED, Selftest, abort, get_flag, grams_eq, grams_of, money_eq,
-                           new_path, next_version, norm, num, read_csv, stamp, strain_name_col, tag_set, version_stem,
-                           write_csv)
+                           has_phrase, new_path, next_version, norm, num, read_csv, segs, stamp, strain_name_col, tag_set,
+                           version_stem, write_csv)
 from intake_match import V3_COLS  # noqa: E402
 import intake_derive  # noqa: E402
 import intake_apex_cost  # noqa: E402
@@ -420,6 +431,91 @@ def link_result(kind, conf, rec, why, nearest):
     return f"{conf}: {why}" + (f"; nearest: {nearest}" if nearest else "")
 
 
+OZ = {"1/8oz": 3.5, "1/4oz": 7.0, "1/2oz": 14.0, "1oz": 28.0}
+
+
+def _rec_grams(a):
+    """The grams a GBC record states: its `options` sizes and `suggestedWeightGrams`. Never `weightGrams` (R99: on the
+    harvest that field is not grams)."""
+    out = set()
+    for o in a.get("options") or []:
+        s = str(o).strip().lower().replace(" ", "")
+        g = OZ.get(s, grams_of(s))
+        if g:
+            out.add(round(g, 4))
+    g = num(a.get("suggestedWeightGrams"))
+    if g:
+        out.add(round(g, 4))
+    return out
+
+
+def _rec_mg(a):
+    th = a.get("thcContent") or {}
+    rng = th.get("range") or []
+    if (th.get("unit") or "").upper() == "MILLIGRAMS" and rng and num(rng[0]):
+        return num(rng[0])
+    return num(a.get("suggestedDosageMg"))
+
+
+def od_rung_a(r, kind, conf, rec, record):
+    """R111 rung (a) for one create (K3, 2026-10-25): the linked GBC record's description is the product paragraph's
+    first source, but ONLY on a link past the R98 gate. (fires, why). Fires only when the link is an EXACT name (a best
+    guess, an Operator pick or no link falls to rung (b)), the record was read (`--catalog-records`), it carries a
+    description, and every fact the record states agrees with ours: category / subcategory, weight, dose, pack and the
+    strain / flavor word. A fact the record does not state is not compared."""
+    if kind != "link" or conf != "exact":
+        return False, f"rung (b): the link is {'a ' + conf if kind == 'link' else 'absent (' + conf + ')'}, not an exact name past the R98 gate"
+    a = (record or {}).get("attributes", record) if record else None
+    if not a:
+        return False, f"rung (b): record {rec.get('id')} was not read (pass the batch-catalog-products read as --catalog-records)"
+    if not (a.get("description") or "").strip():
+        return False, f"rung (b): record {rec.get('id')} carries no description"
+    dis, ok = [], []
+    for fld, ours in (("category", r.get("lane_GlobalCategory")), ("subcategory", r.get("lane_GlobalSubCategory"))):
+        theirs = (a.get(fld) or "").strip()
+        if theirs and (ours or "").strip():
+            (ok if norm(theirs) == norm(ours) else dis).append(f"{fld} {theirs!r}" + ("" if norm(theirs) == norm(ours) else f" vs ours {ours!r}"))
+    gs, g = _rec_grams(a), grams_of(r.get("lane_ProductGrams"))
+    if gs and g:
+        (ok if round(g, 4) in gs else dis).append(f"weight {sorted(gs)}g" + ("" if round(g, 4) in gs else f" vs ours {g:g}g"))
+    p = segs(r.get("create_name_FINAL"))
+    m = PL_DOSE.match(p[3]) if len(p) > 3 else None
+    our_pk = int(m.group(3)) if m and m.group(3) else 1
+    our_mg = float(m.group(1)) * our_pk if m and m.group(2).lower() == "mg" else None
+    rmg = _rec_mg(a)
+    if rmg and our_mg:
+        (ok if abs(rmg - our_mg) < 1e-6 else dis).append(f"dose {rmg:g}mg" + ("" if abs(rmg - our_mg) < 1e-6 else f" vs ours {our_mg:g}mg"))
+    rpk = num(a.get("packSize")) or num(a.get("suggestedPackSize"))
+    if rpk and m:
+        (ok if int(rpk) == our_pk else dis).append(f"pack {int(rpk)}" + ("" if int(rpk) == our_pk else f" vs ours {our_pk}"))
+    word = (r.get("strain") or r.get("lane_Flavor") or "").strip()
+    if word:
+        said = (a.get("suggestedStrainName") or "").strip()
+        if said:
+            (ok if norm(said) == norm(word) else dis).append(f"strain {said!r}" + ("" if norm(said) == norm(word) else f" vs ours {word!r}"))
+        else:
+            (ok if has_phrase(norm(a.get("name")), word) else dis).append(f"word {word!r}" + (" in the record name" if has_phrase(norm(a.get("name")), word) else " missing from the record name"))
+    if dis:
+        return False, f"rung (b): record {rec.get('id')} disagrees: " + "; ".join(dis)
+    return True, f"rung (a): GBC record {rec.get('id')} | {a.get('name') or rec.get('name')} - every stated fact agrees ({'; '.join(ok) or 'none stated'})"
+
+
+def load_catalog_records(path):
+    """--catalog-records: the batch-catalog-products read the link search already makes. JSON:API `{data: [...]}`, a
+    list of records, or a map id -> record; each record `{id, attributes}` or bare attributes. -> {id: attributes}."""
+    with open(path, encoding="utf-8") as f:
+        d = json.load(f)
+    items = d.get("data", d) if isinstance(d, dict) else d
+    items = items.values() if isinstance(items, dict) else items
+    out = {}
+    for x in items:
+        a = x.get("attributes", x) if isinstance(x, dict) else {}
+        rid = str(x.get("id") or a.get("id") or "").strip() if isinstance(x, dict) else ""
+        if rid:
+            out[rid] = a
+    return out
+
+
 def sibling_own_text(desc, peer_descs, floor=40):
     """The part of a sibling's Online description its line does NOT share: the sibling's own (strain) paragraph.
     Peers = the other active items of the same Brand + Category + Product grams. The text is compared with line
@@ -443,12 +539,13 @@ def sibling_own_text(desc, peer_descs, floor=40):
 def build_plan(intake, active, retired, strains, categories, brands, channels=None, grid_fields=None,
                form_fields=None, guard=None, dead_tag=DEFAULT_DEAD_TAG, prefix=ITEM_PREFIX, fl_eq_classes=None,
                pl_key_fn=pl_key_default, discontinue_tag=DEFAULT_DISCONTINUE_TAG, active_tag=DEFAULT_ACTIVE_TAG,
-               new_line_tag=DEFAULT_NEW_LINE_TAG, link_search=None, catalog_state=None):
+               new_line_tag=DEFAULT_NEW_LINE_TAG, link_search=None, catalog_state=None, catalog_records=None):
     """Pure. (plan rows, refusals, notes). The four maps default to this module's; a selftest passes a copy
     to simulate a probe result - the CLI has no flag that widens them. `fl_eq_classes` = the tenant's class map
     (intake_derive.load_classes); None = no re-derivation, the row's cells stand. `pl_key_fn` = the PRODUCT LINE key
     for the R68 line read on each create's Tags row (None skips it). `link_search` = the --catalog-search rows
-    (None = no search: every create refuses LINK_NOT_SEARCHED); `catalog_state` = the tenant's stateLibrary."""
+    (None = no search: every create refuses LINK_NOT_SEARCHED); `catalog_state` = the tenant's stateLibrary;
+    `catalog_records` = {id: attributes} from --catalog-records, read for R111 rung (a) (od_rung_a; None = not read)."""
     channels, grid_fields = channels or CHANNELS, grid_fields or GRID_FIELDS
     form_fields, guard = form_fields or FORM_FIELDS, guard or GUARD
     act, ret = keyed(active, "--active"), keyed(retired, "--retired")
@@ -795,6 +892,13 @@ def build_plan(intake, active, retired, strains, categories, brands, channels=No
                  f"{conf}: {why}; link-catalog-product {{...ctx, BrandCatalogBrandId, BrandCatalogBrandName, "
                  f"BrandCatalogProductId, BrandCatalogProductVersion: 0, ProductId}}")
         notes.append(f"LINK_RESULT line {n} {name!r}: {link_result(kind, conf, rec, why, nearest)}")
+        if not xb:
+            # R111 rung (a): the lane copies the `rung (a)` record's description into `online_description` and this
+            # text into `online_desc_source` (a NEW intake version) before the real plan; a `rung (b)` line goes on
+            # to the brand's assets. A cross-brand copy writes the new brand's words (CONTENT) and is not read here.
+            rid = (rec or {}).get("id", "") if kind == "link" else ""
+            notes.append(f"OD_RUNG line {n} {name!r}: " + od_rung_a(r, kind, conf, rec or {},
+                                                                     (catalog_records or {}).get(rid))[1])
     if any(r["step"] == "COPY" for r in rows):
         notes.append("COPY keeps `Copy online details` CHECKED on every copy, cross-brand included (PROVEN: KB 'Item "
                      "creation by Copy item' [PROBE 2026-10-08] - unchecked, the copy blanks the Online title, description "
@@ -882,10 +986,13 @@ def main(argv):
         catalog_state = None
     print(f"Global link: search {'`' + os.path.basename(sp) + '`' if sp else 'NONE (every create refuses LINK_NOT_SEARCHED)'}; "
           f"catalog state {catalog_state or 'NONE (nothing is linked: every create with hits is a `no match` question)'}")
+    cr = get_flag(argv, "--catalog-records")
+    catalog_records = load_catalog_records(cr) if cr else None
+    print(f"R111 rung (a): records {'`' + os.path.basename(cr) + '` (' + str(len(catalog_records)) + ')' if cr else 'NOT READ (every create reads rung (b))'}")
     rows, refusals, notes = build_plan(intake, active, retired, strains, categories, brands,
                                        fl_eq_classes=load_fl_eq_classes(argv, ptr), pl_key_fn=pl_key_fn,
                                        discontinue_tag=discontinue_tag, active_tag=active_tag, new_line_tag=new_line_tag,
-                                       link_search=link_search, catalog_state=catalog_state)
+                                       link_search=link_search, catalog_state=catalog_state, catalog_records=catalog_records)
     print("\n".join(summary(rows, refusals, notes)))
     if "--dry-run" in argv:
         print("\ndry run: nothing written")
@@ -1127,6 +1234,35 @@ def selftest():
     t.check("LINK NO MATCH: no catalog state named - nothing is linked, the hits are listed for the business",
             lr is None and res.startswith("no match: no catalog state") and "nearest: g-q" in res, res)
     lr, rf_, _ = link_case(link_search=None)
+    # --- R111 rung (a): the exact-linked record's description, only when every stated fact agrees (K3, 2026-10-25) ---
+    gq1 = {"id": "g-q1", "attributes": {"id": "g-q1", "name": "Strain Q Pre-Roll 1g", "category": "Pre-Rolls",
+                                        "subcategory": "singles", "options": ["1g"], "weightGrams": 7,
+                                        "description": "Strain Q, a bright sativa pre-roll."}}
+    oda = lambda recs: [x for x in _build(catalog_records=recs, guard=_probed())[2] if x.startswith("OD_RUNG line 2")]  # noqa: E731
+    o = oda({"g-q1": gq1["attributes"]})
+    t.check("OD RUNG (a) FIRES: an exact link whose record states agreeing facts (weight 1g; the strain word in its name; "
+            "`weightGrams` is never read) gives rung (a)",
+            len(o) == 1 and ": rung (a): GBC record g-q1 | Strain Q Pre-Roll 1g - every stated fact agrees" in o[0]
+            and "weight [1.0]g" in o[0], str(o))
+    o = oda({"g-q1": dict(gq1["attributes"], options=["0.5g"])})
+    t.check("OD RUNG (a) QUIET: the same record stating another weight falls to rung (b), naming the fact",
+            len(o) == 1 and ": rung (b): record g-q1 disagrees: weight [0.5]g vs ours 1g" in o[0], str(o))
+    o = oda(None)
+    t.check("OD RUNG (a) QUIET: an exact link whose record was not read falls to rung (b)",
+            len(o) == 1 and "rung (b): record g-q1 was not read" in o[0], str(o))
+    r2 = _fixture()["intake"][1]
+    f_, why_ = od_rung_a(r2, "link", "best guess", {"id": "g-q1"}, gq1)
+    t.check("OD RUNG (a) QUIET: a BEST GUESS link with the same agreeing record falls to rung (b) (R98 gate not passed)",
+            not f_ and why_.startswith("rung (b): the link is a best guess"), why_)
+    gum = dict(r2, create_name_FINAL="Brand A | Gummies | Lime | 10mg x 10pk", strain="", lane_Flavor="Lime",
+               lane_ProductGrams="", lane_GlobalCategory="Edible")
+    rec_g = {"name": "Lime Gummies 10pk 100mg", "category": "Edible", "description": "Lime.",
+             "thcContent": {"unit": "MILLIGRAMS", "range": [100]}, "suggestedPackSize": 10}
+    f1, w1 = od_rung_a(gum, "link", "exact", {"id": "g-l"}, rec_g)
+    f2, w2 = od_rung_a(gum, "link", "exact", {"id": "g-l"}, dict(rec_g, thcContent={"unit": "MILLIGRAMS", "range": [200]}))
+    t.check("OD RUNG (a): dose and pack are read from our name's `N mg x M pk` (100 mg, 10 pk = the record) - a 200 mg "
+            "record falls to rung (b)",
+            f1 and "dose 100mg" in w1 and "pack 10" in w1 and not f2 and "dose 200mg vs ours 100mg" in w2, f"{w1} || {w2}")
     t.check("LINK FIRES: a create with no search refuses LINK_NOT_SEARCHED (the lane searches before it asks)",
             lr is None and rf_.count("LINK_NOT_SEARCHED") == 2, str(rf_))
     lr, rf_, res = link_case(None, lambda f: (f["link_search"][2].update(state="ST"), f["intake"][1].update(global_link_pick="g-q3")))

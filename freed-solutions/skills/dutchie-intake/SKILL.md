@@ -335,11 +335,16 @@ no `copy_source_productid` or no `lane_Brand` is refused by the plan (re-run `in
    **Description sourcing** (operator ruling 2026-10-23: the lane does it, no hand-back). A copy keeps its source's
    Online description (`Copy online details` CHECKED), so a sibling copy would carry the SIBLING's strain paragraph.
    Before the plan, for every create row with a blank `online_description`, the lane writes this product's own words
-   into it, in a NEW intake version: the brand's own assets first (a brand kit or sell sheet on file), then the brand's
-   own product page, then another Dutchie menu that lists the same product - the image chain of create step 5, read in
-   the same pass. A sibling copy keeps the line's shape: the product's own strain paragraph (name, lineage and effect
+   into it, in a NEW intake version. **Rung (a) first** (R111, K3 2026-10-25): run the plan `--dry-run` with
+   `--catalog-records <json>` (the `batch-catalog-products` read of the search hits, by id); a sibling copy whose link
+   is an EXACT name and whose record agrees on every fact it states (category / subcategory, weight, dose, pack, the
+   strain / flavor word) prints `OD_RUNG ... rung (a)`: its record's description is the product paragraph (taken
+   whole when robust, a missing strain, flavor or effect part added). A `best guess` or `no match` link, or any
+   disagreement, prints `rung (b)` and goes on: the brand's own assets (a brand kit or sell sheet on file), then the
+   brand's own product page, then another Dutchie menu that lists the same product - the image chain of create step
+   5, read in the same pass. A sibling copy keeps the line's shape: the product's own strain paragraph (name, lineage and effect
    lines when the brand prints them) in place of the sibling's, then the sibling's shared template text unchanged.
-   Cite the page in `online_desc_source`. `intake_plan` refuses `DESC_UNSOURCED` while a sibling's description
+   Cite the page in `online_desc_source` (rung (a): the `OD_RUNG` text, which names the rung). `intake_plan` refuses `DESC_UNSOURCED` while a sibling's description
    carries text its line does not share (the longest tail shared with another active item of the same Brand +
    Category + Product grams is the template; what is left in front is the sibling's own text); a line whose members
    share one template keeps it, noted. Nothing found in the chain: the refusal names the row, and the notice asks
