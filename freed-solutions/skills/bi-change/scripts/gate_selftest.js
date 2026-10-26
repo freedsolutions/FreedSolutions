@@ -1571,8 +1571,18 @@ if (!fs.existsSync(NEW_CLIENT) || !fs.existsSync(TEMPLATE_DIR)) {
       check('T6: a cell with a line break is REFUSED', refused(a, /line break/), tail(a));
       check('T6: a cell with an unescaped pipe is REFUSED', refused(b, /unescaped pipe/), tail(b));
       check('T6: a cell with edge whitespace is REFUSED', refused(c, /leading or trailing whitespace/), tail(c));
+      // A ruling with a raw pipe would be stored shape_ok = false (canon.append_decision): refused on the dry
+      // run and on --send, before any connection. The same ruling with the pipe escaped is emitted.
       const d = W('mint', [...mint({ '--ruling': 'A ruling | with a raw pipe.' }), '--emit-sql']);
-      check('T6: …while a RULING may hold a raw pipe (9 rows do)', d.status === 0, tail(d));
+      check('T6: a RULING with an unescaped pipe is REFUSED (it would store shape_ok = false)', refused(d, /unescaped pipe: the warehouse would store the row with shape_ok = false/), tail(d));
+      const e = W('decision', ['--rule-cell', 'R1', '--ruling', 'Quote `Promo |` raw.', '--decision-record', KO, '--send', '--url-env', 'FX_CANON_URL'],
+        { FX_CANON_URL: 'postgresql://fx_person@127.0.0.1:1/fx' });
+      check('T6: …on --send too, before any connection', refused(e, /shape_ok = false/), tail(e));
+      const f = W('decision', ['--rule-cell', 'R1', '--ruling', 'Quote `Promo \\|` escaped.', '--decision-record', KO, '--emit-sql']);
+      check('T6: …while the same ruling with the pipe escaped is emitted', f.status === 0 && f.out.includes('Promo \\\\|'), tail(f));
+      const cc = require(path.join(DIR, 'canon_common.js'));
+      check('T6: decisionShapeOk = the warehouse flag on raw, escaped, leading and double-backslash pipes',
+        [['a | b', false], ['a \\| b', true], ['|a', false], ['a \\\\| b', true], ['no pipe', true]].every(([v, want]) => cc.decisionShapeOk(v) === want), '');
     }
     // T7 — amend / status / impl need the version the caller read (the optimistic lock).
     {

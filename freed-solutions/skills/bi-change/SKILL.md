@@ -194,10 +194,9 @@ PATCH v1-both, never recreate; a custom dim's slug must be in `fields` and a tab
 must not; mirror twins; count invariance on every touched query — measured on the SPINE query's own
 row count, because merge queries have no `run/json` endpoint (404); falsify every zero on a known
 positive. An export-side mirror reading zero corroborates a tile, it never replaces the count gate. Docs are anchored edits through `scripts/stamp_helpers.js` (`load`, `once`, `onceRe`,
-`swap`, `restamp` for SOP/guide/WI stamps, `restampDictionary`, `appendRegisterRow`) — it throws
-before writing when an anchor is missing or repeated, which is what keeps parallel sessions from
-clobbering each other. In database mode `restampDictionary` and `appendRegisterRow` are NOT used:
-the Dictionary and DECISIONS change only through `canon_write.js`.
+`swap`, `restamp` for SOP/guide/WI stamps) — it throws before writing when an anchor is missing
+or repeated, which is what keeps parallel sessions from clobbering each other. The Dictionary and
+DECISIONS change only through `canon_write.js`.
 
 ## Kickoff contract
 
@@ -370,13 +369,15 @@ which files; anchored edits only. `check` never writes, so it is safe to run whi
   its line endings and BOM. A refusal writes nothing (exit 2). A red `--pointer` gate after the write
   restores every file (exit 1). Run `--dry-run` first: it prints the diff. `--spec` takes the same
   fields as JSON, so quotes need no shell escaping.
-- `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script). In
-  database mode, SOP / WI / guide / README stamps only.
+- `scripts/stamp_helpers.js` — anchored-edit helpers (require it from a small delta script). Its
+  `restamp` serves SOP / WI / guide / README stamps; it has no Dictionary or DECISIONS writer.
 - `scripts/canon_write.js <mint|amend|status|impl|decision|section> --org-code <code> --kickoff <basename>
   [--spec <file.json>] [--stamp "<text>"] (--emit-sql [--out f] | --url-env <ENV VAR NAME> --send)` — ONE
   canon write through the warehouse writer procedures, in one transaction; a rule change carries its
   DECISIONS row in the same call. `--url-env` names a variable; a URL on the command line is refused, and
-  so is an agent login. Exit 2 = refused, nothing sent.
+  so is an agent login. A ruling with an unescaped pipe is refused on the dry run and on `--send`: the
+  warehouse would store its DECISIONS row with `shape_ok` false (escape it as `\|`). Exit 2 = refused,
+  nothing sent.
 - `scripts/canon_render.js --estate <dir> --org-code <code> --url-env <NAME> [--check]` (or `--render-from
   <render.json>`) — writes the two canon files from the warehouse and prints both sha256; `--check` writes
   nothing and exits 1 on any byte of difference, naming the file, line and column.

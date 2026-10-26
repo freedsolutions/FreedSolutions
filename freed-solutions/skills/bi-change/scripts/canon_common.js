@@ -71,6 +71,9 @@ function checkCell(v, what, { allowEmpty = false, allowPipe = false } = {}) {
   if (v !== v.replace(/^[ \t\f\v]+|[ \t\f\v]+$/g, '')) refuse(what + ' has leading or trailing whitespace');
   return v;
 }
+// The shape flag canon.append_decision stores on a DECISIONS row: shape_ok = (ruling !~ '(?<!\\)\|'), false when
+// the ruling holds a pipe with no backslash before it. The same regex, so a refusal here = a false flag there.
+function decisionShapeOk(ruling) { return !/(?<!\\)\|/.test(String(ruling)); }
 // The rule keys a DECISIONS rule cell names (canon.decision_keys): its R / DD / SOP tokens; any other token
 // makes the cell keyless, which maps to DD.
 function decisionKeys(cell) {
@@ -111,4 +114,4 @@ function psql(sql, conn, { oneTxn = true, capture = false } = {}) {
 }
 
 module.exports = { Refusal, refuse, runMain, parseArgs, sha1, sha256, lit, dollarTag, localDate, isoDate,
-  STATUSES, RULE_CAP, checkCell, decisionKeys, NOT_A_PERSON, connection, psql };
+  STATUSES, RULE_CAP, checkCell, decisionShapeOk, decisionKeys, NOT_A_PERSON, connection, psql };

@@ -1,7 +1,8 @@
-// stamp_helpers.js — anchored, transactional edits for the estate documents (Dictionary, SOP, WI,
-// guides, README). Every edit anchors on a unique string or regex and throws before writing when
+// stamp_helpers.js — anchored, transactional edits for the file-based estate documents (SOP, WI,
+// guides, README). The Dictionary and DECISIONS are canon in the warehouse: they change only through
+// canon_write.js. Every edit anchors on a unique string or regex and throws before writing when
 // the anchor is missing or ambiguous, so a concurrent session's edit can never be clobbered
-// silently. Usage: const { fs, load, once, onceRe, restamp, restampDictionary } = require(<this file>);
+// silently. Usage: const { fs, load, once, onceRe, restamp } = require(<this file>);
 const fs = require("fs");
 
 function load(p) { const s = fs.readFileSync(p, "utf8"); return { s, nl: s.includes("\r\n") ? "\r\n" : "\n" }; }
@@ -35,31 +36,4 @@ function restamp(s, form, today, text) {
   const m = onceRe(s, /^\*\*Last synced: ([^*]+)\*\* \(/m, "stamp"); const stamp = nextStamp(m[1], today);
   return { s: s.replace(m[0], "**Last synced: " + stamp + "** (" + text + " Prior: **" + m[1] + "** ("), stamp };
 }
-// The Dictionary header: "Last updated: **X** (text … Prior: **Y** (…", or the same line with an
-// em-dash separator instead of the parenthesis. BOTH are in use — the compacted preamble (2026-09-09)
-// writes "**X** — text", and this helper's paren-only anchor threw on it, which is the anchor guard
-// doing its job rather than a file defect. The separator FOUND is the separator written back, so a
-// restamp never silently changes the header's form. Returns { s, stamp }.
-function restampDictionary(s, today, text) {
-  const m = onceRe(s, /^Last updated: \*\*([^*]+)\*\* (\(|— )/m, "DD header"); const stamp = nextStamp(m[1], today);
-  const sep = m[2];
-  return { s: s.replace(m[0], "Last updated: **" + stamp + "** " + sep + text + " Prior: **" + m[1] + "** " + sep), stamp };
-}
-// Append a register row after the last row of the register TABLE — the first contiguous run of
-// "| Rnn |" rows; later tables that cite rule ids (the export-only register) are not the register.
-// Throws when the id already exists in that table.
-function appendRegisterRow(s, nl, row) {
-  const id = row.match(/^\| (R\d+) \|/); if (!id) throw new Error("row must start with | Rnn |");
-  const rows = [...s.matchAll(/^\| R\d+ \|[^\r\n]*$/gm)]; if (!rows.length) throw new Error("no register rows");
-  let last = rows[0];
-  for (let i = 1; i < rows.length; i++) {
-    const between = s.slice(last.index + last[0].length, rows[i].index);
-    // a non-table line ends the table; a table row that is not an R row (e.g. `| — | NEW SURFACE …`) does not
-    if (between.split(/\r?\n/).some(l => l.trim() && !l.trim().startsWith("|"))) break;
-    last = rows[i];
-  }
-  const table = s.slice(rows[0].index, last.index + last[0].length);
-  if (new RegExp("^\\| " + id[1] + " \\|", "m").test(table)) throw new Error(id[1] + " already present");
-  return s.slice(0, last.index + last[0].length) + nl + row + s.slice(last.index + last[0].length);
-}
-module.exports = { fs, load, once, onceRe, swap, nextStamp, restamp, restampDictionary, appendRegisterRow };
+module.exports = { fs, load, once, onceRe, swap, nextStamp, restamp };

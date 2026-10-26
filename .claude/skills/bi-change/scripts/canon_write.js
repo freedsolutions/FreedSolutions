@@ -102,6 +102,7 @@ function validate(r) {
     d.decided_on = C.isoDate(d.decided_on || r.changed_on, 'the decision date (--decided-on)');
     d.rule_cell = C.checkCell(d.rule_cell || ruleKey, 'the decision rule cell (--rule-cell)');
     C.checkCell(d.ruling, 'the ruling (--ruling)', { allowPipe: true });
+    if (!C.decisionShapeOk(d.ruling)) refuse('the ruling (--ruling) holds an unescaped pipe: the warehouse would store the row with shape_ok = false (escape it as \\|)');
     C.checkCell(d.record, 'the decision record (--decision-record)');
     if (ruleKey && !C.decisionKeys(d.rule_cell).includes(ruleKey)) refuse(`the decision rule cell ${JSON.stringify(d.rule_cell)} does not name ${ruleKey}`);
     if (r.kickoff && !d.record.includes(r.kickoff)) refuse(`the decision record must name the kickoff ${r.kickoff} (the D1 test)`);
