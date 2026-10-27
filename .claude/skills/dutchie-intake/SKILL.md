@@ -494,8 +494,10 @@ the plan lane.
 
 **`po write`** - the Dutchie PO, the reconciled order (Operator ruling 2026-10-23: a gain for CHECKING and CLOSE-OUT,
 not for entry). The PO is not the order of record: orders stay where the buyers place them. It is not the receive-form
-source either: receive entry still keys from the prep sheet (`receive.py --prep`), because the receive form cannot load
-an Open PO. The PO gives the receipt a machine diff and the order a closed record (`po close`, receive step 5).
+source either: receive entry still keys from the prep sheet (`receive.py --prep`), because the receive form loads no
+PO lines. A `Submitted` PO lists in the form's `Purchase order` picker and the pick links the receipt to it (PROBE
+2026-10-27); an Open PO does not list. The PO gives the receipt a machine diff and the order a closed record (`po
+close`, receive step 5).
 1. **When.** After the certify and before the receipt. A PO line needs an existing ProductId, so the PO waits for the
    create. A receipt that lands before the PO exists gets no back-written PO: record "PO missed: received first".
 2. **The approval.** The PO write rides the ONE pre-create STOP (below): the Operator's plan approval covers this one
@@ -513,7 +515,7 @@ an Open PO. The PO gives the receipt a machine diff and the order a closed recor
      shipping stay off the lines. `unitId` 1 on every line. A row with no ProductId ABORTs: a partial PO is never written.
    - Header: the PAYEE's Dutchie record (`--vendor-id`, the record the receipt will carry; receive step 4: the payee,
      not the item's catalog Vendor, which stays the manufacturer), the title, the expected
-     arrival, `status` Open (`--status Submitted` only for the open test in receive step 5), an integer
+     arrival, `--status Submitted` (so the receive form's picker lists it; the script default `Open` does not), an integer
      `purchaseOrderNumber` (default: the digits of the intake `invoice_no`; `--number` overrides), and
      `shippingInformation` = `<title> (<n> lines, <units> units, $<total>). Document: <link>`.
    - Guards (exit 2, nothing written): a PO with the same title exists (one PO per document); the vendor record is
@@ -676,17 +678,26 @@ email (R127, qualifying R62 R97); the package-grain `ITM - ` strip (R47).
      transfer lands as pending in Dutchie. The sheet sets `physical_count` = the package count (the manifest qty; a
      `g` package counts grams / its unit size) and `qty_match` = Y on every mapped package. The lane asks no count
      question.
-   - **Expiry** (Operator ruling 2026-10-23, replaces 2026-10-09): every package's Expiration date is its Metrc LTE
+   - **Expiry** (Operator ruling 2026-10-23, corrected 2026-10-27): every package's Expiration date is its Metrc LTE
      (step 1). Dutchie prefills it on each pending-transfer row once the transfer syncs from Metrc (the sync can lag
-     about an hour). Only a date chosen in the field's CALENDAR persists at the page Save. A prefilled (shown) date or
-     a typed date is dropped. So on every row: compare the shown date with the sheet's `expiry` cell, then choose that
-     date in the calendar. A label date that differs from the LTE is a note for the receipt record, not a change.
-   - **Read back every row after the page Save, before `Receive`.** Read the saved order's detail (each row's
-     ProductId and Expiration date) against the sheet. Two form defects reach the save only (platform KB, same
-     section): an expiry that did not persist, and a row re-bound to another row's catalog product (the product picked
-     last). Fix a miss in its row form, Save again and read again. `Receive` only when every row's product and expiry
-     are exact. Use ONE page Save as the checkpoint, not a save per row. After the receipt, the POS API
-     `/reporting/inventory` `expirationDate` reads back the package expiry as saved; it is never an LTE source.
+     about an hour). The prefilled date persists when the rows are entered at a pace the form can follow; leave it.
+     Do not re-pick dates by default. A label date that differs from the LTE is a note for the receipt record, not a
+     change.
+   - **Pace (Operator ruling 2026-10-27): move fast, but every click must land.** The 2026-10-23 "calendar only" rule
+     and the row re-bind both came from automated entry that fired the next action before the form had settled. A
+     by-hand control order (10 rows, one page Save) kept every product and every expiry. So: prep EVERYTHING before
+     the delivery (the prep sheet, the package-to-SKU map, costs, answered questions), then enter fast and wait for the
+     form's own state after each action (the row dialog closed, the grid row shows the picked product, the next row
+     form opens empty). Map every row before the page Save. A click that has not landed is not progress.
+   - **Credits LAST.** Set `Total credits` with `Apply credits to unit cost` only after every row is staged. Dutchie
+     spreads the credit equally per package and floors a package at $0; a $0 package is accepted (the receipt then
+     matches what was paid).
+   - **Read back ONCE after the page Save, before `Receive`.** Read the saved order's detail (each row's ProductId
+     and Expiration date) against the sheet, and fix only a miss (in its row form, then Save and read again). Use ONE
+     page Save as the checkpoint, not a save per row. After the page Save the header Room reads blank and `Receive`
+     stays disabled: re-set the header Room, then `Receive` (a Dutchie defect, filed by the Operator). After the
+     receipt, the POS API `/reporting/inventory` `expirationDate` reads back the package expiry as saved; it is never
+     an LTE source.
    After the receipt, a new line's
    items flip from the new-line tag to the active tag in one bulk update (the `item_tag_flip` column; R126) - but
    only an item with at least one SELLABLE package on this receipt. A sample or display package (the sample /
@@ -703,10 +714,9 @@ email (R127, qualifying R62 R97); the package-grain `ITM - ` strip (R47).
    - Then `--live`: ONE sparse header write, `status` Closed + `dateReceived` = the receipt's `deliveredOn`. The GET
      back must show status and date exact and every other header field and line unchanged.
    - Record the diff (`-record.json`: lines, matched, totals, diffs) and the read-back verdict in the receipt record.
-   - **OPEN TEST (Operator 2026-10-23).** On the next PO receipt, write the PO with `--status Submitted` and check,
-     before any row is staged, whether the receive form's `Purchase order` picker lists it. If it lists, pick it and
-     read the receipt's `purchaseOrderId` after the receipt (the close record prints it as
-     `receipt_purchaseOrderId`). An Open PO does not list (2026-10-23). Record the answer in the platform KB.
+   - **Link the PO at entry (PROBE 2026-10-27).** A `Submitted` PO lists in the receive form's `Purchase order`
+     picker; pick it in the header before the rows. The receipt then carries its `purchaseOrderId` (the close record
+     prints it as `receipt_purchaseOrderId`). An Open PO does not list.
 The `--check` join key is `package_id` (intake CSV v3 -> prep sheet -> Receipt Detail package tag).
 
 **After the receipt: cases** (Operator ruling 2026-10-19, trained on a wrong-size pre-roll ship that staff received

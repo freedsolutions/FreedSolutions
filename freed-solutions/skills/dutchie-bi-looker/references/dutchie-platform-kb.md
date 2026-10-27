@@ -1343,8 +1343,8 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   that starts at 1 reads no PO.
 - **Receipt link:** a receipt (`GET /inventory/receivedinventory?receiveInventoryHistoryId=<id>`) has
   `purchaseOrderId`. The receive form's `Purchase order` picker lists NO Open PO, and the Edit dialog after the
-  receipt has no PO field, so an Open PO stays unlinked. OPEN: whether a `Submitted` PO lists in the picker and links
-  to the receipt (test on the next PO receipt). Metrc receipts cannot prefill from a PO.
+  receipt has no PO field, so an Open PO stays unlinked. [PROBE 2026-10-27] A `Submitted` PO DOES list in the picker,
+  and the pick links the receipt (`purchaseOrderId` = the PO). Metrc receipts cannot prefill lines from a PO.
 - **Close** = a sparse header write: `status` Closed + `dateReceived` (the receipt's `deliveredOn`). The stored lines
   stay as they were.
 
@@ -1592,16 +1592,19 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   Metrc (the page's `get-pending-transfers-v2` returns `Data: []` until then).
 - **Header:** Vendor and Room must be set. Both flow down to every row. Vendor license, order title and Delivered on come
   from the transfer. The header has no Transaction ID field. [READ 2026-10-23] It also carries `Purchase order` (a
-  picker; it lists no Open PO, section "Purchase orders: `/purchase-order`"), `Total credits`, `Shipping charges`, `Apply cost options` and Documents.
+  picker; it lists a Submitted PO, never an Open one, section "Purchase orders: `/purchase-order`"), `Total credits`, `Shipping charges`, `Apply cost options` and Documents.
+- **`Total credits` + `Apply credits to unit cost`** [PROBE 2026-10-27] spreads the credit EQUALLY per package (not
+  pro rata to cost) and floors a package at $0. Set it last, after every row is staged.
 - **Expiration date = the Metrc lab testing expiration (LTE), prefilled.** [PROBE 2026-10-23, 9 of 9 rows] Once the
   transfer syncs, every pending-transfer row carries `ExpirationDate` = the Metrc lab result's `ExpirationDateTime`
   (tenant Metrc setting `ExpirationDateFieldId` 2), and the row form shows it. The Metrc transfer package itself has no
   expiry (`ExpirationDate`, `SellByDate`, `UseByDate` blank); the LTE is on its `Lab Results` tab, as UTC midnight
   (take the date part).
-- **Only a CALENDAR pick of the Expiration date persists.** [PROBE 2026-10-23] The page Save kept the prefilled (shown)
-  date on 2 of 9 rows; a date typed as `MM/DD/YYYY` showed in the field and was also dropped. Choosing the date in the
-  field's calendar (month arrow, then the day) persisted on 9 of 9 (saved order, receipt and `/reporting/inventory`
-  exact). Pick the date in the calendar on every row, then read the saved order back (`get-saved-order-detail`).
+- **The prefilled Expiration date persists at human pace.** [CORRECTED 2026-10-27] Under fast browser automation the
+  page Save kept the prefilled date on only 2 of 9 rows (2026-10-23) and 2 of 31 (2026-10-27); typed dates were also
+  dropped, and only calendar picks held. A by-hand control order (10 rows, one page Save) kept every date: prefilled,
+  typed or calendar-picked. So the loss is an automation artifact (actions fired before the form settled), not a
+  field defect. Enter at a pace the form follows, then read the saved order back once (`get-saved-order-detail`).
 - **The POS API `/reporting/inventory` carries the package expiry, not the LTE.** [READ 2026-10-23] Its
   `expirationDate` is the package's saved Expiration date (it equals the Inventory export's `Expiration date`; local
   midnight prints as `T04:00:00`, so compare the date part). `testedDate` and `labResults` read null. A read-back, not
@@ -1615,8 +1618,9 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
 - **Header Room reads blank on reload of a saved pending order; every row keeps its room.** Re-set it only when a row
   is added. [PROBE 2026-10-13, corrected by screenshot] The row FORM DISPLAYS the row's room after a reload, but its
   `input-input_Room` element's `value` reads `""` to a script (an MUI select: the label renders, the input stays empty).
-  Read a row's room from the grid ROOM column or a screenshot, never from that input. Filed with the re-bind below
-  (draft ticket 2026-10-13).
+  Read a row's room from the grid ROOM column or a screenshot, never from that input.
+  **[PROBE 2026-10-27, by hand and automated] After a page Save the header Room goes blank and `Receive` stays
+  disabled until the header Room is set again.** Re-set it, then Receive. A real Dutchie defect (filed by the operator).
 - **[PROBE 2026-10-13] A saved order can come back with a row bound to ANOTHER row's catalog product.** Ten rows were
   staged one by one (pick by SKU, each read back in its form), then the page `Save` (`save-receive`) ran. On the reloaded
   order one row (a 2g item) showed a later row's 1g catalog product while keeping its own cost, grams and strain. Re-picking
@@ -1627,8 +1631,11 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   **Reproduced 2026-10-23, 3rd order (9 rows):** the saved order detail (`get-saved-order-detail`) showed one row bound
   to the product picked LAST, its own cost kept; the grid looked right. A re-pick and Save fixed it. Separately, one
   row's form opened with a stale product (another row's, cost 0) BEFORE any pick: re-pick it.
-  All three orders were entered by browser automation; NOT yet reproduced by hand, so a Dutchie defect is unproven
-  (draft ticket held until a manual repro). After every page Save, read EVERY row's product back from the saved order.
+  **CAUSE FOUND 2026-10-27: automation speed, not a Dutchie defect.** A 4th automated order (31 rows) re-bound one row
+  to the last-picked product; the by-hand control order (10 rows, every row mapped, then ONE page Save) saved 10 of 10
+  products exact. The draft ticket is WITHDRAWN. Fix: enter fast but wait for each action to settle (row dialog closed,
+  grid row shows the pick, next row form empty), map every row before the page Save, then read the saved order back
+  once.
 - **[PROBE 2026-10-13] Editing a row of a staff-started saved order without re-picking the product.** In the row form,
   set Room (type the room name, take the option), Cost per unit (real keystrokes; Total package cost follows), untick
   each `ITM - ` tag, then `Save package`. Expiry and Package ID the staff entered survive; the page Save persists it.
