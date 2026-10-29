@@ -1680,6 +1680,36 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   (a BETA flag; cause unknown). The captured body, replayed with a fresh ctx envelope, committed the same way. Read
   each package's live cost first, and read back in the Inventory grid `Cost` column.
 
+## Receipt line cost after receipt: the write path and its traps [PROBE 2026-10-24 · 2026-10-29 · OPERATOR 2026-10-29]
+
+- **Path:** Products › Inventory › `Receive history` (tick `Show all history` for older receipts; the search box finds a
+  vendor name reliably, a receipt id less so) › open the receipt › click a line's Product cell › dialog `Receive package`
+  (`Cost per unit`, `Total package cost`) › `Save package`. The Total does NOT follow the unit cost: type both.
+- **Request:** `POST /api/v2/inventory/update-receive-history-product` `{ReceiveInventoryHistoryId, PackageId (the
+  package label), Tax, Cost, TotalPackageCost, TaxCategories, CultivationTax, ...ctx}` -> `Result: true`. It changes the
+  receipt line; the receipt's `Order total` follows. `Cost` 0 is accepted (a sample the vendor billed at $0).
+- **The dialog has no credit field.** A credit cannot be applied to a received receipt's header. Put it into a line's
+  cost (blend it over the line the credit is for) and write it in the receipt's `Note` panel (its own `Save` on the
+  detail page). The `Edit` button opens a different dialog (Transaction ID, Order title, Vendor, Delivered by, Date
+  received, Payment status); its Vendor box can show blank while it holds the vendor.
+- **Read the line back, not the response.** One call returned `Result: false` ("Failed to update receive history
+  product.") on a sold-out sample package, and the re-pulled receipt showed the line changed anyway. Reload the receipt
+  and read every line, or re-pull it through the API, before you record a write as done or failed.
+- **Sample lines and the bill.** Small receipt-vs-bill gaps of a few cents are often $0.01/unit sample lines that the
+  vendor billed at $0. Check the sum of the sample lines against the gap before you call a gap "rounding".
+- **Float artifacts [OPERATOR, since day 1 of Leaflogix]:** Dutchie stores some costs with a float error (a run of
+  zeros after the decimal and a trailing 1, for example `0.30000000001`). Compare to the cent, never by equality on the
+  raw value, and do not "fix" a cost that differs only past the second decimal.
+- **Package ID reuse [OPERATOR]:** the Dutchie package ID is the scannable barcode; it maps to the external package ID
+  (the Metrc tag). A vendor can reuse a package ID across receipts when its package ID differs from its Metrc tag. Then:
+  - an edit to the line cost in Receive history shows error messages, and the cost can land on several packages that
+    share the ID (search Inventory with `Sold out inventory` ticked to see them);
+  - the change can throw off the receipt-vs-bill match of a DIFFERENT receipt. Fix that receipt at package level
+    (Inventory › package cost) or with a blended line credit, or adjust another line of the affected receipt to tie it
+    back to its bill.
+  - Rule: within one location, many Dutchie package IDs must never map to one Metrc tag. One Dutchie ID to many Metrc
+    tags can be valid.
+
 ## Apex Trading: reading a wholesale cost (PO and catalog listing) [PROBE 2026-10-11, read only, buyer login]
 
 Apex Trading is the wholesale marketplace a tenant may order through (`PO source: apex`). It is not Dutchie, but the
