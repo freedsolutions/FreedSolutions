@@ -1692,6 +1692,12 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   cost (blend it over the line the credit is for) and write it in the receipt's `Note` panel (its own `Save` on the
   detail page). The `Edit` button opens a different dialog (Transaction ID, Order title, Vendor, Delivered by, Date
   received, Payment status); its Vendor box can show blank while it holds the vendor.
+- **Header fields after receipt [PROBE 2026-10-29]:** `Edit` > `Save` = `POST /api/v2/inventory/save-receive-header`
+  `{ReceiveInventoryHistoryId, ReceiveTransactionId, ReceiveDeliveredBy, ReceiveDeliveredOn, ReceiveOrderTitle,
+  ReceivePaid, ReceiveVendorId, ReceiveVendorLicense, ...ctx}` (the dialog sent the vendor NAME in `ReceiveVendorId`;
+  the vendor stayed right). The POS API receipt (`/inventory/receivedinventory`) returns `transactionId` (the
+  Transaction ID), `note` (the Note panel) and `externalId` (the Metrc manifest number, NOT the Transaction ID).
+  The Transaction ID is the place for the vendor's invoice number: it gives a receipt-to-bill match key.
 - **Read the line back, not the response.** One call returned `Result: false` ("Failed to update receive history
   product.") on a sold-out sample package, and the re-pulled receipt showed the line changed anyway. Reload the receipt
   and read every line, or re-pull it through the API, before you record a write as done or failed.

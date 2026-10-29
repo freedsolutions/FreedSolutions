@@ -60,8 +60,8 @@ transfer [PROBE 2026-10-09]" in dutchie-bi-looker/references/dutchie-platform-kb
     Operator 2026-10-23): the remit-to on the invoice, never the transporter; the item's catalog Vendor stays the
     manufacturer, so the two can differ.
   * Transaction ID (Operator ruling 2026-10-09): the vendor's final invoice number when it exists, else the sales-order
-    number until one arrives; the mapping that lands in the accounting system is open. The receive form has no
-    Transaction ID field (same KB section): a record value on this sheet, never a form field.
+    number until one arrives. The receive form has no Transaction ID field (same KB section): after the receipt is
+    saved, set it in Receive history > the receipt > Edit (the POS API returns it as `transactionId`).
   * Count (Operator ruling 2026-10-09): staff verify the drop against Metrc and fix any count issue BEFORE the transfer
     lands as pending in Dutchie. The sheet defaults `physical_count` = the package count (the manifest qty; a `g`
     package counts grams / its unit size) and `qty_match` = Y on every mapped package; no count question is asked.
@@ -852,8 +852,8 @@ def header_block(h):
             " header; it flows down to every row)",
             f"- Room: {h.get('room') or RECEIVE_ROOM} (R126; set once in the header; it flows down to every row)",
             f"- Transaction ID: {h.get('txn') or 'NOT READ - give --txn-id'} - the vendor's final invoice number when it "
-            "exists, else the sales-order number until one arrives (the mapping that lands in the accounting system is "
-            "open). The receive form has no Transaction ID field: a record value, never a form field.",
+            "exists, else the sales-order number until one arrives. The receive form has no Transaction ID field: set it "
+            "after Save in Receive history > the receipt > Edit (the API's transactionId; the bill match key).",
             "- Count: staff verify the drop against Metrc and fix any count issue BEFORE the transfer lands as pending; "
             "the sheet sets physical_count = the package count (the manifest qty; a gram package counts grams / its unit "
             "size) and qty_match = Y on every mapped package. No count question.",

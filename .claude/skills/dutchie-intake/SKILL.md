@@ -672,8 +672,11 @@ email (R127, qualifying R62 R97); the package-grain `ITM - ` strip (R47).
      is not it.
    - **Room** (`Intake`, R126): set once in the form header. Vendor and Room flow down to every row.
    - **Transaction ID** (Operator ruling 2026-10-09): the vendor's final invoice number when it exists, else the
-     sales-order number until one arrives. The mapping that lands in the accounting system is open. The receive form
-     has no Transaction ID field (same KB section): it is a record value on the sheet, never a form field.
+     sales-order number until one arrives. The receive form has no Transaction ID field (same KB section). After the
+     receipt is saved, set it on the receipt: Receive history > the receipt > `Edit` > `Transaction ID` > `Save`
+     (`save-receive-header`; read the Vendor box first, it must hold the vendor). The POS API returns it as
+     `transactionId`, so a warehouse can match the receipt to the accounting bill by invoice number. When the final
+     invoice replaces the sales order, update it.
    - **Count** (Operator ruling 2026-10-09): staff verify the drop against Metrc and fix any count issue BEFORE the
      transfer lands as pending in Dutchie. The sheet sets `physical_count` = the package count (the manifest qty; a
      `g` package counts grams / its unit size) and `qty_match` = Y on every mapped package. The lane asks no count
