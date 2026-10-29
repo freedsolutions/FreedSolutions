@@ -1566,6 +1566,17 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   `types: []` and paged, so it covers the whole menu. A card with more than one distinct `children[].canonicalSKU` is
   a merged card. A linked Global (brand catalog) product shows under the catalog's name, not the Online Title.
 - The age gate's "Yes" agrees to terms, so do not click it. The products render behind it.
+- **A Pricing Tier moves the URL like a rename [OBSERVED 2026-10, tenant operator; both URLs re-read 2026-10-29].** An item
+  carrying Pricing Tiers is weight-priced, so Ecom treats it as a weighted card and drops the weight from the menu name
+  and the slug (`<strain>-pre-roll`), even with "Don't remove weights from product names" ON. Remove the tiers and the
+  full Online Title stands again: the name shown in Ecom Admin changes and the slug gains the weight
+  (`<strain>-pre-roll-5g`). The old slug becomes the usual soft 404 (an empty 200 page with a self-canonical tag). So a
+  tier edit belongs on the same redirect plan as a title edit. Mechanism asserted from one item; confirm with Dutchie.
+- **The `/stores/<store>/product/<cName>` pages on a tenant's own domain are Dutchie Pro pages** [PROBE 2026-10-29]: a
+  Next.js app with `dutchie-plus` bundles calling `api.dutchie.com`, served under the retailer's domain. The slug is Ecom's
+  `cName`, the `<title>` is `<name> at <dispensary name>`, and a dead or unknown slug returns status 200 with an empty
+  body. The soft 404 and any in-path redirect are therefore Dutchie's to change; a web agency can only redirect at the
+  domain edge, if the `/stores/` paths are reachable there.
 
 
 ## Metrc package quantity is in the item's unit of measure, not always a count [OPERATOR 2026-10-18]
