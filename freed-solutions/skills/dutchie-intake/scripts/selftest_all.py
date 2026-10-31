@@ -1375,11 +1375,21 @@ RECEIVE_CHECKS = [
      rc_with(dict(copy.deepcopy(RCX), manifest=rows_of("receive-wrongsize-manifest.csv")), "manifest",
              lambda r: r["package_id"] == "PKG-C", uom=""),
      dict(copy.deepcopy(RCX), manifest=rows_of("receive-wrongsize-manifest.csv")), "type `uom` g"),
-    ("receive --prep: a `g` package whose Metrc item names no size is MANIFEST_GRAMS_UNSIZED (STOP), never guessed",
+    ("receive --prep: a `g` package whose Metrc item AND mapped item name no size is MANIFEST_GRAMS_UNSIZED (STOP), "
+     "never guessed",
      lambda c: (lambda rw, fl: ("MANIFEST_GRAMS_UNSIZED", "STOP", "2") in fl and rw["2"]["physical_count"] == ""
                 and not any(f[0] == "MANIFEST_QTY_MISMATCH" for f in fl))(*rc_prep(c)),
-     rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", metrc_item="Haze Pre-Roll", qty="50"), RCX,
+     rc_with(rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", metrc_item="Haze Pre-Roll", qty="50"),
+             "catalog", lambda r: r["ProductId"] == "12", Product="Acme | Pre-Roll | Haze"), RCX,
      "the item names `1g`"),
+    ("receive --prep: an unsized Metrc name counts by the MAPPED item's grams, the way Dutchie does (100 g / item 1g = "
+     "100), quiet; the catalog has no `Product grams` column, so the item's name is read (Operator 2026-10-31)",
+     lambda c: (lambda rw, fl: rw["2"]["expected_qty"] == "100" and "by item 12 name" in rw["2"]["map_basis"]
+                and not any(f[0].startswith("MANIFEST_") for f in fl))(*rc_prep(c)),
+     rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", metrc_item="Haze Pre-Roll"),
+     rc_with(rc_mut("manifest", lambda r: r["package_id"] == "PKG-C", metrc_item="Haze Pre-Roll"),
+             "catalog", lambda r: r["ProductId"] == "12", Product="Acme | Pre-Roll | Haze"),
+     "the item names no size either"),
     ("receive --prep R103: a buy-4-get-1 blends over EVERY package of the deal (14.70 x4, remainder 14.69 on the last; "
      "734.90 ties to the invoice; all 5 `PKG - Vendor Deal`)",
      lambda c: bg_blended(rc_prep(c)[0]), BGX, bg_ctx(drop_line="1"), "the paid cases are gone (a lone penny line)"),

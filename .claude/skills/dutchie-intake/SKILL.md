@@ -558,13 +558,18 @@ email (R127, qualifying R62 R97); the package-grain `ITM - ` strip (R47).
    in a read note.
    **Type `qty` and `uom` as Metrc prints them (ruled 2026-10-18).** Metrc carries flower, pre-rolls, kief and infused
    flower / pre-rolls in grams (`uom` `g`); every other category is `ea`. The grid prints the unit (`50 g`, `50 ea`);
-   the Packages `.xlsx` export prints a bare number, so take the unit from the grid. Type the Metrc item name exactly:
-   the runner counts a `g` package as grams / the unit size the name states (`50 g` of `Preroll - 0.5g` = 100; `125 g`
-   of `5 x 0.5g` = 50) and prints the sum in `map_basis`. A name with no readable size (or a `0.5g 5pk`, each or in
-   all?) is `MANIFEST_GRAMS_UNSIZED` (STOP): read the size from Metrc or the vendor, never guess it. A blank `uom` (or
+   the Packages `.xlsx` export prints a bare number, so take the unit from the grid. Type the Metrc item name exactly.
+   **The runner counts a `g` package the way Dutchie does (ruled 2026-10-31): grams / the MAPPED item's grams**
+   (`Product grams`, else the size the item's name states): `5 g` of a 0.5 g item = 10; `62.5 g` of a 2.5 g 5-pack =
+   25, although the Metrc name (`X - Single`, `X - 5 Pack`) states no size. The Metrc name's size (`50 g` of
+   `Preroll - 0.5g` = 100; `125 g` of `5 x 0.5g` = 50) counts only when no item is mapped or the item has no size.
+   `map_basis` prints the basis and the sum (`by item <id> Product grams: 5 g / 0.5 g = 10`). A catalog export without a
+   `Product grams` column reads the item's name; it never ABORTs. No size from either (or grams that do not divide) is
+   `MANIFEST_GRAMS_UNSIZED` (STOP): read the size from Metrc or the vendor, never guess it. A blank `uom` (or
    `ea`) on a gram-based item, or `g` on a unit-based one, is `MANIFEST_UOM_UNREAD` (STOP).
    A Metrc item SIZE that differs from the invoice line or the item's grams (0.5g shipped, 1g billed) is
-   `MANIFEST_ITEM_SIZE_MISMATCH` (STOP): a wrong-item ship, not a short count. Ask the vendor before the receipt.
+   `MANIFEST_ITEM_SIZE_MISMATCH` (STOP): a wrong-item ship, not a short count. The sheet counts it as shipped (by the
+   Metrc name) and names what Dutchie would receive. Ask the vendor before the receipt.
    Dutchie converts the grams by the picked item's grams, so receiving into the wrong-size item halves or doubles the
    count (platform KB "Metrc package quantity is in the item's unit of measure").
    **Read each package's lab testing expiration (LTE) in the same pass (Operator ruling 2026-10-23).** A received
@@ -649,7 +654,7 @@ email (R127, qualifying R62 R97); the package-grain `ITM - ` strip (R47).
      buy and stays quiet. The questions file lists every such line; it never blocks the receipt.
    - Manifest: a line whose summed ship $ differs from its ext is `MANIFEST_COST_MISMATCH`, a DEFECT (exit 1; the line is not entered). A qty
      gap is `MANIFEST_QTY_MISMATCH` (PO > Invoice > Physical: the vendor reissues or the package is rejected whole);
-     the qty is the package COUNT, so a `g` package ties by grams / its unit size. A Metrc size that differs from the
+     the qty is the package COUNT, so a `g` package ties by grams / the mapped item's grams (step 1). A Metrc size that differs from the
      invoice line or the item's grams is `MANIFEST_ITEM_SIZE_MISMATCH` (STOP, step 1). A sample inside its paid package
      is `SAMPLE_MERGED` (STOP). A qty that is not a finite number (`inf`, `nan`) is unreadable: `MANIFEST_QTY_UNREAD`
      (`MANIFEST_GRAMS_UNSIZED` on a `g` package), a STOP with no count and no qty tie; such a package never blends a

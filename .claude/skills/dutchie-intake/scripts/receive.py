@@ -30,9 +30,12 @@ Inputs (columns are checked; a missing one ABORTs, never reads as blank):
   --manifest   optional; the READ-ONLY Metrc manifest read typed to CSV (SKILL.md "Metrc manifest read"):
                package_id, line, metrc_item, qty, ship_cost [, uom, vendor_batch, expiry, map_basis]. `qty` and `uom` are
                what Metrc prints (Operator ruling 2026-10-18): `uom` `g` on flower, pre-rolls, kief and infused flower /
-               pre-rolls, `ea` on every other category. A `g` package counts qty / the unit size its `metrc_item` names
-               (`Preroll - 0.5g - X` -> 0.5; `5 x 0.5g` -> 2.5); no readable size is MANIFEST_GRAMS_UNSIZED (never a
-               guess). A blank `uom` (or `ea`) on a gram-based item, or `g` on a unit-based one, is MANIFEST_UOM_UNREAD.
+               pre-rolls, `ea` on every other category. A `g` package counts qty / the MAPPED item's grams, the way
+               Dutchie converts (Operator ruling 2026-10-31): `Product grams`, else the size the item's name states.
+               The `metrc_item` name's size (`Preroll - 0.5g - X` -> 0.5; `5 x 0.5g` -> 2.5) counts only with no item
+               (or no item size), or when it disagrees with the item (MANIFEST_ITEM_SIZE_MISMATCH, counted as shipped).
+               `map_basis` prints the basis. No size from either, or grams that do not divide, is
+               MANIFEST_GRAMS_UNSIZED (never a guess). A blank `uom` (or `ea`) on a gram-based item, or `g` on a unit-based one, is MANIFEST_UOM_UNREAD.
                Another `uom` value ABORTs. `line` is the reader's
                mapping from the PO / SO / invoice / manifest: the product `line_no` (6 on BOTH packages of a line that
                ships as two; the runner labels the rows 6a / 6b itself). A typed `6a` / `6b` reads as line 6; an `<n><letter>`
@@ -282,6 +285,33 @@ def item_grams(cat):
     return unit_grams(cat.get("Product"))
 
 
+def gram_count(p, cat=None, pid=""):
+    """A `g` package's count, the way Dutchie converts it (Operator ruling 2026-10-31): grams / the MAPPED item's
+    grams (`Product grams`, else the size its name states). The Metrc item name's size is the basis only with no item
+    (or an item with no size), or when the two disagree - a wrong-item ship (MANIFEST_ITEM_SIZE_MISMATCH), counted as
+    shipped. No size, or grams that do not divide, keeps the typed qty and sets `_unsized` (never a guess)."""
+    for k in ("_size", "_size_basis", "_unsized"):
+        p.pop(k, None)
+    p["qty"] = p["_raw_qty"]
+    ms, isz = unit_grams(p.get("metrc_item")), (item_grams(cat) if cat else None)
+    if isz and (not ms or abs(ms - isz) < 1e-6):
+        has_pg = (cat.get("Product grams") or "").strip() != ""
+        size, basis = isz, f"item {pid} {'Product grams' if has_pg else 'name'}"
+    elif ms:
+        size, basis = ms, "Metrc item name" + (f" (item {pid} is {isz:g} g)" if isz else "")
+    else:
+        size, basis = None, ""
+    grams = num(p["_raw_qty"])
+    n = grams / size if grams is not None and size else None
+    if n is not None and math.isfinite(n) and n > 0 and abs(n - round(n)) < 1e-6:
+        p["qty"], p["_size"], p["_size_basis"] = f"{round(n):d}", size, basis
+    elif not size:
+        p["_unsized"] = (f"Metrc item {p.get('metrc_item')!r} names no single unit size and "
+                         + (f"item {pid} has no Product grams" if pid and cat else "no item is mapped"))
+    else:
+        p["_unsized"] = f"{p['_raw_qty']} g does not divide by the {size:g} g unit size ({basis})"
+
+
 def gram_based(cat, *words):
     """Metrc carries this item in grams (Operator 2026-10-18). The item's Category, else its Master category; a
     Master category of `Infused` reads the item name; with no item, the Metrc item and invoice words."""
@@ -387,7 +417,7 @@ def man_basis(p):
         return ""
     b = p.get("map_basis", "")
     if p.get("_size"):
-        b = "; ".join(x for x in (b, f"{p['_raw_qty']} g / {p['_size']:g} g = {p['qty']}") if x)
+        b = "; ".join(x for x in (b, f"by {p['_size_basis']}: {p['_raw_qty']} g / {p['_size']:g} g = {p['qty']}") if x)
     return b
 
 
@@ -471,20 +501,14 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
     known = {ln["line_no"] for ln in prod}
     for p in manifest or []:
         p = dict(p)
-        # Metrc carries a gram-based item in grams (Operator 2026-10-18): `uom` g -> count = grams / the unit size the
-        # Metrc item names. No size (or grams that do not divide) keeps the typed qty and is a STOP, never a guess.
+        # Metrc carries a gram-based item in grams (Operator 2026-10-18): `uom` g -> a count. Before the mapping the
+        # Metrc name's size proposes a line; once mapped, the count is re-read by the item's grams (gram_count).
         uom = (p.get("uom") or "").strip().lower()
         if uom not in MAN_UOMS:
             abort(f"manifest package {p.get('package_id')}: uom {p.get('uom')!r} is not `g` or `ea` (blank = not read)")
         p["_uom"], p["_raw_qty"] = uom, p.get("qty", "")
         if uom == "g":
-            grams, size = num(p.get("qty")), unit_grams(p.get("metrc_item"))
-            n = grams / size if grams is not None and size else None
-            if n is not None and math.isfinite(n) and n > 0 and abs(n - round(n)) < 1e-6:
-                p["qty"], p["_size"] = f"{round(n):d}", size
-            else:
-                p["_unsized"] = (f"Metrc item {p.get('metrc_item')!r} names no single unit size" if not size
-                                 else f"{p.get('qty')} g does not divide by the {size:g} g unit size")
+            gram_count(p)
         elif num(p.get("qty")) is not None and not math.isfinite(num(p.get("qty"))):
             # a non-finite count (`inf` / `nan`) is unreadable, as a non-finite gram qty is: no count, no qty tie, a
             # STOP - never a crash in the case-multiple test, never a silent nan pass
@@ -505,6 +529,8 @@ def prep(lines, catalog, inventory, intake=None, manifest=None, items=None, prog
             else:
                 add("MAP_UNRESOLVED", "", "", f"package {p['package_id']} ({p.get('metrc_item')}): {why}")
                 continue
+        if uom == "g":
+            gram_count(p, by_pid.get(pids.get(line)), pids.get(line, ""))
         used_qty[line] = used_qty.get(line, 0) + (num(p.get("qty")) or 0)
         p["map_basis"] = basis
         pk_by_line.setdefault(line, []).append(p)
@@ -1204,12 +1230,54 @@ def selftest():
           "`ea` on a pre-roll")
     fires("MANIFEST_UOM_UNREAD", "3", lambda c, i, l, m, it: m[3].update(uom="g", metrc_item="Mint Vape 1g"),
           "`g` on a vape (unit-based)")
-    # 50 g against 100 invoice units: a qty tie on the typed grams WOULD fire, so its absence is the proof
-    ru = fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, item="Haze Pre-Roll"),
-               "a `g` package whose Metrc item names no size")
+    # 50 g against 100 invoice units: a qty tie on the typed grams WOULD fire, so its absence is the proof. Neither
+    # side gives a size: the Metrc name states none and the item has no Product grams and no size in its name.
+    def no_size(c, i, l, m, it):
+        half_g(c, i, l, m, it, item="Haze Pre-Roll")
+        next(x for x in c if x["ProductId"] == "12")["Product"] = "Acme | Pre-Roll | Haze"
+    ru = fires("MANIFEST_GRAMS_UNSIZED", "2", no_size, "a `g` package whose Metrc item and mapped item name no size")
     t.check("an unsized `g` package is never guessed: no qty tie (50 g vs 100 units stays quiet), no count on the row",
             not any(e["flag"] == "MANIFEST_QTY_MISMATCH" for e in ru[1])
             and next(x for x in ru[0] if x["row"] == "2")["physical_count"] == "", str(_flags(ru)))
+    # the item's grams count a `g` package the way Dutchie does (Operator ruling 2026-10-31): an unsized Metrc name
+    # ("X - Single", "X - 5 Pack") is never a STOP when the mapped item carries its grams
+    def by_item(grams_, pg, desc, units_, unit_, item_="Haze Pre-Roll - Single", product="Acme | Pre-Roll | Haze"):
+        def f(c, i, l, m, it):
+            l[1].update(description=desc, units_total=str(units_), unit_cost=f"{unit_:.2f}", ext_cost=f"{units_ * unit_:.2f}")
+            row = next(x for x in c if x["ProductId"] == "12")
+            row.update(Product=product, Cost=f"{unit_:g}")
+            if pg is not None:
+                row["Product grams"] = pg
+            half_g(c, i, l, m, it, qty_=grams_, item=item_)
+            next(p for p in m if p["package_id"] == "PKG-C")["ship_cost"] = f"{units_ * unit_:.2f}"
+        return _run(*_mut(f))
+    rs1 = by_item("5", "0.5", "Acme Haze Pre-Roll Single", 10, 5.0)
+    r1 = next(x for x in rs1[0] if x["row"] == "2")
+    t.check("an unsized Metrc name + item Product grams 0.5: 5 g / 0.5 g = 10, ties, no MANIFEST_ flag; map_basis names "
+            "the item's Product grams",
+            r1["expected_qty"] == "10" and r1["physical_count"] == "10"
+            and not [e for e in rs1[1] if e["flag"].startswith("MANIFEST_")]
+            and r1["map_basis"].endswith("by item 12 Product grams: 5 g / 0.5 g = 10"), f"{_flags(rs1)} {r1['map_basis']!r}")
+    rs5 = by_item("62.5", "2.5", "Acme Haze Pre-Roll 5 Pack", 25, 10.0, item_="Haze Pre-Roll - 5 Pack")
+    r5 = next(x for x in rs5[0] if x["row"] == "2")
+    t.check("a 5 Pack whose Metrc name reads no size: 62.5 g / item 2.5 g = 25 packs, ties to the invoice's 25",
+            r5["expected_qty"] == "25" and not [e for e in rs5[1] if e["flag"].startswith("MANIFEST_")], str(_flags(rs5)))
+    rsn = by_item("5", None, "Acme Haze Pre-Roll Single", 10, 5.0, product="Acme | Pre-Roll | Haze | 0.5g")
+    rn = next(x for x in rsn[0] if x["row"] == "2")
+    t.check("a catalog with no `Product grams` column reads the item's name (0.5g): 10, no ABORT, basis `item 12 name`",
+            rn["expected_qty"] == "10" and "by item 12 name: 5 g / 0.5 g = 10" in rn["map_basis"]
+            and not [e for e in rsn[1] if e["flag"].startswith("MANIFEST_")], f"{_flags(rsn)} {rn['map_basis']!r}")
+    rsm = by_item("10", "0.5", "Acme Haze Pre-Roll Single", 10, 5.0, item_="Preroll - 1g - Haze")
+    t.check("the Metrc name (1g) vs the item (0.5g) disagree: MANIFEST_ITEM_SIZE_MISMATCH STOP (a wrong-item ship), "
+            "counted as shipped by the Metrc name",
+            any(e["flag"] == "MANIFEST_ITEM_SIZE_MISMATCH" and e["class"] == "STOP" and "item 12 is 0.5 g" in e["detail"]
+                for e in rsm[1])
+            and "by Metrc item name (item 12 is 0.5 g)" in next(x for x in rsm[0] if x["row"] == "2")["map_basis"],
+            str(_flags(rsm)))
+    rsd = by_item("5.2", "0.5", "Acme Haze Pre-Roll Single", 10, 5.0)
+    t.check("grams that do not divide by the item's grams (5.2 g / 0.5 g) are MANIFEST_GRAMS_UNSIZED, naming the basis",
+            any(e["flag"] == "MANIFEST_GRAMS_UNSIZED" and "0.5 g unit size (item 12 Product grams)" in e["detail"]
+                for e in rsd[1]), str(_flags(rsd)))
     fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="100", item="Preroll - 0.3g - Haze"),
           "grams that do not divide by the unit size (100 g / 0.3 g)")
     fires("MANIFEST_GRAMS_UNSIZED", "2", lambda c, i, l, m, it: half_g(c, i, l, m, it, qty_="inf", item="Preroll - 1g - Haze"),
