@@ -1,13 +1,13 @@
 ---
 name: create-skill
-description: Scaffold a new SKILL for Adam's workspace — confirm it belongs in this repo's single source root (freed-solutions/skills/), draft a focused frontmatter description with triggers, set up the folder + SKILL.md, and run the sync pipeline so the wrapper lands under .claude/skills/. Use when Adam asks to create or formalize a new skill.
+description: Scaffold a new SKILL for Adam's workspace — confirm it belongs in this repo's single skills root (.claude/skills/), draft a focused frontmatter description with triggers, set up the folder + SKILL.md, and prove it with the skill checks. Use when Adam asks to create or formalize a new skill.
 ---
 
 <!-- Generated from "freed-solutions/skills/create-skill/SKILL.md". Edit the repo skill source and rerun ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1; do not edit this Claude copy directly. -->
 
 # Create Skill
 
-Scaffold a new SKILL end-to-end: confirm it belongs in this repo, write the frontmatter, draft the body with house-style sections, and wire it into the sync pipeline so the wrapper is generated and the skill becomes invocable via `/<name>`.
+Scaffold a new SKILL end-to-end: confirm it belongs in this repo, write the frontmatter, draft the body with house-style sections, and run the skill checks so the skill is clean and invocable via `/<name>`.
 
 ## When to Use
 
@@ -17,17 +17,17 @@ Scaffold a new SKILL end-to-end: confirm it belongs in this repo, write the fron
 
 ## Inputs
 
-- **Skill name** (required): kebab-case slug, short and scoped. Examples: `google-sheets-patterns`, `notion-action-items`, `pandoc-deliverable`.
+- **Skill name** (required): kebab-case slug, short and scoped. Examples: `google-sheets-patterns`, `dutchie-support-ticket`, `pandoc-deliverable`.
 - **Purpose** (required): 1-sentence description of what the skill does.
 - **Trigger conditions** (required): when should this skill be invoked automatically? When should it be skipped?
-- **Bucket** (required): `freed-solutions/skills/` is the only source root in this repo (cross-project, brand-neutral technical toolkit). Notion-operator skills are canonical in the TheoryWellness repo and published at user scope; they get no wrapper here.
+- **Bucket** (required): `.claude/skills/` is the only skills root in this repo (cross-project, client-agnostic technical toolkit). A skill that must work from any folder on the machine (`pandoc-deliverable`, `designed-pdf`, `browseros-neo`) is published to `~/.claude/skills/` as well; say which kind the new skill is.
 - **Model hint** (optional): if the skill needs a specific model (e.g., Opus for longer reasoning), note it.
 
 If any required input is ambiguous, use `AskUserQuestion` before scaffolding.
 
 ## Bucket Decision
 
-`freed-solutions/skills/` holds cross-project technical patterns, the client-agnostic toolkit, and Adam's personal workflows (resume, sheets). `ops/notion-workspace/skills/` was retired on 2026-05-23: Notion-specific automation (reads/writes the CRM, relies on Notion schema, uses `notion-` MCP) is canonical in the TheoryWellness repo. If a skill is Notion-specific, ask Adam before scaffolding it here.
+`.claude/skills/` holds cross-project technical patterns and the client-agnostic toolkit. A skill never names a client, a tenant, a concrete client path or a tenant id: `node .claude/skills/bi-change/scripts/skill_leak_proof.js` fails the commit if it does. Client-specific procedure lives in the client tree (local-only, gitignored), never in a skill.
 
 ## Frontmatter Rules
 
@@ -45,9 +45,8 @@ description: <one sentence saying what it does and when to use it, imperative vo
 > "[Verb the goal]. [Brief elaboration of key inputs/outputs]. Use when [specific trigger condition]."
 
 Good examples:
-- `resume-builder`: "Tailor Adam's resume + cover letter + application answers for a specific job opening, using a base resume as the reference-doc for DOCX styling. Use when Adam wants to apply to a role and needs the materials written, tuned to the JD, and rendered to DOCX/PDF."
-- `notion-meeting-prep`: "Surface open Action Items and recent email threads for a Meeting's attendees before a call. Use when the user wants a pre-call context brief showing open work and recent correspondence for every Contact attending the meeting."
-- `cannabis-tech-sitemap`: "Generate a Phase 1 tech-stack decision canvas (Mermaid source + Figma rendering) for a vertically integrated cannabis MSO from stakeholder interview notes. Use when Adam has run a discovery engagement and needs the sitemap artifact for the deliverable."
+- `designed-pdf`: "Render a business-facing one-pager, decision brief, example sheet, or anything a stakeholder signs off on as a designed PDF ... Use for business or external audiences."
+- `dutchie-support-ticket`: states the artifact (a filed ticket in the house format), the inputs it reads, and the one trigger phrase.
 
 Bad examples (what to avoid):
 - "Helps with sheets." — vague, no trigger
@@ -72,33 +71,20 @@ Skip sections that don't apply. Don't pad.
 ## Scaffolding Steps
 
 1. **Confirm inputs** with the user (name, purpose, triggers, bucket). Use `AskUserQuestion` if anything unclear.
-2. **Check for collisions**: does `<bucket>/<name>/` already exist? If so, ask whether to update or pick a new name.
+2. **Check for collisions**: does `.claude/skills/<name>/` already exist? If so, ask whether to update or pick a new name.
 3. **Create the directory**:
    ```
-   <bucket>/<name>/
+   .claude/skills/<name>/
    └── SKILL.md
    ```
-   Optional `config.json` for model hints; optional subdirs like `templates/` or `assets/` if the skill needs bundled files.
-4. **Write `SKILL.md`** following the structure above. Start lean — 80-200 lines is a good target for a focused skill.
+   Optional `scripts/` for anything the model must not improvise; optional `templates/` or `references/` for bundled files.
+4. **Write `SKILL.md`** following the structure above. Start lean — 80-200 lines is a good target for a focused skill. Prose a model can rediscover stays out; a procedure it cannot rediscover goes into a script.
 5. **Review**: read it back end-to-end, checking the description accurately reflects the body.
-6. **Run sync**:
-   ```powershell
-   cd ops/notion-workspace/scripts
-   .\sync-claude-skill-wrappers.ps1
-   ```
-   This generates a wrapper at `.claude/skills/<name>/SKILL.md` that points at the source.
+6. **Run the checks** from the repo root, and both must pass:
+   - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` — no client name, path or tenant id in any tracked skill file.
+   - the skill's own `--selftest`, if it ships scripts.
 7. **Verify discovery**: the skill should now appear in `/` slash-command listings and be invocable. Adam can test with a trigger query matching the description.
-8. **Commit** (if not in a protected path). The `.claude/skills/` wrapper is safe to commit; the source in `freed-solutions/skills/` is the real content.
-
-## Sync Pipeline Details
-
-`sync-claude-skill-wrappers.ps1` lives at `ops/notion-workspace/scripts/` and:
-- Scans the source root (`freed-solutions/skills/`) for any folder containing a `SKILL.md`.
-- Generates a wrapper at `.claude/skills/<name>/SKILL.md` that re-exports the source.
-- Validates frontmatter presence and well-formedness.
-- `-ValidateOnly` flag: dry-run without writing.
-
-If you add a new source root later, update `sync-claude-skill-wrappers.ps1`.
+8. **Commit** on the branch the session is on. While a client tree still runs from the FreedSolutions repo, mirror the skills there: `powershell -ExecutionPolicy Bypass -File scripts/mirror_skills_to_fs.ps1`.
 
 ## Template: New SKILL.md
 
@@ -162,12 +148,13 @@ If any required input is missing or ambiguous, use `AskUserQuestion` before proc
 
 ## Meta-Skill Self-Reference
 
-When using this skill to create a new skill, the irony is not lost. But the pattern is: read the existing skills in both buckets before drafting; match their length, tone, and section depth; prefer concision over completeness. A skill that is too long doesn't get read.
+When using this skill to create a new skill, the irony is not lost. But the pattern is: read the existing skills before drafting; match their length, tone, and section depth; prefer concision over completeness. A skill that is too long doesn't get read.
 
 ## References
 
 - Existing skills for reference:
-  - `freed-solutions/skills/resume-builder/SKILL.md` — longest, most workflow-heavy example
-  - `freed-solutions/skills/cannabis-tech-sitemap/SKILL.md` — mid-length, domain-specific
-- Sync script: `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`
+  - `.claude/skills/dutchie-support-ticket/SKILL.md` — short, single-purpose
+  - `.claude/skills/designed-pdf/SKILL.md` — script-backed (the render step is code, the judgement is prose)
+- Leak check: `.claude/skills/bi-change/scripts/skill_leak_proof.js`
+- FreedSolutions mirror (temporary, until every client tree runs from this repo): `scripts/mirror_skills_to_fs.ps1`
 - Claude Code skill discovery docs: see `claude-code-guide` for harness behavior.

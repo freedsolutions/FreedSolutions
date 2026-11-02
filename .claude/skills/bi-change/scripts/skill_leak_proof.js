@@ -24,21 +24,17 @@
 const fs = require('fs');
 const path = require('path');
 
-// Scan the SKILL SOURCE tree, found by walking up — never a hardcoded path, and never `../..`,
-// so this runs identically from the source and from a synced wrapper copy (whose `../..` would
-// point at `.claude/skills` and check generated files instead of tracked ones).
+// Scan the skills tree this script lives in: `<skills root>/bi-change/scripts/` -> `../..`.
+// Since 2026-11-02 the tracked source is `.claude/skills/` (NewWaveCannabis repo); in the frozen
+// FreedSolutions mirror the source copy resolves the same way to `freed-solutions/skills/`.
 //   node <skill>/scripts/skill_leak_proof.js [skills root]
 function findSkillsRoot(start) {
-  let d = start;
-  for (let i = 0; i < 10; i++) {
-    const c = path.join(d, 'freed-solutions', 'skills');
-    if (fs.existsSync(c)) return c;
-    const up = path.dirname(d);
-    if (up === d) break;
-    d = up;
+  const root = path.resolve(start, '..', '..');
+  if (!fs.existsSync(path.join(root, 'bi-change', 'SKILL.md'))) {
+    throw new Error('skill_leak_proof: ' + root + ' is not a skills root (no bi-change/SKILL.md)' +
+      ' — pass the skills root as an argument.');
   }
-  throw new Error('skill_leak_proof: cannot find freed-solutions/skills above ' + start +
-    ' — pass the skills root as an argument.');
+  return root;
 }
 const ROOT = process.argv[2] ? path.resolve(process.argv[2]) : findSkillsRoot(__dirname);
 

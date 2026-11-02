@@ -1,7 +1,7 @@
 # FreedSolutions - Multi-Project Repo
 
 ## Non-obvious locations
-- `freed-solutions/skills/` is the skill SOURCE; `.claude/skills/` is the generated copy made by `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`. Edit the source, then re-sync. `~/.claude/skills/pandoc-deliverable` is its own source (TheoryWellness removed 2026-10-26; the `notion-*` skills retired).
+- `freed-solutions/skills/` is FROZEN (see `freed-solutions/skills/FROZEN.md`): since 2026-11-02 the skill source is `.claude/skills/` in the NewWaveCannabis repo. `scripts/mirror_skills_to_fs.ps1` (run from NWC) copies a skill here and re-runs `ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`, which regenerates `.claude/skills/`. Edit in NWC, mirror, commit here; never edit either folder here by hand. `~/.claude/skills/pandoc-deliverable` is its own source.
 - `scripts/` and `tests/` at the repo root are repo-level utilities (closeout-sanity and local-DB tests), distinct from `ops/notion-workspace/scripts/`. `ops/local_db/` and `ops/typesafe/` are private service scaffolds. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1` runs every repo check in order and stops at the first failure.
 
 ## Project Routing

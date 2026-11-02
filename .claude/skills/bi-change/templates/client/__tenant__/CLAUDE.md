@@ -23,7 +23,7 @@ is gitignored and absent from task worktrees.
 - **Estate dir:** `<abs path>\bi-estate` — DATA-DICTIONARY.md, DECISIONS.md, BI-SOP.md, BI-WI.md, `dashboard-<id>-*.md` guides, `estate-*.json`, kickoffs, `renders/`, `archive/`
 - **Scripts dir:** `<abs path>\scripts` — CLIENT measurement scripts; one-offs under `scripts/oneoff/`; the lane contract is `scripts/README.md`
 - **Shared BI tools:** `<repo root>\.claude\skills\bi-change\scripts` — `bi_impact_scan.js --estate <dir>` (needle / `--verify` / `--stale`), `render_docs.sh`, `explore_catalog_harvest.js`, `explore_catalog_index.js`.
-  Edit the source under `freed-solutions/skills/bi-change/scripts/`, then re-sync the wrapper.
+  The source is `.claude/skills/bi-change/scripts/` in the NewWaveCannabis repo; a tree that still runs from FreedSolutions gets it via `scripts/mirror_skills_to_fs.ps1`.
 - **Render:** `bash .claude/skills/bi-change/scripts/render_docs.sh <source.md ...>` from the repo root → DOCX + PDF into `<source dir>/renders/`
 - **Export QC:** `python clients/<client>/<tenant>/scripts/export_qc.py [export.csv] [--retired] [--json out]` (`/bi-change qc`). Package grain: `inventory_qc.py`. Every runner obeys the lane contract in `scripts/README.md`.
 - **Export refresh:** `python .claude/skills/bi-change/scripts/export_refresh.py --exports-dir <abs path>\exports --mirror-dir "<abs mirror folder>" --src <download dir> [--apply]` — after every export pull: freeze, refresh `exports\latest\` (fixed names + MANIFEST.json), mirror. Read `latest\`.

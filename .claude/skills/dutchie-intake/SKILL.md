@@ -936,4 +936,4 @@ After ANY edit here run both, and both must pass:
   `fixtures/plan-*.csv`), each proven to FAIL on a named breaker (a check that stays green on its breaker
   is reported INERT), then the CLI chain in a temp folder.
 - `node .claude/skills/bi-change/scripts/skill_leak_proof.js` - no client name, path or tenant id.
-Then re-sync the wrapper: `powershell -ExecutionPolicy Bypass -File ops/notion-workspace/scripts/sync-claude-skill-wrappers.ps1`.
+`.claude/skills/` is the source (no wrapper sync). While a client tree still runs from the FreedSolutions repo, mirror the edit there: `powershell -ExecutionPolicy Bypass -File scripts/mirror_skills_to_fs.ps1`.

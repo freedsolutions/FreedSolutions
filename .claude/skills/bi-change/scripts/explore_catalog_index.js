@@ -7,23 +7,19 @@ const fs = require('fs'); const path = require('path');
 const args = process.argv.slice(2); const src = args.find(a => !a.startsWith('--'));
 if (!src) { console.log('usage: explore_catalog_index.js <explore-catalog-<date>.json> [--index <out.md>]'); process.exit(1); }
 const EST = path.dirname(path.resolve(src));
-// Repo root is FOUND, not counted in `..`s (P6, 2026-09-08). This file moved from
-// a client scripts dir (3 levels down) into the bi-change skill (4 levels down); a hardcoded
-// depth silently writes the index to the wrong place rather than failing, so walk up to the
-// directory that actually holds freed-solutions/skills.
-function findRepo(start) {
-  let d = start;
-  for (let i = 0; i < 10; i++) {
-    if (fs.existsSync(path.join(d, 'freed-solutions', 'skills'))) return d;
-    const up = path.dirname(d);
-    if (up === d) break;
-    d = up;
+// The index lives in the sibling skill of the skills tree this script runs from:
+// `<skills root>/bi-change/scripts/` -> `../..` -> `dutchie-bi-looker/references/`. Since 2026-11-02 the
+// tracked source is `.claude/skills/` (NewWaveCannabis repo); the FreedSolutions mirror resolves the same way.
+// The root is checked, not assumed: a wrong depth must fail, never write the index somewhere else.
+function findSkillsRoot(start) {
+  const root = path.resolve(start, '..', '..');
+  if (!fs.existsSync(path.join(root, 'dutchie-bi-looker', 'references'))) {
+    throw new Error('explore_catalog_index: ' + root + ' has no dutchie-bi-looker/references.' +
+      ' Pass --index <out.md> explicitly.');
   }
-  throw new Error('explore_catalog_index: cannot locate the repo root above ' + start +
-    ' (looked for freed-solutions/skills). Pass --index <out.md> explicitly.');
+  return root;
 }
-const REPO = args.includes('--index') ? null : findRepo(__dirname);
-const OUT = args.includes('--index') ? args[args.indexOf('--index') + 1] : path.join(REPO, 'freed-solutions', 'skills', 'dutchie-bi-looker', 'references', 'explore-field-index.md');
+const OUT = args.includes('--index') ? args[args.indexOf('--index') + 1] : path.join(findSkillsRoot(__dirname), 'dutchie-bi-looker', 'references', 'explore-field-index.md');
 
 function load(p) { let t = fs.readFileSync(p, 'utf8'); let d = JSON.parse(t); if (typeof d === 'string') d = JSON.parse(d); return d; }
 const cur = load(src);
