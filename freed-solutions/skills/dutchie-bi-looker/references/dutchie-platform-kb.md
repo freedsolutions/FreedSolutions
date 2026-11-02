@@ -1616,6 +1616,9 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   dropped, and only calendar picks held. A by-hand control order (10 rows, one page Save) kept every date: prefilled,
   typed or calendar-picked. So the loss is an automation artifact (actions fired before the form settled), not a
   field defect. Enter at a pace the form follows, then read the saved order back once (`get-saved-order-detail`).
+  **[CORRECTED 2026-11-02; PROBE 2026-11-02, by reading the page store] Cause: SKU search, not speed.** Typing the SKU
+  in `Catalog product` sets the form store's `expirationDate` to `""` while the date box still DISPLAYS the date, so
+  `Save package` stages a blank expiry (red status icon). A name search keeps it. See the re-bind entry below.
 - **The POS API `/reporting/inventory` carries the package expiry, not the LTE.** [READ 2026-10-23] Its
   `expirationDate` is the package's saved Expiration date (it equals the Inventory export's `Expiration date`; local
   midnight prints as `T04:00:00`, so compare the date part). `testedDate` and `labResults` read null. A read-back, not
@@ -1647,6 +1650,13 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   products exact. The draft ticket is WITHDRAWN. Fix: enter fast but wait for each action to settle (row dialog closed,
   grid row shows the pick, next row form empty), map every row before the page Save, then read the saved order back
   once.
+  **[CORRECTED 2026-11-02; PROBE 2026-11-02, by reading the page store] The cause is the SKU search, not speed.** The
+  2026-10-27 finding above is wrong on the cause (the history stays for the record). In the row dialog
+  `Receive package`, typing the item SKU into `Catalog product` sets the form store's `productId` BEFORE any option is
+  clicked. The same keystrokes set the store's `expirationDate` to `""` (the date box still DISPLAYS the date) and
+  move the `productId` of another row already staged. `Save package` then stages a blank expiry, and the other row
+  saves bound to the last pick. This explains every "re-bound to the last-picked product" and "expiry dropped at Save"
+  entry in this section. Searching by the Dutchie product NAME does neither (next bullets).
 - **[PROBE 2026-10-13] Editing a row of a staff-started saved order without re-picking the product.** In the row form,
   set Room (type the room name, take the option), Cost per unit (real keystrokes; Total package cost follows), untick
   each `ITM - ` tag, then `Save package`. Expiry and Package ID the staff entered survive; the page Save persists it.
@@ -1656,8 +1666,18 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   kept NO item tag, so reopening a saved order does not by itself re-add tags. Picking a catalog product applies the
   item's tags (automated); which later action re-applied them is under test. Until proven: re-check package tags on the
   received packages and strip any `ITM - ` survivor.
-- **Picker search takes the SKU.** Typing the item's SKU in the row form's `Catalog product` box lists exactly that item
-  (`<name> SKU: <sku> | Brand: ... | Strain: ...`); pick the option that carries the SKU.
+- **Picker search: type the Dutchie product NAME, never the SKU.** [PROBE 2026-11-02, by reading the page store;
+  replaces "Picker search takes the SKU", 2026-10-13] Type part of the catalog name in the row form's `Catalog product`
+  box, then click the option (`<name> SKU: <sku> | Brand: ... | Strain: ...`; check the SKU in the option). A name
+  search changes nothing in the form store until `Save package`, keeps the expiry, and moves no other row. A SKU
+  search lists the same option but corrupts the store as it is typed (re-bind entry above).
+- **Row dialog traps.** [PROBE 2026-11-02, by reading the page store] A calendar pick of the same day the date box
+  already shows fires no change (the store keeps whatever it held). `Escape` with no popup open closes the dialog
+  UNSAVED. The grid sorts by Product, so a row moves after its pick: check the row id under the pointer before each
+  click.
+- **Pre-Save check: read `incomingProducts`.** [PROBE 2026-11-02, by reading the page store] The grid's React props
+  `incomingProducts` list each staged row's `productId`, `expirationDate` and `cost`. Read it against the plan before
+  the page `Save`. The grid's Product name alone hides a re-bind.
 
 ## Package tags: the write path [PROBE 2026-10-13, 1 + 8 received packages]
 

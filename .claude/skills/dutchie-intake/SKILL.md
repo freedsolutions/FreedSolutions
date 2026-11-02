@@ -688,18 +688,25 @@ email (R127, qualifying R62 R97); the package-grain `ITM - ` strip (R47).
      question.
    - **Expiry** (Operator ruling 2026-10-23, corrected 2026-10-27): every package's Expiration date is its Metrc LTE
      (step 1). Dutchie prefills it on each pending-transfer row once the transfer syncs from Metrc (the sync can lag
-     about an hour). The prefilled date persists when the rows are entered at a pace the form can follow; leave it.
+     about an hour). The prefilled date persists when the product is picked by NAME (next bullet); leave it.
      Do not re-pick dates by default. A label date that differs from the LTE is a note for the receipt record, not a
-     change.
-   - **Pace (Operator ruling 2026-10-27): move fast, but every click must land.** The 2026-10-23 "calendar only" rule
-     and the row re-bind both came from automated entry that fired the next action before the form had settled. A
-     by-hand control order (10 rows, one page Save) kept every product and every expiry. So: prep EVERYTHING before
-     the delivery (the prep sheet, the package-to-SKU map, costs, answered questions), then enter fast and wait for the
-     form's own state after each action (the row dialog closed, the grid row shows the picked product, the next row
-     form opens empty). Map every row before the page Save. A click that has not landed is not progress.
+     change. A calendar pick of the day the box already shows fires no change, so it cannot repair a blanked expiry.
+   - **Pick by product NAME, never by SKU [PROBE 2026-11-02, by reading the page store].** Typing the SKU into
+     `Catalog product` blanks the row's stored expiry (the box still shows the date) and moves another staged row's
+     product. That is the cause of the 2026-10-13..27 re-binds and dropped expiries, not automation speed. Type part of
+     the Dutchie product name, check the SKU in the option, then click it.
+   - **Pace (Operator ruling 2026-10-27): move fast, but every click must land.** Prep EVERYTHING before the delivery
+     (the prep sheet, the package-to-SKU map, costs, answered questions), then enter fast and wait for the form's own
+     state after each action (the row dialog closed, the grid row shows the picked product, the next row form opens
+     empty). The grid sorts by Product, so a row moves after its pick: check the row id under the pointer before each
+     click. `Escape` with no popup open closes the row dialog unsaved. Map every row before the page Save. A click
+     that has not landed is not progress.
    - **Credits LAST.** Set `Total credits` with `Apply credits to unit cost` only after every row is staged. Dutchie
      spreads the credit equally per package and floors a package at $0; a $0 package is accepted (the receipt then
      matches what was paid).
+   - **Check `incomingProducts` BEFORE the page Save.** The grid's React props `incomingProducts` list each staged
+     row's `productId`, `expirationDate` and `cost`; read them against the sheet. The grid's Product name alone hides a
+     re-bind.
    - **Read back ONCE after the page Save, before `Receive`.** Read the saved order's detail (each row's ProductId
      and Expiration date) against the sheet, and fix only a miss (in its row form, then Save and read again). Use ONE
      page Save as the checkpoint, not a save per row. After the page Save the header Room reads blank and `Receive`
