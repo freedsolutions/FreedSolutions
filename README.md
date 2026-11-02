@@ -1,39 +1,18 @@
 # Freed Solutions
 
-Fractional data and systems consulting for the cannabis industry.
+Fractional data and systems consulting for the cannabis industry (2021-2026). The practice continues as New Wave Cannabis.
 
-**Website:** [freedsolutions.com](https://www.freedsolutions.com)  
-**Contact:** [Book a call](https://calendly.com/freedsolutions/30min)
+**Website:** [freedsolutions.com](https://www.freedsolutions.com)
 
 ## Repo Structure
 
 ```text
 FreedSolutions/
-|- index.html                    # Landing page (GitHub Pages)
-|- CLAUDE.md                     # AI workflow config and project routing
-|- CNAME                         # Custom domain (freedsolutions.com)
-|- brand/                        # Brand assets - local only (.gitignore)
-|- ops/                          # Internal ops, migration docs, and private service scaffolds
-|- privacy-policy/               # Privacy policy page (GitHub Pages)
-|- website/                      # Website static assets (favicons, OG images, photos)
-|- scripts/                      # Repo-level utility scripts (check.ps1)
-|- tests/                        # Repo-level test suite
+|- index.html          # Landing page (GitHub Pages)
+|- CNAME               # Custom domain (freedsolutions.com)
+|- privacy-policy/     # Privacy policy page
+|- website/            # Static assets (favicons, OG images, photos)
+|- brand/              # The two logo PNGs the page uses (the rest is local-only)
 ```
 
-> `scripts/` and `tests/` at the repo root are repo-level utilities, distinct from `ops/notion-workspace/scripts/`.
-
-## Checks
-
-One command runs every repo check in order and stops at the first failure:
-
-```bash
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check.ps1
-```
-
-It covers the Python tests, the seven Notion-workspace PowerShell tests, the skill-wrapper sync validator, the bi-change gate self-test and leak proof, and the dutchie-intake self-test. `.github/workflows/checks.yml` runs the Python tests and the two node self-tests on every push to `main` and on pull requests.
-
-### Global Assets
-
-- `index.html` - Landing page deployed via GitHub Pages
-- `brand/` - Logo, resumes, and other brand assets (local only, not tracked)
-- `ops/` - Internal operations, migration prompts, and automation/workflow docs
+Everything else that used to live here (skills, ops tooling, client work) moved to the NewWaveCannabis repo on 2026-11-02. See `CLAUDE.md`.

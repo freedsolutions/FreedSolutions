@@ -1,56 +1,33 @@
-# Client engagement folders - local only (confidential client work)
+# Client engagement folders - local only
 clients/
 
-# Personal application artifacts - local only (resumes, cover letters, answers)
-freed-solutions/applications/
-
-# Dutchie ticket records - local only (product-feedback tickets cite client evidence)
-freed-solutions/dutchie-tickets/
-
-# Rolling session state for Notion workspace automation - local only
-ops/notion-workspace/session-active.md
-
-# Brand assets (large binaries - keep most local)
+# Brand assets - local only, except the two logos the page uses
 brand/*
 !brand/logo-square-purple-text.png
 !brand/logo-square-purple-no-text.png
 
-# OS
+# OS / editor
 .DS_Store
 Thumbs.db
-
-# Editor / IDE
 .vscode/
 .idea/
-*.sublime-*
 *.swp
 *~
 
 # Environment
 .env
 .env.local
-.env.*
-*.pem
-*.key
-token.json
-client_secret_*.apps.googleusercontent.com.json
 
-# Dependencies (zero-dep project - defensive only)
+# Dependencies and caches
 node_modules/
 __pycache__/
 *.pyc
-ops/notion-workspace/.tmp/
-ops/notion-workspace/tmp/
-ops/local_db/credentials/
-ops/local_db/config.yaml
-ops/local_db/*.db
-ops/local_db/*.sqlite
-ops/local_db/*.sqlite3
-ops/local_db/logs/
-ops/local_db/gmail_filter_ids.json
 
-# Claude Code local settings (except version-controlled skills)
-.claude/*
-!.claude/settings.json
-!.claude/skills/
-!.claude/skills/**
+# Claude Code local state
+.claude/
+.playwright-mcp/
+.cowork/
+
+# Leftovers of retired tooling, kept local until the folder is archived
+ops/
+freed-solutions/
