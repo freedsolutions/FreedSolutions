@@ -267,7 +267,9 @@ sessions may drive at once, so there is no lock file:
 - **`references/mdm-product-line-rules.md`** — portable product-line/QC rule patterns. The
   client's `DATA-DICTIONARY.md` outranks it.
 - **`references/swagger.json`** — the Dutchie POS public API spec (OpenAPI 3.0.4, saved
-  2026-09-25 from `api.pos.dutchie.com/swagger/v001/swagger.json`), and
+  2026-10-29 from `api.pos.dutchie.com/swagger/v001/swagger.json`; 135 operations, 8 new since
+  9/25: customer discount-restrictions / discounts-by-attributes / eligible-discounts, loyalty-registration,
+  adjust-loyalty-balance, segments, and two lab-results parse-url), and
   **`references/documented_fields.txt`** — the product fields that spec documents, one per line.
   The KB section *POS public API* reads against them.
 - **Ripple scanning** is the `bi-change` skill's job:

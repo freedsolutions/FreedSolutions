@@ -1349,6 +1349,11 @@ The `dutchie-intake` lane writes ONE PO per vendor document and closes it after 
   and the pick links the receipt (`purchaseOrderId` = the PO). Metrc receipts cannot prefill lines from a PO.
 - **Close** = a sparse header write: `status` Closed + `dateReceived` (the receipt's `deliveredOn`). The stored lines
   stay as they were.
+- **UI edit of a Submitted PO** [PROBE 2026-11-02]: `Actions > Edit details` changes Title, Expected arrival and
+  Shipping information while Submitted. The line dialog (`Receive details`) is read-only until `Actions > Re-open
+  order` (status Open). Then set `Est. price per unit`, Save each line, and `Actions > Submit order` (sets
+  `dateSubmitted`; it sends no email). A UI line Save also writes the item's Strain onto the line. The UI keeps only
+  the first 100 characters of Shipping information (the API stores more), so keep that note under 100 characters.
 
 ## Discounts (Backoffice Marketing › Discounts) [PROBE 2026-09-26/27, discount lanes]
 
@@ -1777,3 +1782,34 @@ its close control dismisses it.
   row - `source` (`po` | `catalog` | `none`), `ref`, `item`, `read_date`, `price`, `per` (`case` | `unit`, as printed),
   `units_per_case`, `unit_shown` (the per-unit figure Apex prints beside the price: a cross-check). A PO read beats
   a catalog read. No PO and no listing is `COST_UNKNOWN` (STOP).
+
+## Apex Trading: building a buyer order (cart to review) [PROBE 2026-10-30, buyer login, stopped before Place Order]
+
+An agent may BUILD a cart for the operator; the operator places it. Never click `Place Order` without the operator's
+explicit go for that vendor, items and total. Human pace, interface only (Apex terms); no API calls for ordering.
+
+1. `Marketplace` -> search the seller (`/marketplace?q=<words>`); the seller's products list first.
+2. On each product card type the number of CASES in `Qty`, then `+ Add` (greyed until `Qty` is filled). Add can open the
+   cart drawer over the page: close it (X) before the next item.
+3. The green cart button (top right; badge = line count) opens the drawer `Cart: <buyer> (n)` with Subtotal and Total.
+4. `Checkout` in the drawer only opens the review page (`/marketplace/cart?location=<id>&refer=search`); nothing is sent.
+5. Review page: left panel = one order per seller; the order card shows seller and buyer addresses and the buyer
+   license; table `Name | Price | Quantity | Line` with an edit icon and a red X per line. The only field is
+   `Order Notes / Requests for Seller` (empty). No delivery date, payment terms or license field.
+6. `Place Order` (green, under `Final Total`) is the submit. The cart is kept server-side per buyer location (survives
+   reload); nothing reaches the seller before `Place Order`.
+7. Read back every line before handing over: a line can read `1 Unit` with `Package Size: <n>` at a case price (the
+   "Unit can be a case" trap above); count it as a case.
+8. Several sellers in one cart (probe 2, same day): the review page has a `Combined Vendors` summary with ONE green
+   `Checkout All Carts` button (submits every seller, including one the operator put on hold) plus one `Place Order` per
+   seller under that seller's `Final Total`. To place one seller, use that seller's own `Place Order`; never `Checkout All
+   Carts` while any cart is on hold.
+9. A product card that reads `N batches` keeps its `Qty` box disabled: open the `Choose a Batch` modal (Batch Name / Price /
+   Qty / Potency), type `Qty` on the chosen row and press its `+`. The modal is missing from accessibility snapshots;
+   drive it from a screenshot.
+10. A seller with two licenses (cultivation and processing) shows two order cards under one `Place Order`.
+11. Menu prices change between orders: read each line's price on the review page against the last paid price before
+    the hand-over.
+12. `Order Notes / Requests for Seller` has no save button and lives only in the open page: a reload clears it. Type
+    the note just before `Place Order`, on the same page load.
+13. A batch marked `On Deck` has no `Qty` box and cannot be added; pick an in-stock batch in `Choose a Batch`.
