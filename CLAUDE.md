@@ -6,5 +6,5 @@ Since 2026-11-02 this repo holds the Freed Solutions landing page (GitHub Pages,
 - Direct push to `main`.
 - `index.html` at the root is the live landing page. Do not edit it without confirming the current CTA strategy.
 - `brand/` is local-only except the two logo PNGs the page uses.
-- `clients/` is local-only (`.gitignore`). One client tree still lives here until its own move; it is not part of this repo.
+- `clients/` is local-only (`.gitignore`) and holds nothing since 2026-11-05, when the last client tree moved out. It is not part of this repo.
 - No `package.json`, no `node_modules`, no scripts.
