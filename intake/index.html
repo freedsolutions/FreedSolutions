@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Get in touch | New Wave Cannabis</title>
+<link rel="icon" href="/favicon.ico">
+<style>body { margin: 0; background: #fff; }</style>
+</head>
+<body>
+<!-- Test copy of the NWC intake form (data_services/intake/squarespace_block.src.html). Rebuild from there; do not hand-edit. -->
+<div id="nwc-intake">
+<style>
+  #nwc-intake {
+    --evergreen: #1C4230; --sage: #D9DFC5; --olive: #869B79; --sandstone: #D2BFA2; --walnut: #695847;
+    --canyon: #C97B3D; --ink: #1d2420; --paper: #ffffff; --line: #c9cfb6;
+    font-family: "Avenir Next", Avenir, "Lato", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); max-width: 720px; margin: 0 auto; padding: 0 16px 48px; box-sizing: border-box;
+  }
+  #nwc-intake *, #nwc-intake *::before, #nwc-intake *::after { box-sizing: border-box; }
+  #nwc-intake .hdr { display: flex; align-items: center; gap: 16px; padding: 24px 0 8px; }
+  #nwc-intake .hdr img { width: 72px; height: 72px; border-radius: 16px; flex: none; }
+  #nwc-intake h2 { font-family: Montserrat, "Avenir Next", Arial, sans-serif; font-weight: 700; color: var(--evergreen);
+    font-size: 26px; line-height: 1.2; margin: 0; }
+  #nwc-intake .sub { margin: 4px 0 0; color: var(--walnut); font-size: 15px; }
+  #nwc-intake .ref { margin: 16px 0 8px; padding: 10px 14px; background: var(--sage); border-radius: 10px;
+    color: var(--evergreen); font-size: 14px; display: none; }
+  #nwc-intake form { margin-top: 12px; }
+  #nwc-intake fieldset { border: 0; padding: 0; margin: 0 0 18px; }
+  #nwc-intake legend, #nwc-intake label.f { display: block; font-weight: 600; font-size: 14px; margin: 0 0 6px;
+    color: var(--evergreen); }
+  #nwc-intake .opt { font-weight: 400; color: var(--walnut); }
+  #nwc-intake input[type=text], #nwc-intake input[type=email], #nwc-intake input[type=tel],
+  #nwc-intake input[type=url], #nwc-intake textarea {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit;
+    font-size: 16px; background: var(--paper); color: var(--ink); }
+  #nwc-intake textarea { min-height: 96px; resize: vertical; }
+  #nwc-intake input:focus, #nwc-intake textarea:focus { outline: 2px solid var(--olive); outline-offset: 1px;
+    border-color: var(--olive); }
+  #nwc-intake .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #nwc-intake .row > div { min-width: 0; }
+  #nwc-intake .seg { display: inline-flex; border: 1px solid var(--evergreen); border-radius: 999px; overflow: hidden; }
+  #nwc-intake .seg label { padding: 9px 20px; cursor: pointer; font-size: 15px; color: var(--evergreen); }
+  #nwc-intake .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  #nwc-intake .seg input:checked + span { color: #fff; }
+  #nwc-intake .seg label:has(input:checked) { background: var(--evergreen); color: #fff; }
+  #nwc-intake .yn label { margin-right: 18px; font-size: 15px; }
+  #nwc-intake .states { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; }
+  #nwc-intake .states label { text-align: center; padding: 6px 0; border: 1px solid var(--line); border-radius: 6px;
+    font-size: 13px; cursor: pointer; user-select: none; }
+  #nwc-intake .states input { position: absolute; opacity: 0; pointer-events: none; }
+  #nwc-intake .states label:has(input:checked) { background: var(--olive); border-color: var(--olive); color: #fff; }
+  #nwc-intake .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+  #nwc-intake .consent input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+  #nwc-intake .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+  #nwc-intake button { background: var(--evergreen); color: #fff; border: 0; border-radius: 999px; padding: 13px 30px;
+    font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
+  #nwc-intake button:disabled { opacity: .6; cursor: wait; }
+  #nwc-intake .msg { margin-top: 14px; font-size: 15px; min-height: 1.4em; }
+  #nwc-intake .msg.err { color: var(--canyon); }
+  #nwc-intake .done { display: none; padding: 28px 20px; background: var(--sage); border-radius: 14px; text-align: center; }
+  #nwc-intake .done h3 { font-family: Montserrat, "Avenir Next", Arial, sans-serif; color: var(--evergreen); margin: 0 0 8px; }
+  #nwc-intake .fine { font-size: 12px; color: var(--walnut); margin-top: 18px; }
+  #nwc-intake .fine a { color: var(--walnut); }
+  #nwc-intake [hidden] { display: none !important; }
+  @media (max-width: 560px) {
+    #nwc-intake .row { grid-template-columns: 1fr; }
+    #nwc-intake h2 { font-size: 22px; }
+  }
+</style>
+
+<div class="hdr">
+  <img alt="New Wave Cannabis" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCADAAMADASIAAhEBAxEB/8QAHAABAAICAwEAAAAAAAAAAAAAAAEHBQYCAwQI/8QATBAAAQMDAQUEBgQHDAsAAAAAAQACAwQFEQYHEiExQRNRYXEUIjKBkaEjQrHBFRdSYnKi0QgWJDNTgpKUssLS8DZDVVZjdIOjs+Hi/8QAGgEBAAIDAQAAAAAAAAAAAAAAAAIDAQQFBv/EAC4RAAICAAUCBAUFAQEAAAAAAAABAgMEERIhMUFREyIycSNhgbHRBVKhwfBCkf/aAAwDAQACEQMRAD8AutERcwgEyiIAiIgGUyiLICIiwAiIgCIiAZTKIgGUyiLIGUyiIBlERYATKIgCIiAhFKIAoUogChSiGQmFICiSSOGN0kr2RxsGXPeQGtHeSeSqlYkWRrbJwpwtHve2TSdnc6KGpluUoOMUjMsz+m4gfDKwv45rvWnNr0RWzsPJz3vOf6LMfNY+I98jOda2b/stLdUY8FVp2xX2k9a4aGrImDmWukGPizCy9m21aWubhHVuqbXLyPpLMsB/SbnHvAWcrFvkYzqe2eXvsb1hFxp6iCtgZUU00U8MgyySNwc1w8COC7CEjYmJVtHFQpRWlYUKUQwQilEARQpQBERAFClEBCKUQBSAgXhv97o9N2eputc4iGnZndHN7jwa0eJOAqrJdEXVx6s8OsNZ2zRdu9LrnF8r8iCmYRvzEd3cB1ceA+SrqKxao2pPZcdRVb7XZid6CiiGC9vQhp/tOyT0C7NFaerNb3Z+tNTMEzJH4oaQjLMA8Dg/UbyA+sckq2gxlEA+TD5ncQO5aWIxKo8sfV1fb2NzD4V4jzT9PRd/mzA6e0BZrExvoFsp4XgcaiYdpK7x3jx+GFnjBA3hJVknuBXTJLLOfXdw7hyWoa51qdKOo6KioTX3SuP0MHHGM4yccSSTgAeK5cbbL56YrNvudaVdeHr1S2S7I2uR3ZyERSOczoc81h71peyahYW3K208z+kobuyN8nDisLovXVRqC6VVkvFsNsutO0v7Ljh7RjPA8QRkHqCCtxMeFCcrsPPKWzJ1qnEwzW6+ZVNRpPUmzyqfcNJVstTSe3LQyje3x19Xk/zGHDxW/aH19btb0juxHo1fCMz0jzkt6bzT9ZuevTkVk5Yu1YWnh3HuKrPW2m6q0VbdWaezTXCkd2lQyMcJB1djrw9odR4ro4bHK5qFvPR/k52KwDpTsp46r+1+C3yMKCFiNIanptX2GnulOAxzvUmiznspB7TfLqPAhZgrpQk+HycucVyuDiUClQrikIpRAQpREARR0UoCEwiICVAClAjCOQVUbT5ZdXazs2iqeQthYRUVRb0yCeP6LAT5uVrtGcAczwVTaGIvW0zVl6dx7FzoY/AF+7/Zj+a1pT0arOy/k2VDXpr/AHP+C0LbTw0VKDHGI4YGCOFg5NaBgAfYuGXSvL3cSV31X0dNBEOoyf8APvXGBq83Y3KWk9NUlGOo5xQrStpui665ij1HZ6ttNcrSC5u/ye3OeB44IOefAgkKwYI1oW2XXUuk7bT2uigjkq7lG8mSUEtijaQCQOriTw6DBXRwdU1JeHyaGNtr0fG9Py5+h4tm2jrrJdKjWGoKyKorqqMxRsj+qODSTgAcmgADot/khVe7FNoNRf3zaduEEXbQROqIZ4m4327w3muHeN4EEKz548ZWcZVZn8XnLpx9COCtq0/BzyzfPP1MRIzCxtZGGy5IBDhxB5FZmdqxdwHBh7iVx5LSzs1vUV3oqU6K2mVNgyWW67t36dueAdglnww9nwVvHvVM7Uc2+t0/e4juyUtVu73gCHj7D8Vc7i1xJb7J4jyXpqbPEhCx8tb/AE2PLX1eHZOpcJ7ez3OBRCi3UaTIRFKGCMKVCIApUBSgCIoQwFIRAeKMyjsi9th/OH2qo9kY7O76sjdwkFUCR/PkCtocuCqax509tmvltk9SG6sdLD3EnEg/vhadsXKuyK7fY3KpKNlcn3+6LPmnFQ9hDSN1uOK119zvNxr6qC1OZGykySMDL8HHUceIPBZsHBWNq9MxVlS6ogqpKV8nF+6Mgn4heYbbkesq0RW/5OUGvWttjPoO1uTiWCNrTu56O9/cOqx112WVOvqf0vUNwmpK0D+DmNgcYweYc3lj80fFd9gpYrHq30KQCXtIvoZXt4g4zkd3Ihb+ybA5ro4Ocs1NvdGj+oQhpdcI7S6/jsVtZtjT9Fxmvs13mqrqOBe9giBb+S0ZPvyTnwWVGuXRUM8VwpjFcoRgMLSGvd4/k95HwW6Pmz1Wi6ujjuuoaG3Ma1shbmSUD1gD09wBPvUsZZJt2J7sj+nVwUVVKOy3z69/qeR13vlAaSruDmPp6s5DMAEN9w4cDlZe5HAaPErxQ6Uipqhkk9ZLUtjOWMcMAfMrur5N+bAPsjC5M8+GdXytrT+CvNsZDtPUTB7TqwY/oOVwwtLKeJruYjaD54CpvXDHX7WWm9OxetmZssoHQFw5/wA1rj71dDzvEkDgTlelwkXGitP5s8rjZqWIsa+S/wDEcCiFQugjmMKVClZBCFFKAhSoClAERQhglEUDigOQKrfbNY6pkFBqy1gistTx2rm8+z3std5Ndz8HFWPlHxxzRvilY2SN7S17HDIc0jBBHdhUyzjLUi+KU46Wa/p++U2pLPTXSlIDZm+uzPGN49ph8j8sLKRvwqouFHcdjl/dWUsctXpeueA+POTEejfB4+qfrDgeKsq3XGku1FDX0M7Z6aZu8x7eo+4946Lg47COuXiQ9L/2R38Bi/Fj4dm0lz+Tw6qc6mloLnFwfDJukjuzkff8VtkdU17A9py1wBHkVrl9i9JtNQzGS1u+PMcf2rs09WdvZ6ck5LG7h9xx9mFpQtcWzpWVKdafY2B0+eq1GxSfhG+3G5u4tB3Iz58B8h81lLrWGmt1TKDgtjOPM8B9qxmnd2isrHv4GVxf4noPsSy7U0Zqq0wb77GWq6gRMJJ49PFYC43CC30c9dVybkMLS97j/nmeQXdW1rWskqJ5GxxRtLnOccNY0cySq9bFcdrl7FDQGSl09RyB09QRgvPl1cfqt6A5Kng8LLETze0Vy/8AdSjGYqOFryW8nwv90RmNkVsqb/e7lra4RlvaOdT0jT06OI8GtAb5lytZy6aChpbVQwUNFC2Gmp2COONv1Wj/ADzXYV6eK1PNLbp7Hlp+VZN5vr7hERXmuEUKUMBFClDJAUqFKGCFKIgCjqpRAOSkFQoWGsySeR119DS3Whnoa6Bk9NOwskjdycD9/j0VRacNXs71xUaTqJnvt1ae1o5H9SfZPmcFp8QCriVZbdKB4tdqvlOCJ6Cq3C8cw13Fv6zR8VV4KmnW+H9y5X6GrVyvt1RuvbxzsdG/1d4Fpzy48FitJyBtHPA4gGKXqe8f+lxob1QXGkhq4KymcyVgf/GtGCRxBGeGDwXhs9XSxV1dF6TABvZB7RvefHxXmp0yU0mj11VsZVyyfZmT1RUsbbHRtcCXvaOHdz+5cIt5tPDGTwjjDR4cFj9QVlM6Oni9JgO88nhI09PPxXqfXUcTSZKumawc3GVuAPiqZUtyayLo2xVSefc0zWk9ZqW/0Gi7W/ddUOa+qeOTW8+Pg1oLiOvBW1Y7JQ6btcFst0XZ08IwPynnq5x6uJ4lVpsdh/C2ptSajeN8Of2MLyOQc4k4/mtYPerYJXqK8Oq4RqXTn3PHW4l22StfXj2BKjOUPFMLYSyNaUswmcoiyRGUREAREQEKVAUoAiIgCjKKMhAclClCgIyq326V1XTaao6aBzmUtXVblS8DPqgbzQfAnj47qzOs9pdn0fvUzya244yKSI+x3F7uTfLn4LQLNQ6i2y10tTdq91HZaV+Ozhbhm9z3WNPN2ObnZxnxwrIRy8z4Kpzz8q5O+LQWy90THO1cJHFoJd6XE3Jxzxu8PJcv3gbLf96h/XYv8K26LY1o6NgaaOqkIHtOqn5PwwFz/E7o3/Z9R/W5P2qWtd2Y0P8AajTZNB7LmxvI1WAQ0kYrIifhu8Vq505pEc7sPPt2fsVsu2N6NwR6BUjxFW/h81p952Z2i1VhgfTylhG9HIJXesP2opruyMoPsj27Cqydkt8tkUrp7bC9ssMhbgb5JHzaAceCtgr5sN4r9nl+e2w3J+4WtdLDJhzHfmvbyPnwIyrY0XtatOpnR0dcBbbi7gGPdmKU/mOPI/mnj5pZB+pEq5pLSzfFClFSXBERAETCIAiIgIClEQBQpRAartK1DWaY0jU19A9sdWZI4Y3uaHbhc7icHhnAKpJm03WTHh41DVkg5w4MI+G6rQ26y7uj6dn8pXR/JryqIJWzVFOO6NW6TUskfRWzjaFFrKidT1XZw3anbmWNvBsrf5Ro7u8dD4FboOY818l2m61lkuVPcqCYxVNO/eY7p4gjqDyIX0xovVtHrGzw3CmwyVpDKiDOTDJ1HkeYPUe9V2Q07osqs1bPk+Y6+aWor6qaZ7nyvmkc9zjkuJcckq1LLe63TexL0+1yCGqNc6My7oJZvSYJGeGcABVbcWdlcqxn5NRKP1yrItkfpWwW5t5mCsdJ8JIz96unwiiHLMbozaNqmbVVrpqu8T1dPUVLIZIpg0tLXHHdwPHOQr7qKiGjgkqKiVkMMTS98jzhrWjmSegXy5pOQRaqsz+ja6A/rhW7t0vvoVgp7PG7EtfLvPH/AAozk/Fxb8FXZHOSSLap5RbZvFl1LZ9RslfablT1oiIEnZE5ZnlkEA+9attiuDrVpmOriOKgzdjG78kuByfdjKqrZXfxYdZ0bpHbsFZ/BJSTww8+qfc7dW8fugKktoLLS8g+aWUjyaB/eKxoymkZ8TVBsqvT9irtU3mC20frVFQ4kvkJw0Di57j3AcVutydoHQ8zrey1y6musB3ZpaiTcgY8cxgcOHcAcd+Vw2XyfgWxar1M0Dt6KjEMDj0e7J+0MVdkkkucS53MuPMnqVd6nkU+lZ9SyKjbvqOQkQUNrp29BuPefiXLynbdq7PtW3+q/wD0vTp/YjeLxQRVtdXU9sEzQ9kTozJJuniC4AgDyzlZV37n6bHq6jiJ8aQ/41HOtE8rWYeDbpqeFwdPT2yoYOJb2LmEjzDuCvShqhXUVNVtaWCeJkoaebd5oOPmqcbsAuHatD79RGHPrEQP3sdcDOM+9XPDE2CGOGMYZG0MaO4AYH2KqzT/AMltSnvqOaIiqLSFKIgCIiAKFKhAVlt7fjTVtb+VWn5RuVPWCNs19tkbgCHVcIIPX6Rqtzb8cWK0DvrHn/tqpNM/6SWr/nIP/I1bdXoNS31lr7YtnnpQm1JaIB2zMmtgjb/GNH+tAHUde8cehVZaQ1dX6MuwuFBuyNcN2aCQncmbzwccsHiD0X1K72neZVA7V9nx03WOvFtixaql/rMaOFNIfq/onp3cu5QrnmtLJ2waeuJoNTUOq6uepeAHTSOlIHIFzicfNWzoSA12xrUlOOJ3qkgeIjY77lUPJXdsSh9M0Vd6RwyJKmSPH6UTQp28FdW8imKKpdR1dPVsGXQyslA791wP3LO6+1edaagkuYhfT07Y2xQwvcCWNHE5I4ZJJPwWubpj9Q8C31T7lt+y3S/75tVQdtHvUVFipqMjg7B9Vnvd8gVKWS8zIRzflRrdwtdws1Q2CvpZ6KcsbMxsjd126eLXBZ/XWuX61ZaTLTOhlo6csmcXAiWQkZcO4eqOferO22aZN1sDLzAzeqbaSZCBxdC4+t/ROD5ZVDngViDU9yU4uD0lg6dBj2OaoeBxfWRNPl9H+1aJRbnptOZcdn2rN7PdvDPyVt7PdPy3rZJe6KNv0tbLN2Pi9rWbv6zcKnnA8WuaQeRaeY7wkHu0JrZM+vzjJ3eWeHkowqBs22vUVqooaSaCir2QtDGyTBzZCBwGS08fPCyDtvt4I9Wy25p7zLIVR4UjYV0S70VFfj51CHh5t1r7MHLmBr8kd2d7grxpp21VPDUM9mWNsjfJwBH2qMoOPJKM1Lg581KIoEyFKIgCIiAIihAYfVOkrXrChZR3SOVzIn9pG+J+49jsY4Hy6LXrRsb0zZ7jBXsdX1ElO8SRtmmBYHA5BIDRnBW9KFJSa2RFxTebJ5rqqqSnrqaWlqoY54JWlkkcgy14PQhdqKJIr6p2HaTnmMkbrlTtJz2cdQC0eW80n5rbNNaZtuk7f6Ba45GRF5kc6R+897jjiT7gsrlFJyb2bIqKW6Rolz2MaWudbLV4rqV0ry98cEwDMk5OAWnC2TTelbVpOhdR2qnMbHu35HvdvPkd3ud18OgWXRHJvZsKKTzRxfGyRjo3ta9jgWua4ZDgeYI7loVVsR0nU1LpoxcKZrjnsYZxuDwGWkge9b8pRSa4MuKfJ4rPaKKw22C22+HsaaAYY3OTzyST1JPElabrDY9atSVclwoqh1srZTvS7rN+KV3VxbwIJ6kHj3Lf1CKTTzRhxTWTKNn2C35jj2N0tco6F3aMP2FdbdhGpD7VdaW/9R5/uq91Cn4siHgxKVptgNze8CrvdDHGeDuyie52PDOArmpaZlHSwU0WezhjbE3PPDQAM/BdqKEpuXJOMFHgIiKJIIiIAijKICUUZTKyCUUZTKAlFCICUUZTKAlFCZQEooymUBKKEygJRRlMoCUUZRASijKZQEoijKwD/9k=">
+  <div>
+    <h2>Let's work together</h2>
+    <p class="sub">Tell us a little about you and we'll be in touch.</p>
+  </div>
+</div>
+<div class="ref" id="nwc-ref"></div>
+
+<form id="nwc-form" novalidate>
+  <fieldset>
+    <legend>I'm reaching out as</legend>
+    <div class="seg" role="radiogroup">
+      <label><input type="radio" name="intake_type" value="business" checked><span>A business</span></label>
+      <label><input type="radio" name="intake_type" value="personal"><span>Myself</span></label>
+    </div>
+  </fieldset>
+
+  <fieldset data-for="business">
+    <label class="f" for="nwc-business">Business name</label>
+    <input type="text" id="nwc-business" name="business_name" maxlength="200" autocomplete="organization">
+  </fieldset>
+
+  <fieldset>
+    <label class="f" for="nwc-name" id="nwc-name-label">Your name</label>
+    <input type="text" id="nwc-name" name="full_name" maxlength="120" autocomplete="name" required>
+  </fieldset>
+
+  <div class="row" data-for="business">
+    <fieldset>
+      <label class="f" for="nwc-title">Position <span class="opt">(optional)</span></label>
+      <input type="text" id="nwc-title" name="role_title" maxlength="120" autocomplete="organization-title">
+    </fieldset>
+    <fieldset>
+      <label class="f" for="nwc-dept">Department <span class="opt">(optional)</span></label>
+      <input type="text" id="nwc-dept" name="department" maxlength="120">
+    </fieldset>
+  </div>
+
+  <fieldset data-for="personal" hidden>
+    <label class="f" for="nwc-why">Why are you interested?</label>
+    <textarea id="nwc-why" name="interest_reason" maxlength="2000"></textarea>
+  </fieldset>
+
+  <div class="row">
+    <fieldset>
+      <label class="f" for="nwc-email">Email</label>
+      <input type="email" id="nwc-email" name="email" maxlength="254" autocomplete="email" required>
+    </fieldset>
+    <fieldset>
+      <label class="f" for="nwc-phone">Phone <span class="opt">(optional)</span></label>
+      <input type="tel" id="nwc-phone" name="phone" maxlength="40" autocomplete="tel">
+    </fieldset>
+  </div>
+
+  <fieldset data-for="business">
+    <label class="f" for="nwc-web">Website <span class="opt">(optional)</span></label>
+    <input type="url" id="nwc-web" name="website" maxlength="300" placeholder="example.com" autocomplete="url">
+  </fieldset>
+
+  <fieldset data-for="business">
+    <legend>Is this a cannabis business? <span class="opt">(optional)</span></legend>
+    <div class="yn">
+      <label><input type="radio" name="cannabis" value="yes"> Yes</label>
+      <label><input type="radio" name="cannabis" value="no"> No</label>
+    </div>
+  </fieldset>
+
+  <fieldset data-for="business">
+    <legend>States you operate in <span class="opt">(optional)</span></legend>
+    <div class="states" id="nwc-states"></div>
+  </fieldset>
+
+  <fieldset>
+    <label class="f" for="nwc-li">LinkedIn <span class="opt">(optional)</span></label>
+    <input type="url" id="nwc-li" name="linkedin" maxlength="300" placeholder="linkedin.com/in/...">
+  </fieldset>
+
+  <fieldset>
+    <label class="f" for="nwc-msg">How can we help? <span class="opt">(optional)</span></label>
+    <textarea id="nwc-msg" name="message" maxlength="4000"></textarea>
+  </fieldset>
+
+  <div class="hp" aria-hidden="true">
+    <label>Leave this empty <input type="text" name="hp" tabindex="-1" autocomplete="off"></label>
+  </div>
+
+  <fieldset>
+    <label class="consent"><input type="checkbox" name="consent" required>
+      <span>New Wave Cannabis may contact me about this request by email or phone.</span></label>
+  </fieldset>
+
+  <button type="submit" id="nwc-send">Send</button>
+  <div class="msg" id="nwc-msg-out" role="status" aria-live="polite"></div>
+  <p class="fine" id="nwc-recaptcha-note">This site is protected by reCAPTCHA and the Google
+    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+    <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.</p>
+</form>
+
+<div class="done" id="nwc-done">
+  <h3>Thank you!</h3>
+  <p>We've received your details and someone from New Wave Cannabis will reach out soon.</p>
+</div>
+
+<script>
+(function () {
+  var CONFIG = {
+    FUNCTION_URL: 'https://REPLACE-WITH-THE-FUNCTION-URL/intake',
+    RECAPTCHA_SITE_KEY: 'REPLACE-WITH-THE-RECAPTCHA-V3-SITE-KEY',
+    REFERRERS: { matt: 'Matt', adam: 'Adam' }
+  };
+  var STATES = 'AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY'.split(' ');
+  var root = document.getElementById('nwc-intake');
+  var form = document.getElementById('nwc-form');
+  var out = document.getElementById('nwc-msg-out');
+  var btn = document.getElementById('nwc-send');
+  var shownAt = Date.now();
+
+  // the referral from the QR link
+  var q = new URLSearchParams(window.location.search);
+  var ref = { by: (q.get('by') || '').slice(0, 60), at: (q.get('at') || '').slice(0, 120), on: (q.get('on') || '').slice(0, 20) };
+  if (ref.by) {
+    var who = CONFIG.REFERRERS[ref.by.toLowerCase()] || ref.by;
+    var parts = ['Referred by ' + who];
+    if (ref.at) parts.push(ref.at.replace(/-/g, ' '));
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ref.on)) {
+      var d = new Date(ref.on + 'T12:00:00');
+      if (!isNaN(d)) parts.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }));
+    }
+    var box = document.getElementById('nwc-ref');
+    box.textContent = parts.join(' \u00b7 ');
+    box.style.display = 'block';
+  }
+
+  var grid = document.getElementById('nwc-states');
+  STATES.forEach(function (s) {
+    var l = document.createElement('label');
+    var i = document.createElement('input');
+    i.type = 'checkbox'; i.name = 'states'; i.value = s;
+    l.appendChild(i); l.appendChild(document.createTextNode(s));
+    grid.appendChild(l);
+  });
+
+  function kind() { return form.querySelector('input[name=intake_type]:checked').value; }
+  function sync() {
+    var k = kind();
+    root.querySelectorAll('[data-for]').forEach(function (el) { el.hidden = el.getAttribute('data-for') !== k; });
+    document.getElementById('nwc-name-label').textContent = k === 'business' ? 'Your name (the person we should talk to)' : 'Your name';
+  }
+  form.querySelectorAll('input[name=intake_type]').forEach(function (r) { r.addEventListener('change', sync); });
+  sync();
+
+  if (CONFIG.RECAPTCHA_SITE_KEY.indexOf('REPLACE') === 0) {
+    var note = document.getElementById('nwc-recaptcha-note');
+    if (note) note.style.display = 'none';
+  } else {
+    var s = document.createElement('script');
+    s.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(CONFIG.RECAPTCHA_SITE_KEY);
+    s.async = true;
+    document.head.appendChild(s);
+  }
+
+  function val(name) { var el = form.elements[name]; return el && el.value ? el.value.trim() : ''; }
+  function fail(text) { out.className = 'msg err'; out.textContent = text; btn.disabled = false; }
+
+  function token() {
+    return new Promise(function (resolve, reject) {
+      // no site key set (test phase): no token; the function skips the captcha check when it has no secret
+      if (CONFIG.RECAPTCHA_SITE_KEY.indexOf('REPLACE') === 0) return resolve('');
+      if (!window.grecaptcha) return reject(new Error('reCAPTCHA did not load'));
+      window.grecaptcha.ready(function () {
+        window.grecaptcha.execute(CONFIG.RECAPTCHA_SITE_KEY, { action: 'intake' }).then(resolve, reject);
+      });
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    out.className = 'msg'; out.textContent = '';
+    var k = kind();
+    if (k === 'business' && !val('business_name')) return fail('Please enter the business name.');
+    if (!val('full_name')) return fail('Please enter your name.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val('email'))) return fail('Please enter a valid email address.');
+    if (!form.elements.consent.checked) return fail('Please tick the box so we may contact you.');
+    var cannabis = form.querySelector('input[name=cannabis]:checked');
+    var body = {
+      intake_type: k,
+      business_name: k === 'business' ? val('business_name') : '',
+      full_name: val('full_name'),
+      role_title: k === 'business' ? val('role_title') : '',
+      department: k === 'business' ? val('department') : '',
+      interest_reason: k === 'personal' ? val('interest_reason') : '',
+      email: val('email'),
+      phone: val('phone'),
+      website: k === 'business' ? val('website') : '',
+      states: k === 'business' ? Array.prototype.map.call(form.querySelectorAll('input[name=states]:checked'), function (i) { return i.value; }) : [],
+      cannabis: k === 'business' && cannabis ? cannabis.value === 'yes' : null,
+      linkedin: val('linkedin'),
+      message: val('message'),
+      consent: true,
+      by: ref.by, at: ref.at, on: ref.on,
+      hp: form.elements.hp.value,
+      t: shownAt
+    };
+    btn.disabled = true;
+    out.textContent = 'Sending\u2026';
+    token().then(function (tok) {
+      body.token = tok;
+      return fetch(CONFIG.FUNCTION_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (j) { return { status: res.status, j: j }; });
+    }).then(function (r) {
+      if (r.status === 200 && r.j.ok) {
+        form.style.display = 'none';
+        document.getElementById('nwc-done').style.display = 'block';
+      } else if (r.status === 429) {
+        fail('We have received several submissions from you already. Please try again later.');
+      } else if (r.status === 400) {
+        fail('Please check the form: ' + (r.j.error || 'something is missing') + '.');
+      } else {
+        fail('Something went wrong. Please try again, or email us directly.');
+      }
+    }).catch(function () {
+      fail('Something went wrong. Please try again, or email us directly.');
+    });
+  });
+})();
+</script>
+</div>
+
+</body>
+</html>
